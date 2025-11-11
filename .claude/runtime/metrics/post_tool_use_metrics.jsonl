@@ -386,3 +386,11 @@
 {"timestamp": "2025-11-11T13:34:54.036733", "metric": "tool_usage", "value": "unknown", "hook": "post_tool_use"}
 {"timestamp": "2025-11-11T13:35:13.108341", "metric": "tool_usage", "value": "unknown", "hook": "post_tool_use"}
 {"timestamp": "2025-11-11T13:35:13.108646", "metric": "tool_usage", "value": "unknown", "hook": "post_tool_use"}
+{"timestamp": "2025-11-11T13:35:28.726614", "metric": "tool_usage", "value": "unknown", "hook": "post_tool_use"}
+{"timestamp": "2025-11-11T13:35:28.727634", "metric": "tool_usage", "value": "unknown", "hook": "post_tool_use"}
+{"timestamp": "2025-11-11T13:35:53.108345", "metric": "tool_usage", "value": "unknown", "hook": "post_tool_use"}
+{"timestamp": "2025-11-11T13:35:53.108741", "metric": "tool_usage", "value": "unknown", "hook": "post_tool_use"}
+{"timestamp": "2025-11-11T13:38:34.939022", "metric": "tool_usage", "value": "unknown", "hook": "post_tool_use"}
+{"timestamp": "2025-11-11T13:38:34.939230", "metric": "tool_usage", "value": "unknown", "hook": "post_tool_use"}
+{"timestamp": "2025-11-11T13:38:53.128965", "metric": "tool_usage", "value": "unknown", "hook": "post_tool_use"}
+{"timestamp": "2025-11-11T13:38:53.129122", "metric": "tool_usage", "value": "unknown", "hook": "post_tool_use"}
