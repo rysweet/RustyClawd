@@ -85,20 +85,60 @@ impl crate::Tool for SlashCommandTool {
             let prompt_content = match fs::read_to_string(&command_path).await {
                 Ok(c) => c,
                 Err(_) => {
-                    // Command not found, return simple expansion
-                    format!("Execute command: {}", command)
+                    // Command not found, return error
+                    yield ToolEvent::Error {
+                        message: format!("Command not found: {}", command_name),
+                    };
+                    return;
                 }
             };
 
-            // In a full implementation, would:
-            // 1. Parse command file (markdown with frontmatter)
-            // 2. Substitute arguments into template
-            // 3. Return expanded prompt
+            // Parse markdown frontmatter if present
+            let expanded_prompt = if prompt_content.starts_with("---") {
+                // Find the end of frontmatter
+                if let Some(end_idx) = prompt_content[3..].find("---") {
+                    let frontmatter = &prompt_content[3..3 + end_idx];
+                    let content = prompt_content[3 + end_idx + 3..].trim();
 
-            let expanded_prompt = if let Some(args_str) = args {
-                format!("{}\n\nArguments: {}", prompt_content, args_str)
+                    // Parse frontmatter as YAML (optional - for future use)
+                    if let Ok(meta) = serde_yaml::from_str::<serde_json::Value>(frontmatter) {
+                        if debug {
+                            tracing::debug!(
+                                "Parsed frontmatter: description={:?}",
+                                meta.get("description")
+                            );
+                        }
+                    }
+
+                    // Use content after frontmatter
+                    if let Some(args_str) = &args {
+                        // Simple template substitution: replace {{args}} or {0} style placeholders
+                        let mut result = content.to_string();
+
+                        // Replace {{args}} with full args
+                        result = result.replace("{{args}}", args_str);
+
+                        // Replace {0}, {1}, etc. with individual args
+                        let arg_parts: Vec<&str> = args_str.split_whitespace().collect();
+                        for (i, arg) in arg_parts.iter().enumerate() {
+                            result = result.replace(&format!("{{{}}}", i), arg);
+                        }
+
+                        result
+                    } else {
+                        content.to_string()
+                    }
+                } else {
+                    // Malformed frontmatter, use as-is
+                    prompt_content
+                }
             } else {
-                prompt_content
+                // No frontmatter, use content directly
+                if let Some(args_str) = &args {
+                    format!("{}\n\nArguments: {}", prompt_content, args_str)
+                } else {
+                    prompt_content
+                }
             };
 
             if debug {
@@ -131,16 +171,25 @@ mod tests {
     use super::*;
     use crate::Tool;
     use futures::StreamExt;
+    use std::path::PathBuf;
 
     #[tokio::test]
     async fn test_slash_command_parsing() {
+        // Create temporary command file for testing
+        let cmd_dir = PathBuf::from(".claude/commands");
+        let _ = fs::create_dir_all(&cmd_dir).await;
+
+        let cmd_path = cmd_dir.join("review-pr.md");
+        let test_content = "---\ndescription: Review a pull request\n---\n\nReview PR #{0} for code quality and correctness.\n";
+        let _ = fs::write(&cmd_path, test_content).await;
+
         let tool = SlashCommandTool;
         let params = SlashCommandParams {
             command: "/review-pr 123".to_string(),
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events.iter().find_map(|e| match e {
@@ -150,5 +199,9 @@ mod tests {
 
         assert_eq!(result.command_name, "review-pr");
         assert!(!result.expanded_prompt.is_empty());
+        assert!(result.expanded_prompt.contains("123") || result.expanded_prompt.contains("PR"));
+
+        // Clean up
+        let _ = fs::remove_file(&cmd_path).await;
     }
 }

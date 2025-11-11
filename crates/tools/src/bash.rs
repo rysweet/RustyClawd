@@ -8,6 +8,7 @@
 //! - Error propagation
 
 use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
+use crate::process_registry::{global_registry, ProcessRegistry};
 use async_stream::stream;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -28,6 +29,10 @@ pub struct BashParams {
     /// Optional description of what the command does
     #[serde(default)]
     pub description: Option<String>,
+
+    /// Run the command in the background
+    #[serde(default)]
+    pub run_in_background: bool,
 }
 
 fn default_timeout() -> u64 {
@@ -38,16 +43,23 @@ fn default_timeout() -> u64 {
 #[derive(Debug, Serialize)]
 pub struct BashOutput {
     /// Stdout from the command
-    pub stdout: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stdout: Option<String>,
 
     /// Stderr from the command
-    pub stderr: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stderr: Option<String>,
 
     /// Exit code
-    pub exit_code: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<i32>,
 
     /// Whether the command succeeded (exit code 0)
     pub success: bool,
+
+    /// Shell ID (for background processes)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shell_id: Option<String>,
 }
 
 /// The Bash tool
@@ -74,6 +86,7 @@ impl crate::Tool for BashTool {
         let timeout_duration = Duration::from_millis(params.timeout);
         let cwd = ctx.cwd.clone();
         let debug = ctx.debug;
+        let run_in_background = params.run_in_background;
 
         Ok(Box::pin(stream! {
             // Progress: Starting execution
@@ -87,6 +100,7 @@ impl crate::Tool for BashTool {
                     command = %command,
                     timeout_ms = params.timeout,
                     cwd = ?cwd,
+                    run_in_background = run_in_background,
                     "Executing bash command"
                 );
             }
@@ -95,7 +109,7 @@ impl crate::Tool for BashTool {
             let mut child = match Command::new("bash")
                 .arg("-c")
                 .arg(&command)
-                .current_dir(cwd)
+                .current_dir(&cwd)
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
                 .spawn()
@@ -108,6 +122,40 @@ impl crate::Tool for BashTool {
                     return;
                 }
             };
+
+            // Handle background vs foreground execution
+            if run_in_background {
+                // Background mode: register and return immediately
+                let registry = global_registry();
+                let shell_id = ProcessRegistry::generate_id();
+
+                // Register the process (we need to move child into registry)
+                if let Err(e) = registry.register(shell_id.clone(), child).await {
+                    yield ToolEvent::Error {
+                        message: format!("Failed to register background process: {}", e),
+                    };
+                    return;
+                }
+
+                // Background process registered - output will be captured by
+                // BashOutput tool when requested
+
+                if debug {
+                    tracing::debug!(
+                        shell_id = %shell_id,
+                        "Background process registered"
+                    );
+                }
+
+                yield ToolEvent::Result(BashOutput {
+                    stdout: None,
+                    stderr: None,
+                    exit_code: None,
+                    success: true,
+                    shell_id: Some(shell_id),
+                });
+                return;
+            }
 
             // Get stdout and stderr
             let stdout = child.stdout.take().expect("stdout not captured");
@@ -140,10 +188,11 @@ impl crate::Tool for BashTool {
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))??;
 
                 Ok::<_, std::io::Error>(BashOutput {
-                    stdout: stdout_output,
-                    stderr: stderr_output,
-                    exit_code: status.code().unwrap_or(-1),
+                    stdout: Some(stdout_output),
+                    stderr: Some(stderr_output),
+                    exit_code: Some(status.code().unwrap_or(-1)),
                     success: status.success(),
+                    shell_id: None,
                 })
             }).await;
 
@@ -166,10 +215,10 @@ impl crate::Tool for BashTool {
 
             if debug {
                 tracing::debug!(
-                    exit_code = output.exit_code,
+                    exit_code = ?output.exit_code,
                     success = output.success,
-                    stdout_len = output.stdout.len(),
-                    stderr_len = output.stderr.len(),
+                    stdout_len = output.stdout.as_ref().map(|s| s.len()),
+                    stderr_len = output.stderr.as_ref().map(|s| s.len()),
                     "Command completed"
                 );
             }
@@ -201,6 +250,7 @@ mod tests {
             command: "echo 'Hello from Rust'".to_string(),
             timeout: 5000,
             description: None,
+            run_in_background: false,
         };
         let ctx = ToolContext::default();
 
@@ -215,8 +265,8 @@ mod tests {
         // Last event should be Result
         if let ToolEvent::Result(output) = &events[events.len() - 1] {
             assert!(output.success);
-            assert_eq!(output.exit_code, 0);
-            assert!(output.stdout.contains("Hello from Rust"));
+            assert_eq!(output.exit_code, Some(0));
+            assert!(output.stdout.as_ref().unwrap().contains("Hello from Rust"));
         } else {
             panic!("Expected ToolEvent::Result");
         }
@@ -229,6 +279,7 @@ mod tests {
             command: "echo 'error' >&2".to_string(),
             timeout: 5000,
             description: None,
+            run_in_background: false,
         };
         let ctx = ToolContext::default();
 
@@ -237,7 +288,7 @@ mod tests {
 
         if let ToolEvent::Result(output) = &events[events.len() - 1] {
             assert!(output.success);
-            assert!(output.stderr.contains("error"));
+            assert!(output.stderr.as_ref().unwrap().contains("error"));
         }
     }
 
@@ -248,6 +299,7 @@ mod tests {
             command: "exit 42".to_string(),
             timeout: 5000,
             description: None,
+            run_in_background: false,
         };
         let ctx = ToolContext::default();
 
@@ -256,7 +308,7 @@ mod tests {
 
         if let ToolEvent::Result(output) = &events[events.len() - 1] {
             assert!(!output.success);
-            assert_eq!(output.exit_code, 42);
+            assert_eq!(output.exit_code, Some(42));
         }
     }
 }

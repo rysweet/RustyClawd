@@ -6,6 +6,7 @@
 //! - Resource cleanup
 
 use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
+use crate::process_registry::global_registry;
 use async_stream::stream;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -59,16 +60,24 @@ impl crate::Tool for KillShellTool {
                 percentage: None,
             };
 
-            // In a full implementation, this would:
-            // 1. Look up the process by shell_id
-            // 2. Send SIGTERM signal
-            // 3. Wait for graceful shutdown
-            // 4. Send SIGKILL if necessary
-            // 5. Clean up resources
+            // Get the global process registry
+            let registry = global_registry();
 
-            // Simplified implementation
-            let success = true;
-            let message = format!("Shell {} terminated successfully", shell_id);
+            // Attempt to kill the process
+            let (success, message) = match registry.kill(&shell_id).await {
+                Ok(true) => (
+                    true,
+                    format!("Shell {} terminated successfully", shell_id)
+                ),
+                Ok(false) => (
+                    false,
+                    format!("Shell {} not found", shell_id)
+                ),
+                Err(e) => (
+                    false,
+                    format!("Failed to terminate shell {}: {}", shell_id, e)
+                ),
+            };
 
             if debug {
                 tracing::debug!(
@@ -103,13 +112,30 @@ mod tests {
 
     #[tokio::test]
     async fn test_kill_shell() {
+        // Register a test process first
+        let registry = global_registry();
+
+        // Spawn a long-running process that we can kill
+        let child = tokio::process::Command::new("sleep")
+            .arg("60")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect("Failed to spawn test process");
+
+        let test_shell_id = "test_shell_123".to_string();
+        registry.register(test_shell_id.clone(), child).await.ok();
+
+        // Verify the process was registered
+        assert!(registry.exists(&test_shell_id).await);
+
         let tool = KillShellTool;
         let params = KillShellParams {
-            shell_id: "test_shell_123".to_string(),
+            shell_id: test_shell_id.clone(),
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events.iter().find_map(|e| match e {
@@ -119,5 +145,9 @@ mod tests {
 
         assert_eq!(result.shell_id, "test_shell_123");
         assert!(result.success);
+        assert!(result.message.contains("terminated"));
+
+        // Verify the process is no longer in registry
+        assert!(!registry.exists(&test_shell_id).await);
     }
 }

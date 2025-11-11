@@ -22,3 +22,15 @@
 *.tmp
 *.temp
 *.edit_tmp
+
+# SECURITY: API Keys and Secrets (CRITICAL!)
+*.key
+*.secret
+.claude-*
+.anthropic-*
+.env
+.env.local
+.env.*.local
+**/secrets/
+credentials.json
+api_keys.txt

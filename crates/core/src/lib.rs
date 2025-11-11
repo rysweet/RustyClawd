@@ -4,7 +4,9 @@
 //! - Messages (User, Assistant, System, ToolResult)
 //! - Context (conversation state)
 //! - Error types
+//! - Anthropic API client with streaming support
 
+pub mod client;
 pub mod context;
 pub mod error;
 pub mod message;

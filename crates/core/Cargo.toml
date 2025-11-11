@@ -12,3 +12,28 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
+
+# HTTP client with streaming support
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Async runtime and utilities
+tokio = { version = "1.0", features = ["fs", "io-util"] }
+futures = "0.3"
+bytes = "1.0"
+
+# Async traits
+async-trait = "0.1"
+
+# Security for API keys
+zeroize = { version = "1.7", features = ["derive"] }
+secrecy = "0.8"
+
+# Pattern matching for error sanitization
+regex = "1.10"
+
+# For SSE stream parsing
+pin-project = "1.1"
+
+[dev-dependencies]
+tracing-subscriber = { workspace = true }
+tokio = { workspace = true }

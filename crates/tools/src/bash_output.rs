@@ -7,6 +7,7 @@
 //! - Shell state tracking
 
 use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
+use crate::process_registry::global_registry;
 use async_stream::stream;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -68,45 +69,59 @@ impl crate::Tool for BashOutputTool {
                 percentage: None,
             };
 
-            // In a full implementation, this would:
-            // 1. Look up the background shell process by ID
-            // 2. Read buffered output from it
-            // 3. Apply regex filter if provided
-            // 4. Return status and output
+            // Get the global process registry
+            let registry = global_registry();
 
-            // Simplified implementation: Simulates background shell
-            let stdout = format!("Output from shell {}\n", bash_id);
-            let stderr = String::new();
-            let status = "running".to_string();
+            // Check if the process exists
+            if !registry.exists(&bash_id).await {
+                yield ToolEvent::Error {
+                    message: format!("Shell not found: {}", bash_id),
+                };
+                return;
+            }
 
-            // Apply filter if provided
-            let filtered_stdout = if let Some(pattern) = &filter {
-                if let Ok(re) = regex::Regex::new(pattern) {
-                    stdout.lines()
-                        .filter(|line| re.is_match(line))
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                } else {
-                    if debug {
-                        tracing::warn!("Invalid regex pattern: {}", pattern);
+            // Parse filter regex if provided
+            let filter_regex = if let Some(pattern) = &filter {
+                match regex::Regex::new(pattern) {
+                    Ok(re) => Some(re),
+                    Err(e) => {
+                        if debug {
+                            tracing::warn!("Invalid regex pattern: {} - {}", pattern, e);
+                        }
+                        yield ToolEvent::Error {
+                            message: format!("Invalid regex pattern: {}", e),
+                        };
+                        return;
                     }
-                    stdout
                 }
             } else {
-                stdout
+                None
+            };
+
+            // Get output from the registry
+            let (stdout, stderr, status) = match registry.get_output(&bash_id, filter_regex.as_ref()).await {
+                Ok(output) => output,
+                Err(e) => {
+                    yield ToolEvent::Error {
+                        message: format!("Failed to get output: {}", e),
+                    };
+                    return;
+                }
             };
 
             if debug {
                 tracing::debug!(
                     bash_id = %bash_id,
                     filter = ?filter,
-                    output_len = filtered_stdout.len(),
+                    stdout_len = stdout.len(),
+                    stderr_len = stderr.len(),
+                    status = %status,
                     "Retrieved shell output"
                 );
             }
 
             yield ToolEvent::Result(BashOutputOutput {
-                stdout: filtered_stdout,
+                stdout,
                 stderr,
                 status,
                 bash_id: params.bash_id.clone(),
@@ -131,14 +146,32 @@ mod tests {
 
     #[tokio::test]
     async fn test_bash_output_basic() {
+        // Register a test process first with some test output
+        let registry = global_registry();
+
+        // Create a mock process handle by spawning a simple command that exits immediately
+        let child = tokio::process::Command::new("echo")
+            .arg("test output")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect("Failed to spawn test process");
+
+        let test_shell_id = "test_shell_1".to_string();
+        registry.register(test_shell_id.clone(), child).await.ok();
+
+        // Add some test output to the registry
+        registry.append_output(&test_shell_id, "Line 1".to_string(), false).await.ok();
+        registry.append_output(&test_shell_id, "Line 2".to_string(), false).await.ok();
+
         let tool = BashOutputTool;
         let params = BashOutputParams {
-            bash_id: "test_shell_1".to_string(),
+            bash_id: test_shell_id.clone(),
             filter: None,
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events.iter().find_map(|e| match e {
@@ -148,5 +181,7 @@ mod tests {
 
         assert_eq!(result.bash_id, "test_shell_1");
         assert_eq!(result.status, "running");
+        assert!(result.stdout.contains("Line 1"));
+        assert!(result.stdout.contains("Line 2"));
     }
 }

@@ -145,39 +145,82 @@ impl crate::Tool for NotebookEditTool {
                 }
             };
 
+            // Find cell index by ID or use first cell
+            let cell_index = if let Some(ref target_id) = cell_id {
+                // Find cell by ID
+                cells.iter().position(|cell| {
+                    cell.get("id")
+                        .and_then(|id| id.as_str())
+                        .map(|id| id == target_id)
+                        .unwrap_or(false)
+                })
+            } else {
+                // No ID specified, use first cell
+                if !cells.is_empty() { Some(0) } else { None }
+            };
+
             // Perform edit based on mode
             let affected_cell_id = match edit_mode {
                 EditMode::Replace => {
-                    // Replace first cell (simplified - should use cell_id)
-                    if let Some(cell) = cells.first_mut() {
-                        if let Some(source) = cell.get_mut("source") {
-                            *source = Value::String(new_source);
-                            Some("0".to_string())
+                    // Replace specified cell
+                    if let Some(idx) = cell_index {
+                        if let Some(cell) = cells.get_mut(idx) {
+                            // Update the source
+                            if let Some(source) = cell.get_mut("source") {
+                                *source = Value::String(new_source.clone());
+                            } else {
+                                cell.as_object_mut().unwrap().insert("source".to_string(), Value::String(new_source.clone()));
+                            }
+
+                            // Get the cell ID for output
+                            cell.get("id")
+                                .and_then(|id| id.as_str())
+                                .map(|s| s.to_string())
+                                .or_else(|| Some(idx.to_string()))
                         } else {
                             None
                         }
                     } else {
-                        None
+                        yield ToolEvent::Error {
+                            message: "Cell not found for replacement".to_string(),
+                        };
+                        return;
                     }
                 }
                 EditMode::Insert => {
-                    // Insert new cell at beginning
+                    // Insert new cell after specified cell, or at beginning
+                    let insert_idx = cell_index.map(|i| i + 1).unwrap_or(0);
+
                     let new_cell = serde_json::json!({
                         "cell_type": params.cell_type.unwrap_or(CellType::Code),
                         "source": new_source,
                         "metadata": {},
                         "outputs": [],
                     });
-                    cells.insert(0, new_cell);
-                    Some("new".to_string())
+
+                    cells.insert(insert_idx, new_cell);
+                    Some(format!("inserted_at_{}", insert_idx))
                 }
                 EditMode::Delete => {
-                    // Delete first cell
-                    if !cells.is_empty() {
-                        cells.remove(0);
-                        Some("deleted".to_string())
+                    // Delete specified cell
+                    if let Some(idx) = cell_index {
+                        if idx < cells.len() {
+                            let removed = cells.remove(idx);
+                            removed.get("id")
+                                .and_then(|id| id.as_str())
+                                .map(|s| s.to_string())
+                                .or_else(|| Some(format!("deleted_{}", idx)))
+                        } else {
+                            yield ToolEvent::Error {
+                                message: "Cell index out of bounds".to_string(),
+                            };
+                            return;
+                        }
                     } else {
-                        None
+                        yield ToolEvent::Error {
+                            message: "No cell specified for deletion".to_string(),
+                        };
+                        return;
                     }
                 }
             };

@@ -158,6 +158,7 @@ async fn main() -> Result<()> {
                     command,
                     timeout,
                     description,
+                    run_in_background: false,
                 },
                 &ctx,
             )

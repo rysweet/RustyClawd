@@ -135,25 +135,17 @@ impl crate::Tool for WebFetchTool {
                 percentage: Some(80.0),
             };
 
-            // Simple HTML to markdown conversion (basic implementation)
-            // In production, would use html2md crate
-            let content = body
-                .replace("<p>", "\n\n")
-                .replace("</p>", "")
-                .replace("<br>", "\n")
-                .replace("<br/>", "\n")
-                .replace("<strong>", "**")
-                .replace("</strong>", "**")
-                .replace("<em>", "*")
-                .replace("</em>", "*")
-                .replace("<code>", "`")
-                .replace("</code>", "`");
-
-            // Strip remaining HTML tags (basic)
-            let content = regex::Regex::new(r"<[^>]+>")
-                .unwrap()
-                .replace_all(&content, "")
-                .to_string();
+            // Convert HTML to Markdown using html2md
+            let content = if content_type.as_ref()
+                .map(|ct| ct.contains("text/html") || ct.contains("html"))
+                .unwrap_or(false)
+            {
+                // Use html2md for proper HTML to markdown conversion
+                html2md::parse_html(&body)
+            } else {
+                // Not HTML, use as-is
+                body
+            };
 
             if debug {
                 tracing::debug!(
