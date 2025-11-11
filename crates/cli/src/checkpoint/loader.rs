@@ -161,7 +161,12 @@ mod tests {
     use crate::checkpoint::types::SessionState;
 
     fn temp_storage() -> CheckpointStorage {
-        let temp_dir = std::env::temp_dir().join(format!("checkpoint-test-{}", std::process::id()));
+        // Use a unique name combining process ID and a random component to avoid conflicts
+        let unique_id = format!("checkpoint-test-{}-{}", std::process::id(), std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos());
+        let temp_dir = std::env::temp_dir().join(unique_id);
         CheckpointStorage::new(temp_dir)
     }
 
@@ -181,19 +186,23 @@ mod tests {
         let storage = temp_storage();
         let saver = SessionSaver::new(storage.clone());
         let loader = SessionLoader::new(storage);
+        let session_id = format!("session-{}", std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos());
 
         // Save a checkpoint first
         let state = SessionState::new("/project");
         let checkpoint = Checkpoint::new("cp-001", 1, 1000, state);
-        saver.save_checkpoint("session-001", &checkpoint).unwrap();
+        saver.save_checkpoint(&session_id, &checkpoint).unwrap();
 
         // Load it back
-        let loaded = loader.load_checkpoint("session-001", "cp-001");
+        let loaded = loader.load_checkpoint(&session_id, "cp-001");
         assert!(loaded.is_ok());
         assert_eq!(loaded.unwrap().id, "cp-001");
 
         // Cleanup
-        let _ = std::fs::remove_dir_all(loader.storage().session_dir("session-001"));
+        let _ = std::fs::remove_dir_all(loader.storage().session_dir(&session_id));
     }
 
     #[test]
@@ -201,32 +210,40 @@ mod tests {
         let storage = temp_storage();
         let saver = SessionSaver::new(storage.clone());
         let loader = SessionLoader::new(storage);
+        let session_id = format!("session-{}", std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos());
 
         // Create and save a session
-        let mut session = Session::new("session-001", 10);
+        let mut session = Session::new(&session_id, 10);
         session.create_checkpoint(Some("First".to_string()));
         session.create_checkpoint(Some("Second".to_string()));
         saver.save_session(&session).unwrap();
 
         // Load it back
-        let loaded_session = loader.load_session("session-001", 10);
+        let loaded_session = loader.load_session(&session_id, 10);
         assert!(loaded_session.is_ok());
 
         let loaded = loaded_session.unwrap();
-        assert_eq!(loaded.id, "session-001");
+        assert_eq!(loaded.id, session_id);
         assert_eq!(loaded.history.len(), 2);
 
         // Cleanup
-        let _ = std::fs::remove_dir_all(loader.storage().session_dir("session-001"));
+        let _ = std::fs::remove_dir_all(loader.storage().session_dir(&session_id));
     }
 
     #[test]
     fn test_can_load_checkpoint() {
         let storage = temp_storage();
         let loader = SessionLoader::new(storage);
+        let session_id = format!("session-{}", std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos());
 
         // Non-existent checkpoint should return false
-        assert!(!loader.can_load_checkpoint("session-001", "cp-nonexistent"));
+        assert!(!loader.can_load_checkpoint(&session_id, "cp-nonexistent"));
     }
 
     #[test]
@@ -234,22 +251,26 @@ mod tests {
         let storage = temp_storage();
         let saver = SessionSaver::new(storage.clone());
         let loader = SessionLoader::new(storage);
+        let session_id = format!("session-{}", std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos());
 
         // Create and save checkpoints
         let state = SessionState::new("/project");
         let cp1 = Checkpoint::new("cp-001", 1, 1000, state.clone());
         let cp2 = Checkpoint::new("cp-002", 2, 2000, state);
 
-        saver.save_checkpoint("session-001", &cp1).unwrap();
-        saver.save_checkpoint("session-001", &cp2).unwrap();
+        saver.save_checkpoint(&session_id, &cp1).unwrap();
+        saver.save_checkpoint(&session_id, &cp2).unwrap();
 
         // List checkpoints
-        let checkpoint_ids = loader.list_checkpoints("session-001").unwrap();
+        let checkpoint_ids = loader.list_checkpoints(&session_id).unwrap();
         assert_eq!(checkpoint_ids.len(), 2);
         assert!(checkpoint_ids.contains(&"cp-001".to_string()));
         assert!(checkpoint_ids.contains(&"cp-002".to_string()));
 
         // Cleanup
-        let _ = std::fs::remove_dir_all(loader.storage().session_dir("session-001"));
+        let _ = std::fs::remove_dir_all(loader.storage().session_dir(&session_id));
     }
 }

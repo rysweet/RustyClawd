@@ -109,7 +109,12 @@ mod tests {
     use std::path::PathBuf;
 
     fn temp_storage() -> CheckpointStorage {
-        let temp_dir = std::env::temp_dir().join(format!("checkpoint-test-{}", std::process::id()));
+        // Use a unique name combining process ID and a random component to avoid conflicts
+        let unique_id = format!("checkpoint-test-{}-{}", std::process::id(), std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos());
+        let temp_dir = std::env::temp_dir().join(unique_id);
         CheckpointStorage::new(temp_dir)
     }
 
@@ -124,22 +129,30 @@ mod tests {
     fn test_save_checkpoint() {
         let storage = temp_storage();
         let saver = SessionSaver::new(storage);
+        let session_id = format!("session-{}", std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos());
 
         let state = SessionState::new("/project");
         let checkpoint = Checkpoint::new("cp-001", 1, 1000, state);
 
-        let result = saver.save_checkpoint("session-001", &checkpoint);
+        let result = saver.save_checkpoint(&session_id, &checkpoint);
         assert!(result.is_ok());
 
         // Cleanup
-        let _ = std::fs::remove_dir_all(saver.storage().session_dir("session-001"));
+        let _ = std::fs::remove_dir_all(saver.storage().session_dir(&session_id));
     }
 
     #[test]
     fn test_save_session() {
         let storage = temp_storage();
         let saver = SessionSaver::new(storage);
-        let mut session = Session::new("session-001", 10);
+        let session_id = format!("session-{}", std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos());
+        let mut session = Session::new(&session_id, 10);
 
         session.create_checkpoint(Some("First checkpoint".to_string()));
         session.create_checkpoint(Some("Second checkpoint".to_string()));
@@ -148,10 +161,10 @@ mod tests {
         assert!(result.is_ok());
 
         // Verify checkpoints were saved
-        let checkpoint_ids = saver.storage().list_checkpoints("session-001").unwrap();
+        let checkpoint_ids = saver.storage().list_checkpoints(&session_id).unwrap();
         assert_eq!(checkpoint_ids.len(), 2);
 
         // Cleanup
-        let _ = std::fs::remove_dir_all(saver.storage().session_dir("session-001"));
+        let _ = std::fs::remove_dir_all(saver.storage().session_dir(&session_id));
     }
 }

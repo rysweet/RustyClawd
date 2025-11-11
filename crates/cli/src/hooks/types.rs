@@ -1,6 +1,6 @@
 //! Hook type definitions and data structures
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 
 /// Hook type - command (bash) or prompt (LLM)
@@ -58,13 +58,44 @@ impl HookEvent {
 }
 
 /// Hook matcher for filtering tools/events
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HookMatcher {
     /// Match exact string
     Exact(String),
     /// Match regex pattern
     Regex(String),
+}
+
+impl Serialize for HookMatcher {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            HookMatcher::Exact(s) | HookMatcher::Regex(s) => s.serialize(serializer),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for HookMatcher {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+
+        // Determine if it's a regex pattern or exact match
+        if s == "*" {
+            // "*" is an exact match that matches everything
+            Ok(HookMatcher::Exact(s))
+        } else if s.contains('|') || s.contains(".*") || s.contains(".") {
+            // Contains regex special characters: pipe (alternation), .* (wildcard), dots
+            Ok(HookMatcher::Regex(s))
+        } else {
+            // Simple string - exact match
+            Ok(HookMatcher::Exact(s))
+        }
+    }
 }
 
 impl HookMatcher {
