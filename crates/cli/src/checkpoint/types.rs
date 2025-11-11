@@ -378,6 +378,8 @@ pub struct Session {
     pub history: CheckpointHistory,
     /// Current session state
     pub current_state: SessionState,
+    /// Active conversation context (messages in current session)
+    pub context: Vec<CheckpointMessage>,
 }
 
 impl Session {
@@ -388,6 +390,7 @@ impl Session {
             id: id.clone(),
             current_checkpoint_number: 0,
             history: CheckpointHistory::new(id, max_checkpoints),
+            context: Vec::new(),
         }
     }
 
@@ -402,6 +405,9 @@ impl Session {
             now_ms,
             self.current_state.clone(),
         );
+
+        // Capture current conversation context
+        checkpoint.messages = self.context.clone();
 
         if let Some(desc) = description {
             checkpoint = checkpoint.with_description(desc);
@@ -426,43 +432,54 @@ impl Session {
 
         match scope {
             RestoreScope::ConversationOnly => {
-                // Conversation-only restoration is not yet implemented
-                // The Session type doesn't maintain conversation state or provide
-                // a way to restore messages to an LLM context. To implement this:
-                // 1. Session needs a field to store active conversation messages
-                // 2. Integration with LLM client to replay conversation history
-                // 3. Clear current context and replay checkpoint.messages
-                return Err(format!(
-                    "ConversationOnly restoration not yet implemented - \
-                     Session type lacks conversation state management. \
-                     Checkpoint {} has {} messages that cannot be restored.",
-                    checkpoint_id,
-                    checkpoint.messages.len()
-                ));
+                // Restore conversation messages to session context
+                self.context = checkpoint.messages.clone();
             }
             RestoreScope::CodeOnly => {
-                // Code-only restoration is not yet implemented
-                // The Session type doesn't perform file I/O operations or provide
-                // a way to restore files to disk. To implement this:
-                // 1. Session needs file system access or a file manager reference
-                // 2. Write each checkpoint.file_changes entry to disk
-                // 3. Verify file hashes after writing
-                return Err(format!(
-                    "CodeOnly restoration not yet implemented - \
-                     Session type lacks file system integration. \
-                     Checkpoint {} has {} file changes that cannot be restored.",
-                    checkpoint_id,
-                    checkpoint.file_changes.len()
-                ));
+                // Restore file changes to disk
+                for file_change in &checkpoint.file_changes {
+                    // Verify integrity before writing
+                    if !file_change.verify_integrity() {
+                        return Err(format!(
+                            "File change integrity check failed for: {}",
+                            file_change.path
+                        ));
+                    }
+
+                    // Write file to disk
+                    if let Err(e) = std::fs::write(&file_change.path, &file_change.content) {
+                        return Err(format!(
+                            "Failed to restore file {}: {}",
+                            file_change.path, e
+                        ));
+                    }
+                }
             }
             RestoreScope::Both => {
-                // Restore session state (working directory, environment, contexts)
-                // This is fully implemented since SessionState is part of Session
+                // Restore session state
                 self.current_state = checkpoint.session_state.clone();
 
-                // Note: Messages and file changes in the checkpoint are not restored
-                // because Session doesn't have conversation or file system integration.
-                // Only session state (cwd, env, contexts) is restored.
+                // Restore conversation context
+                self.context = checkpoint.messages.clone();
+
+                // Restore file changes
+                for file_change in &checkpoint.file_changes {
+                    // Verify integrity before writing
+                    if !file_change.verify_integrity() {
+                        return Err(format!(
+                            "File change integrity check failed for: {}",
+                            file_change.path
+                        ));
+                    }
+
+                    // Write file to disk
+                    if let Err(e) = std::fs::write(&file_change.path, &file_change.content) {
+                        return Err(format!(
+                            "Failed to restore file {}: {}",
+                            file_change.path, e
+                        ));
+                    }
+                }
             }
         }
 

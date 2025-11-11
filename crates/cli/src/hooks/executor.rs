@@ -2,6 +2,7 @@
 
 use crate::hooks::types::{Hook, HookContext, HookResult, HookType};
 use anyhow::{Context, Result};
+use claude_code_core::client::{Client as AnthropicClient, Config, CreateMessageRequest, Message};
 use std::collections::HashSet;
 use std::process::Stdio;
 use std::time::Duration;
@@ -166,23 +167,125 @@ impl HookExecutor {
     /// Execute a prompt (LLM) hook
     async fn execute_prompt_hook(
         hook: &Hook,
-        _context: &HookContext,
+        context: &HookContext,
     ) -> Result<HookResult> {
-        // Prompt hooks are not yet implemented - requires LLM integration
-        // To implement this:
-        // 1. Add AnthropicClient to HookExecutor dependencies
-        // 2. Pass hook prompt to LLM with context information
-        // 3. Parse LLM response for {"continue": true/false} or similar
-        // 4. Return result with LLM decision
-        //
-        // Current behavior: Return error indicating feature not implemented
-        let hook_desc = hook.command.as_deref().unwrap_or("unnamed prompt hook");
-        Err(anyhow::anyhow!(
-            "Prompt (LLM) hooks not yet implemented. \
-             Hook '{}' requires LLM integration to execute. \
-             To implement: integrate AnthropicClient and send hook prompt to LLM.",
-            hook_desc
-        ))
+        // Load API configuration and create client
+        let config = Config::from_default_location()
+            .await
+            .context("Failed to load API configuration")?;
+        let client = AnthropicClient::new(config);
+
+        // Build the prompt with context information
+        let prompt = Self::build_hook_prompt(context);
+
+        // Create the LLM request
+        // Use claude-3-haiku-20240307 which is a fast, available model for hooks
+        let request = CreateMessageRequest::new(
+            "claude-3-haiku-20240307",
+            vec![Message::user(prompt)],
+            1024,
+        )
+        .with_temperature(0.0); // Use deterministic responses for hooks
+
+        // Execute with timeout
+        let timeout_duration = Duration::from_millis(hook.effective_timeout() as u64);
+
+        match timeout(timeout_duration, client.create_message(request)).await {
+            Ok(Ok(response)) => {
+                // Extract text from response
+                let text = response
+                    .content
+                    .iter()
+                    .filter_map(|block| match block {
+                        claude_code_core::client::ContentBlock::Text { text } => Some(text.as_str()),
+                    })
+                    .collect::<Vec<_>>()
+                    .join("");
+
+                // Try to parse as JSON decision
+                let exit_code = match serde_json::from_str::<serde_json::Value>(&text) {
+                    Ok(json) => {
+                        // Check for "continue" field
+                        if let Some(continue_val) = json.get("continue") {
+                            if continue_val.as_bool() == Some(true) {
+                                0 // Success - continue
+                            } else {
+                                2 // Blocking - do not continue
+                            }
+                        } else if let Some(decision) = json.get("decision") {
+                            // Check for "decision" field with "approve"/"block"
+                            if decision.as_str() == Some("approve") {
+                                0
+                            } else {
+                                2
+                            }
+                        } else if let Some(permission) = json.get("permissionDecision") {
+                            // Check for "permissionDecision" field
+                            if permission.as_str() == Some("allow") {
+                                0
+                            } else {
+                                2
+                            }
+                        } else {
+                            // No recognized decision field - default to success
+                            0
+                        }
+                    }
+                    Err(_) => {
+                        // Not valid JSON - return as-is with success code
+                        0
+                    }
+                };
+
+                Ok(HookResult {
+                    exit_code,
+                    stdout: text,
+                    stderr: String::new(),
+                })
+            }
+            Ok(Err(e)) => Ok(HookResult {
+                exit_code: 1,
+                stdout: String::new(),
+                stderr: format!("LLM request failed: {}", e),
+            }),
+            Err(_) => Ok(HookResult {
+                exit_code: 1,
+                stdout: String::new(),
+                stderr: format!("Hook timed out after {}ms", hook.effective_timeout()),
+            }),
+        }
+    }
+
+    /// Build a prompt for the LLM hook with context information
+    fn build_hook_prompt(context: &HookContext) -> String {
+        let context_json = serde_json::to_string_pretty(context)
+            .unwrap_or_else(|_| "{}".to_string());
+
+        format!(
+            r#"You are a hook execution assistant for Claude Code CLI.
+
+Event: {}
+Tool: {}
+
+Context:
+{}
+
+Please analyze this event and respond with a JSON decision in one of these formats:
+
+For Stop/SubagentStop events:
+{{"decision": "approve"}} or {{"decision": "block"}}
+
+For PreToolUse events:
+{{"permissionDecision": "allow"}} or {{"permissionDecision": "deny"}} or {{"permissionDecision": "ask"}}
+
+For other events:
+{{"continue": true}} or {{"continue": false}}
+
+Respond ONLY with the JSON decision, no other text."#,
+            context.hook_event_name,
+            context.tool_name.as_deref().unwrap_or("N/A"),
+            context_json
+        )
     }
 }
 
@@ -298,6 +401,14 @@ mod tests {
         let result = executor.execute_hooks(&[hook], &context).await.unwrap();
 
         assert_eq!(result.len(), 1);
+
+        // Print debug info if test fails
+        if !result[0].is_success() {
+            eprintln!("Exit code: {}", result[0].exit_code);
+            eprintln!("Stdout: {}", result[0].stdout);
+            eprintln!("Stderr: {}", result[0].stderr);
+        }
+
         assert!(result[0].is_success());
     }
 }

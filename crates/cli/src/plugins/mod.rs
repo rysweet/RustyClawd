@@ -185,6 +185,17 @@ mod tests {
 
     #[test]
     fn test_skill_execution() {
+        let test_dir = create_test_plugin_dir("skill_execution");
+        let plugin_dir = test_dir.join("test-skill-plugin");
+        fs::create_dir(&plugin_dir).unwrap();
+
+        // Create skill file
+        fs::write(
+            plugin_dir.join("skill.md"),
+            "# Test Skill\n\nThis is a test skill for skill-1",
+        )
+        .unwrap();
+
         let manifest = PluginManifest {
             id: "com.test.skill".to_string(),
             name: "Skill Test".to_string(),
@@ -207,7 +218,7 @@ mod tests {
 
         let metadata = PluginMetadata {
             id: "com.test.skill".to_string(),
-            path: std::env::temp_dir().join("test-plugin"),
+            path: plugin_dir,
             manifest,
             enabled: true,
             load_status: PluginLoadStatus::Loaded,
