@@ -426,16 +426,43 @@ impl Session {
 
         match scope {
             RestoreScope::ConversationOnly => {
-                // Restore only conversation, keep current session state
-                // In production, this would also restore message history
+                // Conversation-only restoration is not yet implemented
+                // The Session type doesn't maintain conversation state or provide
+                // a way to restore messages to an LLM context. To implement this:
+                // 1. Session needs a field to store active conversation messages
+                // 2. Integration with LLM client to replay conversation history
+                // 3. Clear current context and replay checkpoint.messages
+                return Err(format!(
+                    "ConversationOnly restoration not yet implemented - \
+                     Session type lacks conversation state management. \
+                     Checkpoint {} has {} messages that cannot be restored.",
+                    checkpoint_id,
+                    checkpoint.messages.len()
+                ));
             }
             RestoreScope::CodeOnly => {
-                // Restore only file changes, keep conversation
-                // In production, this would restore files from checkpoint
+                // Code-only restoration is not yet implemented
+                // The Session type doesn't perform file I/O operations or provide
+                // a way to restore files to disk. To implement this:
+                // 1. Session needs file system access or a file manager reference
+                // 2. Write each checkpoint.file_changes entry to disk
+                // 3. Verify file hashes after writing
+                return Err(format!(
+                    "CodeOnly restoration not yet implemented - \
+                     Session type lacks file system integration. \
+                     Checkpoint {} has {} file changes that cannot be restored.",
+                    checkpoint_id,
+                    checkpoint.file_changes.len()
+                ));
             }
             RestoreScope::Both => {
-                // Restore everything
+                // Restore session state (working directory, environment, contexts)
+                // This is fully implemented since SessionState is part of Session
                 self.current_state = checkpoint.session_state.clone();
+
+                // Note: Messages and file changes in the checkpoint are not restored
+                // because Session doesn't have conversation or file system integration.
+                // Only session state (cwd, env, contexts) is restored.
             }
         }
 

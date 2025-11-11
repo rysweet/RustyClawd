@@ -16,7 +16,6 @@ use claude_code_tools::{
     BashTool, EditTool, GlobTool, GrepTool, ReadTool, Tool, ToolContext, ToolEvent, WriteTool,
 };
 use futures::StreamExt;
-use std::path::PathBuf;
 
 /// Claude Code - Rust Translation (Educational)
 #[derive(Parser)]

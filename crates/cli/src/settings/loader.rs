@@ -175,14 +175,121 @@ impl SettingsLoader {
     }
 
     /// Load settings from a file
-    fn load_settings_from_file(&self, _path: &Path) -> Result<Settings, String> {
-        // Simple in-memory parser for now
-        // In production, would use TOML/JSON parser
+    fn load_settings_from_file(&self, path: &Path) -> Result<Settings, String> {
+        use std::fs;
 
-        let settings = Settings::new();
+        // Read file contents
+        let content = fs::read_to_string(path)
+            .map_err(|e| format!("Failed to read config file {:?}: {}", path, e))?;
 
-        // For now, just indicate successful load
-        // Real implementation would parse the file
+        // Determine format based on file extension or content
+        let extension = path.extension().and_then(|s| s.to_str());
+
+        match extension {
+            Some("json") => {
+                // Parse as JSON
+                Self::parse_json_config(&content)
+            }
+            Some("toml") => {
+                // TOML not yet supported - toml crate needs to be added to Cargo.toml
+                Err(format!(
+                    "TOML config files not yet supported. \
+                     To implement: add 'toml' crate to dependencies and parse with toml::from_str. \
+                     File: {:?}",
+                    path
+                ))
+            }
+            _ => {
+                // No extension or unknown extension
+                // Try JSON first, as it's the most structured format
+                if let Ok(settings) = Self::parse_json_config(&content) {
+                    Ok(settings)
+                } else {
+                    Err(format!(
+                        "Unable to parse config file {:?}. \
+                         Supported formats: JSON (.json). \
+                         TOML support requires adding 'toml' crate to dependencies.",
+                        path
+                    ))
+                }
+            }
+        }
+    }
+
+    /// Parse JSON configuration into Settings
+    fn parse_json_config(content: &str) -> Result<Settings, String> {
+        let json_value: serde_json::Value = serde_json::from_str(content)
+            .map_err(|e| format!("Invalid JSON: {}", e))?;
+
+        let mut settings = Settings::new();
+
+        // Parse known settings fields
+        if let Some(obj) = json_value.as_object() {
+            if let Some(model) = obj.get("model").and_then(|v| v.as_str()) {
+                settings = settings.with_model(model.to_string());
+            }
+
+            if let Some(api_url) = obj.get("api_url").and_then(|v| v.as_str()) {
+                settings = settings.with_api_url(api_url.to_string());
+            }
+
+            if let Some(timeout) = obj.get("timeout_secs").and_then(|v| v.as_u64()) {
+                settings = settings.with_timeout(timeout);
+            }
+
+            if let Some(cleanup) = obj.get("cleanup_period_days").and_then(|v| v.as_u64()) {
+                settings = settings.with_cleanup_period(cleanup as u32);
+            }
+
+            if let Some(disable_bypass) = obj.get("disable_bypass_permissions").and_then(|v| v.as_bool()) {
+                if disable_bypass {
+                    settings = settings.disable_bypass();
+                }
+            }
+
+            // Parse permissions object
+            if let Some(permissions) = obj.get("permissions").and_then(|v| v.as_object()) {
+                for (tool_name, tool_config) in permissions {
+                    if let Some(tool_obj) = tool_config.as_object() {
+                        let mode_str = tool_obj.get("mode")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("ask");
+
+                        if let Some(mode) = PermissionMode::from_str(mode_str) {
+                            let patterns = tool_obj.get("patterns")
+                                .and_then(|v| v.as_array())
+                                .map(|arr| {
+                                    arr.iter()
+                                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                        .collect()
+                                })
+                                .unwrap_or_default();
+
+                            let permission = ToolPermission::new(mode, patterns);
+                            settings = settings.with_permission(tool_name.clone(), permission);
+                        }
+                    }
+                }
+            }
+
+            // Parse env_vars object
+            if let Some(env_vars) = obj.get("env_vars").and_then(|v| v.as_object()) {
+                for (key, value) in env_vars {
+                    if let Some(value_str) = value.as_str() {
+                        settings = settings.with_env_var(key.clone(), value_str.to_string());
+                    }
+                }
+            }
+
+            // Parse enabled_plugins object
+            if let Some(plugins) = obj.get("enabled_plugins").and_then(|v| v.as_object()) {
+                for (plugin_id, enabled) in plugins {
+                    if let Some(enabled_bool) = enabled.as_bool() {
+                        settings = settings.set_plugin(plugin_id.clone(), enabled_bool);
+                    }
+                }
+            }
+        }
 
         Ok(settings)
     }

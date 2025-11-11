@@ -165,16 +165,24 @@ impl HookExecutor {
 
     /// Execute a prompt (LLM) hook
     async fn execute_prompt_hook(
-        _hook: &Hook,
+        hook: &Hook,
         _context: &HookContext,
     ) -> Result<HookResult> {
-        // For now, prompt hooks return success with empty output
-        // In a full implementation, this would call the LLM
-        Ok(HookResult {
-            exit_code: 0,
-            stdout: r#"{"continue": true}"#.to_string(),
-            stderr: String::new(),
-        })
+        // Prompt hooks are not yet implemented - requires LLM integration
+        // To implement this:
+        // 1. Add AnthropicClient to HookExecutor dependencies
+        // 2. Pass hook prompt to LLM with context information
+        // 3. Parse LLM response for {"continue": true/false} or similar
+        // 4. Return result with LLM decision
+        //
+        // Current behavior: Return error indicating feature not implemented
+        let hook_desc = hook.command.as_deref().unwrap_or("unnamed prompt hook");
+        Err(anyhow::anyhow!(
+            "Prompt (LLM) hooks not yet implemented. \
+             Hook '{}' requires LLM integration to execute. \
+             To implement: integrate AnthropicClient and send hook prompt to LLM.",
+            hook_desc
+        ))
     }
 }
 

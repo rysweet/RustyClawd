@@ -1,7 +1,6 @@
 //! Built-in commands - /help, /exit, /clear, etc.
 
 use crate::commands::parser::Command;
-use anyhow::Result;
 
 /// Built-in command handler
 pub struct BuiltinCommands;

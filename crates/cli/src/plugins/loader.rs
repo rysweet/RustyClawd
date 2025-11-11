@@ -3,7 +3,6 @@
 //! Handles loading plugin files, validating references, and tracking load state.
 
 use std::collections::HashMap;
-use std::path::Path;
 
 use crate::plugins::discovery::{PluginLoadStatus, PluginMetadata};
 use crate::plugins::manifest::validate_references;
