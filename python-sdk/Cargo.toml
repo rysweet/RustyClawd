@@ -1,0 +1,17 @@
+[package]
+name = "rustyclawd-sdk"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "claude_agent_sdk"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.20", features = ["extension-module"] }
+claude-code-core = { path = "../crates/core" }
+tokio = { version = "1.0", features = ["full"] }
+serde_json = "1.0"
+
+[[workspace.members]]
+path = "python-sdk"
