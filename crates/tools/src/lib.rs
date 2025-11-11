@@ -3,6 +3,7 @@
 //! This module defines the Tool trait and common types used by all tools.
 //! Tools execute operations (file I/O, shell commands, etc.) and stream results.
 
+pub mod agent;
 pub mod bash;
 pub mod read;
 pub mod write;
@@ -22,6 +23,7 @@ pub mod error;
 pub mod types;
 pub mod process_registry;
 
+pub use agent::AgentTool;
 pub use bash::BashTool;
 pub use read::ReadTool;
 pub use write::WriteTool;

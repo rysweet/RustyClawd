@@ -1,0 +1,128 @@
+{
+  "SessionStart": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo 'Session started at '$(date) && source $CLAUDE_ENV_FILE 2>/dev/null || true",
+          "timeout": 60000
+        }
+      ]
+    }
+  ],
+  "SessionEnd": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo 'Session ended at '$(date)",
+          "timeout": 60000
+        }
+      ]
+    }
+  ],
+  "PreToolUse": [
+    {
+      "matcher": "Bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo 'Validating Bash command...'",
+          "timeout": 30000
+        }
+      ]
+    },
+    {
+      "matcher": "Write|Edit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo 'File modification detected'",
+          "timeout": 30000
+        }
+      ]
+    },
+    {
+      "matcher": "mcp__.*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo 'MCP tool execution: $CLAUDE_TOOL_NAME'",
+          "timeout": 60000
+        }
+      ]
+    }
+  ],
+  "PostToolUse": [
+    {
+      "matcher": "Bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo 'Bash command completed'",
+          "timeout": 30000
+        }
+      ]
+    }
+  ],
+  "UserPromptSubmit": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo 'Processing user prompt...'",
+          "timeout": 10000
+        }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "prompt",
+          "timeout": 60000
+        }
+      ]
+    }
+  ],
+  "SubagentStop": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "prompt",
+          "timeout": 60000
+        }
+      ]
+    }
+  ],
+  "Notification": [
+    {
+      "matcher": ".*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo 'Notification received'",
+          "timeout": 5000
+        }
+      ]
+    }
+  ],
+  "PreCompact": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo 'Preparing to compact conversation history...'",
+          "timeout": 30000
+        }
+      ]
+    }
+  ]
+}

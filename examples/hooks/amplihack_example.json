@@ -1,0 +1,98 @@
+{
+  "comment": "Example hooks configuration for Amplihack integration",
+
+  "SessionStart": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "source $CLAUDE_ENV_FILE && export AMPLIHACK_MODE=enabled && export PROJECT_ROOT=$(pwd) && echo 'Amplihack environment initialized'",
+          "timeout": 60000
+        }
+      ]
+    }
+  ],
+
+  "PreToolUse": [
+    {
+      "matcher": "Bash",
+      "hooks": [
+        {
+          "type": "prompt",
+          "timeout": 60000,
+          "comment": "LLM analyzes Bash command for safety and suggests improvements"
+        },
+        {
+          "type": "command",
+          "command": "./examples/hooks/advanced_validation.sh",
+          "timeout": 30000,
+          "comment": "Script-based validation for dangerous commands"
+        }
+      ]
+    },
+    {
+      "matcher": "Write|Edit",
+      "hooks": [
+        {
+          "type": "prompt",
+          "timeout": 60000,
+          "comment": "LLM reviews file changes before writing"
+        }
+      ]
+    }
+  ],
+
+  "PostToolUse": [
+    {
+      "matcher": "Bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo 'Command executed at '$(date) >> $PROJECT_ROOT/.claude/history.log",
+          "timeout": 10000
+        }
+      ]
+    }
+  ],
+
+  "Stop": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "prompt",
+          "timeout": 60000,
+          "comment": "LLM analyzes conversation to determine if work is truly complete"
+        }
+      ]
+    }
+  ],
+
+  "UserPromptSubmit": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo '--- User Prompt ---' && echo \"$(date): New prompt submitted\" >> $PROJECT_ROOT/.claude/prompts.log",
+          "timeout": 10000
+        }
+      ]
+    }
+  ],
+
+  "PreCompact": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "cp $CLAUDE_TRANSCRIPT_PATH $PROJECT_ROOT/.claude/transcripts/backup-$(date +%Y%m%d-%H%M%S).log",
+          "timeout": 30000,
+          "comment": "Backup full transcript before compaction"
+        }
+      ]
+    }
+  ]
+}

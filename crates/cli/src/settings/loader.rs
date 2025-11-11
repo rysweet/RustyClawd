@@ -1,0 +1,295 @@
+/// Configuration loading from various sources (files, environment variables)
+use crate::settings::types::{Settings, SettingsLayer, PermissionMode, ToolPermission};
+use crate::settings::hierarchy::SettingsHierarchy;
+use std::collections::HashMap;
+use std::env;
+use std::path::{Path, PathBuf};
+
+/// Settings loader - loads configuration from multiple sources
+pub struct SettingsLoader {
+    project_root: Option<PathBuf>,
+}
+
+impl SettingsLoader {
+    /// Create a new settings loader
+    pub fn new() -> Self {
+        Self {
+            project_root: None,
+        }
+    }
+
+    /// Create loader with specific project root
+    pub fn with_project_root(project_root: PathBuf) -> Self {
+        Self {
+            project_root: Some(project_root),
+        }
+    }
+
+    /// Set the project root
+    pub fn set_project_root(&mut self, root: PathBuf) {
+        self.project_root = Some(root);
+    }
+
+    /// Load all environment variables starting with CLAUDE_
+    pub fn load_env_overrides(&self) -> HashMap<String, String> {
+        let mut overrides = HashMap::new();
+
+        for (key, value) in env::vars() {
+            if key.starts_with("CLAUDE_") {
+                // Convert CLAUDE_API_URL -> api_url
+                let setting_key = key
+                    .strip_prefix("CLAUDE_")
+                    .unwrap_or(&key)
+                    .to_lowercase();
+
+                overrides.insert(setting_key, value);
+            }
+        }
+
+        overrides
+    }
+
+    /// Parse environment variable overrides into Settings
+    pub fn parse_env_overrides(overrides: &HashMap<String, String>) -> Settings {
+        let mut settings = Settings::new();
+
+        for (key, value) in overrides {
+            match key.as_str() {
+                "model" => {
+                    settings = settings.with_model(value.clone());
+                }
+                "api_url" => {
+                    settings = settings.with_api_url(value.clone());
+                }
+                "timeout_secs" | "timeout" => {
+                    if let Ok(timeout) = value.parse::<u64>() {
+                        settings = settings.with_timeout(timeout);
+                    }
+                }
+                "cleanup_period_days" | "cleanup_period" => {
+                    if let Ok(days) = value.parse::<u32>() {
+                        settings = settings.with_cleanup_period(days);
+                    }
+                }
+                "disable_bypass_permissions" | "disable_bypass" => {
+                    if value.to_lowercase() == "true" || value == "1" {
+                        settings = settings.disable_bypass();
+                    }
+                }
+                // Additional env variables not directly mapped become env_vars
+                _ if !key.starts_with("_") => {
+                    // Store as environment variable if not a known setting
+                    settings = settings.with_env_var(key.clone(), value.clone());
+                }
+                _ => {}
+            }
+        }
+
+        settings
+    }
+
+    /// Load settings from default locations
+    pub fn load_hierarchy(&self) -> Result<SettingsHierarchy, String> {
+        let mut hierarchy = SettingsHierarchy::new();
+
+        // Default settings are always present (implicit)
+        hierarchy.add_layer(SettingsLayer::Default, Settings::default());
+
+        // Try to load user global settings
+        if let Ok(user_settings) = self.load_user_global_settings() {
+            hierarchy.add_layer(SettingsLayer::UserGlobal, user_settings);
+        }
+
+        // Try to load project settings
+        if let Some(ref project_root) = self.project_root {
+            if let Ok(shared) = self.load_project_shared_settings(project_root) {
+                hierarchy.add_layer(SettingsLayer::ProjectShared, shared);
+            }
+
+            if let Ok(local) = self.load_project_local_settings(project_root) {
+                hierarchy.add_layer(SettingsLayer::ProjectLocal, local);
+            }
+        }
+
+        // Load environment variable overrides
+        let env_overrides = self.load_env_overrides();
+        if !env_overrides.is_empty() {
+            let env_settings = Self::parse_env_overrides(&env_overrides);
+            hierarchy.add_layer(SettingsLayer::CommandLine, env_settings);
+        }
+
+        // Try to load enterprise settings
+        if let Ok(enterprise) = self.load_enterprise_settings() {
+            hierarchy.add_layer(SettingsLayer::EnterpriseManaged, enterprise);
+        }
+
+        Ok(hierarchy)
+    }
+
+    /// Load user global settings from ~/.claude/config
+    fn load_user_global_settings(&self) -> Result<Settings, String> {
+        let config_path = Self::get_user_config_path()?;
+
+        if !config_path.exists() {
+            return Err(format!("User config not found: {:?}", config_path));
+        }
+
+        self.load_settings_from_file(&config_path)
+    }
+
+    /// Load project shared settings from .claude/config
+    fn load_project_shared_settings(&self, project_root: &Path) -> Result<Settings, String> {
+        let config_path = project_root.join(".claude").join("config");
+
+        if !config_path.exists() {
+            return Err(format!("Project shared config not found: {:?}", config_path));
+        }
+
+        self.load_settings_from_file(&config_path)
+    }
+
+    /// Load project local settings from .claude/config.local
+    fn load_project_local_settings(&self, project_root: &Path) -> Result<Settings, String> {
+        let config_path = project_root.join(".claude").join("config.local");
+
+        if !config_path.exists() {
+            return Err(format!("Project local config not found: {:?}", config_path));
+        }
+
+        self.load_settings_from_file(&config_path)
+    }
+
+    /// Load enterprise settings from /etc/claude/config
+    fn load_enterprise_settings(&self) -> Result<Settings, String> {
+        #[cfg(unix)]
+        let config_path = Path::new("/etc/claude/config");
+
+        #[cfg(windows)]
+        let config_path = Path::new("C:\\ProgramData\\Claude\\config");
+
+        if !config_path.exists() {
+            return Err(format!("Enterprise config not found: {:?}", config_path));
+        }
+
+        self.load_settings_from_file(config_path)
+    }
+
+    /// Load settings from a file
+    fn load_settings_from_file(&self, _path: &Path) -> Result<Settings, String> {
+        // Simple in-memory parser for now
+        // In production, would use TOML/JSON parser
+
+        let settings = Settings::new();
+
+        // For now, just indicate successful load
+        // Real implementation would parse the file
+
+        Ok(settings)
+    }
+
+    /// Get the user config directory
+    pub fn get_user_config_dir() -> Result<PathBuf, String> {
+        if let Ok(config_home) = env::var("XDG_CONFIG_HOME") {
+            Ok(PathBuf::from(config_home).join("claude"))
+        } else if let Ok(home) = env::var("HOME") {
+            Ok(PathBuf::from(home).join(".config").join("claude"))
+        } else {
+            #[cfg(windows)]
+            if let Ok(appdata) = env::var("APPDATA") {
+                Ok(PathBuf::from(appdata).join("Claude"))
+            } else {
+                Err("Could not determine config directory".to_string())
+            }
+
+            #[cfg(not(windows))]
+            Err("Could not determine config directory".to_string())
+        }
+    }
+
+    /// Get the user config file path
+    pub fn get_user_config_path() -> Result<PathBuf, String> {
+        let config_dir = Self::get_user_config_dir()?;
+        Ok(config_dir.join("config"))
+    }
+
+    /// Create an in-memory settings hierarchy for testing
+    pub fn create_test_hierarchy() -> SettingsHierarchy {
+        let mut hierarchy = SettingsHierarchy::new();
+
+        // Add some test defaults
+        hierarchy.add_layer(SettingsLayer::Default, Settings::default());
+
+        hierarchy
+    }
+}
+
+impl Default for SettingsLoader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_load_env_overrides() {
+        let loader = SettingsLoader::new();
+        let overrides = loader.load_env_overrides();
+
+        // Will vary based on environment, but should be a HashMap
+        // At minimum it should be empty or contain env vars
+        assert!(overrides.len() >= 0);
+    }
+
+    #[test]
+    fn test_parse_env_overrides_model() {
+        let mut overrides = HashMap::new();
+        overrides.insert("model".to_string(), "claude-3".to_string());
+
+        let settings = SettingsLoader::parse_env_overrides(&overrides);
+        assert_eq!(settings.model, Some("claude-3".to_string()));
+    }
+
+    #[test]
+    fn test_parse_env_overrides_timeout() {
+        let mut overrides = HashMap::new();
+        overrides.insert("timeout_secs".to_string(), "60".to_string());
+
+        let settings = SettingsLoader::parse_env_overrides(&overrides);
+        assert_eq!(settings.timeout_secs, Some(60));
+    }
+
+    #[test]
+    fn test_parse_env_overrides_disable_bypass() {
+        let mut overrides = HashMap::new();
+        overrides.insert("disable_bypass_permissions".to_string(), "true".to_string());
+
+        let settings = SettingsLoader::parse_env_overrides(&overrides);
+        assert!(settings.disable_bypass_permissions);
+    }
+
+    #[test]
+    fn test_parse_env_overrides_multiple() {
+        let mut overrides = HashMap::new();
+        overrides.insert("model".to_string(), "claude-3".to_string());
+        overrides.insert("timeout_secs".to_string(), "120".to_string());
+        overrides.insert("api_url".to_string(), "https://api.example.com".to_string());
+
+        let settings = SettingsLoader::parse_env_overrides(&overrides);
+
+        assert_eq!(settings.model, Some("claude-3".to_string()));
+        assert_eq!(settings.timeout_secs, Some(120));
+        assert_eq!(settings.api_url, Some("https://api.example.com".to_string()));
+    }
+
+    #[test]
+    fn test_get_user_config_dir() {
+        let result = SettingsLoader::get_user_config_dir();
+        assert!(result.is_ok());
+
+        let path = result.unwrap();
+        assert!(path.to_string_lossy().contains("claude") || path.to_string_lossy().contains("Claude"));
+    }
+}

@@ -35,3 +35,4 @@ serde_yaml = "0.9"
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = "3.8"
+tracing-subscriber = { workspace = true }

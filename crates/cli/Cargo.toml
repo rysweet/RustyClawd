@@ -5,6 +5,10 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 
+[lib]
+name = "claude_code_cli"
+path = "src/lib.rs"
+
 [[bin]]
 name = "claude-code"
 path = "src/main.rs"
@@ -22,3 +26,19 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 serde_json = { workspace = true }
 futures = { workspace = true }
+serde = { workspace = true }
+
+# Interactive mode
+rustyline = "13.0"
+
+# Slash command support
+serde_yaml = "0.9"
+thiserror = { workspace = true }
+
+# Time handling
+chrono = { workspace = true }
+
+[dev-dependencies]
+# CLI testing
+assert_cmd = "2.0"
+predicates = "3.0"
