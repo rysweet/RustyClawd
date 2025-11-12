@@ -6,7 +6,7 @@
     "rusty": "./bin.js"
   },
   "scripts": {
-    "postinstall": "cargo build --release",
+    "postinstall": "node install.js",
     "test": "cargo test --workspace"
   },
   "keywords": ["claude", "rust", "cli", "ai", "anthropic"],
