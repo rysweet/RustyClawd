@@ -9,7 +9,7 @@ const path = require('path');
 const fs = require('fs');
 
 // Find the Rust binary
-const binaryPath = path.join(__dirname, 'target', 'release', 'claude-code');
+const binaryPath = path.join(__dirname, 'target', 'release', 'rusty');
 
 // Check if binary exists
 if (!fs.existsSync(binaryPath)) {
