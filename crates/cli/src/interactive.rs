@@ -7,7 +7,7 @@
 //! - Graceful exit handling (Ctrl+D, /exit)
 
 use anyhow::Result;
-use claude_code_core::{
+use rustyclawd_core::{
     client::{Client, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent},
     Context, Message, MessageRole,
 };
@@ -198,7 +198,7 @@ impl InteractiveSession {
                 Ok(StreamEvent::ContentBlockDelta { delta, .. }) => {
                     // Extract text from delta
                     let text = match delta {
-                        claude_code_core::client::types::ContentDelta::TextDelta { text } => text,
+                        rustyclawd_core::client::types::ContentDelta::TextDelta { text } => text,
                     };
 
                     // Print to terminal in real-time

@@ -2,7 +2,7 @@
 //!
 //! Usage: cargo run --example simple_test
 
-use claude_code_core::client::{Client, Config, CreateMessageRequest, Message};
+use rustyclawd_core::client::{Client, Config, CreateMessageRequest, Message};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -26,13 +26,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Model: {}", response.model);
             for block in response.content {
                 match block {
-                    claude_code_core::client::ContentBlock::Text { text } => {
+                    rustyclawd_core::client::ContentBlock::Text { text } => {
                         println!("Response: {}", text);
                     }
-                    claude_code_core::client::ContentBlock::ToolUse { .. } => {
+                    rustyclawd_core::client::ContentBlock::ToolUse { .. } => {
                         println!("[tool_use block]");
                     }
-                    claude_code_core::client::ContentBlock::ToolResult { .. } => {
+                    rustyclawd_core::client::ContentBlock::ToolResult { .. } => {
                         println!("[tool_result block]");
                     }
                 }

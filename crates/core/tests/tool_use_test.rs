@@ -1,6 +1,6 @@
 //! Integration tests for tool use functionality
 
-use claude_code_core::client::*;
+use rustyclawd_core::client::*;
 use serde_json::json;
 
 #[test]

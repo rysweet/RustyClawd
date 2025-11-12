@@ -2,7 +2,7 @@
 //!
 //! Usage: cargo run --example stream_test
 
-use claude_code_core::client::{Client, Config, CreateMessageRequest, Message, StreamEvent};
+use rustyclawd_core::client::{Client, Config, CreateMessageRequest, Message, StreamEvent};
 use futures::StreamExt;
 
 #[tokio::main]
@@ -33,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("[Message started: {}]", message.id);
                 }
                 StreamEvent::ContentBlockDelta { delta, .. } => {
-                    let claude_code_core::client::types::ContentDelta::TextDelta { text } = delta;
+                    let rustyclawd_core::client::types::ContentDelta::TextDelta { text } = delta;
                     // Print in real-time
                     print!("{}", text);
                     use std::io::Write;

@@ -1,5 +1,5 @@
 [package]
-name = "claude-code-core"
+name = "rustyclawd-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

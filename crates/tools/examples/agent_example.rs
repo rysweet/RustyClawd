@@ -15,7 +15,7 @@
 //! cargo run --example agent_example
 //! ```
 
-use claude_code_tools::{AgentTool, Tool, ToolContext, ToolEvent};
+use rustyclawd_tools::{AgentTool, Tool, ToolContext, ToolEvent};
 use futures::StreamExt;
 use std::env;
 
@@ -23,7 +23,7 @@ use std::env;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
     tracing_subscriber::fmt()
-        .with_env_filter("agent_example=debug,claude_code_tools=debug")
+        .with_env_filter("agent_example=debug,rustyclawd_tools=debug")
         .init();
 
     // Check for API key
@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "model": "haiku",  // Use fast model for demo
     });
 
-    let params: claude_code_tools::agent::AgentParams =
+    let params: rustyclawd_tools::agent::AgentParams =
         serde_json::from_value(params)?;
 
     // Set up context

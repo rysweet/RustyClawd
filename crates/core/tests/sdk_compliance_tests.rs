@@ -8,7 +8,7 @@
 //!
 //! Tests organized by feature category with references to official documentation.
 
-use claude_code_core::client::{
+use rustyclawd_core::client::{
     Config, ContentBlock, CreateMessageRequest, Message, MessageResponse, Role,
     StreamEvent, ToolChoice, ToolDefinition, Usage,
 };
@@ -418,7 +418,7 @@ fn test_message_user_text() {
 
     assert_eq!(msg.role, Role::User);
     match msg.content {
-        claude_code_core::client::types::MessageContent::Text(text) => {
+        rustyclawd_core::client::types::MessageContent::Text(text) => {
             assert_eq!(text, "Hello, Claude!");
         }
         _ => panic!("Expected text content"),
@@ -751,7 +751,7 @@ fn test_stream_event_content_block_delta() {
         StreamEvent::ContentBlockDelta { index, delta } => {
             assert_eq!(index, 0);
             match delta {
-                claude_code_core::client::types::ContentDelta::TextDelta { text } => {
+                rustyclawd_core::client::types::ContentDelta::TextDelta { text } => {
                     assert_eq!(text, "Hello");
                 }
             }
@@ -861,7 +861,7 @@ fn test_parallel_tool_use_multiple_tool_use_blocks() {
 
     let msg = Message::with_blocks(Role::Assistant, blocks);
     match msg.content {
-        claude_code_core::client::types::MessageContent::Blocks(blocks) => {
+        rustyclawd_core::client::types::MessageContent::Blocks(blocks) => {
             let tool_use_count = blocks
                 .iter()
                 .filter(|b| matches!(b, ContentBlock::ToolUse { .. }))
@@ -1253,25 +1253,25 @@ fn test_tool_execution_conversation_flow() {
 
 #[test]
 fn test_api_key_validation_valid() {
-    let key = claude_code_core::client::ApiKey::new("sk-ant-test123".to_string());
+    let key = rustyclawd_core::client::ApiKey::new("sk-ant-test123".to_string());
     assert!(key.is_ok());
 }
 
 #[test]
 fn test_api_key_validation_invalid_prefix() {
-    let key = claude_code_core::client::ApiKey::new("invalid-key".to_string());
+    let key = rustyclawd_core::client::ApiKey::new("invalid-key".to_string());
     assert!(key.is_err());
 }
 
 #[test]
 fn test_api_key_validation_empty() {
-    let key = claude_code_core::client::ApiKey::new("".to_string());
+    let key = rustyclawd_core::client::ApiKey::new("".to_string());
     assert!(key.is_err());
 }
 
 #[test]
 fn test_api_key_no_leak_in_debug() {
-    let key = claude_code_core::client::ApiKey::new("sk-ant-secret123".to_string()).unwrap();
+    let key = rustyclawd_core::client::ApiKey::new("sk-ant-secret123".to_string()).unwrap();
     let debug_str = format!("{:?}", key);
     assert!(!debug_str.contains("secret123"));
     assert!(debug_str.contains("REDACTED"));
@@ -1279,7 +1279,7 @@ fn test_api_key_no_leak_in_debug() {
 
 #[test]
 fn test_api_key_no_leak_in_display() {
-    let key = claude_code_core::client::ApiKey::new("sk-ant-secret123".to_string()).unwrap();
+    let key = rustyclawd_core::client::ApiKey::new("sk-ant-secret123".to_string()).unwrap();
     let display_str = format!("{}", key);
     assert!(!display_str.contains("secret123"));
     assert!(display_str.contains("REDACTED"));
@@ -1287,7 +1287,7 @@ fn test_api_key_no_leak_in_display() {
 
 #[test]
 fn test_config_no_leak_in_debug() {
-    let key = claude_code_core::client::ApiKey::new("sk-ant-secret123".to_string()).unwrap();
+    let key = rustyclawd_core::client::ApiKey::new("sk-ant-secret123".to_string()).unwrap();
     let config = Config::new(key);
     let debug_str = format!("{:?}", config);
     assert!(!debug_str.contains("secret123"));
@@ -1552,7 +1552,7 @@ fn test_message_with_empty_content_blocks() {
     let msg = Message::with_blocks(Role::Assistant, vec![]);
 
     match msg.content {
-        claude_code_core::client::types::MessageContent::Blocks(blocks) => {
+        rustyclawd_core::client::types::MessageContent::Blocks(blocks) => {
             assert_eq!(blocks.len(), 0);
         }
         _ => panic!("Expected blocks"),
@@ -1590,7 +1590,7 @@ fn test_message_with_unicode() {
     let msg = Message::user("Hello 世界 🌍");
 
     match msg.content {
-        claude_code_core::client::types::MessageContent::Text(text) => {
+        rustyclawd_core::client::types::MessageContent::Text(text) => {
             assert!(text.contains("世界"));
             assert!(text.contains("🌍"));
         }
@@ -1637,7 +1637,7 @@ fn test_long_content_text() {
     let msg = Message::user(&long_text);
 
     match msg.content {
-        claude_code_core::client::types::MessageContent::Text(text) => {
+        rustyclawd_core::client::types::MessageContent::Text(text) => {
             assert_eq!(text.len(), 10_000);
         }
         _ => panic!("Expected text content"),
@@ -1786,7 +1786,7 @@ fn test_sequential_tool_calls_conversation() {
 
 #[test]
 fn test_metadata_in_request() {
-    use claude_code_core::client::types::Metadata;
+    use rustyclawd_core::client::types::Metadata;
 
     let mut request = CreateMessageRequest::new(
         "claude-3-5-sonnet-20241022",

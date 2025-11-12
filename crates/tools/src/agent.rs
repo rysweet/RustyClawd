@@ -186,7 +186,7 @@ impl crate::Tool for AgentTool {
             };
 
             // Load API config
-            let config = match claude_code_core::client::Config::from_default_location().await {
+            let config = match rustyclawd_core::client::Config::from_default_location().await {
                 Ok(cfg) => cfg,
                 Err(err) => {
                     yield ToolEvent::Error {
@@ -196,14 +196,14 @@ impl crate::Tool for AgentTool {
                 }
             };
 
-            let client = claude_code_core::client::Client::new(config);
+            let client = rustyclawd_core::client::Client::new(config);
 
             // Build the request
             let messages = vec![
-                claude_code_core::client::types::Message::user(prompt.clone()),
+                rustyclawd_core::client::types::Message::user(prompt.clone()),
             ];
 
-            let request = claude_code_core::client::types::CreateMessageRequest::new(
+            let request = rustyclawd_core::client::types::CreateMessageRequest::new(
                 model_id.clone(),
                 messages,
                 4096, // max_tokens
@@ -237,7 +237,7 @@ impl crate::Tool for AgentTool {
                 match event_result {
                     Ok(event) => {
                         match event {
-                            claude_code_core::client::types::StreamEvent::MessageStart { message } => {
+                            rustyclawd_core::client::types::StreamEvent::MessageStart { message } => {
                                 input_tokens = message.usage.input_tokens;
                                 if debug {
                                     tracing::debug!(
@@ -246,7 +246,7 @@ impl crate::Tool for AgentTool {
                                     );
                                 }
                             }
-                            claude_code_core::client::types::StreamEvent::ContentBlockDelta { delta, .. } => {
+                            rustyclawd_core::client::types::StreamEvent::ContentBlockDelta { delta, .. } => {
                                 if !received_first_content {
                                     received_first_content = true;
                                     yield ToolEvent::Progress {
@@ -255,7 +255,7 @@ impl crate::Tool for AgentTool {
                                     };
                                 }
 
-                                let claude_code_core::client::types::ContentDelta::TextDelta { text } = delta;
+                                let rustyclawd_core::client::types::ContentDelta::TextDelta { text } = delta;
                                 response_text.push_str(&text);
 
                                 // Stream progress updates periodically
@@ -266,10 +266,10 @@ impl crate::Tool for AgentTool {
                                     };
                                 }
                             }
-                            claude_code_core::client::types::StreamEvent::MessageDelta { usage, .. } => {
+                            rustyclawd_core::client::types::StreamEvent::MessageDelta { usage, .. } => {
                                 output_tokens = usage.output_tokens;
                             }
-                            claude_code_core::client::types::StreamEvent::MessageStop => {
+                            rustyclawd_core::client::types::StreamEvent::MessageStop => {
                                 if debug {
                                     tracing::debug!(
                                         output_tokens = output_tokens,
@@ -279,7 +279,7 @@ impl crate::Tool for AgentTool {
                                 }
                                 break;
                             }
-                            claude_code_core::client::types::StreamEvent::Error { error } => {
+                            rustyclawd_core::client::types::StreamEvent::Error { error } => {
                                 yield ToolEvent::Error {
                                     message: format!("Agent error: {}", error.message),
                                 };

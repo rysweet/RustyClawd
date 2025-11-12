@@ -2,7 +2,7 @@
 
 use crate::hooks::types::{Hook, HookContext, HookResult, HookType};
 use anyhow::{Context, Result};
-use claude_code_core::client::{Client as AnthropicClient, Config, CreateMessageRequest, Message};
+use rustyclawd_core::client::{Client as AnthropicClient, Config, CreateMessageRequest, Message};
 use std::collections::HashSet;
 use std::process::Stdio;
 use std::time::Duration;
@@ -197,9 +197,9 @@ impl HookExecutor {
                     .content
                     .iter()
                     .filter_map(|block| match block {
-                        claude_code_core::client::ContentBlock::Text { text } => Some(text.as_str()),
-                        claude_code_core::client::ContentBlock::ToolUse { .. } => None,
-                        claude_code_core::client::ContentBlock::ToolResult { .. } => None,
+                        rustyclawd_core::client::ContentBlock::Text { text } => Some(text.as_str()),
+                        rustyclawd_core::client::ContentBlock::ToolUse { .. } => None,
+                        rustyclawd_core::client::ContentBlock::ToolResult { .. } => None,
                     })
                     .collect::<Vec<_>>()
                     .join("");

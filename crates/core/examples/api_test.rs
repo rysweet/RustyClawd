@@ -9,7 +9,7 @@
 //! Usage:
 //!   cargo run --example api_test
 
-use claude_code_core::client::{Client, Config, CreateMessageRequest, Message};
+use rustyclawd_core::client::{Client, Config, CreateMessageRequest, Message};
 use futures::StreamExt;
 
 #[tokio::main]
@@ -65,13 +65,13 @@ async fn test_non_streaming(client: &Client) -> Result<(), Box<dyn std::error::E
     // Extract text from content blocks
     for (i, block) in response.content.iter().enumerate() {
         match block {
-            claude_code_core::client::ContentBlock::Text { text } => {
+            rustyclawd_core::client::ContentBlock::Text { text } => {
                 println!("  Content[{}]: {}", i, text);
             }
-            claude_code_core::client::ContentBlock::ToolUse { .. } => {
+            rustyclawd_core::client::ContentBlock::ToolUse { .. } => {
                 println!("  Content[{}]: [tool_use]", i);
             }
-            claude_code_core::client::ContentBlock::ToolResult { .. } => {
+            rustyclawd_core::client::ContentBlock::ToolResult { .. } => {
                 println!("  Content[{}]: [tool_result]", i);
             }
         }
@@ -102,7 +102,7 @@ async fn test_streaming(client: &Client) -> Result<(), Box<dyn std::error::Error
     while let Some(result) = stream.next().await {
         match result {
             Ok(event) => {
-                use claude_code_core::client::StreamEvent;
+                use rustyclawd_core::client::StreamEvent;
 
                 match event {
                     StreamEvent::MessageStart { message } => {
@@ -113,7 +113,7 @@ async fn test_streaming(client: &Client) -> Result<(), Box<dyn std::error::Error
                         println!("[Content block {} started]", index);
                     }
                     StreamEvent::ContentBlockDelta { delta, .. } => {
-                        let claude_code_core::client::types::ContentDelta::TextDelta {
+                        let rustyclawd_core::client::types::ContentDelta::TextDelta {
                             text,
                         } = delta;
                         // Print in real-time without newline

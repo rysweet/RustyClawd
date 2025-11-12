@@ -1,5 +1,5 @@
 [package]
-name = "claude-code-cli"
+name = "rustyclawd-cli"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -15,8 +15,8 @@ path = "src/main.rs"
 
 [dependencies]
 # Workspace crates
-claude-code-core = { path = "../core" }
-claude-code-tools = { path = "../tools" }
+rustyclawd-core = { path = "../core" }
+rustyclawd-tools = { path = "../tools" }
 
 # Workspace dependencies
 tokio = { workspace = true }

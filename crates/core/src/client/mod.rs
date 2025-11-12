@@ -12,7 +12,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use claude_code_core::client::{Client, Config, Message, CreateMessageRequest};
+//! use rustyclawd_core::client::{Client, Config, Message, CreateMessageRequest};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -207,7 +207,7 @@ impl Client {
     /// # Example
     ///
     /// ```no_run
-    /// use claude_code_core::client::{Client, Config, CreateMessageRequest, Message};
+    /// use rustyclawd_core::client::{Client, Config, CreateMessageRequest, Message};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let config = Config::from_default_location().await?;

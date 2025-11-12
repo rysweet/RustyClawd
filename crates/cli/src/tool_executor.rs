@@ -3,8 +3,8 @@
 //! This module bridges between Anthropic API tool calls and our internal tool implementations.
 
 use anyhow::Result;
-use claude_code_core::client::ClientError;
-use claude_code_tools::{
+use rustyclawd_core::client::ClientError;
+use rustyclawd_tools::{
     BashTool, EditTool, GlobTool, GrepTool, ReadTool, Tool, ToolContext, ToolEvent, WriteTool,
 };
 use futures::StreamExt;
@@ -30,7 +30,7 @@ pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value,
 
 /// Execute Bash tool
 async fn execute_bash_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: claude_code_tools::bash::BashParams =
+    let params: rustyclawd_tools::bash::BashParams =
         serde_json::from_value(input).map_err(|e| {
             ClientError::Api(format!("Failed to parse Bash tool parameters: {}", e))
         })?;
@@ -65,7 +65,7 @@ async fn execute_bash_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
 
 /// Execute Read tool
 async fn execute_read_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: claude_code_tools::read::ReadParams =
+    let params: rustyclawd_tools::read::ReadParams =
         serde_json::from_value(input).map_err(|e| {
             ClientError::Api(format!("Failed to parse Read tool parameters: {}", e))
         })?;
@@ -97,7 +97,7 @@ async fn execute_read_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
 
 /// Execute Write tool
 async fn execute_write_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: claude_code_tools::write::WriteParams =
+    let params: rustyclawd_tools::write::WriteParams =
         serde_json::from_value(input).map_err(|e| {
             ClientError::Api(format!("Failed to parse Write tool parameters: {}", e))
         })?;
@@ -129,7 +129,7 @@ async fn execute_write_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cl
 
 /// Execute Edit tool
 async fn execute_edit_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: claude_code_tools::edit::EditParams =
+    let params: rustyclawd_tools::edit::EditParams =
         serde_json::from_value(input).map_err(|e| {
             ClientError::Api(format!("Failed to parse Edit tool parameters: {}", e))
         })?;
@@ -161,7 +161,7 @@ async fn execute_edit_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
 
 /// Execute Glob tool
 async fn execute_glob_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: claude_code_tools::glob_tool::GlobParams =
+    let params: rustyclawd_tools::glob_tool::GlobParams =
         serde_json::from_value(input).map_err(|e| {
             ClientError::Api(format!("Failed to parse Glob tool parameters: {}", e))
         })?;
@@ -193,7 +193,7 @@ async fn execute_glob_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
 
 /// Execute Grep tool
 async fn execute_grep_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: claude_code_tools::grep::GrepParams =
+    let params: rustyclawd_tools::grep::GrepParams =
         serde_json::from_value(input).map_err(|e| {
             ClientError::Api(format!("Failed to parse Grep tool parameters: {}", e))
         })?;

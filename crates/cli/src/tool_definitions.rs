@@ -2,7 +2,7 @@
 //!
 //! This module converts internal tool implementations to Anthropic API tool definitions.
 
-use claude_code_core::client::ToolDefinition;
+use rustyclawd_core::client::ToolDefinition;
 use serde_json::json;
 
 /// Get all available tool definitions for the API

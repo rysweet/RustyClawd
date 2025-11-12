@@ -425,7 +425,7 @@ impl App {
 
     /// Run in print mode (one-shot execution) - matches Claude Code's behavior
     async fn run_print_mode(&mut self, prompt: &str) -> Result<()> {
-        use claude_code_core::{
+        use rustyclawd_core::{
             client::{Client, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent},
         };
         use std::io::Write;
@@ -496,7 +496,7 @@ impl App {
                 .content
                 .iter()
                 .filter_map(|block| {
-                    if let claude_code_core::client::types::ContentBlock::Text { text } = block {
+                    if let rustyclawd_core::client::types::ContentBlock::Text { text } = block {
                         Some(text.as_str())
                     } else {
                         None
@@ -541,7 +541,7 @@ impl App {
                 match event {
                     Ok(StreamEvent::ContentBlockDelta { delta, .. }) => {
                         let text = match delta {
-                            claude_code_core::client::types::ContentDelta::TextDelta { text } => text,
+                            rustyclawd_core::client::types::ContentDelta::TextDelta { text } => text,
                         };
 
                         // Output based on format
@@ -590,7 +590,7 @@ impl App {
             let text = response.content
                 .iter()
                 .filter_map(|block| {
-                    if let claude_code_core::client::types::ContentBlock::Text { text } = block {
+                    if let rustyclawd_core::client::types::ContentBlock::Text { text } = block {
                         Some(text.as_str())
                     } else {
                         None

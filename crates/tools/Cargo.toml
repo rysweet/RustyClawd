@@ -1,5 +1,5 @@
 [package]
-name = "claude-code-tools"
+name = "rustyclawd-tools"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ authors.workspace = true
 
 [dependencies]
 # Workspace crates
-claude-code-core = { path = "../core" }
+rustyclawd-core = { path = "../core" }
 
 # Workspace dependencies
 tokio = { workspace = true }
