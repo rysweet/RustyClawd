@@ -1,15 +1,14 @@
-//! Claude Code CLI Library - Expose modules for testing and reuse
-//!
-//! This library exposes the CLI module structure to support both the binary
-//! and testing/library use cases.
+//! RustyClawd CLI library
+//! 
+//! Infrastructure modules that aren't yet fully integrated.
+//! Allow dead code temporarily while features are being completed.
+
+#![allow(dead_code)]
+#![allow(unused_imports)]
 
 pub mod checkpoint;
 pub mod commands;
 pub mod hooks;
+pub mod interactive;
 pub mod plugins;
 pub mod settings;
-
-pub use commands::{
-    parser::Command, parser::CommandParser, executor::Executor, registry::Registry,
-    CommandResult, SlashCommands,
-};
