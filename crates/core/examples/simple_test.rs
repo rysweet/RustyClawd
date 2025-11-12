@@ -29,6 +29,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     claude_code_core::client::ContentBlock::Text { text } => {
                         println!("Response: {}", text);
                     }
+                    claude_code_core::client::ContentBlock::ToolUse { .. } => {
+                        println!("[tool_use block]");
+                    }
+                    claude_code_core::client::ContentBlock::ToolResult { .. } => {
+                        println!("[tool_result block]");
+                    }
                 }
             }
         }

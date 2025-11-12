@@ -12,11 +12,65 @@ pub enum Role {
     Assistant,
 }
 
+/// Message content - can be simple string or structured blocks
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum MessageContent {
+    /// Simple text string
+    Text(String),
+    /// Structured content blocks (for tool use)
+    Blocks(Vec<ContentBlock>),
+}
+
 /// A message in the conversation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
     pub role: Role,
-    pub content: String,
+    pub content: MessageContent,
+}
+
+/// Tool definition for the API
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolDefinition {
+    pub name: String,
+    pub description: String,
+    pub input_schema: serde_json::Value,
+}
+
+/// Tool choice configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ToolChoice {
+    /// Auto (default) - model decides whether to use tools
+    Auto { r#type: String },
+    /// Any - model must use at least one tool
+    Any { r#type: String },
+    /// Tool - model must use specific tool
+    Tool { r#type: String, name: String },
+}
+
+impl ToolChoice {
+    /// Create auto tool choice (default)
+    pub fn auto() -> Self {
+        Self::Auto {
+            r#type: "auto".to_string(),
+        }
+    }
+
+    /// Create any tool choice (must use a tool)
+    pub fn any() -> Self {
+        Self::Any {
+            r#type: "any".to_string(),
+        }
+    }
+
+    /// Create specific tool choice
+    pub fn tool(name: impl Into<String>) -> Self {
+        Self::Tool {
+            r#type: "tool".to_string(),
+            name: name.into(),
+        }
+    }
 }
 
 /// Request to create a message (non-streaming)
@@ -40,6 +94,12 @@ pub struct CreateMessageRequest {
     /// Set to true for streaming responses
     #[serde(default)]
     pub stream: bool,
+    /// Tools available for the model to use
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<ToolDefinition>>,
+    /// Tool choice configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<ToolChoice>,
 }
 
 /// Request metadata
@@ -49,11 +109,24 @@ pub struct Metadata {
     pub user_id: Option<String>,
 }
 
-/// Content block in a response
+/// Content block in a response or request
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlock {
-    Text { text: String },
+    Text {
+        text: String,
+    },
+    ToolUse {
+        id: String,
+        name: String,
+        input: serde_json::Value,
+    },
+    ToolResult {
+        tool_use_id: String,
+        content: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        is_error: Option<bool>,
+    },
 }
 
 /// Usage statistics for a request
@@ -163,6 +236,8 @@ impl CreateMessageRequest {
             metadata: None,
             stop_sequences: None,
             stream: false,
+            tools: None,
+            tool_choice: None,
         }
     }
 
@@ -201,22 +276,42 @@ impl CreateMessageRequest {
         self.stop_sequences = Some(stop_sequences);
         self
     }
+
+    /// Builder: Set tools
+    pub fn with_tools(mut self, tools: Vec<ToolDefinition>) -> Self {
+        self.tools = Some(tools);
+        self
+    }
+
+    /// Builder: Set tool choice
+    pub fn with_tool_choice(mut self, tool_choice: ToolChoice) -> Self {
+        self.tool_choice = Some(tool_choice);
+        self
+    }
 }
 
 impl Message {
-    /// Create a user message
+    /// Create a user message with text content
     pub fn user(content: impl Into<String>) -> Self {
         Self {
             role: Role::User,
-            content: content.into(),
+            content: MessageContent::Text(content.into()),
         }
     }
 
-    /// Create an assistant message
+    /// Create an assistant message with text content
     pub fn assistant(content: impl Into<String>) -> Self {
         Self {
             role: Role::Assistant,
-            content: content.into(),
+            content: MessageContent::Text(content.into()),
+        }
+    }
+
+    /// Create a message with structured content blocks
+    pub fn with_blocks(role: Role, blocks: Vec<ContentBlock>) -> Self {
+        Self {
+            role,
+            content: MessageContent::Blocks(blocks),
         }
     }
 }
@@ -229,11 +324,11 @@ mod tests {
     fn test_message_creation() {
         let user_msg = Message::user("Hello");
         assert_eq!(user_msg.role, Role::User);
-        assert_eq!(user_msg.content, "Hello");
+        assert!(matches!(user_msg.content, MessageContent::Text(_)));
 
         let assistant_msg = Message::assistant("Hi there");
         assert_eq!(assistant_msg.role, Role::Assistant);
-        assert_eq!(assistant_msg.content, "Hi there");
+        assert!(matches!(assistant_msg.content, MessageContent::Text(_)));
     }
 
     #[test]

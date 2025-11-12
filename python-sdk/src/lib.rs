@@ -92,11 +92,12 @@ fn query(
     // Extract text content from content blocks
     let mut text_content = String::new();
     for block in &response.content {
-        let claude_code_core::client::ContentBlock::Text { text } = block;
-        if !text_content.is_empty() {
-            text_content.push('\n');
+        if let claude_code_core::client::ContentBlock::Text { text } = block {
+            if !text_content.is_empty() {
+                text_content.push('\n');
+            }
+            text_content.push_str(text);
         }
-        text_content.push_str(text);
     }
     dict.set_item("content", text_content)?;
 

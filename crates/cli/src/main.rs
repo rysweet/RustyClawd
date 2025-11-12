@@ -9,6 +9,8 @@ mod hooks;
 mod interactive;
 mod plugins;
 mod settings;
+mod tool_definitions;
+mod tool_executor;
 
 use anyhow::{Context as AnyhowContext, Result};
 use clap::Parser;
@@ -480,7 +482,58 @@ impl App {
             request = request.with_system(sys_prompt.clone());
         }
 
-        // Streaming vs non-streaming
+        // Add tools unless explicitly disabled
+        if !self.cli.no_tools {
+            let tools = tool_definitions::get_all_tool_definitions();
+            request = request.with_tools(tools);
+        }
+
+        // If tools are enabled, use the tool execution loop (non-streaming)
+        if !self.cli.no_tools {
+            let response = client
+                .execute_with_tools(request, |tool_name, tool_input| async move {
+                    tool_executor::execute_tool(tool_name, tool_input).await
+                })
+                .await?;
+
+            // Extract text from response
+            let text = response
+                .content
+                .iter()
+                .filter_map(|block| {
+                    if let claude_code_core::client::types::ContentBlock::Text { text } = block {
+                        Some(text.as_str())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("");
+
+            // Output based on format
+            match self.cli.output_format.as_str() {
+                "json" => {
+                    let json_output = serde_json::json!({
+                        "id": response.id,
+                        "type": response.type_field,
+                        "role": response.role,
+                        "content": response.content,
+                        "model": response.model,
+                        "stop_reason": response.stop_reason,
+                        "usage": response.usage,
+                    });
+                    println!("{}", serde_json::to_string_pretty(&json_output)?);
+                }
+                _ => {
+                    // Text format (default)
+                    println!("{}", text);
+                }
+            }
+
+            return Ok(());
+        }
+
+        // Streaming vs non-streaming (when tools are disabled)
         let use_stream = !self.cli.no_stream;
         request = request.with_stream(use_stream);
 

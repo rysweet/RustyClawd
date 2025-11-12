@@ -68,6 +68,12 @@ async fn test_non_streaming(client: &Client) -> Result<(), Box<dyn std::error::E
             claude_code_core::client::ContentBlock::Text { text } => {
                 println!("  Content[{}]: {}", i, text);
             }
+            claude_code_core::client::ContentBlock::ToolUse { .. } => {
+                println!("  Content[{}]: [tool_use]", i);
+            }
+            claude_code_core::client::ContentBlock::ToolResult { .. } => {
+                println!("  Content[{}]: [tool_result]", i);
+            }
         }
     }
 

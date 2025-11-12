@@ -198,6 +198,8 @@ impl HookExecutor {
                     .iter()
                     .filter_map(|block| match block {
                         claude_code_core::client::ContentBlock::Text { text } => Some(text.as_str()),
+                        claude_code_core::client::ContentBlock::ToolUse { .. } => None,
+                        claude_code_core::client::ContentBlock::ToolResult { .. } => None,
                     })
                     .collect::<Vec<_>>()
                     .join("");

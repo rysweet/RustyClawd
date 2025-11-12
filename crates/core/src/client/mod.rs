@@ -50,6 +50,7 @@ pub use error::{ClientError, ClientResult};
 pub use stream::{EventStream, SseEvent, SseStream};
 pub use types::{
     ContentBlock, CreateMessageRequest, Message, MessageResponse, Role, StreamEvent, Usage,
+    ToolDefinition, ToolChoice,
 };
 
 /// Anthropic API client
@@ -188,6 +189,113 @@ impl Client {
                 None
             },
         ))
+    }
+
+    /// Execute a message with automatic tool calling loop
+    ///
+    /// This method handles the full tool use protocol:
+    /// 1. Sends initial request with tools
+    /// 2. If Claude returns tool_use blocks, executes them
+    /// 3. Sends tool results back to Claude
+    /// 4. Repeats until Claude returns a text response
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - Initial request with tools configured
+    /// * `tool_executor` - Callback to execute tool calls
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use claude_code_core::client::{Client, Config, CreateMessageRequest, Message};
+    ///
+    /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let config = Config::from_default_location().await?;
+    ///     let client = Client::new(config);
+    ///
+    ///     let request = CreateMessageRequest::new(
+    ///         "claude-sonnet-4-5-20250929",
+    ///         vec![Message::user("Run ls command")],
+    ///         4096,
+    ///     );
+    ///
+    ///     let response = client.execute_with_tools(request, |tool_name, tool_input| async move {
+    ///         // Execute tool and return result as JSON
+    ///         Ok(serde_json::json!({"output": "file1.txt\nfile2.txt"}))
+    ///     }).await?;
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn execute_with_tools<F, Fut>(
+        &self,
+        mut request: CreateMessageRequest,
+        tool_executor: F,
+    ) -> ClientResult<MessageResponse>
+    where
+        F: Fn(String, serde_json::Value) -> Fut,
+        Fut: std::future::Future<Output = ClientResult<serde_json::Value>>,
+    {
+        const MAX_ITERATIONS: usize = 10;
+        let mut iteration = 0;
+
+        loop {
+            iteration += 1;
+            if iteration > MAX_ITERATIONS {
+                return Err(ClientError::Api(
+                    "Tool execution exceeded maximum iterations".to_string(),
+                ));
+            }
+
+            // Execute the request
+            let response = self.create_message(request.clone()).await?;
+
+            // Check if response contains tool use
+            let mut has_tool_use = false;
+            let mut tool_result_blocks = Vec::new();
+
+            for block in &response.content {
+                if let ContentBlock::ToolUse { id, name, input } = block {
+                    has_tool_use = true;
+
+                    // Execute the tool
+                    match tool_executor(name.clone(), input.clone()).await {
+                        Ok(result) => {
+                            tool_result_blocks.push(ContentBlock::ToolResult {
+                                tool_use_id: id.clone(),
+                                content: result.to_string(),
+                                is_error: None,
+                            });
+                        }
+                        Err(e) => {
+                            tool_result_blocks.push(ContentBlock::ToolResult {
+                                tool_use_id: id.clone(),
+                                content: format!("Tool execution error: {}", e),
+                                is_error: Some(true),
+                            });
+                        }
+                    }
+                }
+            }
+
+            // If no tool use, we're done
+            if !has_tool_use {
+                return Ok(response);
+            }
+
+            // Build the next request with tool results
+            // First, add the assistant's response with tool_use blocks to conversation
+            request.messages.push(Message::with_blocks(
+                Role::Assistant,
+                response.content.clone(),
+            ));
+
+            // Then add tool results as user message with tool_result blocks
+            request.messages.push(Message::with_blocks(
+                Role::User,
+                tool_result_blocks,
+            ));
+        }
     }
 }
 
