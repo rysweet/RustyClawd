@@ -786,3 +786,33 @@ This project demonstrates Rust programming through practical translation. Use it
 ---
 
 **Built with 🦀 Rust and ❤️ for learning**
+
+## Installation
+
+### Via npx (Direct from GitHub)
+
+```bash
+# Run directly without installing
+npx github:rysweet/RustyClawd chat
+
+# Or with commands
+npx github:rysweet/RustyClawd bash "echo Hello"
+npx github:rysweet/RustyClawd read README.md
+```
+
+**Note**: First run will build the Rust binary (may take 1-2 minutes).
+
+### Via Cargo
+
+```bash
+cargo install --git https://github.com/rysweet/RustyClawd
+```
+
+### Build from Source
+
+```bash
+git clone https://github.com/rysweet/RustyClawd
+cd RustyClawd
+cargo build --release
+./target/release/claude-code --help
+```

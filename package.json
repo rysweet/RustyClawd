@@ -1,0 +1,23 @@
+{
+  "name": "@rysweet/rustyclawd",
+  "version": "0.1.0",
+  "description": "Production-ready Rust implementation of Claude Code",
+  "bin": {
+    "rustyclawd": "./bin.js",
+    "claude-code": "./bin.js"
+  },
+  "scripts": {
+    "postinstall": "cargo build --release",
+    "test": "cargo test --workspace"
+  },
+  "keywords": ["claude", "rust", "cli", "ai", "anthropic"],
+  "author": "RustyClawd Project",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rysweet/RustyClawd.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

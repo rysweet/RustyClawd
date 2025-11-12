@@ -34,3 +34,7 @@
 **/secrets/
 credentials.json
 api_keys.txt
+
+# NPM
+node_modules/
+package-lock.json
