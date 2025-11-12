@@ -39,13 +39,9 @@ pub mod executor;
 pub mod loader;
 pub mod manifest;
 
-pub use discovery::{PluginDiscovery, PluginLoadStatus, PluginMetadata};
-pub use executor::{PluginExecutionResult, PluginExecutor, PluginValidator};
+pub use discovery::PluginDiscovery;
+pub use executor::PluginExecutor;
 pub use loader::PluginLoader;
-pub use manifest::{
-    CommandDefinition, HookDefinition, PluginManifest, SkillDefinition, parse_manifest,
-    validate_manifest, validate_references,
-};
 
 /// Plugin system version
 pub const PLUGIN_VERSION: &str = "1.0.0";

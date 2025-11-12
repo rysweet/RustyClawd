@@ -57,11 +57,7 @@
 // Public API
 pub use loader::SessionLoader;
 pub use saver::SessionSaver;
-pub use storage::{CheckpointMetadata, CheckpointStorage};
-pub use types::{
-    Checkpoint, CheckpointHistory, CheckpointMessage, FileChange, RestoreScope, Session,
-    SessionState,
-};
+pub use types::Session;
 
 // Module structure
 pub mod loader;
@@ -70,4 +66,3 @@ pub mod storage;
 pub mod types;
 
 // Re-export commonly used items
-pub use types::{Checkpoint as CheckpointType, Session as SessionType};

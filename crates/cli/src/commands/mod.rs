@@ -14,11 +14,9 @@ pub mod executor;
 pub mod builtins;
 
 pub use self::{
-    executor::{Executor, ExecutorError},
-    parser::{Command, CommandParser},
-    registry::{Registry, RegistryError},
-    loader::{CommandLoader, FrontMatter},
-    builtins::BuiltinCommands,
+    executor::Executor,
+    parser::CommandParser,
+    registry::Registry,
 };
 
 use anyhow::Result;

@@ -14,11 +14,6 @@ mod tool_executor;
 
 use anyhow::{Context as AnyhowContext, Result};
 use clap::Parser;
-use claude_code_tools::{
-    AgentTool, AskUserQuestionTool, BashOutputTool, BashTool, EditTool, GlobTool, GrepTool,
-    KillShellTool, NotebookEditTool, ReadTool, SkillTool, SlashCommandTool, TodoWriteTool,
-    ToolContext, ToolEvent, WebFetchTool, WebSearchTool, WriteTool,
-};
 use futures::StreamExt;
 use std::io::{self, IsTerminal, Read};
 
