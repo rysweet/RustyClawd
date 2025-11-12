@@ -15,7 +15,7 @@ use std::path::PathBuf;
 #[derive(Clone)]
 pub struct CheckpointStorage {
     /// Base directory for sessions (.claude/sessions/)
-    base_dir: PathBuf,
+    pub(crate) base_dir: PathBuf,
 }
 
 impl CheckpointStorage {

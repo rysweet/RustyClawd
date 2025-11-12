@@ -4,7 +4,6 @@
 
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use std::path::PathBuf;
 
 /// Claude Agent options matching TypeScript SDK
 #[pyclass]
@@ -32,13 +31,14 @@ impl ClaudeAgentOptions {
 
 /// Main query function - matches claude_agent_sdk.query() API
 #[pyfunction]
+#[pyo3(signature = (prompt, options=None))]
 fn query(
     py: Python,
     prompt: String,
     options: Option<ClaudeAgentOptions>,
-) -> PyResult<Py<PyAny>> {
-    // Block on async Rust code
-    py.allow_threads(|| {
+) -> PyResult<PyObject> {
+    // Extract response outside of GIL
+    let response = py.allow_threads(|| {
         // Create Tokio runtime
         let rt = tokio::runtime::Runtime::new()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
@@ -79,20 +79,43 @@ fn query(
                     format!("API call failed: {}", e)
                 ))?;
 
-            // Return response as Python string
             Ok::<_, PyErr>(response)
         })
     })?;
 
-    // Convert to Python object
-    Python::with_gil(|py| {
-        Ok(PyDict::new(py).into())
-    })
+    // Convert response to Python dict
+    let dict = PyDict::new_bound(py);
+    dict.set_item("id", response.id)?;
+    dict.set_item("model", response.model)?;
+    dict.set_item("role", format!("{:?}", response.role))?;
+
+    // Extract text content from content blocks
+    let mut text_content = String::new();
+    for block in &response.content {
+        let claude_code_core::client::ContentBlock::Text { text } = block;
+        if !text_content.is_empty() {
+            text_content.push('\n');
+        }
+        text_content.push_str(text);
+    }
+    dict.set_item("content", text_content)?;
+
+    if let Some(stop_reason) = response.stop_reason {
+        dict.set_item("stop_reason", stop_reason)?;
+    }
+
+    // Add usage info
+    let usage_dict = PyDict::new_bound(py);
+    usage_dict.set_item("input_tokens", response.usage.input_tokens)?;
+    usage_dict.set_item("output_tokens", response.usage.output_tokens)?;
+    dict.set_item("usage", usage_dict)?;
+
+    Ok(dict.into())
 }
 
 /// Python module initialization
 #[pymodule]
-fn claude_agent_sdk(_py: Python, m: &PyModule) -> PyResult<()> {
+fn claude_agent_sdk(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(query, m)?)?;
     m.add_class::<ClaudeAgentOptions>()?;
     Ok(())

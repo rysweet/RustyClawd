@@ -70,3 +70,27 @@
 [2025-11-11T20:05:26.664869] INFO: Returning output with keys: ['decision']
 [2025-11-11T20:05:26.665073] INFO: stop hook completed successfully
 [2025-11-11T20:05:26.665217] INFO: stop hook completed successfully
+[2025-11-11T23:00:00.478677] INFO: stop hook starting (Python 3.13.7)
+[2025-11-11T23:00:00.478571] INFO: stop hook starting (Python 3.13.7)
+[2025-11-11T23:00:00.479455] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-11T23:00:00.479466] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-11T23:00:00.479716] INFO: Event type: Stop
+[2025-11-11T23:00:00.480260] INFO: Event type: Stop
+[2025-11-11T23:00:00.480379] INFO: === STOP HOOK STARTED ===
+[2025-11-11T23:00:00.480555] INFO: === STOP HOOK STARTED ===
+[2025-11-11T23:00:00.480952] INFO: Input keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-11T23:00:00.481078] INFO: Input keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-11T23:00:01.039092] INFO: Neo4j cleanup handler started (auto_mode=False)
+[2025-11-11T23:00:01.039135] INFO: Neo4j cleanup handler started (auto_mode=False)
+[2025-11-11T23:00:02.038252] INFO: Neo4j cleanup handler completed
+[2025-11-11T23:00:02.038249] INFO: Neo4j cleanup handler completed
+[2025-11-11T23:00:02.039000] DEBUG: Reflection config not found - skipping reflection
+[2025-11-11T23:00:02.042603] DEBUG: Reflection config not found - skipping reflection
+[2025-11-11T23:00:02.042602] INFO: Reflection not enabled or skipped - allowing stop
+[2025-11-11T23:00:02.043489] INFO: Reflection not enabled or skipped - allowing stop
+[2025-11-11T23:00:02.043869] INFO: === STOP HOOK ENDED (decision: approve - no reflection) ===
+[2025-11-11T23:00:02.044381] INFO: === STOP HOOK ENDED (decision: approve - no reflection) ===
+[2025-11-11T23:00:02.044499] INFO: Returning output with keys: ['decision']
+[2025-11-11T23:00:02.044675] INFO: Returning output with keys: ['decision']
+[2025-11-11T23:00:02.045143] INFO: stop hook completed successfully
+[2025-11-11T23:00:02.045386] INFO: stop hook completed successfully

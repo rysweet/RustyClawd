@@ -50,14 +50,14 @@ pub struct Metadata {
 }
 
 /// Content block in a response
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlock {
     Text { text: String },
 }
 
 /// Usage statistics for a request
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Usage {
     pub input_tokens: u32,
     pub output_tokens: u32,
@@ -193,6 +193,12 @@ impl CreateMessageRequest {
     /// Builder: Set top_k
     pub fn with_top_k(mut self, top_k: u32) -> Self {
         self.top_k = Some(top_k);
+        self
+    }
+
+    /// Builder: Set stop_sequences
+    pub fn with_stop_sequences(mut self, stop_sequences: Vec<String>) -> Self {
+        self.stop_sequences = Some(stop_sequences);
         self
     }
 }

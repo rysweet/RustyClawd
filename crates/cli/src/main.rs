@@ -1,7 +1,7 @@
-//! Claude Code CLI - Unified System Integration
+//! Claude Code CLI - Matching Official Interface
 //!
-//! Orchestrates all systems: settings, hooks, checkpoints, plugins, and commands.
-//! Provides a complete CLI experience with proper lifecycle management.
+//! This is a Rust implementation that matches Claude Code's exact CLI interface.
+//! Tools are available in context for Claude to use, not as CLI subcommands.
 
 mod checkpoint;
 mod commands;
@@ -11,247 +11,107 @@ mod plugins;
 mod settings;
 
 use anyhow::{Context as AnyhowContext, Result};
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use claude_code_tools::{
     AgentTool, AskUserQuestionTool, BashOutputTool, BashTool, EditTool, GlobTool, GrepTool,
-    KillShellTool, NotebookEditTool, ReadTool, SkillTool, SlashCommandTool, TodoWriteTool, Tool,
+    KillShellTool, NotebookEditTool, ReadTool, SkillTool, SlashCommandTool, TodoWriteTool,
     ToolContext, ToolEvent, WebFetchTool, WebSearchTool, WriteTool,
 };
 use futures::StreamExt;
+use std::io::{self, IsTerminal, Read};
 
-/// Claude Code - Rust Translation (Educational)
+/// Claude - AI assistant with tool use capabilities
 #[derive(Parser)]
-#[command(name = "claude-code")]
-#[command(author = "Educational Project")]
+#[command(name = "claude")]
+#[command(author = "Anthropic")]
 #[command(version = "0.1.0")]
-#[command(about = "Rust translation of Claude Code for learning purposes", long_about = None)]
+#[command(about = "Claude AI assistant command-line interface", long_about = None)]
+#[command(disable_help_subcommand = true)]
 struct Cli {
+    /// Print mode - execute prompt and exit
+    #[arg(short = 'p', long = "print")]
+    print_mode: bool,
+
+    /// Model to use (e.g., "sonnet", "opus", "haiku")
+    #[arg(long)]
+    model: Option<String>,
+
+    /// System prompt to use
+    #[arg(long)]
+    system_prompt: Option<String>,
+
+    /// Append to system prompt
+    #[arg(long)]
+    append_system_prompt: Option<String>,
+
+    /// Continue from last session
+    #[arg(short = 'c', long = "continue")]
+    continue_session: bool,
+
+    /// Resume specific session by ID
+    #[arg(short = 'r', long = "resume")]
+    resume: Option<Option<String>>,
+
+    /// Output format: text, json, stream-json
+    #[arg(long, default_value = "text")]
+    output_format: String,
+
+    /// Tool whitelist (comma-separated)
+    #[arg(long)]
+    allowed_tools: Option<String>,
+
+    /// Tool blacklist (comma-separated)
+    #[arg(long)]
+    disallowed_tools: Option<String>,
+
+    /// Max tokens in response
+    #[arg(long)]
+    max_tokens: Option<usize>,
+
+    /// Temperature for sampling (0.0-1.0)
+    #[arg(long)]
+    temperature: Option<f32>,
+
+    /// Top-p sampling parameter
+    #[arg(long)]
+    top_p: Option<f32>,
+
+    /// Top-k sampling parameter
+    #[arg(long)]
+    top_k: Option<i32>,
+
+    /// Stop sequences (comma-separated)
+    #[arg(long)]
+    stop_sequences: Option<String>,
+
+    /// Working directory
+    #[arg(long)]
+    working_directory: Option<String>,
+
     /// Enable debug logging
     #[arg(short, long)]
     debug: bool,
 
-    /// Resume a previous session
+    /// Disable streaming
     #[arg(long)]
-    resume: Option<String>,
+    no_stream: bool,
 
-    /// Checkpoint limit for session history
+    /// Session checkpoint limit
     #[arg(long, default_value = "50")]
     checkpoint_limit: usize,
 
-    #[command(subcommand)]
-    command: Option<Commands>,
-}
+    /// Disable tool use
+    #[arg(long)]
+    no_tools: bool,
 
-#[derive(Subcommand, Clone)]
-enum Commands {
-    /// Start interactive chat session with Claude
-    Chat,
+    /// Interactive mode flag (no prompt = interactive)
+    #[arg(long, hide = true)]
+    interactive: bool,
 
-    /// Execute a bash command
-    Bash {
-        /// The command to execute
-        command: String,
-
-        /// Timeout in milliseconds
-        #[arg(short, long, default_value = "120000")]
-        timeout: u64,
-
-        /// Description of what the command does
-        #[arg(short = 'D', long)]
-        description: Option<String>,
-    },
-
-    /// Read a file
-    Read {
-        /// Path to the file to read
-        file_path: String,
-
-        /// Line offset to start reading from
-        #[arg(long)]
-        offset: Option<usize>,
-
-        /// Number of lines to read
-        #[arg(long)]
-        limit: Option<usize>,
-    },
-
-    /// Write content to a file
-    Write {
-        /// Path to write to
-        file_path: String,
-
-        /// Content to write
-        #[arg(long)]
-        content: String,
-    },
-
-    /// Edit a file by replacing text
-    Edit {
-        /// Path to the file to edit
-        file_path: String,
-
-        /// Text to replace
-        #[arg(long)]
-        old_string: String,
-
-        /// Replacement text
-        #[arg(long)]
-        new_string: String,
-
-        /// Replace all occurrences
-        #[arg(long)]
-        replace_all: bool,
-    },
-
-    /// Find files by glob pattern
-    Glob {
-        /// Glob pattern (e.g., "**/*.rs")
-        pattern: String,
-
-        /// Directory to search in
-        #[arg(long)]
-        path: Option<String>,
-    },
-
-    /// Search for text patterns using ripgrep
-    Grep {
-        /// Regex pattern to search for
-        pattern: String,
-
-        /// Path to search in
-        #[arg(long)]
-        path: Option<String>,
-
-        /// Case insensitive
-        #[arg(short = 'i')]
-        case_insensitive: bool,
-
-        /// Glob pattern to filter files
-        #[arg(long)]
-        glob: Option<String>,
-
-        /// Lines before match
-        #[arg(short = 'B')]
-        before: Option<usize>,
-
-        /// Lines after match
-        #[arg(short = 'A')]
-        after: Option<usize>,
-
-        /// Limit results
-        #[arg(long)]
-        head_limit: Option<usize>,
-    },
-
-    /// Manage task lists
-    TodoWrite {
-        /// JSON array of tasks
-        #[arg(long)]
-        todos: String,
-    },
-
-    /// Invoke specialized sub-agents
-    Agent {
-        /// Brief 3-5 word description
-        description: String,
-
-        /// Full prompt for the agent
-        #[arg(long)]
-        prompt: String,
-
-        /// Agent type name
-        #[arg(long)]
-        subagent_type: String,
-
-        /// Optional model (haiku/sonnet/opus)
-        #[arg(long)]
-        model: Option<String>,
-
-        /// Optional agent ID to resume
-        #[arg(long)]
-        resume: Option<String>,
-    },
-
-    /// Load and execute skills
-    Skill {
-        /// Skill name to execute
-        skill: String,
-    },
-
-    /// Execute custom slash commands
-    SlashCommand {
-        /// Command to execute (e.g., "/review-pr 123")
-        command: String,
-    },
-
-    /// Fetch content from URLs
-    WebFetch {
-        /// URL to fetch
-        url: String,
-
-        /// Prompt for content extraction
-        #[arg(long)]
-        prompt: String,
-    },
-
-    /// Search the web
-    WebSearch {
-        /// Search query
-        query: String,
-
-        /// Allowed domains (comma-separated)
-        #[arg(long)]
-        allowed_domains: Option<String>,
-
-        /// Blocked domains (comma-separated)
-        #[arg(long)]
-        blocked_domains: Option<String>,
-    },
-
-    /// Edit Jupyter notebook cells
-    NotebookEdit {
-        /// Path to notebook file
-        notebook_path: String,
-
-        /// New source for the cell
-        #[arg(long)]
-        new_source: String,
-
-        /// Cell ID to edit
-        #[arg(long)]
-        cell_id: Option<String>,
-
-        /// Cell type (code/markdown)
-        #[arg(long)]
-        cell_type: Option<String>,
-
-        /// Edit mode (replace/insert/delete)
-        #[arg(long, default_value = "replace")]
-        edit_mode: String,
-    },
-
-    /// Ask user questions interactively
-    AskUserQuestion {
-        /// JSON array of questions
-        #[arg(long)]
-        questions: String,
-    },
-
-    /// Get output from background shell
-    BashOutput {
-        /// Background shell ID
-        bash_id: String,
-
-        /// Optional regex filter
-        #[arg(long)]
-        filter: Option<String>,
-    },
-
-    /// Terminate a background shell
-    KillShell {
-        /// Shell ID to kill
-        shell_id: String,
-    },
+    /// The prompt to execute (positional argument or from stdin)
+    /// When provided, runs in print mode (one-shot execution)
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+    prompt: Vec<String>,
 }
 
 /// Unified CLI application state
@@ -355,14 +215,67 @@ impl App {
         let session_saver = checkpoint::SessionSaver::default()
             .context("Failed to initialize session saver")?;
 
-        let session = if let Some(session_id) = &cli.resume {
-            tracing::info!("Resuming session: {}", session_id);
+        let session = if cli.continue_session {
+            // Continue from last session
+            tracing::info!("Continuing from last session");
             let loader = checkpoint::SessionLoader::default()
                 .context("Failed to initialize session loader")?;
 
-            loader
-                .resume_session(session_id, cli.checkpoint_limit)
-                .context("Failed to resume session")?
+            // Find the most recent session
+            match loader.list_sessions() {
+                Ok(mut sessions) => {
+                    if let Some(last_session) = sessions.pop() {
+                        loader
+                            .resume_session(&last_session, cli.checkpoint_limit)
+                            .context("Failed to resume last session")?
+                    } else {
+                        // No sessions found, create new
+                        let session_id = format!("session-{}", chrono::Utc::now().timestamp());
+                        tracing::info!("No previous session found, starting new: {}", session_id);
+                        checkpoint::Session::new(session_id, cli.checkpoint_limit)
+                    }
+                }
+                Err(_) => {
+                    // Error listing sessions, create new
+                    let session_id = format!("session-{}", chrono::Utc::now().timestamp());
+                    tracing::info!("Starting new session: {}", session_id);
+                    checkpoint::Session::new(session_id, cli.checkpoint_limit)
+                }
+            }
+        } else if let Some(ref session_id_opt) = cli.resume {
+            // Resume specific session
+            if let Some(session_id) = session_id_opt {
+                tracing::info!("Resuming session: {}", session_id);
+                let loader = checkpoint::SessionLoader::default()
+                    .context("Failed to initialize session loader")?;
+
+                loader
+                    .resume_session(session_id, cli.checkpoint_limit)
+                    .context("Failed to resume session")?
+            } else {
+                // --resume without ID: list available sessions
+                let loader = checkpoint::SessionLoader::default()
+                    .context("Failed to initialize session loader")?;
+
+                match loader.list_sessions() {
+                    Ok(sessions) => {
+                        if sessions.is_empty() {
+                            println!("No saved sessions found.");
+                            std::process::exit(0);
+                        } else {
+                            println!("Available sessions:");
+                            for session in sessions {
+                                println!("  - {}", session);
+                            }
+                            std::process::exit(0);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to list sessions: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
         } else {
             // Generate new session ID
             let session_id = format!("session-{}", chrono::Utc::now().timestamp());
@@ -387,17 +300,8 @@ impl App {
         // Call SessionStart hook
         self.execute_session_start_hook().await?;
 
-        // Dispatch to appropriate mode
-        let is_chat = matches!(self.cli.command, None | Some(Commands::Chat));
-
-        let result = if is_chat {
-            // Interactive mode
-            self.run_interactive().await
-        } else {
-            // Tool execution mode - clone the command first to avoid borrow issues
-            let cmd = self.cli.command.clone().unwrap();
-            self.run_tool_command(&cmd).await
-        };
+        // Determine mode: print mode (one-shot) or interactive
+        let result = self.determine_and_run_mode().await;
 
         // Call SessionEnd hook (even on error)
         self.execute_session_end_hook().await?;
@@ -406,6 +310,57 @@ impl App {
         self.save_session()?;
 
         result
+    }
+
+    /// Determine which mode to run based on CLI arguments and stdin
+    async fn determine_and_run_mode(&mut self) -> Result<()> {
+        // Check for piped stdin first
+        let stdin_input = Self::read_stdin_if_piped()?;
+
+        // Determine if we have a prompt
+        let prompt_text = if !self.cli.prompt.is_empty() {
+            // Join all positional args as the prompt
+            Some(self.cli.prompt.join(" "))
+        } else if let Some(ref stdin) = stdin_input {
+            // Use stdin as prompt
+            Some(stdin.clone())
+        } else {
+            None
+        };
+
+        // If print_mode flag is set or we have a prompt, run in print mode
+        if self.cli.print_mode || prompt_text.is_some() {
+            if let Some(prompt) = prompt_text {
+                return self.run_print_mode(&prompt).await;
+            } else {
+                // -p flag with no prompt
+                return Err(anyhow::anyhow!("Print mode requires a prompt"));
+            }
+        }
+
+        // No prompt and no -p flag = interactive mode
+        self.run_interactive().await
+    }
+
+    /// Read from stdin if it's piped (not a TTY)
+    fn read_stdin_if_piped() -> Result<Option<String>> {
+        let stdin = io::stdin();
+
+        // Check if stdin is a terminal (TTY) or piped
+        if stdin.is_terminal() {
+            // It's a TTY, not piped - return None
+            return Ok(None);
+        }
+
+        // Stdin is piped - read all content
+        let mut buffer = String::new();
+        stdin.lock().read_to_string(&mut buffer)?;
+
+        if buffer.trim().is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(buffer.trim().to_string()))
+        }
     }
 
     /// Execute SessionStart hook
@@ -471,417 +426,153 @@ impl App {
         interactive::run_interactive().await
     }
 
-    /// Run a tool command with hooks and checkpoints
-    async fn run_tool_command(&mut self, command: &Commands) -> Result<()> {
-        // Create tool context
-        let ctx = ToolContext {
-            debug: self.cli.debug,
-            ..Default::default()
+    /// Run in print mode (one-shot execution) - matches Claude Code's behavior
+    async fn run_print_mode(&mut self, prompt: &str) -> Result<()> {
+        use claude_code_core::{
+            client::{Client, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent},
+        };
+        use std::io::Write;
+
+        // Load API configuration
+        let config = Config::from_default_location().await?;
+        let client = Client::new(config);
+
+        // Model configuration - use CLI override or default
+        let model = self.cli.model.as_ref()
+            .map(|m| match m.as_str() {
+                "sonnet" => "claude-sonnet-4-5-20250929",
+                "opus" => "claude-opus-20240229",
+                "haiku" => "claude-3-5-haiku-20241022",
+                custom => custom,
+            })
+            .unwrap_or("claude-sonnet-4-5-20250929")
+            .to_string();
+
+        let max_tokens = self.cli.max_tokens.unwrap_or(4096) as u32;
+
+        // Build system prompt if specified
+        let system_prompt = match (&self.cli.system_prompt, &self.cli.append_system_prompt) {
+            (Some(base), Some(append)) => Some(format!("{}\n\n{}", base, append)),
+            (Some(base), None) => Some(base.clone()),
+            (None, Some(append)) => Some(append.clone()),
+            (None, None) => None,
         };
 
-        // Execute pre-tool hook
-        let tool_name = match command {
-            Commands::Bash { .. } => "Bash",
-            Commands::Read { .. } => "Read",
-            Commands::Write { .. } => "Write",
-            Commands::Edit { .. } => "Edit",
-            Commands::Glob { .. } => "Glob",
-            Commands::Grep { .. } => "Grep",
-            Commands::TodoWrite { .. } => "TodoWrite",
-            Commands::Agent { .. } => "Agent",
-            Commands::Skill { .. } => "Skill",
-            Commands::SlashCommand { .. } => "SlashCommand",
-            Commands::WebFetch { .. } => "WebFetch",
-            Commands::WebSearch { .. } => "WebSearch",
-            Commands::NotebookEdit { .. } => "NotebookEdit",
-            Commands::AskUserQuestion { .. } => "AskUserQuestion",
-            Commands::BashOutput { .. } => "BashOutput",
-            Commands::KillShell { .. } => "KillShell",
-            Commands::Chat => unreachable!(),
-        };
+        // Create message request
+        let messages = vec![ApiMessage::user(prompt.to_string())];
+        let mut request = CreateMessageRequest::new(model, messages, max_tokens);
 
-        self.execute_pre_tool_hook(tool_name).await?;
+        // Apply optional parameters
+        if let Some(temp) = self.cli.temperature {
+            request = request.with_temperature(temp);
+        }
+        if let Some(top_p) = self.cli.top_p {
+            request = request.with_top_p(top_p);
+        }
+        if let Some(top_k) = self.cli.top_k {
+            request = request.with_top_k(top_k as u32);
+        }
+        if let Some(ref stop_seqs) = self.cli.stop_sequences {
+            let seqs: Vec<String> = stop_seqs.split(',').map(|s| s.trim().to_string()).collect();
+            request = request.with_stop_sequences(seqs);
+        }
+        if let Some(ref sys_prompt) = system_prompt {
+            request = request.with_system(sys_prompt.clone());
+        }
 
-        // Create checkpoint before tool execution
-        let checkpoint_id = self.session.create_checkpoint(Some(format!(
-            "Before {} execution",
-            tool_name
-        )));
-        tracing::debug!("Created checkpoint: {}", checkpoint_id);
+        // Streaming vs non-streaming
+        let use_stream = !self.cli.no_stream;
+        request = request.with_stream(use_stream);
 
-        // Execute the tool
-        let result = match command {
-            Commands::Bash {
-                command,
-                timeout,
-                description,
-            } => {
-                use claude_code_tools::bash::*;
-                self.execute_tool(
-                    BashTool,
-                    BashParams {
-                        command: command.clone(),
-                        timeout: *timeout,
-                        description: description.clone(),
-                        run_in_background: false,
-                    },
-                    &ctx,
-                )
-                .await
-            }
+        if use_stream {
+            // Stream response
+            let mut stream = client.create_message_stream(request).await?;
+            let mut response_text = String::new();
 
-            Commands::Read {
-                file_path,
-                offset,
-                limit,
-            } => {
-                use claude_code_tools::read::*;
-                self.execute_tool(
-                    ReadTool,
-                    ReadParams {
-                        file_path: file_path.clone(),
-                        offset: *offset,
-                        limit: *limit,
-                    },
-                    &ctx,
-                )
-                .await
-            }
+            while let Some(event) = stream.next().await {
+                match event {
+                    Ok(StreamEvent::ContentBlockDelta { delta, .. }) => {
+                        let text = match delta {
+                            claude_code_core::client::types::ContentDelta::TextDelta { text } => text,
+                        };
 
-            Commands::Write {
-                file_path,
-                content,
-            } => {
-                use claude_code_tools::write::*;
-                self.execute_tool(
-                    WriteTool,
-                    WriteParams {
-                        file_path: file_path.clone(),
-                        content: content.clone(),
-                    },
-                    &ctx,
-                )
-                .await
-            }
-
-            Commands::Edit {
-                file_path,
-                old_string,
-                new_string,
-                replace_all,
-            } => {
-                use claude_code_tools::edit::*;
-                self.execute_tool(
-                    EditTool,
-                    EditParams {
-                        file_path: file_path.clone(),
-                        old_string: old_string.clone(),
-                        new_string: new_string.clone(),
-                        replace_all: *replace_all,
-                    },
-                    &ctx,
-                )
-                .await
-            }
-
-            Commands::Glob { pattern, path } => {
-                use claude_code_tools::glob_tool::*;
-                self.execute_tool(
-                    GlobTool,
-                    GlobParams {
-                        pattern: pattern.clone(),
-                        path: path.clone(),
-                    },
-                    &ctx,
-                )
-                .await
-            }
-
-            Commands::Grep {
-                pattern,
-                path,
-                case_insensitive,
-                glob,
-                before,
-                after,
-                head_limit,
-            } => {
-                use claude_code_tools::grep::*;
-                self.execute_tool(
-                    GrepTool,
-                    GrepParams {
-                        pattern: pattern.clone(),
-                        path: path.clone(),
-                        output_mode: OutputMode::Content,
-                        case_insensitive: *case_insensitive,
-                        glob: glob.clone(),
-                        before_context: *before,
-                        after_context: *after,
-                        head_limit: *head_limit,
-                    },
-                    &ctx,
-                )
-                .await
-            }
-
-            Commands::TodoWrite { todos } => {
-                use claude_code_tools::todo_write::*;
-                // Parse JSON array of tasks
-                let tasks: Vec<Task> = match serde_json::from_str(todos) {
-                    Ok(t) => t,
+                        // Output based on format
+                        match self.cli.output_format.as_str() {
+                            "json" | "stream-json" => {
+                                // JSON format output
+                                let json_chunk = serde_json::json!({
+                                    "type": "content_block_delta",
+                                    "delta": {
+                                        "type": "text_delta",
+                                        "text": text
+                                    }
+                                });
+                                println!("{}", serde_json::to_string(&json_chunk)?);
+                            }
+                            _ => {
+                                // Text format (default)
+                                print!("{}", text);
+                                io::stdout().flush()?;
+                            }
+                        }
+                        response_text.push_str(&text);
+                    }
+                    Ok(StreamEvent::MessageStop) => {
+                        if self.cli.output_format == "text" {
+                            println!(); // Final newline for text mode
+                        }
+                        break;
+                    }
+                    Ok(StreamEvent::Error { error }) => {
+                        return Err(anyhow::anyhow!("API error: {}", error.message));
+                    }
                     Err(e) => {
-                        eprintln!("Failed to parse todos JSON: {}", e);
-                        std::process::exit(1);
+                        return Err(anyhow::anyhow!("Stream error: {}", e));
                     }
-                };
-                self.execute_tool(
-                    TodoWriteTool,
-                    TodoWriteParams { todos: tasks },
-                    &ctx,
-                )
-                .await
-            }
-
-            Commands::Agent {
-                description,
-                prompt,
-                subagent_type,
-                model,
-                resume,
-            } => {
-                use claude_code_tools::agent::*;
-                self.execute_tool(
-                    AgentTool,
-                    AgentParams {
-                        description: description.clone(),
-                        prompt: prompt.clone(),
-                        subagent_type: subagent_type.clone(),
-                        model: model.clone(),
-                        resume: resume.clone(),
-                    },
-                    &ctx,
-                )
-                .await
-            }
-
-            Commands::Skill { skill } => {
-                use claude_code_tools::skill::*;
-                self.execute_tool(
-                    SkillTool,
-                    SkillParams {
-                        skill: skill.clone(),
-                    },
-                    &ctx,
-                )
-                .await
-            }
-
-            Commands::SlashCommand { command } => {
-                use claude_code_tools::slash_command::*;
-                self.execute_tool(
-                    SlashCommandTool,
-                    SlashCommandParams {
-                        command: command.clone(),
-                    },
-                    &ctx,
-                )
-                .await
-            }
-
-            Commands::WebFetch { url, prompt } => {
-                use claude_code_tools::web_fetch::*;
-                self.execute_tool(
-                    WebFetchTool,
-                    WebFetchParams {
-                        url: url.clone(),
-                        prompt: prompt.clone(),
-                    },
-                    &ctx,
-                )
-                .await
-            }
-
-            Commands::WebSearch {
-                query,
-                allowed_domains,
-                blocked_domains,
-            } => {
-                use claude_code_tools::web_search::*;
-                // Parse comma-separated domains
-                let allowed = allowed_domains
-                    .as_ref()
-                    .map(|s| s.split(',').map(|d| d.trim().to_string()).collect())
-                    .unwrap_or_default();
-                let blocked = blocked_domains
-                    .as_ref()
-                    .map(|s| s.split(',').map(|d| d.trim().to_string()).collect())
-                    .unwrap_or_default();
-                self.execute_tool(
-                    WebSearchTool,
-                    WebSearchParams {
-                        query: query.clone(),
-                        allowed_domains: allowed,
-                        blocked_domains: blocked,
-                    },
-                    &ctx,
-                )
-                .await
-            }
-
-            Commands::NotebookEdit {
-                notebook_path,
-                new_source,
-                cell_id,
-                cell_type,
-                edit_mode,
-            } => {
-                use claude_code_tools::notebook_edit::*;
-                // Parse cell_type
-                let parsed_cell_type = cell_type.as_ref().and_then(|ct| match ct.as_str() {
-                    "code" => Some(CellType::Code),
-                    "markdown" => Some(CellType::Markdown),
-                    _ => None,
-                });
-                // Parse edit_mode
-                let parsed_edit_mode = match edit_mode.as_str() {
-                    "replace" => EditMode::Replace,
-                    "insert" => EditMode::Insert,
-                    "delete" => EditMode::Delete,
-                    _ => EditMode::Replace,
-                };
-                self.execute_tool(
-                    NotebookEditTool,
-                    NotebookEditParams {
-                        notebook_path: notebook_path.clone(),
-                        new_source: new_source.clone(),
-                        cell_id: cell_id.clone(),
-                        cell_type: parsed_cell_type,
-                        edit_mode: parsed_edit_mode,
-                    },
-                    &ctx,
-                )
-                .await
-            }
-
-            Commands::AskUserQuestion { questions } => {
-                use claude_code_tools::ask_user_question::*;
-                // Parse JSON array of questions
-                let parsed_questions: Vec<Question> = match serde_json::from_str(questions) {
-                    Ok(q) => q,
-                    Err(e) => {
-                        eprintln!("Failed to parse questions JSON: {}", e);
-                        std::process::exit(1);
-                    }
-                };
-                self.execute_tool(
-                    AskUserQuestionTool,
-                    AskUserQuestionParams {
-                        questions: parsed_questions,
-                        answers: std::collections::HashMap::new(),
-                    },
-                    &ctx,
-                )
-                .await
-            }
-
-            Commands::BashOutput { bash_id, filter } => {
-                use claude_code_tools::bash_output::*;
-                self.execute_tool(
-                    BashOutputTool,
-                    BashOutputParams {
-                        bash_id: bash_id.clone(),
-                        filter: filter.clone(),
-                    },
-                    &ctx,
-                )
-                .await
-            }
-
-            Commands::KillShell { shell_id } => {
-                use claude_code_tools::kill_shell::*;
-                self.execute_tool(
-                    KillShellTool,
-                    KillShellParams {
-                        shell_id: shell_id.clone(),
-                    },
-                    &ctx,
-                )
-                .await
-            }
-
-            Commands::Chat => unreachable!(),
-        };
-
-        // Execute post-tool hook
-        self.execute_post_tool_hook(tool_name).await?;
-
-        // Save session after tool execution
-        self.save_session()?;
-
-        result
-    }
-
-    /// Execute PreToolUse hook
-    async fn execute_pre_tool_hook(&self, tool_name: &str) -> Result<()> {
-        let context = hooks::HookContext::for_tool(
-            self.session.id.clone(),
-            format!(".claude/sessions/{}/transcript.json", self.session.id),
-            std::env::current_dir()
-                .ok()
-                .and_then(|p| p.to_str().map(|s| s.to_string()))
-                .unwrap_or_default(),
-            "ask".to_string(),
-            hooks::HookEvent::PreToolUse,
-            tool_name.to_string(),
-        );
-
-        match self.hooks.execute_hooks(hooks::HookEvent::PreToolUse, &context).await {
-            Ok(results) => {
-                for result in results {
-                    if result.is_blocking() {
-                        anyhow::bail!("PreToolUse hook blocked execution: {}", result.stderr);
-                    }
-                    if !result.is_success() {
-                        tracing::warn!("PreToolUse hook warning: {}", result.stderr);
+                    _ => {
+                        // Ignore other events (ContentBlockStart, etc.)
                     }
                 }
-                Ok(())
             }
-            Err(e) => {
-                tracing::warn!("Failed to execute PreToolUse hooks: {}", e);
-                Ok(()) // Don't fail if hooks fail
-            }
-        }
-    }
+        } else {
+            // Non-streaming response
+            let response = client.create_message(request).await?;
 
-    /// Execute PostToolUse hook
-    async fn execute_post_tool_hook(&self, tool_name: &str) -> Result<()> {
-        let context = hooks::HookContext::for_tool(
-            self.session.id.clone(),
-            format!(".claude/sessions/{}/transcript.json", self.session.id),
-            std::env::current_dir()
-                .ok()
-                .and_then(|p| p.to_str().map(|s| s.to_string()))
-                .unwrap_or_default(),
-            "ask".to_string(),
-            hooks::HookEvent::PostToolUse,
-            tool_name.to_string(),
-        );
-
-        match self.hooks.execute_hooks(hooks::HookEvent::PostToolUse, &context).await {
-            Ok(results) => {
-                for result in results {
-                    if !result.is_success() {
-                        tracing::warn!("PostToolUse hook failed: {}", result.stderr);
+            // Extract text from response
+            let text = response.content
+                .iter()
+                .filter_map(|block| {
+                    if let claude_code_core::client::types::ContentBlock::Text { text } = block {
+                        Some(text.as_str())
+                    } else {
+                        None
                     }
+                })
+                .collect::<Vec<_>>()
+                .join("");
+
+            // Output based on format
+            match self.cli.output_format.as_str() {
+                "json" => {
+                    let json_output = serde_json::json!({
+                        "id": response.id,
+                        "type": response.type_field,
+                        "role": response.role,
+                        "content": response.content,
+                        "model": response.model,
+                        "stop_reason": response.stop_reason,
+                        "usage": response.usage,
+                    });
+                    println!("{}", serde_json::to_string_pretty(&json_output)?);
                 }
-                Ok(())
-            }
-            Err(e) => {
-                tracing::warn!("Failed to execute PostToolUse hooks: {}", e);
-                Ok(()) // Don't fail if hooks fail
+                _ => {
+                    // Text format (default)
+                    println!("{}", text);
+                }
             }
         }
+
+        Ok(())
     }
 
     /// Save session to disk
@@ -896,39 +587,6 @@ impl App {
                 Ok(()) // Don't fail if save fails
             }
         }
-    }
-
-    /// Generic tool execution with streaming
-    async fn execute_tool<T>(&self, tool: T, params: T::Params, ctx: &ToolContext) -> Result<()>
-    where
-        T: Tool,
-    {
-        let mut stream = tool.execute(params, ctx).await?;
-
-        while let Some(event) = stream.next().await {
-            match event {
-                ToolEvent::Progress { step, percentage } => {
-                    if let Some(pct) = percentage {
-                        println!("Progress: {} ({}%)", step, pct);
-                    } else {
-                        println!("Progress: {}", step);
-                    }
-                }
-
-                ToolEvent::Result(output) => {
-                    // Serialize result as JSON for consistent output
-                    let json = serde_json::to_string_pretty(&output)?;
-                    println!("\n{}", json);
-                }
-
-                ToolEvent::Error { message } => {
-                    eprintln!("Error: {}", message);
-                    std::process::exit(1);
-                }
-            }
-        }
-
-        Ok(())
     }
 }
 

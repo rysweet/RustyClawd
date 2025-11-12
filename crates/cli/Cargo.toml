@@ -10,7 +10,7 @@ name = "claude_code_cli"
 path = "src/lib.rs"
 
 [[bin]]
-name = "claude-code"
+name = "claude"
 path = "src/main.rs"
 
 [dependencies]

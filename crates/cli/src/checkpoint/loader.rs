@@ -12,7 +12,7 @@ use std::io;
 
 /// Session loader for checkpoint restoration
 pub struct SessionLoader {
-    storage: CheckpointStorage,
+    pub(crate) storage: CheckpointStorage,
 }
 
 impl SessionLoader {
@@ -25,6 +25,33 @@ impl SessionLoader {
     pub fn default() -> io::Result<Self> {
         let storage = CheckpointStorage::default()?;
         Ok(Self { storage })
+    }
+
+    /// List all available sessions
+    pub fn list_sessions(&self) -> io::Result<Vec<String>> {
+        use std::fs;
+
+        let base_dir = &self.storage.session_dir("");
+        let parent = base_dir.parent().unwrap_or(base_dir);
+
+        if !parent.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut session_ids = Vec::new();
+        for entry in fs::read_dir(parent)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.is_dir() {
+                if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
+                    session_ids.push(name.to_string());
+                }
+            }
+        }
+
+        session_ids.sort();
+        Ok(session_ids)
     }
 
     /// Load a single checkpoint from disk
