@@ -258,9 +258,23 @@ impl Client {
                 if let ContentBlock::ToolUse { id, name, input } = block {
                     has_tool_use = true;
 
+                    // Print tool invocation details
+                    eprintln!("\n[Tool: {}]", name);
+                    if let Ok(pretty_input) = serde_json::to_string_pretty(input) {
+                        eprintln!("Input: {}", pretty_input);
+                    }
+                    eprintln!();
+
                     // Execute the tool
                     match tool_executor(name.clone(), input.clone()).await {
                         Ok(result) => {
+                            // Print tool result
+                            eprintln!("[Tool Result: {}]", name);
+                            if let Ok(pretty_result) = serde_json::to_string_pretty(&result) {
+                                eprintln!("{}", pretty_result);
+                            }
+                            eprintln!();
+
                             tool_result_blocks.push(ContentBlock::ToolResult {
                                 tool_use_id: id.clone(),
                                 content: result.to_string(),
@@ -268,6 +282,11 @@ impl Client {
                             });
                         }
                         Err(e) => {
+                            // Print tool error
+                            eprintln!("[Tool Error: {}]", name);
+                            eprintln!("Error: {}", e);
+                            eprintln!();
+
                             tool_result_blocks.push(ContentBlock::ToolResult {
                                 tool_use_id: id.clone(),
                                 content: format!("Tool execution error: {}", e),

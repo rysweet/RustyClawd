@@ -48,14 +48,14 @@ fn query(
         // Run async operation
         rt.block_on(async {
             // Load API configuration
-            let config = claude_code_core::client::Config::from_default_location()
+            let config = rustyclawd_core::client::Config::from_default_location()
                 .await
                 .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
                     format!("Failed to load config: {}", e)
                 ))?;
 
             // Create client
-            let client = claude_code_core::client::Client::new(config);
+            let client = rustyclawd_core::client::Client::new(config);
 
             // Build request
             let model = options.as_ref()
@@ -66,9 +66,9 @@ fn query(
                 .and_then(|o| o.max_tokens)
                 .unwrap_or(4096);
 
-            let request = claude_code_core::client::CreateMessageRequest::new(
+            let request = rustyclawd_core::client::CreateMessageRequest::new(
                 &model,
-                vec![claude_code_core::client::Message::user(&prompt)],
+                vec![rustyclawd_core::client::Message::user(&prompt)],
                 max_tokens,
             );
 
@@ -92,7 +92,7 @@ fn query(
     // Extract text content from content blocks
     let mut text_content = String::new();
     for block in &response.content {
-        if let claude_code_core::client::ContentBlock::Text { text } = block {
+        if let rustyclawd_core::client::ContentBlock::Text { text } = block {
             if !text_content.is_empty() {
                 text_content.push('\n');
             }
