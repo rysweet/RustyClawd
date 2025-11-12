@@ -236,7 +236,8 @@ impl Client {
         F: Fn(String, serde_json::Value) -> Fut,
         Fut: std::future::Future<Output = ClientResult<serde_json::Value>>,
     {
-        const MAX_ITERATIONS: usize = 10;
+        // High limit for complex agentic workflows
+        const MAX_ITERATIONS: usize = 10_000;
         let mut iteration = 0;
 
         loop {
