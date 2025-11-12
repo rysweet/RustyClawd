@@ -4,6 +4,7 @@ members = [
     "crates/cli",
     "crates/core",
     "crates/tools",
+    "python-sdk",
 ]
 
 [workspace.package]
