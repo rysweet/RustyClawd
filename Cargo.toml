@@ -5,7 +5,7 @@ members = [
     "crates/core",
     "crates/tools",
 ]
-exclude = ["python-sdk"]
+exclude = ["# python-sdk"]
 
 [workspace.package]
 version = "0.1.0"
