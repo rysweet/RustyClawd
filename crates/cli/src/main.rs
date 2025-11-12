@@ -13,7 +13,9 @@ mod settings;
 use anyhow::{Context as AnyhowContext, Result};
 use clap::{Parser, Subcommand};
 use claude_code_tools::{
-    BashTool, EditTool, GlobTool, GrepTool, ReadTool, Tool, ToolContext, ToolEvent, WriteTool,
+    AgentTool, AskUserQuestionTool, BashOutputTool, BashTool, EditTool, GlobTool, GrepTool,
+    KillShellTool, NotebookEditTool, ReadTool, SkillTool, SlashCommandTool, TodoWriteTool, Tool,
+    ToolContext, ToolEvent, WebFetchTool, WebSearchTool, WriteTool,
 };
 use futures::StreamExt;
 
@@ -139,6 +141,116 @@ enum Commands {
         /// Limit results
         #[arg(long)]
         head_limit: Option<usize>,
+    },
+
+    /// Manage task lists
+    TodoWrite {
+        /// JSON array of tasks
+        #[arg(long)]
+        todos: String,
+    },
+
+    /// Invoke specialized sub-agents
+    Agent {
+        /// Brief 3-5 word description
+        description: String,
+
+        /// Full prompt for the agent
+        #[arg(long)]
+        prompt: String,
+
+        /// Agent type name
+        #[arg(long)]
+        subagent_type: String,
+
+        /// Optional model (haiku/sonnet/opus)
+        #[arg(long)]
+        model: Option<String>,
+
+        /// Optional agent ID to resume
+        #[arg(long)]
+        resume: Option<String>,
+    },
+
+    /// Load and execute skills
+    Skill {
+        /// Skill name to execute
+        skill: String,
+    },
+
+    /// Execute custom slash commands
+    SlashCommand {
+        /// Command to execute (e.g., "/review-pr 123")
+        command: String,
+    },
+
+    /// Fetch content from URLs
+    WebFetch {
+        /// URL to fetch
+        url: String,
+
+        /// Prompt for content extraction
+        #[arg(long)]
+        prompt: String,
+    },
+
+    /// Search the web
+    WebSearch {
+        /// Search query
+        query: String,
+
+        /// Allowed domains (comma-separated)
+        #[arg(long)]
+        allowed_domains: Option<String>,
+
+        /// Blocked domains (comma-separated)
+        #[arg(long)]
+        blocked_domains: Option<String>,
+    },
+
+    /// Edit Jupyter notebook cells
+    NotebookEdit {
+        /// Path to notebook file
+        notebook_path: String,
+
+        /// New source for the cell
+        #[arg(long)]
+        new_source: String,
+
+        /// Cell ID to edit
+        #[arg(long)]
+        cell_id: Option<String>,
+
+        /// Cell type (code/markdown)
+        #[arg(long)]
+        cell_type: Option<String>,
+
+        /// Edit mode (replace/insert/delete)
+        #[arg(long, default_value = "replace")]
+        edit_mode: String,
+    },
+
+    /// Ask user questions interactively
+    AskUserQuestion {
+        /// JSON array of questions
+        #[arg(long)]
+        questions: String,
+    },
+
+    /// Get output from background shell
+    BashOutput {
+        /// Background shell ID
+        bash_id: String,
+
+        /// Optional regex filter
+        #[arg(long)]
+        filter: Option<String>,
+    },
+
+    /// Terminate a background shell
+    KillShell {
+        /// Shell ID to kill
+        shell_id: String,
     },
 }
 
@@ -375,6 +487,16 @@ impl App {
             Commands::Edit { .. } => "Edit",
             Commands::Glob { .. } => "Glob",
             Commands::Grep { .. } => "Grep",
+            Commands::TodoWrite { .. } => "TodoWrite",
+            Commands::Agent { .. } => "Agent",
+            Commands::Skill { .. } => "Skill",
+            Commands::SlashCommand { .. } => "SlashCommand",
+            Commands::WebFetch { .. } => "WebFetch",
+            Commands::WebSearch { .. } => "WebSearch",
+            Commands::NotebookEdit { .. } => "NotebookEdit",
+            Commands::AskUserQuestion { .. } => "AskUserQuestion",
+            Commands::BashOutput { .. } => "BashOutput",
+            Commands::KillShell { .. } => "KillShell",
             Commands::Chat => unreachable!(),
         };
 
@@ -496,6 +618,191 @@ impl App {
                         before_context: *before,
                         after_context: *after,
                         head_limit: *head_limit,
+                    },
+                    &ctx,
+                )
+                .await
+            }
+
+            Commands::TodoWrite { todos } => {
+                use claude_code_tools::todo_write::*;
+                // Parse JSON array of tasks
+                let tasks: Vec<Task> = match serde_json::from_str(todos) {
+                    Ok(t) => t,
+                    Err(e) => {
+                        eprintln!("Failed to parse todos JSON: {}", e);
+                        std::process::exit(1);
+                    }
+                };
+                self.execute_tool(
+                    TodoWriteTool,
+                    TodoWriteParams { todos: tasks },
+                    &ctx,
+                )
+                .await
+            }
+
+            Commands::Agent {
+                description,
+                prompt,
+                subagent_type,
+                model,
+                resume,
+            } => {
+                use claude_code_tools::agent::*;
+                self.execute_tool(
+                    AgentTool,
+                    AgentParams {
+                        description: description.clone(),
+                        prompt: prompt.clone(),
+                        subagent_type: subagent_type.clone(),
+                        model: model.clone(),
+                        resume: resume.clone(),
+                    },
+                    &ctx,
+                )
+                .await
+            }
+
+            Commands::Skill { skill } => {
+                use claude_code_tools::skill::*;
+                self.execute_tool(
+                    SkillTool,
+                    SkillParams {
+                        skill: skill.clone(),
+                    },
+                    &ctx,
+                )
+                .await
+            }
+
+            Commands::SlashCommand { command } => {
+                use claude_code_tools::slash_command::*;
+                self.execute_tool(
+                    SlashCommandTool,
+                    SlashCommandParams {
+                        command: command.clone(),
+                    },
+                    &ctx,
+                )
+                .await
+            }
+
+            Commands::WebFetch { url, prompt } => {
+                use claude_code_tools::web_fetch::*;
+                self.execute_tool(
+                    WebFetchTool,
+                    WebFetchParams {
+                        url: url.clone(),
+                        prompt: prompt.clone(),
+                    },
+                    &ctx,
+                )
+                .await
+            }
+
+            Commands::WebSearch {
+                query,
+                allowed_domains,
+                blocked_domains,
+            } => {
+                use claude_code_tools::web_search::*;
+                // Parse comma-separated domains
+                let allowed = allowed_domains
+                    .as_ref()
+                    .map(|s| s.split(',').map(|d| d.trim().to_string()).collect())
+                    .unwrap_or_default();
+                let blocked = blocked_domains
+                    .as_ref()
+                    .map(|s| s.split(',').map(|d| d.trim().to_string()).collect())
+                    .unwrap_or_default();
+                self.execute_tool(
+                    WebSearchTool,
+                    WebSearchParams {
+                        query: query.clone(),
+                        allowed_domains: allowed,
+                        blocked_domains: blocked,
+                    },
+                    &ctx,
+                )
+                .await
+            }
+
+            Commands::NotebookEdit {
+                notebook_path,
+                new_source,
+                cell_id,
+                cell_type,
+                edit_mode,
+            } => {
+                use claude_code_tools::notebook_edit::*;
+                // Parse cell_type
+                let parsed_cell_type = cell_type.as_ref().and_then(|ct| match ct.as_str() {
+                    "code" => Some(CellType::Code),
+                    "markdown" => Some(CellType::Markdown),
+                    _ => None,
+                });
+                // Parse edit_mode
+                let parsed_edit_mode = match edit_mode.as_str() {
+                    "replace" => EditMode::Replace,
+                    "insert" => EditMode::Insert,
+                    "delete" => EditMode::Delete,
+                    _ => EditMode::Replace,
+                };
+                self.execute_tool(
+                    NotebookEditTool,
+                    NotebookEditParams {
+                        notebook_path: notebook_path.clone(),
+                        new_source: new_source.clone(),
+                        cell_id: cell_id.clone(),
+                        cell_type: parsed_cell_type,
+                        edit_mode: parsed_edit_mode,
+                    },
+                    &ctx,
+                )
+                .await
+            }
+
+            Commands::AskUserQuestion { questions } => {
+                use claude_code_tools::ask_user_question::*;
+                // Parse JSON array of questions
+                let parsed_questions: Vec<Question> = match serde_json::from_str(questions) {
+                    Ok(q) => q,
+                    Err(e) => {
+                        eprintln!("Failed to parse questions JSON: {}", e);
+                        std::process::exit(1);
+                    }
+                };
+                self.execute_tool(
+                    AskUserQuestionTool,
+                    AskUserQuestionParams {
+                        questions: parsed_questions,
+                        answers: std::collections::HashMap::new(),
+                    },
+                    &ctx,
+                )
+                .await
+            }
+
+            Commands::BashOutput { bash_id, filter } => {
+                use claude_code_tools::bash_output::*;
+                self.execute_tool(
+                    BashOutputTool,
+                    BashOutputParams {
+                        bash_id: bash_id.clone(),
+                        filter: filter.clone(),
+                    },
+                    &ctx,
+                )
+                .await
+            }
+
+            Commands::KillShell { shell_id } => {
+                use claude_code_tools::kill_shell::*;
+                self.execute_tool(
+                    KillShellTool,
+                    KillShellParams {
+                        shell_id: shell_id.clone(),
                     },
                     &ctx,
                 )

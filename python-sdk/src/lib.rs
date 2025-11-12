@@ -80,7 +80,7 @@ fn query(
                 ))?;
 
             // Return response as Python string
-            Ok(response)
+            Ok::<_, PyErr>(response)
         })
     })?;
 
