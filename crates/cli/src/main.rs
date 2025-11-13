@@ -3,6 +3,9 @@
 //! This is a Rust implementation that matches Claude Code's exact CLI interface.
 //! Tools are available in context for Claude to use, not as CLI subcommands.
 
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 mod checkpoint;
 mod commands;
 mod hooks;
