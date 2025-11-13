@@ -8,7 +8,82 @@ use rustyclawd_tools::{
     BashTool, EditTool, GlobTool, GrepTool, ReadTool, Tool, ToolContext, ToolEvent, WriteTool,
 };
 use futures::StreamExt;
-use serde_json::Value;
+use serde_json::{json, Value};
+
+/// Create an educational error message that teaches Claude the correct schema
+fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
+    let (required_fields, optional_fields, example) = match tool_name {
+        "Write" => (
+            vec!["file_path", "content"],
+            vec![],
+            json!({
+                "file_path": "/absolute/path/to/file.txt",
+                "content": "The content to write to the file"
+            })
+        ),
+        "Read" => (
+            vec!["file_path"],
+            vec!["offset", "limit"],
+            json!({
+                "file_path": "/absolute/path/to/file.txt",
+                "offset": 0,
+                "limit": 100
+            })
+        ),
+        "Edit" => (
+            vec!["file_path", "old_string", "new_string"],
+            vec!["replace_all"],
+            json!({
+                "file_path": "/absolute/path/to/file.txt",
+                "old_string": "text to replace",
+                "new_string": "replacement text",
+                "replace_all": false
+            })
+        ),
+        "Bash" => (
+            vec!["command"],
+            vec!["timeout", "description", "run_in_background", "dangerouslyDisableSandbox"],
+            json!({
+                "command": "ls -la",
+                "timeout": 120000,
+                "description": "List files in directory"
+            })
+        ),
+        "Glob" => (
+            vec!["pattern"],
+            vec!["path"],
+            json!({
+                "pattern": "**/*.rs",
+                "path": "/path/to/search"
+            })
+        ),
+        "Grep" => (
+            vec!["pattern"],
+            vec!["path", "output_mode", "glob", "type", "-i", "-n", "-A", "-B", "-C", "multiline", "head_limit", "offset"],
+            json!({
+                "pattern": "search.*pattern",
+                "path": "/path/to/search",
+                "output_mode": "content"
+            })
+        ),
+        _ => (vec![], vec![], json!({}))
+    };
+
+    let error_response = json!({
+        "error": format!("Failed to parse {} tool parameters", tool_name),
+        "details": error_msg,
+        "required_fields": required_fields,
+        "optional_fields": optional_fields,
+        "example": example,
+        "help": format!(
+            "The {} tool requires these fields: {}. Please ensure all required fields are provided with the correct types.",
+            tool_name,
+            required_fields.join(", ")
+        )
+    });
+
+    ClientError::Api(serde_json::to_string_pretty(&error_response).unwrap_or_else(|_| error_msg.to_string()))
+}
 
 /// Execute a tool by name with given parameters
 ///
@@ -32,7 +107,7 @@ pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value,
 async fn execute_bash_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::bash::BashParams =
         serde_json::from_value(input).map_err(|e| {
-            ClientError::Api(format!("Failed to parse Bash tool parameters: {}", e))
+            create_schema_error("Bash", &e.to_string())
         })?;
 
     let tool = BashTool;
@@ -67,7 +142,7 @@ async fn execute_bash_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
 async fn execute_read_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::read::ReadParams =
         serde_json::from_value(input).map_err(|e| {
-            ClientError::Api(format!("Failed to parse Read tool parameters: {}", e))
+            create_schema_error("Read", &e.to_string())
         })?;
 
     let tool = ReadTool;
@@ -99,7 +174,7 @@ async fn execute_read_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
 async fn execute_write_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::write::WriteParams =
         serde_json::from_value(input).map_err(|e| {
-            ClientError::Api(format!("Failed to parse Write tool parameters: {}", e))
+            create_schema_error("Write", &e.to_string())
         })?;
 
     let tool = WriteTool;
@@ -131,7 +206,7 @@ async fn execute_write_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cl
 async fn execute_edit_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::edit::EditParams =
         serde_json::from_value(input).map_err(|e| {
-            ClientError::Api(format!("Failed to parse Edit tool parameters: {}", e))
+            create_schema_error("Edit", &e.to_string())
         })?;
 
     let tool = EditTool;
@@ -163,7 +238,7 @@ async fn execute_edit_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
 async fn execute_glob_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::glob_tool::GlobParams =
         serde_json::from_value(input).map_err(|e| {
-            ClientError::Api(format!("Failed to parse Glob tool parameters: {}", e))
+            create_schema_error("Glob", &e.to_string())
         })?;
 
     let tool = GlobTool;
@@ -195,7 +270,7 @@ async fn execute_glob_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
 async fn execute_grep_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::grep::GrepParams =
         serde_json::from_value(input).map_err(|e| {
-            ClientError::Api(format!("Failed to parse Grep tool parameters: {}", e))
+            create_schema_error("Grep", &e.to_string())
         })?;
 
     let tool = GrepTool;

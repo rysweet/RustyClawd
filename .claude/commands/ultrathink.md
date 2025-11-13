@@ -1,9 +1,7 @@
-# Ultrathink Command
+---
+description: Deep thinking and analysis mode for complex problems
+---
 
-This is a test command for demonstrating slash command autocomplete with fuzzy matching.
-
-When you type `/ul` and press Tab, it should autocomplete to `/ultrathink`.
-
-## Purpose
-
-Deep thinking and analysis mode for complex problems.
+Engage deep analysis mode. Think carefully through the problem step by step.
+Consider edge cases, potential issues, and alternative approaches.
+Provide a comprehensive analysis with detailed reasoning.
