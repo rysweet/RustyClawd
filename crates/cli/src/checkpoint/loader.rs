@@ -31,15 +31,14 @@ impl SessionLoader {
     pub fn list_sessions(&self) -> io::Result<Vec<String>> {
         use std::fs;
 
-        let base_dir = &self.storage.session_dir("");
-        let parent = base_dir.parent().unwrap_or(base_dir);
+        let sessions_dir = &self.storage.base_dir;
 
-        if !parent.exists() {
+        if !sessions_dir.exists() {
             return Ok(Vec::new());
         }
 
         let mut session_ids = Vec::new();
-        for entry in fs::read_dir(parent)? {
+        for entry in fs::read_dir(sessions_dir)? {
             let entry = entry?;
             let path = entry.path();
 
