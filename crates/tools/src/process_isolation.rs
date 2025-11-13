@@ -97,10 +97,12 @@ pub fn apply_isolation(mut command: Command, config: &ProcessSpawnConfig) -> Com
 
     #[cfg(windows)]
     {
-        // On Windows, use CREATE_NEW_PROCESS_GROUP
+        // On Windows, use CREATE_NEW_PROCESS_GROUP + DETACHED_PROCESS
+        // to detach from parent console and prevent terminal corruption
         use std::os::windows::process::CommandExt;
         const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
-        command.creation_flags(CREATE_NEW_PROCESS_GROUP);
+        const DETACHED_PROCESS: u32 = 0x00000008;
+        command.creation_flags(CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS);
     }
 
     command
