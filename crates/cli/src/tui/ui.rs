@@ -22,6 +22,8 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::io::{self, Stdout};
+use super::input_viewport;
+use unicode_segmentation::UnicodeSegmentation;
 
 /// Rust-themed colors
 const RUST_ORANGE: Color = Color::Rgb(222, 165, 132);
@@ -136,7 +138,7 @@ impl TuiState {
         Ok(None)
     }
 
-    /// Handle key events
+    /// Handle key events with Unicode-aware cursor positioning
     fn handle_key_event(&mut self, key: KeyEvent) -> Option<String> {
         match (key.code, key.modifiers) {
             // Ctrl+C - Exit
@@ -156,11 +158,20 @@ impl TuiState {
                     return Some(input);
                 }
             }
-            // Backspace - Delete character
+            // Backspace - Delete character before cursor
             (KeyCode::Backspace, _) => {
                 if self.cursor_position > 0 {
-                    self.input.remove(self.cursor_position - 1);
-                    self.cursor_position -= 1;
+                    // Convert grapheme position to byte position
+                    let graphemes: Vec<&str> = self.input.graphemes(true).collect();
+                    if self.cursor_position <= graphemes.len() {
+                        let byte_pos: usize = graphemes.iter()
+                            .take(self.cursor_position - 1)
+                            .map(|g| g.len())
+                            .sum();
+                        let grapheme_len = graphemes[self.cursor_position - 1].len();
+                        self.input.replace_range(byte_pos..byte_pos + grapheme_len, "");
+                        self.cursor_position -= 1;
+                    }
                 }
             }
             // Left arrow - Move cursor left
@@ -171,7 +182,8 @@ impl TuiState {
             }
             // Right arrow - Move cursor right
             (KeyCode::Right, _) => {
-                if self.cursor_position < self.input.len() {
+                let text_len = self.input.graphemes(true).count();
+                if self.cursor_position < text_len {
                     self.cursor_position += 1;
                 }
             }
@@ -181,7 +193,7 @@ impl TuiState {
             }
             // End - Move to end
             (KeyCode::End, _) => {
-                self.cursor_position = self.input.len();
+                self.cursor_position = self.input.graphemes(true).count();
             }
             // Page Up - Scroll messages up
             (KeyCode::PageUp, _) => {
@@ -191,10 +203,18 @@ impl TuiState {
             (KeyCode::PageDown, _) => {
                 self.scroll_offset = (self.scroll_offset + 5).min(self.messages.len().saturating_sub(1));
             }
-            // Character input
+            // Character input - Insert at cursor position
             (KeyCode::Char(c), _) => {
-                self.input.insert(self.cursor_position, c);
-                self.cursor_position += 1;
+                // Convert grapheme position to byte position
+                let graphemes: Vec<&str> = self.input.graphemes(true).collect();
+                if self.cursor_position <= graphemes.len() {
+                    let byte_pos: usize = graphemes.iter()
+                        .take(self.cursor_position)
+                        .map(|g| g.len())
+                        .sum();
+                    self.input.insert(byte_pos, c);
+                    self.cursor_position += 1;
+                }
             }
             _ => {}
         }
@@ -395,11 +415,22 @@ impl TuiState {
         lines
     }
 
-    /// Render input area
+    /// Render input area with horizontal scrolling support
     fn render_input_area(f: &mut Frame, area: Rect, input: &str, cursor_position: usize) {
+        // Calculate available width for text (subtract borders and prompt)
+        // Border: 2 (left + right), Prompt: 5 ("You> ")
+        let prompt_text = "You> ";
+        let prompt_width = 5u16;
+        let borders_width = 2u16;
+        let available_width = area.width.saturating_sub(borders_width + prompt_width) as usize;
+
+        // Calculate viewport
+        let viewport = input_viewport::calculate_viewport(input, cursor_position, available_width);
+
+        // Create input text with prompt and visible portion
         let input_text = vec![Line::from(vec![
-            Span::styled("You> ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            Span::styled(input, Style::default().fg(TEXT_COLOR)),
+            Span::styled(prompt_text, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled(&viewport.visible_text, Style::default().fg(TEXT_COLOR)),
         ])];
 
         let input_widget = Paragraph::new(input_text)
@@ -416,10 +447,21 @@ impl TuiState {
 
         f.render_widget(input_widget, area);
 
-        // Set cursor position
-        let cursor_x = area.x + 7 + cursor_position as u16; // 7 = "You> " + border
-        let cursor_y = area.y + 1; // 1 = border
-        f.set_cursor_position((cursor_x, cursor_y));
+        // Calculate cursor position with bounds checking
+        let (cursor_x, cursor_y) = input_viewport::calculate_cursor_coords(
+            &viewport,
+            prompt_width + 1, // +1 for left border
+            area.x,
+            area.y + 1, // +1 for top border
+        );
+
+        // Ensure cursor stays within bounds
+        let max_x = area.x + area.width.saturating_sub(1);
+        let max_y = area.y + area.height.saturating_sub(1);
+        let bounded_x = cursor_x.min(max_x);
+        let bounded_y = cursor_y.min(max_y);
+
+        f.set_cursor_position((bounded_x, bounded_y));
     }
 
     /// Cleanup terminal on drop
