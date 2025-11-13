@@ -6,6 +6,7 @@ use anyhow::Result;
 use rustyclawd_core::client::ClientError;
 use rustyclawd_tools::{
     BashTool, EditTool, GlobTool, GrepTool, ReadTool, Tool, ToolContext, ToolEvent, WriteTool,
+    TodoWriteTool,
 };
 use futures::StreamExt;
 use serde_json::{json, Value};
@@ -67,6 +68,24 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
                 "output_mode": "content"
             })
         ),
+        "TodoWrite" => (
+            vec!["todos"],
+            vec![],
+            json!({
+                "todos": [
+                    {
+                        "content": "Task description",
+                        "status": "pending",
+                        "activeForm": "Present continuous form"
+                    },
+                    {
+                        "content": "Another task",
+                        "status": "in_progress",
+                        "activeForm": "Doing another task"
+                    }
+                ]
+            })
+        ),
         _ => (vec![], vec![], json!({}))
     };
 
@@ -112,6 +131,7 @@ pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value,
         "Edit" => execute_edit_tool(tool_input, &ctx).await,
         "Glob" => execute_glob_tool(tool_input, &ctx).await,
         "Grep" => execute_grep_tool(tool_input, &ctx).await,
+        "TodoWrite" => execute_todowrite_tool(tool_input, &ctx).await,
         _ => Err(ClientError::Api(format!("Unknown tool: {}", tool_name))),
     }
 }
@@ -313,5 +333,37 @@ async fn execute_grep_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
 
     Err(ClientError::Api(
         "Grep tool completed without result".to_string(),
+    ))
+}
+
+/// Execute TodoWrite tool
+async fn execute_todowrite_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
+    let params: rustyclawd_tools::todo_write::TodoWriteParams =
+        serde_json::from_value(input).map_err(|e| {
+            create_schema_error("TodoWrite", &e.to_string())
+        })?;
+
+    let tool = TodoWriteTool;
+    let mut stream = tool
+        .execute(params, ctx)
+        .await
+        .map_err(|e| ClientError::Api(format!("TodoWrite tool execution failed: {}", e)))?;
+
+    while let Some(event) = stream.next().await {
+        match event {
+            ToolEvent::Result(output) => {
+                return serde_json::to_value(&output).map_err(|e| {
+                    ClientError::Api(format!("Failed to serialize TodoWrite output: {}", e))
+                });
+            }
+            ToolEvent::Error { message } => {
+                return Err(ClientError::Api(format!("TodoWrite tool error: {}", message)));
+            }
+            ToolEvent::Progress { .. } => {}
+        }
+    }
+
+    Err(ClientError::Api(
+        "TodoWrite tool completed without result".to_string(),
     ))
 }
