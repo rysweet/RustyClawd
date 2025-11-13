@@ -5,7 +5,7 @@
 use anyhow::Result;
 use rustyclawd_core::client::ClientError;
 use rustyclawd_tools::{
-    BashTool, EditTool, GlobTool, GrepTool, ReadTool, Tool, ToolContext, ToolEvent, WriteTool,
+    BashTool, EditTool, GlobTool, GrepTool, ReadTool, SlashCommandTool, Tool, ToolContext, ToolEvent, WriteTool,
 };
 use futures::StreamExt;
 use serde_json::{json, Value};
@@ -67,6 +67,13 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
                 "output_mode": "content"
             })
         ),
+        "SlashCommand" => (
+            vec!["command"],
+            vec![],
+            json!({
+                "command": "/command-name arg1 arg2"
+            })
+        ),
         _ => (vec![], vec![], json!({}))
     };
 
@@ -112,6 +119,7 @@ pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value,
         "Edit" => execute_edit_tool(tool_input, &ctx).await,
         "Glob" => execute_glob_tool(tool_input, &ctx).await,
         "Grep" => execute_grep_tool(tool_input, &ctx).await,
+        "SlashCommand" => execute_slash_command_tool(tool_input, &ctx).await,
         _ => Err(ClientError::Api(format!("Unknown tool: {}", tool_name))),
     }
 }
@@ -313,5 +321,37 @@ async fn execute_grep_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
 
     Err(ClientError::Api(
         "Grep tool completed without result".to_string(),
+    ))
+}
+
+/// Execute SlashCommand tool
+async fn execute_slash_command_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
+    let params: rustyclawd_tools::slash_command::SlashCommandParams =
+        serde_json::from_value(input).map_err(|e| {
+            create_schema_error("SlashCommand", &e.to_string())
+        })?;
+
+    let tool = SlashCommandTool;
+    let mut stream = tool
+        .execute(params, ctx)
+        .await
+        .map_err(|e| ClientError::Api(format!("SlashCommand tool execution failed: {}", e)))?;
+
+    while let Some(event) = stream.next().await {
+        match event {
+            ToolEvent::Result(output) => {
+                return serde_json::to_value(&output).map_err(|e| {
+                    ClientError::Api(format!("Failed to serialize SlashCommand output: {}", e))
+                });
+            }
+            ToolEvent::Error { message } => {
+                return Err(ClientError::Api(format!("SlashCommand tool error: {}", message)));
+            }
+            ToolEvent::Progress { .. } => {}
+        }
+    }
+
+    Err(ClientError::Api(
+        "SlashCommand tool completed without result".to_string(),
     ))
 }
