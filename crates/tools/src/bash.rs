@@ -7,8 +7,9 @@
 //! - Timeout handling
 //! - Error propagation
 
-use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
+use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream, ExecutionContext};
 use crate::process_registry::{global_registry, ProcessRegistry};
+use crate::process_isolation::{apply_isolation, ProcessSpawnConfig};
 use async_stream::stream;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -87,6 +88,7 @@ impl crate::Tool for BashTool {
         let cwd = ctx.cwd.clone();
         let debug = ctx.debug;
         let run_in_background = params.run_in_background;
+        let execution_context = ctx.execution_context;
 
         Ok(Box::pin(stream! {
             // Progress: Starting execution
@@ -105,15 +107,25 @@ impl crate::Tool for BashTool {
                 );
             }
 
-            // Spawn bash process
-            let mut child = match Command::new("bash")
-                .arg("-c")
+            // Determine if we need process isolation
+            let isolation_config = if execution_context == ExecutionContext::Tui {
+                ProcessSpawnConfig::with_isolation()
+            } else {
+                ProcessSpawnConfig::without_isolation()
+            };
+
+            // Spawn bash process with optional isolation
+            let mut cmd = Command::new("bash");
+            cmd.arg("-c")
                 .arg(&command)
                 .current_dir(&cwd)
                 .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped())
-                .spawn()
-            {
+                .stderr(std::process::Stdio::piped());
+
+            // Apply process isolation to prevent terminal corruption
+            let mut cmd = apply_isolation(cmd, &isolation_config);
+
+            let mut child = match cmd.spawn() {
                 Ok(child) => child,
                 Err(e) => {
                     yield ToolEvent::Error {

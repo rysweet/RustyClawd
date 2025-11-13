@@ -15,6 +15,7 @@ mod settings;
 mod tool_definitions;
 mod tool_executor;
 mod tui;
+mod terminal_guard;
 
 use anyhow::{Context as AnyhowContext, Result};
 use clap::{Parser, Subcommand};

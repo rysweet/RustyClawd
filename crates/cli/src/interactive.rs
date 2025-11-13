@@ -12,10 +12,11 @@ use rustyclawd_core::{
     client::{Client, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent},
     Context, Message, MessageRole,
 };
-use rustyclawd_tools::{bash::BashParams, BashTool, Tool, ToolContext, ToolEvent};
+use rustyclawd_tools::{bash::BashParams, BashTool, Tool, ToolContext, ToolEvent, ExecutionContext};
 use futures::StreamExt;
 use crate::tui::{TuiState, ChatMessage, MessageRole as TuiMessageRole};
 use crate::commands::SlashCommands;
+use crate::terminal_guard;
 
 /// Default model for interactive sessions
 const DEFAULT_MODEL: &str = "claude-sonnet-4-5-20250929";
@@ -40,6 +41,9 @@ pub struct InteractiveSession {
 impl InteractiveSession {
     /// Create a new interactive session
     pub async fn new() -> Result<Self> {
+        // Set execution context to TUI mode for process isolation
+        terminal_guard::set_execution_context(terminal_guard::ExecutionContext::Tui);
+
         // Load API configuration from default location
         let config = Config::from_default_location().await?;
         let client = Client::new(config);
@@ -218,11 +222,12 @@ impl InteractiveSession {
     async fn execute_shell_command(&mut self, command: &str) -> Result<()> {
         self.tui.set_status(format!("Executing: {}", command));
 
-        // Create tool context
+        // Create tool context with TUI execution context
         let ctx = ToolContext {
             cwd: std::env::current_dir().unwrap_or_default(),
             debug: false,
             metadata: serde_json::Value::Null,
+            execution_context: ExecutionContext::Tui,
         };
 
         // Create bash tool parameters

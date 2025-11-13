@@ -32,6 +32,21 @@ pub struct ToolMetadata {
     pub description: &'static str,
 }
 
+/// Execution context for tools
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExecutionContext {
+    /// Running in TUI/interactive mode - process isolation needed
+    Tui,
+    /// Running in non-interactive mode - no isolation needed
+    NonInteractive,
+}
+
+impl Default for ExecutionContext {
+    fn default() -> Self {
+        ExecutionContext::NonInteractive
+    }
+}
+
 /// Context passed to tools during execution
 #[derive(Debug, Clone)]
 pub struct ToolContext {
@@ -43,6 +58,9 @@ pub struct ToolContext {
 
     /// Additional context data
     pub metadata: serde_json::Value,
+
+    /// Execution context (TUI vs non-interactive)
+    pub execution_context: ExecutionContext,
 }
 
 impl Default for ToolContext {
@@ -51,6 +69,7 @@ impl Default for ToolContext {
             cwd: std::env::current_dir().unwrap_or_default(),
             debug: false,
             metadata: serde_json::Value::Null,
+            execution_context: ExecutionContext::default(),
         }
     }
 }
