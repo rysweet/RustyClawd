@@ -30,10 +30,13 @@ serde = { workspace = true }
 
 # Interactive mode
 rustyline = "13.0"
+ratatui = "0.29"
+crossterm = "0.28"
 
 # Slash command support
 serde_yaml = "0.9"
 thiserror = { workspace = true }
+dirs = "5.0"
 
 # Time handling
 chrono = { workspace = true }
@@ -42,3 +45,4 @@ chrono = { workspace = true }
 # CLI testing
 assert_cmd = "2.0"
 predicates = "3.0"
+tempfile = "3.8"

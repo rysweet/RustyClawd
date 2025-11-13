@@ -34,14 +34,22 @@
 //! )?;
 //! ```
 
+pub mod agent_discovery;
 pub mod discovery;
 pub mod executor;
+pub mod hooks_integration;
 pub mod loader;
+pub mod manager;
 pub mod manifest;
+pub mod mcp_proxy;
 
+pub use agent_discovery::AgentDiscovery;
 pub use discovery::PluginDiscovery;
 pub use executor::PluginExecutor;
+pub use hooks_integration::{PluginHooksIntegrator, register_plugin_hooks};
 pub use loader::PluginLoader;
+pub use manager::{PluginManager, PluginSystemSummary};
+pub use mcp_proxy::McpProxy;
 
 /// Plugin system version
 pub const PLUGIN_VERSION: &str = "1.0.0";
@@ -86,6 +94,8 @@ pub type PluginResult<T> = Result<T, PluginError>;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::discovery::{PluginLoadStatus, PluginMetadata};
+    use super::manifest::{CommandDefinition, PluginManifest, SkillDefinition};
     use std::collections::HashMap;
     use std::fs;
 
@@ -114,6 +124,8 @@ mod tests {
             commands: vec![],
             skills: vec![],
             hooks: vec![],
+            agents: vec![],
+            mcp_servers: vec![],
             dependencies: HashMap::new(),
             config_schema: serde_json::json!({}),
         };
@@ -156,6 +168,8 @@ mod tests {
             }],
             skills: vec![],
             hooks: vec![],
+            agents: vec![],
+            mcp_servers: vec![],
             dependencies: HashMap::new(),
             config_schema: serde_json::json!({}),
         };
@@ -208,6 +222,8 @@ mod tests {
                 path: "skill.md".to_string(),
             }],
             hooks: vec![],
+            agents: vec![],
+            mcp_servers: vec![],
             dependencies: HashMap::new(),
             config_schema: serde_json::json!({}),
         };

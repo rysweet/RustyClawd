@@ -26,13 +26,23 @@ pub enum ExecutorError {
 /// Command executor
 pub struct Executor {
     loader: CommandLoader,
+    working_dir: std::path::PathBuf,
 }
 
 impl Executor {
-    /// Create a new executor
+    /// Create a new executor with default working directory
     pub fn new() -> Self {
         Self {
             loader: CommandLoader::new(),
+            working_dir: std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
+        }
+    }
+
+    /// Create executor with specific working directory
+    pub fn with_working_dir(working_dir: std::path::PathBuf) -> Self {
+        Self {
+            loader: CommandLoader::new(),
+            working_dir,
         }
     }
 
@@ -48,8 +58,12 @@ impl Executor {
             .get(&cmd.name)
             .map_err(|_| anyhow!(ExecutorError::CommandNotFound(cmd.name.clone())))?;
 
-        // Expand template
-        let expanded = self.loader.expand_template(&loaded_cmd.content, &cmd.args);
+        // Expand template with all features (bash, file refs, arguments)
+        let expanded = self
+            .loader
+            .expand_full(&loaded_cmd.content, &cmd.args, &self.working_dir)
+            .await
+            .map_err(|e| anyhow!(ExecutorError::ExpansionFailed(e.to_string())))?;
 
         // Check character limit
         if expanded.len() > MAX_EXPANDED_CHARS {

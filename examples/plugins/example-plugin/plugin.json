@@ -1,0 +1,109 @@
+{
+  "id": "com.claudecode.example",
+  "name": "Example Plugin",
+  "version": "1.0.0",
+  "description": "Comprehensive example plugin demonstrating all plugin system features",
+  "author": "Claude Code Team",
+  "license": "MIT",
+  "main": "index.js",
+  "commands": [
+    {
+      "name": "hello",
+      "description": "Simple hello command",
+      "path": "commands/hello.js",
+      "argsSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name to greet"
+          }
+        },
+        "required": ["name"]
+      }
+    },
+    {
+      "name": "analyze-code",
+      "description": "Analyze code quality",
+      "path": "commands/analyze.js",
+      "argsSchema": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "File path to analyze"
+          },
+          "strict": {
+            "type": "boolean",
+            "description": "Use strict analysis"
+          }
+        },
+        "required": ["file"]
+      }
+    }
+  ],
+  "skills": [
+    {
+      "id": "code-reviewer",
+      "name": "Code Reviewer",
+      "description": "Reviews code for quality and best practices",
+      "path": "skills/code-reviewer.md"
+    },
+    {
+      "id": "test-generator",
+      "name": "Test Generator",
+      "description": "Generates unit tests for code",
+      "path": "skills/test-generator.md"
+    }
+  ],
+  "agents": [
+    {
+      "id": "refactorer",
+      "name": "Code Refactorer",
+      "description": "Refactors code to improve structure",
+      "path": "agents/refactorer.md",
+      "model": "sonnet"
+    }
+  ],
+  "hooks": [
+    {
+      "event": "PreToolUse",
+      "handler": "hooks/pre-tool.js"
+    },
+    {
+      "event": "PostToolUse",
+      "handler": "hooks/post-tool.js"
+    }
+  ],
+  "mcpServers": [
+    {
+      "id": "example-mcp",
+      "name": "Example MCP Server",
+      "command": "node",
+      "args": ["mcp-server.js"],
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "description": "Example MCP server for demonstration"
+    }
+  ],
+  "dependencies": {
+    "lodash": "^4.17.21"
+  },
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "theme": {
+        "type": "string",
+        "enum": ["light", "dark"],
+        "default": "dark"
+      },
+      "verbosity": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 3,
+        "default": 1
+      }
+    }
+  }
+}

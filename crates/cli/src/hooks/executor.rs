@@ -133,6 +133,15 @@ impl HookExecutor {
             .env("CLAUDE_PERMISSION_MODE", &context.permission_mode)
             .env("CLAUDE_HOOK_EVENT", &context.hook_event_name);
 
+        // Set CLAUDE_PROJECT_DIR - use cwd as project dir
+        cmd.env("CLAUDE_PROJECT_DIR", &context.cwd);
+
+        // Set CLAUDE_CODE_REMOTE if running in web environment
+        // This would be set by the web environment, but we can check for it
+        if std::env::var("CLAUDE_CODE_REMOTE").is_ok() {
+            cmd.env("CLAUDE_CODE_REMOTE", "true");
+        }
+
         if let Some(tool_name) = &context.tool_name {
             cmd.env("CLAUDE_TOOL_NAME", tool_name);
         }
@@ -176,7 +185,7 @@ impl HookExecutor {
         let client = AnthropicClient::new(config);
 
         // Build the prompt with context information
-        let prompt = Self::build_hook_prompt(context);
+        let prompt = Self::build_hook_prompt(hook, context);
 
         // Create the LLM request
         // Use claude-3-haiku-20240307 which is a fast, available model for hooks
@@ -258,11 +267,32 @@ impl HookExecutor {
         }
     }
 
+    /// Find the project directory (directory with .claude folder)
+    fn find_project_dir(start_dir: &str) -> Result<String> {
+        let mut current = std::path::PathBuf::from(start_dir);
+        loop {
+            let claude_dir = current.join(".claude");
+            if claude_dir.exists() && claude_dir.is_dir() {
+                return Ok(current.to_string_lossy().to_string());
+            }
+            match current.parent() {
+                Some(parent) => current = parent.to_path_buf(),
+                None => return Err(anyhow::anyhow!("Project root not found")),
+            }
+        }
+    }
+
     /// Build a prompt for the LLM hook with context information
-    fn build_hook_prompt(context: &HookContext) -> String {
+    fn build_hook_prompt(hook: &Hook, context: &HookContext) -> String {
         let context_json = serde_json::to_string_pretty(context)
             .unwrap_or_else(|_| "{}".to_string());
 
+        // If hook has custom prompt, use it and replace $ARGUMENTS
+        if let Some(custom_prompt) = &hook.prompt {
+            return custom_prompt.replace("$ARGUMENTS", &context_json);
+        }
+
+        // Default prompt based on event type
         format!(
             r#"You are a hook execution assistant for Claude Code CLI.
 
@@ -275,13 +305,23 @@ Context:
 Please analyze this event and respond with a JSON decision in one of these formats:
 
 For Stop/SubagentStop events:
-{{"decision": "approve"}} or {{"decision": "block"}}
+{{"decision": "approve"}} or {{"decision": "block", "reason": "explanation"}}
 
 For PreToolUse events:
 {{"permissionDecision": "allow"}} or {{"permissionDecision": "deny"}} or {{"permissionDecision": "ask"}}
 
+For PostToolUse events:
+{{"decision": "block", "additionalContext": "context"}} or {{"continue": true}}
+
+For UserPromptSubmit events:
+{{"decision": "block", "additionalContext": "context"}} or {{"continue": true}}
+
 For other events:
-{{"continue": true}} or {{"continue": false}}
+{{"continue": true}} or {{"continue": false, "stopReason": "reason"}}
+
+You can also include optional fields:
+- "systemMessage": "warning to show user"
+- "suppressOutput": true (to hide from transcript)
 
 Respond ONLY with the JSON decision, no other text."#,
             context.hook_event_name,
@@ -387,7 +427,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_execute_prompt_hook() {
-        let hook = Hook::prompt(Some(60000));
+        let hook = Hook::prompt(None, Some(60000));
         let context = HookContext::for_session(
             "test-session".to_string(),
             "/tmp/transcript".to_string(),

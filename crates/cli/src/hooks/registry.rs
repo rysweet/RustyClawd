@@ -215,7 +215,7 @@ mod tests {
             HookEvent::PreToolUse,
             HookConfig {
                 matcher: HookMatcher::Regex("Edit|Write".to_string()),
-                hooks: vec![Hook::prompt(Some(60000))],
+                hooks: vec![Hook::prompt(None, Some(60000))],
             },
         );
 

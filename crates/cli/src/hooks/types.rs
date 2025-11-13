@@ -144,6 +144,8 @@ pub struct Hook {
     pub hook_type: HookType,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt: Option<String>,
     #[serde(rename = "timeout", skip_serializing_if = "Option::is_none")]
     pub timeout_ms: Option<u32>,
 }
@@ -154,15 +156,17 @@ impl Hook {
         Self {
             hook_type: HookType::Command,
             command: Some(command),
+            prompt: None,
             timeout_ms,
         }
     }
 
     /// Create a new prompt hook
-    pub fn prompt(timeout_ms: Option<u32>) -> Self {
+    pub fn prompt(prompt: Option<String>, timeout_ms: Option<u32>) -> Self {
         Self {
             hook_type: HookType::Prompt,
             command: None,
+            prompt,
             timeout_ms,
         }
     }
@@ -225,6 +229,36 @@ impl HooksConfiguration {
     }
 }
 
+/// SessionStart matcher types
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SessionStartMatcher {
+    Startup,
+    Resume,
+    Clear,
+    Compact,
+}
+
+/// SessionEnd reasons
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionEndReason {
+    Clear,
+    Logout,
+    PromptInputExit,
+    Other,
+}
+
+/// Notification types
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NotificationType {
+    PermissionPrompt,
+    IdlePrompt,
+    AuthSuccess,
+    ElicitationDialog,
+}
+
 /// Hook execution context
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HookContext {
@@ -237,12 +271,22 @@ pub struct HookContext {
     pub tool_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_params: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_result: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_start_matcher: Option<SessionStartMatcher>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_end_reason: Option<SessionEndReason>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notification_type: Option<NotificationType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_prompt: Option<String>,
     #[serde(flatten)]
     pub additional: HashMap<String, serde_json::Value>,
 }
 
 impl HookContext {
-    /// Create context for a tool event
+    /// Create context for a tool event (PreToolUse/PostToolUse)
     pub fn for_tool(
         session_id: String,
         transcript_path: String,
@@ -259,6 +303,11 @@ impl HookContext {
             hook_event_name: event.as_str().to_string(),
             tool_name: Some(tool_name),
             tool_params: None,
+            tool_result: None,
+            session_start_matcher: None,
+            session_end_reason: None,
+            notification_type: None,
+            user_prompt: None,
             additional: HashMap::new(),
         }
     }
@@ -279,8 +328,125 @@ impl HookContext {
             hook_event_name: event.as_str().to_string(),
             tool_name: None,
             tool_params: None,
+            tool_result: None,
+            session_start_matcher: None,
+            session_end_reason: None,
+            notification_type: None,
+            user_prompt: None,
             additional: HashMap::new(),
         }
+    }
+
+    /// Create context for SessionStart event
+    pub fn for_session_start(
+        session_id: String,
+        transcript_path: String,
+        cwd: String,
+        permission_mode: String,
+        matcher: SessionStartMatcher,
+    ) -> Self {
+        Self {
+            session_id,
+            transcript_path,
+            cwd,
+            permission_mode,
+            hook_event_name: HookEvent::SessionStart.as_str().to_string(),
+            tool_name: None,
+            tool_params: None,
+            tool_result: None,
+            session_start_matcher: Some(matcher),
+            session_end_reason: None,
+            notification_type: None,
+            user_prompt: None,
+            additional: HashMap::new(),
+        }
+    }
+
+    /// Create context for SessionEnd event
+    pub fn for_session_end(
+        session_id: String,
+        transcript_path: String,
+        cwd: String,
+        permission_mode: String,
+        reason: SessionEndReason,
+    ) -> Self {
+        Self {
+            session_id,
+            transcript_path,
+            cwd,
+            permission_mode,
+            hook_event_name: HookEvent::SessionEnd.as_str().to_string(),
+            tool_name: None,
+            tool_params: None,
+            tool_result: None,
+            session_start_matcher: None,
+            session_end_reason: Some(reason),
+            notification_type: None,
+            user_prompt: None,
+            additional: HashMap::new(),
+        }
+    }
+
+    /// Create context for Notification event
+    pub fn for_notification(
+        session_id: String,
+        transcript_path: String,
+        cwd: String,
+        permission_mode: String,
+        notification_type: NotificationType,
+    ) -> Self {
+        Self {
+            session_id,
+            transcript_path,
+            cwd,
+            permission_mode,
+            hook_event_name: HookEvent::Notification.as_str().to_string(),
+            tool_name: None,
+            tool_params: None,
+            tool_result: None,
+            session_start_matcher: None,
+            session_end_reason: None,
+            notification_type: Some(notification_type),
+            user_prompt: None,
+            additional: HashMap::new(),
+        }
+    }
+
+    /// Create context for UserPromptSubmit event
+    pub fn for_user_prompt(
+        session_id: String,
+        transcript_path: String,
+        cwd: String,
+        permission_mode: String,
+        user_prompt: String,
+    ) -> Self {
+        Self {
+            session_id,
+            transcript_path,
+            cwd,
+            permission_mode,
+            hook_event_name: HookEvent::UserPromptSubmit.as_str().to_string(),
+            tool_name: None,
+            tool_params: None,
+            tool_result: None,
+            session_start_matcher: None,
+            session_end_reason: None,
+            notification_type: None,
+            user_prompt: Some(user_prompt),
+            additional: HashMap::new(),
+        }
+    }
+
+    /// Set tool parameters
+    pub fn with_tool_params(mut self, params: serde_json::Value) -> Self {
+        self.tool_params = Some(params);
+        self
+    }
+
+    /// Set tool result
+    pub fn with_tool_result(mut self, result: serde_json::Value) -> Self {
+        self.tool_result = Some(result);
+        self
     }
 }
 
@@ -337,14 +503,50 @@ pub enum StopDecision {
 /// Hook output structure (JSON response)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HookOutput {
+    /// Whether to continue execution (default: true)
     #[serde(rename = "continue", skip_serializing_if = "Option::is_none")]
     pub continue_execution: Option<bool>,
+    /// Message to show when continue=false
+    #[serde(rename = "stopReason", skip_serializing_if = "Option::is_none")]
+    pub stop_reason: Option<String>,
+    /// Hide output from transcript (default: false)
+    #[serde(rename = "suppressOutput", skip_serializing_if = "Option::is_none")]
+    pub suppress_output: Option<bool>,
+    /// Warning message to show to user
+    #[serde(rename = "systemMessage", skip_serializing_if = "Option::is_none")]
+    pub system_message: Option<String>,
+    /// Permission decision for PreToolUse hooks
     #[serde(rename = "permissionDecision", skip_serializing_if = "Option::is_none")]
     pub permission_decision: Option<PermissionDecision>,
+    /// Reason for permission decision
+    #[serde(rename = "permissionDecisionReason", skip_serializing_if = "Option::is_none")]
+    pub permission_decision_reason: Option<String>,
+    /// Stop decision for Stop/SubagentStop hooks
     #[serde(skip_serializing_if = "Option::is_none")]
     pub decision: Option<StopDecision>,
+    /// Reason for decision (required when blocking)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    /// Additional context to inject
     #[serde(rename = "additionalContext", skip_serializing_if = "Option::is_none")]
     pub additional_context: Option<String>,
+    /// Hook-specific output nested structure
+    #[serde(rename = "hookSpecificOutput", skip_serializing_if = "Option::is_none")]
+    pub hook_specific_output: Option<HookSpecificOutput>,
+}
+
+/// Hook-specific output for PreToolUse hooks
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HookSpecificOutput {
+    /// Permission decision
+    #[serde(rename = "permissionDecision", skip_serializing_if = "Option::is_none")]
+    pub permission_decision: Option<PermissionDecision>,
+    /// Reason for permission decision
+    #[serde(rename = "permissionDecisionReason", skip_serializing_if = "Option::is_none")]
+    pub permission_decision_reason: Option<String>,
+    /// Updated tool parameters
+    #[serde(rename = "updatedInput", skip_serializing_if = "Option::is_none")]
+    pub updated_input: Option<serde_json::Value>,
 }
 
 #[cfg(test)]

@@ -3,8 +3,9 @@
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokio::fs;
+use tokio::process::Command as TokioCommand;
 
 /// YAML frontmatter metadata
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -16,6 +17,12 @@ pub struct FrontMatter {
     /// Allowed tools
     #[serde(default)]
     pub allowed_tools: Vec<String>,
+    /// Argument hint for tab completion
+    #[serde(rename = "argument-hint")]
+    pub argument_hint: Option<String>,
+    /// Disable model invocation via SlashCommand tool
+    #[serde(rename = "disable-model-invocation")]
+    pub disable_model_invocation: Option<bool>,
     /// Additional metadata
     #[serde(flatten)]
     pub extra: HashMap<String, serde_json::Value>,
@@ -105,24 +112,142 @@ impl CommandLoader {
 
     /// Expand command template with arguments
     ///
-    /// Supports:
-    /// - {{args}} - full argument string
-    /// - {0}, {1}, etc. - individual arguments
+    /// Supports multiple template syntaxes:
+    /// - $ARGUMENTS - full argument string (official docs syntax)
+    /// - {{args}} - full argument string (legacy)
+    /// - $1, $2, $3, etc. - individual positional arguments (official docs syntax)
+    /// - {0}, {1}, {2}, etc. - individual arguments (legacy)
     pub fn expand_template(&self, template: &str, args: &[String]) -> String {
         let mut result = template.to_string();
 
-        // Replace {{args}} with full argument string
+        // Replace $ARGUMENTS with full argument string (official syntax)
         if !args.is_empty() {
             let args_str = args.join(" ");
+            result = result.replace("$ARGUMENTS", &args_str);
+            // Also support legacy {{args}} syntax
             result = result.replace("{{args}}", &args_str);
         }
 
-        // Replace {0}, {1}, etc. with individual arguments
+        // Replace $1, $2, etc. (official syntax)
         for (i, arg) in args.iter().enumerate() {
+            result = result.replace(&format!("${}", i + 1), arg);
+            // Also support legacy {0}, {1} syntax
             result = result.replace(&format!("{{{}}}", i), arg);
         }
 
         result
+    }
+
+    /// Expand file references (@filename) in template
+    ///
+    /// Replaces @filename with the contents of the file
+    pub async fn expand_file_references(&self, template: &str, working_dir: &Path) -> Result<String> {
+        let mut result = template.to_string();
+
+        // Find all @filename patterns (supports @path/to/file.txt)
+        // Simple regex-like approach: find @ followed by non-whitespace
+        let mut chars = template.chars().peekable();
+        let mut file_refs = Vec::new();
+
+        while let Some(ch) = chars.next() {
+            if ch == '@' {
+                let mut path = String::new();
+                while let Some(&next_ch) = chars.peek() {
+                    if next_ch.is_whitespace() || next_ch == '\n' {
+                        break;
+                    }
+                    path.push(chars.next().unwrap());
+                }
+                if !path.is_empty() {
+                    file_refs.push(path);
+                }
+            }
+        }
+
+        // Read and replace each file reference
+        for file_ref in file_refs {
+            let file_path = working_dir.join(&file_ref);
+            match fs::read_to_string(&file_path).await {
+                Ok(content) => {
+                    result = result.replace(&format!("@{}", file_ref), &content);
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to read file reference @{}: {}", file_ref, e);
+                    // Leave the reference as-is if file can't be read
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Execute bash commands (!command) in template
+    ///
+    /// Replaces !command with the command's output
+    pub async fn expand_bash_commands(&self, template: &str) -> Result<String> {
+        let mut result = template.to_string();
+
+        // Find all !command patterns (lines starting with !)
+        let lines: Vec<&str> = template.lines().collect();
+
+        for line in lines {
+            let trimmed = line.trim();
+            if trimmed.starts_with('!') {
+                let command = trimmed.trim_start_matches('!');
+
+                // Execute bash command
+                match self.execute_bash(command).await {
+                    Ok(output) => {
+                        result = result.replace(line, &output);
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to execute bash command '{}': {}", command, e);
+                        // Leave the command as-is if execution fails
+                    }
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Execute a bash command and return its output
+    async fn execute_bash(&self, command: &str) -> Result<String> {
+        let output = TokioCommand::new("bash")
+            .arg("-c")
+            .arg(command)
+            .output()
+            .await
+            .context("Failed to execute bash command")?;
+
+        if output.status.success() {
+            Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("Bash command failed: {}", stderr))
+        }
+    }
+
+    /// Fully expand a template with all features
+    ///
+    /// Applies in order:
+    /// 1. Bash command execution (!command)
+    /// 2. File references (@filename)
+    /// 3. Argument substitution ($ARGUMENTS, $1, $2, etc.)
+    pub async fn expand_full(
+        &self,
+        template: &str,
+        args: &[String],
+        working_dir: &Path,
+    ) -> Result<String> {
+        // Step 1: Execute bash commands
+        let after_bash = self.expand_bash_commands(template).await?;
+
+        // Step 2: Expand file references
+        let after_files = self.expand_file_references(&after_bash, working_dir).await?;
+
+        // Step 3: Expand arguments
+        Ok(self.expand_template(&after_files, args))
     }
 }
 

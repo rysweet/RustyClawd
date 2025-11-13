@@ -226,3 +226,27 @@
 [2025-11-12T20:45:36.210647] INFO: === STOP HOOK ENDED (decision: approve - no reflection) ===
 [2025-11-12T20:45:36.217961] INFO: Returning output with keys: ['decision']
 [2025-11-12T20:45:36.223958] INFO: stop hook completed successfully
+[2025-11-12T21:19:09.561164] INFO: stop hook starting (Python 3.13.7)
+[2025-11-12T21:19:09.569905] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-12T21:19:09.576924] INFO: Event type: Stop
+[2025-11-12T21:19:09.582171] INFO: === STOP HOOK STARTED ===
+[2025-11-12T21:19:09.584670] INFO: Input keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-12T21:19:12.203848] INFO: Neo4j cleanup handler started (auto_mode=False)
+[2025-11-12T21:19:12.960358] INFO: Neo4j cleanup handler completed
+[2025-11-12T21:19:12.975885] DEBUG: Reflection config not found - skipping reflection
+[2025-11-12T21:19:12.986777] INFO: Reflection not enabled or skipped - allowing stop
+[2025-11-12T21:19:12.996450] INFO: === STOP HOOK ENDED (decision: approve - no reflection) ===
+[2025-11-12T21:19:12.999584] INFO: Returning output with keys: ['decision']
+[2025-11-12T21:19:13.002297] INFO: stop hook completed successfully
+[2025-11-13T06:12:24.225211] INFO: stop hook starting (Python 3.13.7)
+[2025-11-13T06:12:24.235156] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-13T06:12:24.242038] INFO: Event type: Stop
+[2025-11-13T06:12:24.247997] INFO: === STOP HOOK STARTED ===
+[2025-11-13T06:12:24.254178] INFO: Input keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-13T06:12:25.583570] INFO: Neo4j cleanup handler started (auto_mode=False)
+[2025-11-13T06:12:26.490519] INFO: Neo4j cleanup handler completed
+[2025-11-13T06:12:26.498503] DEBUG: Reflection config not found - skipping reflection
+[2025-11-13T06:12:26.507009] INFO: Reflection not enabled or skipped - allowing stop
+[2025-11-13T06:12:26.514316] INFO: === STOP HOOK ENDED (decision: approve - no reflection) ===
+[2025-11-13T06:12:26.520224] INFO: Returning output with keys: ['decision']
+[2025-11-13T06:12:26.523129] INFO: stop hook completed successfully

@@ -177,6 +177,8 @@ mod tests {
             commands: vec![],
             skills: vec![],
             hooks: vec![],
+            agents: vec![],
+            mcp_servers: vec![],
             dependencies: HashMap::new(),
             config_schema: serde_json::json!({}),
         };

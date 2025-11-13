@@ -1,6 +1,8 @@
 # RustyClawd 🦀
 
-Production Rust implementation of Claude Code with complete SDK compliance.
+Production Rust implementation of Claude Code with complete SDK and CLI spec compliance.
+
+✅ **100% CLI Spec Compliant** - Matches [official Claude Code CLI](https://code.claude.com/docs/en/cli-reference) exactly
 
 ## Installation
 
@@ -43,7 +45,17 @@ rusty --model haiku "count to 5"
 # Tool execution (automatic)
 rusty -p "create file test.txt with 'hello'"
 rusty -p "run: ls -la"
+
+# New spec-compliant features
+rusty --verbose -p "debug this"                    # Verbose logging
+rusty --system-prompt-file ./prompt.txt "query"    # Custom system prompt
+rusty --add-dir ./src --add-dir ./tests "analyze"  # Multiple directories
+rusty --allowedTools Read --allowedTools Grep "search only"  # Tool control
+rusty update                                       # Update CLI
+rusty mcp                                          # Configure MCP servers
 ```
+
+See `MIGRATION_GUIDE.md` for breaking changes and `CLI_SPEC_COMPLIANCE.md` for full details.
 
 ## Amplihack Integration
 

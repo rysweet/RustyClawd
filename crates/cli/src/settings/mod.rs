@@ -35,6 +35,8 @@ pub use loader::SettingsLoader;
 #[cfg(test)]
 mod integration_tests {
     use super::*;
+    use super::hierarchy::SettingsHierarchy;
+    use super::types::{PermissionMode, SettingsLayer};
 
     #[test]
     fn test_full_hierarchy_workflow() {
@@ -115,7 +117,8 @@ mod integration_tests {
 
     #[test]
     fn test_permissions_accumulate_across_layers() {
-        use super::types::ToolPermission;
+        use super::types::{ToolPermission, PermissionMode, SettingsLayer};
+        use super::hierarchy::SettingsHierarchy;
 
         let mut hierarchy = SettingsHierarchy::new();
 

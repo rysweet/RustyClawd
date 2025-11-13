@@ -34,6 +34,12 @@ pub struct PluginManifest {
     /// Hook definitions
     #[serde(default)]
     pub hooks: Vec<HookDefinition>,
+    /// Agent definitions
+    #[serde(default)]
+    pub agents: Vec<AgentDefinition>,
+    /// MCP server definitions
+    #[serde(default)]
+    pub mcp_servers: Vec<McpServerDefinition>,
     /// Runtime dependencies
     #[serde(default)]
     pub dependencies: HashMap<String, String>,
@@ -75,6 +81,42 @@ pub struct HookDefinition {
     pub event: String,
     /// Handler function name or file path
     pub handler: String,
+}
+
+/// Agent plugin definition
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AgentDefinition {
+    /// Unique agent identifier
+    pub id: String,
+    /// Human-readable agent name
+    pub name: String,
+    /// Agent description
+    pub description: String,
+    /// File path to agent prompt/configuration
+    pub path: String,
+    /// Optional model override for agent
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+}
+
+/// MCP server configuration
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct McpServerDefinition {
+    /// Server identifier (used in tool names as mcp__{server_id}__{tool_name})
+    pub id: String,
+    /// Human-readable server name
+    pub name: String,
+    /// Command to start the MCP server
+    pub command: String,
+    /// Command arguments
+    #[serde(default)]
+    pub args: Vec<String>,
+    /// Environment variables for the server
+    #[serde(default)]
+    pub env: HashMap<String, String>,
+    /// Server description
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 /// Parse manifest from plugin.json file
@@ -165,6 +207,14 @@ pub fn validate_references(manifest: &PluginManifest, plugin_path: &Path) -> Res
         }
     }
 
+    // Validate agent paths
+    for agent in &manifest.agents {
+        let agent_path = plugin_path.join(&agent.path);
+        if !agent_path.exists() {
+            errors.push(format!("Agent file not found: {}", agent.path));
+        }
+    }
+
     if errors.is_empty() {
         Ok(())
     } else {
@@ -198,6 +248,8 @@ mod tests {
             commands: vec![],
             skills: vec![],
             hooks: vec![],
+            agents: vec![],
+            mcp_servers: vec![],
             dependencies: HashMap::new(),
             config_schema: serde_json::json!({}),
         };
@@ -218,6 +270,8 @@ mod tests {
             commands: vec![],
             skills: vec![],
             hooks: vec![],
+            agents: vec![],
+            mcp_servers: vec![],
             dependencies: HashMap::new(),
             config_schema: serde_json::json!({}),
         };

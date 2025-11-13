@@ -3,7 +3,7 @@
 use crate::commands::loader::{CommandLoader, LoadedCommand};
 use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio::fs;
 use thiserror::Error;
 
@@ -23,47 +23,104 @@ pub enum RegistryError {
     InvalidCommand(String),
 }
 
+/// Command scope
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommandScope {
+    /// Project-level commands (.claude/commands/)
+    Project,
+    /// Personal commands (~/.claude/commands/)
+    Personal,
+}
+
+/// Command with its scope
+#[derive(Debug, Clone)]
+pub struct ScopedCommand {
+    pub command: LoadedCommand,
+    pub scope: CommandScope,
+}
+
 /// Command registry - manages discovered commands
 pub struct Registry {
     /// Loaded commands by name
-    commands: HashMap<String, LoadedCommand>,
-    /// Commands directory
-    commands_dir: PathBuf,
+    commands: HashMap<String, ScopedCommand>,
+    /// Project commands directory
+    project_dir: PathBuf,
+    /// Personal commands directory
+    personal_dir: Option<PathBuf>,
     /// Loader instance
     loader: CommandLoader,
 }
 
 impl Registry {
     /// Create an empty registry
-    pub fn new(commands_dir: PathBuf) -> Self {
+    pub fn new(project_dir: PathBuf) -> Self {
+        let personal_dir = Self::get_personal_dir();
         Self {
             commands: HashMap::new(),
-            commands_dir,
+            project_dir,
+            personal_dir,
             loader: CommandLoader::new(),
         }
     }
 
-    /// Discover and load commands from directory
-    pub async fn discover(commands_dir: PathBuf) -> Result<Self> {
-        let mut registry = Self::new(commands_dir.clone());
+    /// Get personal commands directory (~/.claude/commands/)
+    fn get_personal_dir() -> Option<PathBuf> {
+        dirs::home_dir().map(|home| home.join(".claude").join("commands"))
+    }
 
+    /// Discover and load commands from both project and personal directories
+    pub async fn discover(project_dir: PathBuf) -> Result<Self> {
+        let mut registry = Self::new(project_dir.clone());
+
+        // Load from personal directory first (lower priority)
+        let personal_dir_clone = registry.personal_dir.clone();
+        if let Some(personal_dir) = personal_dir_clone {
+            registry.load_from_directory(&personal_dir, CommandScope::Personal).await?;
+        }
+
+        // Load from project directory (higher priority, can override personal commands)
+        let project_dir_clone = registry.project_dir.clone();
+        registry.load_from_directory(&project_dir_clone, CommandScope::Project).await?;
+
+        Ok(registry)
+    }
+
+    /// Load commands from a specific directory
+    async fn load_from_directory(&mut self, dir: &Path, scope: CommandScope) -> Result<()> {
         // Create directory if it doesn't exist
-        fs::create_dir_all(&registry.commands_dir)
-            .await
-            .context("Failed to create commands directory")?;
+        if let Err(e) = fs::create_dir_all(dir).await {
+            tracing::debug!("Could not create commands directory {}: {}", dir.display(), e);
+            return Ok(()); // Not an error if personal dir doesn't exist
+        }
 
         // Scan for .md files
-        let mut entries = fs::read_dir(&registry.commands_dir)
-            .await
-            .context("Failed to read commands directory")?;
+        let mut entries = match fs::read_dir(dir).await {
+            Ok(e) => e,
+            Err(e) => {
+                tracing::debug!("Could not read commands directory {}: {}", dir.display(), e);
+                return Ok(()); // Not an error if directory isn't readable
+            }
+        };
 
         while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
 
             if path.is_file() && path.extension().map(|e| e == "md").unwrap_or(false) {
-                match registry.loader.load_command(&path).await {
+                match self.loader.load_command(&path).await {
                     Ok(cmd) => {
-                        registry.commands.insert(cmd.name.clone(), cmd);
+                        let name = cmd.name.clone();
+                        self.commands.insert(
+                            name.clone(),
+                            ScopedCommand {
+                                command: cmd,
+                                scope,
+                            },
+                        );
+                        tracing::debug!(
+                            "Loaded command '{}' from {:?} scope",
+                            name,
+                            scope
+                        );
                     }
                     Err(e) => {
                         tracing::warn!(
@@ -76,7 +133,7 @@ impl Registry {
             }
         }
 
-        Ok(registry)
+        Ok(())
     }
 
     /// Register a command in memory (for testing)
@@ -85,12 +142,27 @@ impl Registry {
             return Err(anyhow!("Command name cannot be empty"));
         }
 
-        self.commands.insert(cmd.name.clone(), cmd);
+        let name = cmd.name.clone();
+        self.commands.insert(
+            name,
+            ScopedCommand {
+                command: cmd,
+                scope: CommandScope::Project,
+            },
+        );
         Ok(())
     }
 
     /// Get a command by name
     pub fn get(&self, name: &str) -> Result<&LoadedCommand> {
+        self.commands
+            .get(name)
+            .map(|scoped| &scoped.command)
+            .ok_or_else(|| anyhow!(RegistryError::CommandNotFound(name.to_string())))
+    }
+
+    /// Get a command with its scope
+    pub fn get_scoped(&self, name: &str) -> Result<&ScopedCommand> {
         self.commands
             .get(name)
             .ok_or_else(|| anyhow!(RegistryError::CommandNotFound(name.to_string())))
@@ -115,18 +187,29 @@ impl Registry {
 
     /// Get info about a specific command
     pub fn get_command_info(&self, name: &str) -> String {
-        match self.get(name) {
-            Ok(cmd) => {
+        match self.get_scoped(name) {
+            Ok(scoped) => {
+                let cmd = &scoped.command;
                 let desc = cmd
                     .frontmatter
                     .description
                     .as_deref()
                     .unwrap_or("No description");
-                format!("{}:\n  {}\n  Location: {}/{}",
-                    name,
-                    desc,
-                    self.commands_dir.display(),
-                    name)
+                let scope_str = match scoped.scope {
+                    CommandScope::Project => "project",
+                    CommandScope::Personal => "personal",
+                };
+                let hint = cmd
+                    .frontmatter
+                    .argument_hint
+                    .as_deref()
+                    .map(|h| format!(" {}", h))
+                    .unwrap_or_default();
+
+                format!(
+                    "/{}{}\n  {}\n  Scope: {}",
+                    name, hint, desc, scope_str
+                )
             }
             Err(_) => format!("Command '{}' not found", name),
         }
@@ -138,22 +221,52 @@ impl Registry {
 
         let commands = self.list_commands();
         if commands.is_empty() {
-            output.push_str("No commands found in ");
-            output.push_str(&self.commands_dir.display().to_string());
+            output.push_str("No commands found\n");
+            output.push_str(&format!("  Project: {}\n", self.project_dir.display()));
+            if let Some(personal) = &self.personal_dir {
+                output.push_str(&format!("  Personal: {}\n", personal.display()));
+            }
         } else {
             for name in commands {
-                if let Ok(cmd) = self.get(&name) {
+                if let Ok(scoped) = self.get_scoped(&name) {
+                    let cmd = &scoped.command;
                     let desc = cmd
                         .frontmatter
                         .description
                         .as_deref()
                         .unwrap_or("No description");
-                    output.push_str(&format!("  /{}\n    {}\n", name, desc));
+                    let hint = cmd
+                        .frontmatter
+                        .argument_hint
+                        .as_deref()
+                        .map(|h| format!(" {}", h))
+                        .unwrap_or_default();
+                    let scope_badge = match scoped.scope {
+                        CommandScope::Project => "[project]",
+                        CommandScope::Personal => "[personal]",
+                    };
+
+                    output.push_str(&format!(
+                        "  /{}{} {}\n    {}\n",
+                        name, hint, scope_badge, desc
+                    ));
                 }
             }
         }
 
         output
+    }
+
+    /// Get tab completion suggestions
+    pub fn get_completions(&self, prefix: &str) -> Vec<(String, Option<String>)> {
+        self.commands
+            .iter()
+            .filter(|(name, _)| name.starts_with(prefix))
+            .map(|(name, scoped)| {
+                let hint = scoped.command.frontmatter.argument_hint.clone();
+                (name.clone(), hint)
+            })
+            .collect()
     }
 
     /// Search commands by name pattern
@@ -181,7 +294,7 @@ mod tests {
         let dir = PathBuf::from(".test_commands");
         let registry = Registry::new(dir.clone());
 
-        assert_eq!(registry.commands_dir, dir);
+        assert_eq!(registry.project_dir, dir);
         assert_eq!(registry.command_count(), 0);
     }
 

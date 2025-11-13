@@ -1,0 +1,20 @@
+#!/bin/bash
+# Test script to demonstrate the "!" prefix feature in interactive mode
+
+echo "Testing the '!' prefix feature for direct shell execution"
+echo ""
+echo "This feature allows you to execute shell commands directly from the REPL"
+echo "by prefixing them with '!'"
+echo ""
+echo "Examples:"
+echo "  !ls          - List files in current directory"
+echo "  !pwd         - Print working directory"
+echo "  !echo hello  - Echo a message"
+echo "  !git status  - Run git status"
+echo ""
+echo "The command output is displayed immediately and added to the conversation context."
+echo ""
+echo "To test manually, run:"
+echo "  cargo run --bin rusty chat"
+echo ""
+echo "Then try typing: !ls"
