@@ -22,6 +22,7 @@ pub mod skill;
 pub mod error;
 pub mod types;
 pub mod process_registry;
+pub mod process_isolation;
 
 pub use agent::AgentTool;
 pub use bash::BashTool;
@@ -40,8 +41,9 @@ pub use notebook_edit::NotebookEditTool;
 pub use slash_command::SlashCommandTool;
 pub use skill::SkillTool;
 pub use error::{ToolError, ToolResult};
-pub use types::{ToolContext, ToolEvent, ToolMetadata, ToolStream};
+pub use types::{ToolContext, ToolEvent, ToolMetadata, ToolStream, ExecutionContext};
 pub use process_registry::{ProcessRegistry, ProcessStatus, ProcessHandle, global_registry};
+pub use process_isolation::{ProcessSpawnConfig, apply_isolation, spawn_with_isolation};
 
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;

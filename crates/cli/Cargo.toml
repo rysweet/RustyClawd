@@ -41,6 +41,9 @@ dirs = "5.0"
 # Time handling
 chrono = { workspace = true }
 
+# Terminal state management
+lazy_static = "1.4"
+
 [dev-dependencies]
 # CLI testing
 assert_cmd = "2.0"

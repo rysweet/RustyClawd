@@ -9,6 +9,7 @@ use rustyclawd_tools::{
 };
 use futures::StreamExt;
 use serde_json::{json, Value};
+use crate::terminal_guard::TerminalGuard;
 
 /// Create an educational error message that teaches Claude the correct schema
 fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
@@ -90,7 +91,19 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
 /// This function takes the tool name and input from Claude's API response,
 /// executes the corresponding internal tool, and returns the result as JSON.
 pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value, ClientError> {
-    let ctx = ToolContext::default();
+    // Create tool context with execution context from global state
+    use crate::terminal_guard::{get_execution_context, ExecutionContext as GuardContext};
+
+    let execution_context = get_execution_context();
+    let ctx = ToolContext {
+        cwd: std::env::current_dir().unwrap_or_default(),
+        debug: false,
+        metadata: serde_json::Value::Null,
+        execution_context: match execution_context {
+            GuardContext::Tui => rustyclawd_tools::ExecutionContext::Tui,
+            GuardContext::NonInteractive => rustyclawd_tools::ExecutionContext::NonInteractive,
+        },
+    };
 
     match tool_name.as_str() {
         "Bash" => execute_bash_tool(tool_input, &ctx).await,
@@ -105,6 +118,10 @@ pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value,
 
 /// Execute Bash tool
 async fn execute_bash_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
+    // Protect terminal state during bash execution
+    let _guard = TerminalGuard::new()
+        .map_err(|e| ClientError::Api(format!("Failed to create terminal guard: {}", e)))?;
+
     let params: rustyclawd_tools::bash::BashParams =
         serde_json::from_value(input).map_err(|e| {
             create_schema_error("Bash", &e.to_string())
@@ -136,6 +153,7 @@ async fn execute_bash_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
     Err(ClientError::Api(
         "Bash tool completed without result".to_string(),
     ))
+    // Guard is automatically dropped here, restoring terminal state
 }
 
 /// Execute Read tool

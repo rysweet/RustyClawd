@@ -32,6 +32,10 @@ url = "2.5"
 urlencoding = "2.1"
 serde_yaml = "0.9"
 
+# Process isolation (Unix-specific)
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.29", features = ["process"] }
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = "3.8"

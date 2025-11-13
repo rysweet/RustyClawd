@@ -7,7 +7,7 @@
 //! - Supports model selection (haiku/sonnet/opus)
 //! - Allows resuming previous agent executions
 
-use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
+use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream, ExecutionContext};
 use async_stream::stream;
 use async_trait::async_trait;
 use futures::StreamExt;
@@ -444,6 +444,7 @@ mod tests {
             cwd: temp_dir.path().to_path_buf(),
             debug: false,
             metadata: serde_json::Value::Null,
+            execution_context: ExecutionContext::default(),
         };
 
         let mut stream = tool.execute(params, &ctx).await.unwrap();
@@ -481,6 +482,7 @@ mod tests {
             cwd,
             debug: true,
             metadata: serde_json::Value::Null,
+            execution_context: ExecutionContext::default(),
         };
 
         let mut stream = tool.execute(params, &ctx).await.unwrap();
