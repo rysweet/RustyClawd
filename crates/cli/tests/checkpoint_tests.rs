@@ -208,7 +208,11 @@ impl Checkpoint {
     pub fn size_bytes(&self) -> usize {
         self.id.len()
             + self.messages.iter().map(|m| m.content.len()).sum::<usize>()
-            + self.file_changes.iter().map(|f| f.content.len()).sum::<usize>()
+            + self
+                .file_changes
+                .iter()
+                .map(|f| f.content.len())
+                .sum::<usize>()
     }
 
     /// Serialize checkpoint to JSON
@@ -276,7 +280,10 @@ impl Checkpoint {
             })
             .collect();
 
-        let cwd = value["session_state"]["cwd"].as_str().unwrap_or("").to_string();
+        let cwd = value["session_state"]["cwd"]
+            .as_str()
+            .unwrap_or("")
+            .to_string();
         let mut env = HashMap::new();
         if let Some(env_obj) = value["session_state"]["env"].as_object() {
             for (k, v) in env_obj {
@@ -566,10 +573,13 @@ mod checkpoint_structure_tests {
     #[test]
     fn test_checkpoint_description() {
         let state = SessionState::new("/project");
-        let checkpoint = Checkpoint::new("cp-001", 1, 1000, state)
-            .with_description("Initial implementation");
+        let checkpoint =
+            Checkpoint::new("cp-001", 1, 1000, state).with_description("Initial implementation");
 
-        assert_eq!(checkpoint.description, Some("Initial implementation".to_string()));
+        assert_eq!(
+            checkpoint.description,
+            Some("Initial implementation".to_string())
+        );
     }
 
     #[test]
@@ -766,7 +776,12 @@ mod checkpoint_history_tests {
 
         // Add more checkpoints than max
         for i in 1..=5 {
-            let cp = Checkpoint::new(format!("cp-{:03}", i), i as u32, i as u64 * 1000, state.clone());
+            let cp = Checkpoint::new(
+                format!("cp-{:03}", i),
+                i as u32,
+                i as u64 * 1000,
+                state.clone(),
+            );
             history.record_checkpoint(cp);
         }
 
@@ -860,7 +875,10 @@ mod session_saving_tests {
         let checkpoint = session.history.get(&cp_id).expect("Should find checkpoint");
 
         assert_eq!(checkpoint.session_state.cwd, "/home/user/project");
-        assert_eq!(checkpoint.session_state.env.get("RUST_LOG"), Some(&"debug".to_string()));
+        assert_eq!(
+            checkpoint.session_state.env.get("RUST_LOG"),
+            Some(&"debug".to_string())
+        );
         assert_eq!(checkpoint.session_state.active_contexts.len(), 1);
     }
 
@@ -888,7 +906,9 @@ mod session_saving_tests {
         session.create_checkpoint(Some("First".to_string()));
         session.create_checkpoint(Some("Second".to_string()));
 
-        let last = session.last_checkpoint().expect("Should have last checkpoint");
+        let last = session
+            .last_checkpoint()
+            .expect("Should have last checkpoint");
         assert_eq!(last.description, Some("Second".to_string()));
     }
 
@@ -927,7 +947,10 @@ mod session_resuming_tests {
             .expect("Should restore");
 
         assert_eq!(session.current_state.cwd, "/original");
-        assert_eq!(session.current_state.env.get("VAR"), Some(&"original_value".to_string()));
+        assert_eq!(
+            session.current_state.env.get("VAR"),
+            Some(&"original_value".to_string())
+        );
     }
 
     #[test]
@@ -1056,7 +1079,11 @@ mod state_persistence_tests {
     fn test_checkpoint_with_complex_file_changes() {
         let mut session = Session::new("session-001", 10);
         let cp_id = session.create_checkpoint(None);
-        let mut checkpoint = session.history.get(&cp_id).expect("Should have checkpoint").clone();
+        let mut checkpoint = session
+            .history
+            .get(&cp_id)
+            .expect("Should have checkpoint")
+            .clone();
 
         // Record multiple file changes
         checkpoint.record_file_change(FileChange::new("/src/main.rs", "v1", 1000));
@@ -1071,13 +1098,23 @@ mod state_persistence_tests {
     fn test_checkpoint_with_conversation_history() {
         let mut session = Session::new("session-001", 10);
         let cp_id = session.create_checkpoint(None);
-        let mut checkpoint = session.history.get(&cp_id).expect("Should have checkpoint").clone();
+        let mut checkpoint = session
+            .history
+            .get(&cp_id)
+            .expect("Should have checkpoint")
+            .clone();
 
         // Add conversation
         checkpoint.add_message(CheckpointMessage::user("What should I do?", 1000));
-        checkpoint.add_message(CheckpointMessage::assistant("First, analyze the problem", 1100));
+        checkpoint.add_message(CheckpointMessage::assistant(
+            "First, analyze the problem",
+            1100,
+        ));
         checkpoint.add_message(CheckpointMessage::user("Then what?", 1200));
-        checkpoint.add_message(CheckpointMessage::assistant("Then implement the solution", 1300));
+        checkpoint.add_message(CheckpointMessage::assistant(
+            "Then implement the solution",
+            1300,
+        ));
 
         assert_eq!(checkpoint.messages.len(), 4);
         assert_eq!(checkpoint.messages[0].role, "user");
@@ -1160,7 +1197,11 @@ mod edge_case_tests {
     fn test_large_content_checkpoint() {
         let mut session = Session::new("session-001", 10);
         let cp_id = session.create_checkpoint(None);
-        let mut checkpoint = session.history.get(&cp_id).expect("Should have checkpoint").clone();
+        let mut checkpoint = session
+            .history
+            .get(&cp_id)
+            .expect("Should have checkpoint")
+            .clone();
 
         // Add large content
         let large_content = "x".repeat(10_000);
@@ -1189,7 +1230,10 @@ mod edge_case_tests {
 
     #[test]
     fn test_restore_scope_display() {
-        assert_eq!(RestoreScope::ConversationOnly.to_string(), "conversation_only");
+        assert_eq!(
+            RestoreScope::ConversationOnly.to_string(),
+            "conversation_only"
+        );
         assert_eq!(RestoreScope::CodeOnly.to_string(), "code_only");
         assert_eq!(RestoreScope::Both.to_string(), "both");
     }

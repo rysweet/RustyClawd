@@ -216,7 +216,10 @@ fn discover_skill_paths(skill_name: &str) -> Vec<PathBuf> {
     paths.push(PathBuf::from(format!(".claude/skills/{}.md", skill)));
     paths.push(PathBuf::from(format!(".claude/skills/{}/skill.md", skill)));
     paths.push(PathBuf::from(format!(".claude/skills/{}.yaml", skill)));
-    paths.push(PathBuf::from(format!(".claude/skills/{}/skill.yaml", skill)));
+    paths.push(PathBuf::from(format!(
+        ".claude/skills/{}/skill.yaml",
+        skill
+    )));
 
     // Priority 2: User-level skills in ~/.claude/skills/
     if let Some(home) = std::env::var_os("HOME") {
@@ -229,14 +232,29 @@ fn discover_skill_paths(skill_name: &str) -> Vec<PathBuf> {
 
     // Priority 3: Plugin-specific skills
     if let Some(plugin_name) = plugin {
-        paths.push(PathBuf::from(format!(".claude/plugins/{}/skills/{}.md", plugin_name, skill)));
-        paths.push(PathBuf::from(format!(".claude/plugins/{}/skills/{}/skill.md", plugin_name, skill)));
-        paths.push(PathBuf::from(format!(".claude/plugins/{}/skills/{}.yaml", plugin_name, skill)));
+        paths.push(PathBuf::from(format!(
+            ".claude/plugins/{}/skills/{}.md",
+            plugin_name, skill
+        )));
+        paths.push(PathBuf::from(format!(
+            ".claude/plugins/{}/skills/{}/skill.md",
+            plugin_name, skill
+        )));
+        paths.push(PathBuf::from(format!(
+            ".claude/plugins/{}/skills/{}.yaml",
+            plugin_name, skill
+        )));
     }
 
     // Priority 4: Example plugins (for testing/development)
-    paths.push(PathBuf::from(format!("examples/plugins/example-plugin/skills/{}.md", skill)));
-    paths.push(PathBuf::from(format!("examples/plugins/example-plugin/skills/{}/skill.md", skill)));
+    paths.push(PathBuf::from(format!(
+        "examples/plugins/example-plugin/skills/{}.md",
+        skill
+    )));
+    paths.push(PathBuf::from(format!(
+        "examples/plugins/example-plugin/skills/{}/skill.md",
+        skill
+    )));
 
     paths
 }
@@ -282,7 +300,8 @@ fn parse_yaml_skill(content: &str) -> ParsedSkill {
     // First, try to parse as generic YAML value
     if let Ok(yaml_value) = serde_yaml::from_str::<serde_yaml::Value>(content) {
         // Extract prompt from various possible fields
-        let prompt = if let Some(prompt_val) = yaml_value.get("prompt")
+        let prompt = if let Some(prompt_val) = yaml_value
+            .get("prompt")
             .or_else(|| yaml_value.get("instructions"))
             .or_else(|| yaml_value.get("content"))
         {
@@ -385,7 +404,10 @@ This skill has YAML frontmatter for metadata.
         assert!(result.metadata.is_some());
 
         let metadata = result.metadata.unwrap();
-        assert_eq!(metadata.description, Some("A test skill with metadata".to_string()));
+        assert_eq!(
+            metadata.description,
+            Some("A test skill with metadata".to_string())
+        );
         assert_eq!(metadata.version, Some("1.0.0".to_string()));
         assert_eq!(metadata.author, Some("Test Author".to_string()));
         assert_eq!(metadata.location, Some("project".to_string()));
@@ -468,12 +490,21 @@ prompt: |
         let paths = discover_skill_paths("my-skill");
 
         // Should include project-level paths
-        assert!(paths.iter().any(|p| p.to_str().unwrap().contains(".claude/skills/my-skill.md")));
-        assert!(paths.iter().any(|p| p.to_str().unwrap().contains(".claude/skills/my-skill/skill.md")));
-        assert!(paths.iter().any(|p| p.to_str().unwrap().contains(".claude/skills/my-skill.yaml")));
+        assert!(paths
+            .iter()
+            .any(|p| p.to_str().unwrap().contains(".claude/skills/my-skill.md")));
+        assert!(paths.iter().any(|p| p
+            .to_str()
+            .unwrap()
+            .contains(".claude/skills/my-skill/skill.md")));
+        assert!(paths
+            .iter()
+            .any(|p| p.to_str().unwrap().contains(".claude/skills/my-skill.yaml")));
 
         // Should include home directory paths
-        assert!(paths.iter().any(|p| p.to_str().unwrap().contains(".claude/skills/my-skill")));
+        assert!(paths
+            .iter()
+            .any(|p| p.to_str().unwrap().contains(".claude/skills/my-skill")));
 
         // Should have multiple paths
         assert!(paths.len() >= 8);
@@ -484,7 +515,10 @@ prompt: |
         let paths = discover_skill_paths("example-plugin:code-reviewer");
 
         // Should include plugin-specific paths
-        assert!(paths.iter().any(|p| p.to_str().unwrap().contains(".claude/plugins/example-plugin/skills/code-reviewer")));
+        assert!(paths.iter().any(|p| p
+            .to_str()
+            .unwrap()
+            .contains(".claude/plugins/example-plugin/skills/code-reviewer")));
     }
 
     #[tokio::test]

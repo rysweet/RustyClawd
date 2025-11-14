@@ -54,7 +54,9 @@ impl crate::Tool for GlobTool {
         ctx: &ToolContext,
     ) -> ToolResult<ToolStream<Self::Output>> {
         let pattern = params.pattern.clone();
-        let search_path = params.path.clone()
+        let search_path = params
+            .path
+            .clone()
             .map(PathBuf::from)
             .unwrap_or_else(|| ctx.cwd.clone());
         let debug = ctx.debug;
@@ -161,8 +163,8 @@ mod tests {
     use super::*;
     use crate::Tool;
     use futures::StreamExt;
-    use tempfile::TempDir;
     use std::io::Write;
+    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_glob_basic_pattern() {
@@ -183,10 +185,13 @@ mod tests {
         let mut stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert_eq!(result.count, 2);
         assert!(result.files.iter().any(|f| f.ends_with("test.rs")));

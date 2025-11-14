@@ -82,12 +82,18 @@ mod tests {
     #[test]
     fn test_hooks_system_creation() {
         let system = HooksSystem::new();
-        assert!(system.registry.get_hooks_for_event(&HookEvent::SessionStart, &HookContext::default()).is_empty());
+        assert!(system
+            .registry
+            .get_hooks_for_event(&HookEvent::SessionStart, &HookContext::default())
+            .is_empty());
     }
 
     #[test]
     fn test_hooks_system_default() {
         let system = HooksSystem::default();
-        assert!(system.registry.get_hooks_for_event(&HookEvent::SessionEnd, &HookContext::default()).is_empty());
+        assert!(system
+            .registry
+            .get_hooks_for_event(&HookEvent::SessionEnd, &HookContext::default())
+            .is_empty());
     }
 }

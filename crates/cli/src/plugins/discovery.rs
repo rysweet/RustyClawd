@@ -5,7 +5,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::plugins::manifest::{PluginManifest, parse_manifest, validate_manifest};
+use crate::plugins::manifest::{parse_manifest, validate_manifest, PluginManifest};
 
 /// Plugin load status tracking
 #[derive(Debug, Clone, PartialEq)]
@@ -122,11 +122,7 @@ impl PluginDiscovery {
     }
 
     /// Get plugin by ID from discovered plugins
-    pub fn find_plugin(
-        &self,
-        plugins: &[PluginMetadata],
-        id: &str,
-    ) -> Option<PluginMetadata> {
+    pub fn find_plugin(&self, plugins: &[PluginMetadata], id: &str) -> Option<PluginMetadata> {
         plugins.iter().find(|p| p.id == id).cloned()
     }
 

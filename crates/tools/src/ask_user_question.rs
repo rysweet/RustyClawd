@@ -68,10 +68,7 @@ pub struct AskUserQuestionTool;
 
 impl AskUserQuestionTool {
     /// Ask a single-select question in TUI mode
-    fn ask_single_select_tui(
-        question: &Question,
-        debug: bool,
-    ) -> Result<String, String> {
+    fn ask_single_select_tui(question: &Question, debug: bool) -> Result<String, String> {
         // Add "Other" option automatically
         let mut items: Vec<String> = question
             .options
@@ -109,10 +106,7 @@ impl AskUserQuestionTool {
     }
 
     /// Ask a multi-select question in TUI mode
-    fn ask_multi_select_tui(
-        question: &Question,
-        debug: bool,
-    ) -> Result<String, String> {
+    fn ask_multi_select_tui(question: &Question, debug: bool) -> Result<String, String> {
         // Add "Other" option automatically
         let mut items: Vec<String> = question
             .options
@@ -453,9 +447,7 @@ mod tests {
         question.header = "ThisIsWayTooLong".to_string(); // 16 chars > 12
         let result = AskUserQuestionTool::validate_question(&question, 0);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .contains("exceeds 12 characters"));
+        assert!(result.unwrap_err().contains("exceeds 12 characters"));
     }
 
     #[test]
@@ -524,9 +516,7 @@ mod tests {
         question.options[0].description = "".to_string();
         let result = AskUserQuestionTool::validate_question(&question, 0);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .contains("description cannot be empty"));
+        assert!(result.unwrap_err().contains("description cannot be empty"));
     }
 
     #[test]
@@ -535,7 +525,9 @@ mod tests {
         question.question = "".to_string();
         let result = AskUserQuestionTool::validate_question(&question, 0);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("question text cannot be empty"));
+        assert!(result
+            .unwrap_err()
+            .contains("question text cannot be empty"));
     }
 
     #[test]

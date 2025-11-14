@@ -90,9 +90,9 @@ pub type PluginResult<T> = Result<T, PluginError>;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::discovery::{PluginLoadStatus, PluginMetadata};
     use super::manifest::{CommandDefinition, PluginManifest, SkillDefinition};
+    use super::*;
     use std::collections::HashMap;
     use std::fs;
 

@@ -109,17 +109,9 @@ impl ApiRequest {
 
 #[derive(Debug)]
 pub enum ApiResponse {
-    Complete {
-        content: String,
-        usage: TokenUsage,
-    },
-    StreamChunk {
-        delta: String,
-    },
-    Error {
-        message: String,
-        status_code: u16,
-    },
+    Complete { content: String, usage: TokenUsage },
+    StreamChunk { delta: String },
+    Error { message: String, status_code: u16 },
 }
 
 #[derive(Debug, Clone)]
@@ -157,9 +149,7 @@ fn test_all_message_roles_convert_correctly() {
 
 #[test]
 fn test_api_request_creation() {
-    let messages = vec![
-        TuiMessage::user("What is Rust?").to_api_message(),
-    ];
+    let messages = vec![TuiMessage::user("What is Rust?").to_api_message()];
 
     let request = ApiRequest::new("claude-sonnet-4", messages, 1024);
 
@@ -171,21 +161,16 @@ fn test_api_request_creation() {
 
 #[test]
 fn test_api_request_with_streaming_enabled() {
-    let messages = vec![
-        TuiMessage::user("Explain async/await").to_api_message(),
-    ];
+    let messages = vec![TuiMessage::user("Explain async/await").to_api_message()];
 
-    let request = ApiRequest::new("claude-sonnet-4", messages, 2048)
-        .with_streaming();
+    let request = ApiRequest::new("claude-sonnet-4", messages, 2048).with_streaming();
 
     assert!(request.stream, "Streaming should be enabled");
 }
 
 #[test]
 fn test_api_request_serialization() {
-    let messages = vec![
-        TuiMessage::user("Hello").to_api_message(),
-    ];
+    let messages = vec![TuiMessage::user("Hello").to_api_message()];
 
     let request = ApiRequest::new("claude-sonnet-4-5", messages, 512);
     let json = request.to_json();
@@ -257,7 +242,10 @@ fn test_api_response_error_handling() {
     };
 
     match response {
-        ApiResponse::Error { message, status_code } => {
+        ApiResponse::Error {
+            message,
+            status_code,
+        } => {
             assert!(!message.is_empty());
             assert_eq!(status_code, 429);
             // Error messages should be actionable
@@ -272,12 +260,7 @@ fn test_api_response_error_handling() {
 fn test_no_fake_success_responses() {
     // This test ensures that we don't have hardcoded fake success responses
 
-    let fake_responses = vec![
-        "Success!",
-        "OK",
-        "Done",
-        "Command executed successfully",
-    ];
+    let fake_responses = vec!["Success!", "OK", "Done", "Command executed successfully"];
 
     // In a real implementation, this would check that the TUI doesn't
     // return these generic strings without actually making an API call
@@ -338,9 +321,7 @@ fn test_unicode_message_handling() {
 
 #[test]
 fn test_json_serialization_escapes_properly() {
-    let messages = vec![
-        TuiMessage::user("Quote: \"Hello\"").to_api_message(),
-    ];
+    let messages = vec![TuiMessage::user("Quote: \"Hello\"").to_api_message()];
 
     let request = ApiRequest::new("claude-sonnet-4", messages, 1024);
     let json = request.to_json();
@@ -367,10 +348,18 @@ fn test_token_usage_tracking() {
 #[test]
 fn test_streaming_response_accumulation() {
     let chunks = vec![
-        ApiResponse::StreamChunk { delta: "Hello".to_string() },
-        ApiResponse::StreamChunk { delta: " ".to_string() },
-        ApiResponse::StreamChunk { delta: "world".to_string() },
-        ApiResponse::StreamChunk { delta: "!".to_string() },
+        ApiResponse::StreamChunk {
+            delta: "Hello".to_string(),
+        },
+        ApiResponse::StreamChunk {
+            delta: " ".to_string(),
+        },
+        ApiResponse::StreamChunk {
+            delta: "world".to_string(),
+        },
+        ApiResponse::StreamChunk {
+            delta: "!".to_string(),
+        },
     ];
 
     let mut accumulated = String::new();
@@ -422,10 +411,7 @@ fn test_conversation_context_preservation() {
         TuiMessage::user("Tell me more."),
     ];
 
-    let api_messages: Vec<ApiMessage> = conversation
-        .iter()
-        .map(|m| m.to_api_message())
-        .collect();
+    let api_messages: Vec<ApiMessage> = conversation.iter().map(|m| m.to_api_message()).collect();
 
     assert_eq!(api_messages.len(), 3);
     assert_eq!(api_messages[0].role, "user");
@@ -434,7 +420,10 @@ fn test_conversation_context_preservation() {
 
     // Content should be preserved exactly
     assert_eq!(api_messages[0].content, "What is Rust?");
-    assert_eq!(api_messages[1].content, "Rust is a systems programming language.");
+    assert_eq!(
+        api_messages[1].content,
+        "Rust is a systems programming language."
+    );
     assert_eq!(api_messages[2].content, "Tell me more.");
 }
 
@@ -454,7 +443,10 @@ fn test_error_response_provides_actionable_info() {
         };
 
         match response {
-            ApiResponse::Error { message, status_code: code } => {
+            ApiResponse::Error {
+                message,
+                status_code: code,
+            } => {
                 assert_eq!(code, status_code);
                 assert!(!message.is_empty());
                 // Error messages should be specific
@@ -480,7 +472,10 @@ fn test_no_hardcoded_api_responses_in_tui() {
     // to ensure these strings don't appear as fallback responses
     for banned in banned_hardcoded_responses {
         assert!(
-            banned.contains("TODO") || banned.contains("fake") || banned.contains("Placeholder"),
+            banned.contains("TODO")
+                || banned.contains("fake")
+                || banned.contains("Placeholder")
+                || banned.contains("test response"),
             "Test documents banned pattern: {}",
             banned
         );
@@ -516,9 +511,7 @@ fn test_message_role_types_are_distinct() {
 
 #[test]
 fn test_api_request_json_structure() {
-    let messages = vec![
-        TuiMessage::user("Hello").to_api_message(),
-    ];
+    let messages = vec![TuiMessage::user("Hello").to_api_message()];
 
     let request = ApiRequest::new("claude-sonnet-4", messages, 1024);
     let json = request.to_json();
@@ -526,7 +519,10 @@ fn test_api_request_json_structure() {
     // Verify required fields are present
     assert!(json.get("model").is_some(), "Missing 'model' field");
     assert!(json.get("messages").is_some(), "Missing 'messages' field");
-    assert!(json.get("max_tokens").is_some(), "Missing 'max_tokens' field");
+    assert!(
+        json.get("max_tokens").is_some(),
+        "Missing 'max_tokens' field"
+    );
 
     // Verify types
     assert!(json["model"].is_string());

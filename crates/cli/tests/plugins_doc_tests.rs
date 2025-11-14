@@ -235,7 +235,8 @@ fn test_plugin_manifest_kebab_case_name() {
 }
 
 fn is_valid_kebab_case(s: &str) -> bool {
-    s.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    s.chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
         && !s.starts_with('-')
         && !s.ends_with('-')
         && !s.contains("--")
@@ -300,12 +301,7 @@ fn test_plugin_directory_standard_layout() {
     let plugin_dir = create_plugin_structure(&test_dir, "my-plugin");
 
     // Create standard directories
-    let expected_dirs = vec![
-        ".claude-plugin",
-        "commands",
-        "agents",
-        "skills",
-    ];
+    let expected_dirs = vec![".claude-plugin", "commands", "agents", "skills"];
 
     for dir in expected_dirs {
         let path = plugin_dir.join(dir);
@@ -336,7 +332,11 @@ fn test_plugin_manifest_location() {
     };
 
     let manifest_path = plugin_dir.join(".claude-plugin/plugin.json");
-    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+    fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
 
     assert!(manifest_path.exists());
     assert!(manifest_path.is_file());
@@ -352,7 +352,10 @@ fn test_commands_directory_at_root() {
     let wrong_location = plugin_dir.join(".claude-plugin/commands");
 
     assert!(commands_dir.exists(), "commands/ should exist at root");
-    assert!(!wrong_location.exists(), "commands/ should NOT be in .claude-plugin/");
+    assert!(
+        !wrong_location.exists(),
+        "commands/ should NOT be in .claude-plugin/"
+    );
 }
 
 #[test]
@@ -405,7 +408,10 @@ fn test_command_custom_paths() {
         repository: None,
         license: None,
         keywords: vec![],
-        commands: vec!["./custom-commands".to_string(), "./more-commands".to_string()],
+        commands: vec![
+            "./custom-commands".to_string(),
+            "./more-commands".to_string(),
+        ],
         agents: vec![],
         hooks: None,
         mcp_servers: HashMap::new(),
@@ -592,7 +598,11 @@ fn test_skill_with_scripts() {
     fs::create_dir_all(&skill_dir.join("scripts")).unwrap();
 
     fs::write(skill_dir.join("SKILL.md"), "# Code Formatter").unwrap();
-    fs::write(skill_dir.join("scripts/format.sh"), "#!/bin/bash\necho 'formatting'").unwrap();
+    fs::write(
+        skill_dir.join("scripts/format.sh"),
+        "#!/bin/bash\necho 'formatting'",
+    )
+    .unwrap();
 
     assert!(skill_dir.join("scripts").is_dir());
     assert!(skill_dir.join("scripts/format.sh").exists());
@@ -684,17 +694,13 @@ fn test_hooks_config_inline() {
     // Happy path: Hooks config inline in plugin.json
     let hooks_def = HooksDefinition {
         pre_tool_use: vec![],
-        post_tool_use: vec![
-            HookMatcher {
-                matcher: "Write|Edit".to_string(),
-                hooks: vec![
-                    Hook {
-                        r#type: "command".to_string(),
-                        command: "${CLAUDE_PLUGIN_ROOT}/scripts/format-code.sh".to_string(),
-                    }
-                ],
-            }
-        ],
+        post_tool_use: vec![HookMatcher {
+            matcher: "Write|Edit".to_string(),
+            hooks: vec![Hook {
+                r#type: "command".to_string(),
+                command: "${CLAUDE_PLUGIN_ROOT}/scripts/format-code.sh".to_string(),
+            }],
+        }],
         user_prompt_submit: vec![],
         notification: vec![],
         stop: vec![],
@@ -726,10 +732,10 @@ fn test_hook_types() {
 fn test_hook_matcher_patterns() {
     // Happy path: Hook matchers support regex patterns
     let matchers = vec![
-        "Write",           // Exact match
-        "Edit|Write",      // Alternation
-        "mcp__.*",         // Regex pattern
-        "Bash.*",          // Prefix match
+        "Write",      // Exact match
+        "Edit|Write", // Alternation
+        "mcp__.*",    // Regex pattern
+        "Bash.*",     // Prefix match
     ];
 
     for matcher in matchers {
@@ -768,7 +774,10 @@ fn test_hook_script_permissions() {
         fs::set_permissions(&script_path, perms).unwrap();
 
         let final_perms = fs::metadata(&script_path).unwrap().permissions();
-        assert!(final_perms.mode() & 0o111 != 0, "Script should be executable");
+        assert!(
+            final_perms.mode() & 0o111 != 0,
+            "Script should be executable"
+        );
     }
 }
 
@@ -784,7 +793,10 @@ fn test_mcp_server_configuration() {
         "filesystem".to_string(),
         McpServerConfig {
             command: "npx".to_string(),
-            args: vec!["-y".to_string(), "@modelcontextprotocol/server-filesystem".to_string()],
+            args: vec![
+                "-y".to_string(),
+                "@modelcontextprotocol/server-filesystem".to_string(),
+            ],
             env: HashMap::new(),
             cwd: None,
         },
@@ -824,7 +836,10 @@ fn test_mcp_server_with_environment() {
     };
 
     assert_eq!(mcp_config.env.len(), 2);
-    assert_eq!(mcp_config.env.get("API_KEY"), Some(&"secret-key".to_string()));
+    assert_eq!(
+        mcp_config.env.get("API_KEY"),
+        Some(&"secret-key".to_string())
+    );
 }
 
 #[test]
@@ -845,7 +860,10 @@ fn test_mcp_server_autostart() {
     // Integration: MCP servers start automatically when plugin enabled
     let mcp_config = McpServerConfig {
         command: "npx".to_string(),
-        args: vec!["-y".to_string(), "@modelcontextprotocol/server-memory".to_string()],
+        args: vec![
+            "-y".to_string(),
+            "@modelcontextprotocol/server-memory".to_string(),
+        ],
         env: HashMap::new(),
         cwd: None,
     };
@@ -909,11 +927,16 @@ fn test_plugin_discovery_standard_location() {
     };
 
     let manifest_path = plugin_dir.join(".claude-plugin/plugin.json");
-    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+    fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
 
     // Verify discovery
     assert!(manifest_path.exists());
-    let loaded: PluginManifest = serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
+    let loaded: PluginManifest =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
     assert_eq!(loaded.name, "test-plugin");
 }
 
@@ -1068,28 +1091,20 @@ fn test_plugin_lifecycle_hooks() {
         notification: vec![],
         stop: vec![],
         subagent_stop: vec![],
-        session_start: vec![
-            HookMatcher {
-                matcher: "*".to_string(),
-                hooks: vec![
-                    Hook {
-                        r#type: "command".to_string(),
-                        command: "./on-startup.sh".to_string(),
-                    }
-                ],
-            }
-        ],
-        session_end: vec![
-            HookMatcher {
-                matcher: "*".to_string(),
-                hooks: vec![
-                    Hook {
-                        r#type: "command".to_string(),
-                        command: "./on-shutdown.sh".to_string(),
-                    }
-                ],
-            }
-        ],
+        session_start: vec![HookMatcher {
+            matcher: "*".to_string(),
+            hooks: vec![Hook {
+                r#type: "command".to_string(),
+                command: "./on-startup.sh".to_string(),
+            }],
+        }],
+        session_end: vec![HookMatcher {
+            matcher: "*".to_string(),
+            hooks: vec![Hook {
+                r#type: "command".to_string(),
+                command: "./on-shutdown.sh".to_string(),
+            }],
+        }],
         pre_compact: vec![],
     };
 
@@ -1149,19 +1164,25 @@ fn test_e2e_plugin_development_workflow() {
     };
 
     let manifest_path = plugin_dir.join(".claude-plugin/plugin.json");
-    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+    fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
 
     // 2. Add commands
     fs::write(
         plugin_dir.join("commands/hello.md"),
-        "---\ndescription: \"Say hello\"\n---\n\n# Hello\n\nSay hello!"
-    ).unwrap();
+        "---\ndescription: \"Say hello\"\n---\n\n# Hello\n\nSay hello!",
+    )
+    .unwrap();
 
     // 3. Add agent
     fs::write(
         plugin_dir.join("agents/helper.md"),
-        "---\ndescription: \"Helper agent\"\n---\n\n# Helper\n\nI help with tasks."
-    ).unwrap();
+        "---\ndescription: \"Helper agent\"\n---\n\n# Helper\n\nI help with tasks.",
+    )
+    .unwrap();
 
     // 4. Add skill
     let skill_dir = plugin_dir.join("skills/expert");
@@ -1184,17 +1205,13 @@ fn test_e2e_plugin_with_hooks_and_mcp() {
     // Create hooks
     let hooks_def = HooksDefinition {
         pre_tool_use: vec![],
-        post_tool_use: vec![
-            HookMatcher {
-                matcher: "Write|Edit".to_string(),
-                hooks: vec![
-                    Hook {
-                        r#type: "command".to_string(),
-                        command: "${CLAUDE_PLUGIN_ROOT}/scripts/format.sh".to_string(),
-                    }
-                ],
-            }
-        ],
+        post_tool_use: vec![HookMatcher {
+            matcher: "Write|Edit".to_string(),
+            hooks: vec![Hook {
+                r#type: "command".to_string(),
+                command: "${CLAUDE_PLUGIN_ROOT}/scripts/format.sh".to_string(),
+            }],
+        }],
         user_prompt_submit: vec![],
         notification: vec![],
         stop: vec![],
@@ -1232,18 +1249,27 @@ fn test_e2e_plugin_with_hooks_and_mcp() {
     };
 
     let manifest_path = plugin_dir.join(".claude-plugin/plugin.json");
-    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+    fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
 
     // Create hook script
     let scripts_dir = plugin_dir.join("scripts");
     fs::create_dir_all(&scripts_dir).unwrap();
-    fs::write(scripts_dir.join("format.sh"), "#!/bin/bash\necho 'formatting'").unwrap();
+    fs::write(
+        scripts_dir.join("format.sh"),
+        "#!/bin/bash\necho 'formatting'",
+    )
+    .unwrap();
 
     // Verify
     assert!(manifest_path.exists());
     assert!(scripts_dir.join("format.sh").exists());
 
-    let loaded: PluginManifest = serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
+    let loaded: PluginManifest =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
     assert!(loaded.hooks.is_some());
     assert_eq!(loaded.mcp_servers.len(), 1);
 }
@@ -1326,11 +1352,7 @@ fn test_error_missing_required_field() {
 #[test]
 fn test_error_invalid_path_format() {
     // Error: Paths must be relative starting with ./
-    let invalid_paths = vec![
-        "/absolute/path",
-        "../parent/dir",
-        "relative/without/dot",
-    ];
+    let invalid_paths = vec!["/absolute/path", "../parent/dir", "relative/without/dot"];
 
     for path in invalid_paths {
         assert!(!path.starts_with("./"));
@@ -1414,11 +1436,16 @@ fn test_boundary_empty_plugin() {
     };
 
     let manifest_path = plugin_dir.join(".claude-plugin/plugin.json");
-    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+    fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
 
     // Valid but minimal
     assert!(manifest_path.exists());
-    let loaded: PluginManifest = serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
+    let loaded: PluginManifest =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
     assert_eq!(loaded.name, "minimal-plugin");
 }
 
@@ -1432,16 +1459,18 @@ fn test_boundary_maximum_components() {
     for i in 0..50 {
         fs::write(
             plugin_dir.join(format!("commands/cmd{}.md", i)),
-            format!("# Command {}", i)
-        ).unwrap();
+            format!("# Command {}", i),
+        )
+        .unwrap();
     }
 
     // Create many agents
     for i in 0..20 {
         fs::write(
             plugin_dir.join(format!("agents/agent{}.md", i)),
-            format!("# Agent {}", i)
-        ).unwrap();
+            format!("# Agent {}", i),
+        )
+        .unwrap();
     }
 
     // Create many skills

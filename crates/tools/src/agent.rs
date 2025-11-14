@@ -69,7 +69,10 @@ pub struct AgentTool;
 impl AgentTool {
     /// Load agent system prompt from .claude/agents/{agent_type}.md
     async fn load_agent_prompt(agent_type: &str, cwd: &PathBuf) -> Result<String, String> {
-        let agent_path = cwd.join(".claude").join("agents").join(format!("{}.md", agent_type));
+        let agent_path = cwd
+            .join(".claude")
+            .join("agents")
+            .join(format!("{}.md", agent_type));
 
         if !agent_path.exists() {
             return Err(format!(
@@ -79,9 +82,13 @@ impl AgentTool {
             ));
         }
 
-        fs::read_to_string(&agent_path)
-            .await
-            .map_err(|e| format!("Failed to read agent prompt {}: {}", agent_path.display(), e))
+        fs::read_to_string(&agent_path).await.map_err(|e| {
+            format!(
+                "Failed to read agent prompt {}: {}",
+                agent_path.display(),
+                e
+            )
+        })
     }
 
     /// Convert model name to API model ID

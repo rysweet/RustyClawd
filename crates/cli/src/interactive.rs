@@ -7,16 +7,18 @@
 //! - Graceful exit handling (Ctrl+D, /exit)
 //! - Rust-colored theme
 
+use crate::commands::SlashCommands;
+use crate::terminal_guard;
+use crate::tui::{ChatMessage, MessageRole as TuiMessageRole, TuiState};
 use anyhow::Result;
+use futures::StreamExt;
 use rustyclawd_core::{
     client::{Client, Config, CreateMessageRequest, Message as ApiMessage},
     Context, Message, MessageRole,
 };
-use rustyclawd_tools::{bash::BashParams, BashTool, Tool, ToolContext, ToolEvent, ExecutionContext};
-use futures::StreamExt;
-use crate::tui::{TuiState, ChatMessage, MessageRole as TuiMessageRole};
-use crate::commands::SlashCommands;
-use crate::terminal_guard;
+use rustyclawd_tools::{
+    bash::BashParams, BashTool, ExecutionContext, Tool, ToolContext, ToolEvent,
+};
 
 /// Default model for interactive sessions
 const DEFAULT_MODEL: &str = "claude-sonnet-4-5-20250929";
@@ -185,10 +187,12 @@ impl InteractiveSession {
                             });
 
                             // Add to conversation context
-                            self.context.add_message(Message::user(result.expanded_prompt.clone()));
+                            self.context
+                                .add_message(Message::user(result.expanded_prompt.clone()));
 
                             // Process the expanded prompt as if user typed it
-                            if let Err(e) = self.process_user_message(&result.expanded_prompt).await {
+                            if let Err(e) = self.process_user_message(&result.expanded_prompt).await
+                            {
                                 self.tui.add_message(ChatMessage {
                                     role: TuiMessageRole::System,
                                     content: format!("Error processing command: {}", e),
@@ -208,7 +212,10 @@ impl InteractiveSession {
                 // Unknown command
                 self.tui.add_message(ChatMessage {
                     role: TuiMessageRole::System,
-                    content: format!("Unknown command: {}\nType /help for available commands", input),
+                    content: format!(
+                        "Unknown command: {}\nType /help for available commands",
+                        input
+                    ),
                 });
                 return Ok(true);
             }
@@ -305,9 +312,13 @@ impl InteractiveSession {
 
         // Update status
         if success {
-            self.tui.set_status("Command completed successfully".to_string());
+            self.tui
+                .set_status("Command completed successfully".to_string());
         } else {
-            self.tui.set_status(format!("Command failed with exit code: {}", exit_code.unwrap_or(-1)));
+            self.tui.set_status(format!(
+                "Command failed with exit code: {}",
+                exit_code.unwrap_or(-1)
+            ));
         }
 
         Ok(())
@@ -320,7 +331,8 @@ impl InteractiveSession {
             role: TuiMessageRole::User,
             content: user_input.to_string(),
         });
-        self.context.add_message(Message::user(user_input.to_string()));
+        self.context
+            .add_message(Message::user(user_input.to_string()));
 
         // Update status
         self.tui.set_status("Claude is thinking...".to_string());
@@ -339,7 +351,8 @@ impl InteractiveSession {
         // Execute with tools - this handles the tool use loop automatically
         self.tui.set_status("Processing with tools...".to_string());
 
-        let response = self.client
+        let response = self
+            .client
             .execute_with_tools(request, |tool_name, tool_input| async move {
                 crate::tool_executor::execute_tool(tool_name, tool_input).await
             })
@@ -382,12 +395,8 @@ impl InteractiveSession {
             .filter_map(|msg| {
                 // API only accepts user and assistant roles, not system
                 match msg.role {
-                    MessageRole::User => {
-                        Some(ApiMessage::user(msg.content.clone()))
-                    }
-                    MessageRole::Assistant => {
-                        Some(ApiMessage::assistant(msg.content.clone()))
-                    }
+                    MessageRole::User => Some(ApiMessage::user(msg.content.clone())),
+                    MessageRole::Assistant => Some(ApiMessage::assistant(msg.content.clone())),
                     MessageRole::System => None, // Skip system messages
                 }
             })

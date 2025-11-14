@@ -192,10 +192,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert_eq!(result.command_name, "review-pr");
         assert!(!result.expanded_prompt.is_empty());
@@ -227,7 +230,8 @@ mod tests {
         let _ = fs::create_dir_all(&cmd_dir).await;
 
         let cmd_path = cmd_dir.join("multi-arg.md");
-        let test_content = "---\ndescription: Test multiple args\n---\n\nFirst: {0}, Second: {1}, Third: {2}\n";
+        let test_content =
+            "---\ndescription: Test multiple args\n---\n\nFirst: {0}, Second: {1}, Third: {2}\n";
         let _ = fs::write(&cmd_path, test_content).await;
 
         let tool = SlashCommandTool;
@@ -239,10 +243,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert!(result.expanded_prompt.contains("foo"));
         assert!(result.expanded_prompt.contains("bar"));
@@ -257,7 +264,8 @@ mod tests {
         let _ = fs::create_dir_all(&cmd_dir).await;
 
         let cmd_path = cmd_dir.join("args-placeholder.md");
-        let test_content = "---\ndescription: Test {{args}} placeholder\n---\n\nAll arguments: {{args}}\n";
+        let test_content =
+            "---\ndescription: Test {{args}} placeholder\n---\n\nAll arguments: {{args}}\n";
         let _ = fs::write(&cmd_path, test_content).await;
 
         let tool = SlashCommandTool;
@@ -269,10 +277,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert!(result.expanded_prompt.contains("one two three"));
 
@@ -297,10 +308,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert!(result.expanded_prompt.contains("Simple command"));
 
@@ -313,7 +327,8 @@ mod tests {
         let _ = fs::create_dir_all(&cmd_dir).await;
 
         let cmd_path = cmd_dir.join("no-args.md");
-        let test_content = "---\ndescription: Command without args\n---\n\nThis command takes no arguments.\n";
+        let test_content =
+            "---\ndescription: Command without args\n---\n\nThis command takes no arguments.\n";
         let _ = fs::write(&cmd_path, test_content).await;
 
         let tool = SlashCommandTool;
@@ -325,12 +340,17 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
-        assert!(result.expanded_prompt.contains("This command takes no arguments"));
+        assert!(result
+            .expanded_prompt
+            .contains("This command takes no arguments"));
 
         let _ = fs::remove_file(&cmd_path).await;
     }
@@ -369,10 +389,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert!(result.expanded_prompt.contains("arg with multiple words"));
 
@@ -410,10 +433,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         // Should still return content even with malformed frontmatter
         assert!(!result.expanded_prompt.is_empty());

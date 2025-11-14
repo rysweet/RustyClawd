@@ -134,10 +134,7 @@ mod tests {
 
     #[test]
     fn test_parse_event_variations() {
-        let integrator = PluginHooksIntegrator::new(
-            "test".to_string(),
-            PathBuf::from("/tmp/test"),
-        );
+        let integrator = PluginHooksIntegrator::new("test".to_string(), PathBuf::from("/tmp/test"));
 
         assert!(matches!(
             integrator.parse_event("onLoad").unwrap(),

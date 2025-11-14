@@ -27,8 +27,8 @@ struct Hook {
 /// Matcher for filtering hooks by tool/event
 #[derive(Debug, Clone)]
 enum HookMatcher {
-    Exact(String),     // Match exactly: "Write"
-    Regex(String),     // Match pattern: "Edit|Write"
+    Exact(String), // Match exactly: "Write"
+    Regex(String), // Match pattern: "Edit|Write"
 }
 
 /// Hook configuration for a specific event
@@ -87,7 +87,7 @@ struct HookOutput {
     system_message: Option<String>,
     permission_decision: Option<String>, // "allow", "deny", "ask"
     permission_decision_reason: Option<String>,
-    decision: Option<String>,             // "approve", "block"
+    decision: Option<String>, // "approve", "block"
     reason: Option<String>,
     additional_context: Option<String>,
     hook_specific_output: Option<HookSpecificOutput>,
@@ -211,7 +211,7 @@ fn test_hook_config_with_exact_matcher() {
         matcher: HookMatcher::Exact("Write".to_string()),
         hooks: vec![Hook {
             r#type: "command".to_string(),
-        prompt: None,
+            prompt: None,
             command: Some("echo 'Write tool executed'".to_string()),
             timeout_ms: Some(60000),
         }],
@@ -229,13 +229,13 @@ fn test_hook_config_multiple_hooks_same_event() {
         hooks: vec![
             Hook {
                 r#type: "command".to_string(),
-        prompt: None,
+                prompt: None,
                 command: Some("echo 'First hook'".to_string()),
                 timeout_ms: Some(60000),
             },
             Hook {
                 r#type: "command".to_string(),
-        prompt: None,
+                prompt: None,
                 command: Some("echo 'Second hook'".to_string()),
                 timeout_ms: Some(60000),
             },
@@ -730,7 +730,7 @@ fn test_hooks_configuration_with_session_start() {
             matcher: HookMatcher::Exact("*".to_string()),
             hooks: vec![Hook {
                 r#type: "command".to_string(),
-        prompt: None,
+                prompt: None,
                 command: Some("source $CLAUDE_ENV_FILE".to_string()),
                 timeout_ms: Some(60000),
             }],
@@ -758,7 +758,7 @@ fn test_hooks_configuration_with_pre_tool_use() {
             matcher: HookMatcher::Regex("Bash|Write".to_string()),
             hooks: vec![Hook {
                 r#type: "prompt".to_string(),
-        prompt: None,
+                prompt: None,
                 command: None,
                 timeout_ms: Some(60000),
             }],
@@ -787,7 +787,7 @@ fn test_hooks_configuration_with_stop_hooks() {
             matcher: HookMatcher::Exact("*".to_string()),
             hooks: vec![Hook {
                 r#type: "prompt".to_string(),
-        prompt: None,
+                prompt: None,
                 command: None,
                 timeout_ms: Some(60000),
             }],
@@ -808,7 +808,7 @@ fn test_hooks_configuration_all_events() {
             matcher: HookMatcher::Exact("*".to_string()),
             hooks: vec![Hook {
                 r#type: "command".to_string(),
-        prompt: None,
+                prompt: None,
                 command: Some("echo 'session started'".to_string()),
                 timeout_ms: Some(60000),
             }],
@@ -817,7 +817,7 @@ fn test_hooks_configuration_all_events() {
             matcher: HookMatcher::Exact("*".to_string()),
             hooks: vec![Hook {
                 r#type: "command".to_string(),
-        prompt: None,
+                prompt: None,
                 command: Some("echo 'session ended'".to_string()),
                 timeout_ms: Some(60000),
             }],
@@ -826,7 +826,7 @@ fn test_hooks_configuration_all_events() {
             matcher: HookMatcher::Regex("Edit|Write".to_string()),
             hooks: vec![Hook {
                 r#type: "prompt".to_string(),
-        prompt: None,
+                prompt: None,
                 command: None,
                 timeout_ms: Some(60000),
             }],
@@ -835,7 +835,7 @@ fn test_hooks_configuration_all_events() {
             matcher: HookMatcher::Exact("Bash".to_string()),
             hooks: vec![Hook {
                 r#type: "command".to_string(),
-        prompt: None,
+                prompt: None,
                 command: Some("log_execution".to_string()),
                 timeout_ms: Some(60000),
             }],
@@ -844,7 +844,7 @@ fn test_hooks_configuration_all_events() {
             matcher: HookMatcher::Exact("*".to_string()),
             hooks: vec![Hook {
                 r#type: "command".to_string(),
-        prompt: None,
+                prompt: None,
                 command: Some("validate_prompt".to_string()),
                 timeout_ms: Some(60000),
             }],
@@ -853,7 +853,7 @@ fn test_hooks_configuration_all_events() {
             matcher: HookMatcher::Exact("*".to_string()),
             hooks: vec![Hook {
                 r#type: "prompt".to_string(),
-        prompt: None,
+                prompt: None,
                 command: None,
                 timeout_ms: Some(60000),
             }],
@@ -862,7 +862,7 @@ fn test_hooks_configuration_all_events() {
             matcher: HookMatcher::Exact("*".to_string()),
             hooks: vec![Hook {
                 r#type: "prompt".to_string(),
-        prompt: None,
+                prompt: None,
                 command: None,
                 timeout_ms: Some(60000),
             }],
@@ -871,7 +871,7 @@ fn test_hooks_configuration_all_events() {
             matcher: HookMatcher::Regex(".*".to_string()),
             hooks: vec![Hook {
                 r#type: "command".to_string(),
-        prompt: None,
+                prompt: None,
                 command: Some("route_notification".to_string()),
                 timeout_ms: Some(60000),
             }],
@@ -880,7 +880,7 @@ fn test_hooks_configuration_all_events() {
             matcher: HookMatcher::Exact("*".to_string()),
             hooks: vec![Hook {
                 r#type: "command".to_string(),
-        prompt: None,
+                prompt: None,
                 command: Some("prepare_compaction".to_string()),
                 timeout_ms: Some(60000),
             }],
@@ -923,7 +923,7 @@ fn test_custom_hook_registration_command() {
         matcher: HookMatcher::Exact("*".to_string()),
         hooks: vec![Hook {
             r#type: "command".to_string(),
-        prompt: None,
+            prompt: None,
             command: Some("custom_init_script.sh".to_string()),
             timeout_ms: Some(30000),
         }],
@@ -955,7 +955,7 @@ fn test_custom_hook_registration_prompt() {
         matcher: HookMatcher::Exact("*".to_string()),
         hooks: vec![Hook {
             r#type: "prompt".to_string(),
-        prompt: None,
+            prompt: None,
             command: None,
             timeout_ms: Some(60000),
         }],
@@ -988,13 +988,13 @@ fn test_custom_hook_registration_multiple() {
         hooks: vec![
             Hook {
                 r#type: "prompt".to_string(),
-        prompt: None,
+                prompt: None,
                 command: None,
                 timeout_ms: Some(60000),
             },
             Hook {
                 r#type: "command".to_string(),
-        prompt: None,
+                prompt: None,
                 command: Some("log_bash_command.sh".to_string()),
                 timeout_ms: Some(5000),
             },
@@ -1015,7 +1015,7 @@ fn test_custom_hook_registration_mcp_tool() {
             matcher: HookMatcher::Regex("mcp__.*".to_string()),
             hooks: vec![Hook {
                 r#type: "command".to_string(),
-        prompt: None,
+                prompt: None,
                 command: Some("validate_mcp_call.sh".to_string()),
                 timeout_ms: Some(60000),
             }],
@@ -1288,7 +1288,7 @@ fn test_scenario_session_workflow() {
             matcher: HookMatcher::Exact("*".to_string()),
             hooks: vec![Hook {
                 r#type: "command".to_string(),
-        prompt: None,
+                prompt: None,
                 command: Some("initialize_session".to_string()),
                 timeout_ms: Some(60000),
             }],
@@ -1297,7 +1297,7 @@ fn test_scenario_session_workflow() {
             matcher: HookMatcher::Exact("*".to_string()),
             hooks: vec![Hook {
                 r#type: "command".to_string(),
-        prompt: None,
+                prompt: None,
                 command: Some("cleanup_session".to_string()),
                 timeout_ms: Some(60000),
             }],
@@ -1329,7 +1329,7 @@ fn test_scenario_permission_enforcement() {
                 matcher: HookMatcher::Exact("Bash".to_string()),
                 hooks: vec![Hook {
                     r#type: "prompt".to_string(),
-        prompt: None,
+                    prompt: None,
                     command: None,
                     timeout_ms: Some(60000),
                 }],
@@ -1338,7 +1338,7 @@ fn test_scenario_permission_enforcement() {
                 matcher: HookMatcher::Exact("Write".to_string()),
                 hooks: vec![Hook {
                     r#type: "command".to_string(),
-        prompt: None,
+                    prompt: None,
                     command: Some("check_file_permissions.sh".to_string()),
                     timeout_ms: Some(60000),
                 }],
@@ -1367,13 +1367,13 @@ fn test_scenario_post_execution_analysis() {
             hooks: vec![
                 Hook {
                     r#type: "command".to_string(),
-        prompt: None,
+                    prompt: None,
                     command: Some("analyze_command_output.sh".to_string()),
                     timeout_ms: Some(30000),
                 },
                 Hook {
                     r#type: "prompt".to_string(),
-        prompt: None,
+                    prompt: None,
                     command: None,
                     timeout_ms: Some(60000),
                 },
@@ -1403,7 +1403,7 @@ fn test_scenario_completion_decision() {
             matcher: HookMatcher::Exact("*".to_string()),
             hooks: vec![Hook {
                 r#type: "prompt".to_string(),
-        prompt: None,
+                prompt: None,
                 command: None,
                 timeout_ms: Some(60000),
             }],
@@ -1424,7 +1424,7 @@ fn test_scenario_environment_persistence() {
             matcher: HookMatcher::Exact("*".to_string()),
             hooks: vec![Hook {
                 r#type: "command".to_string(),
-        prompt: None,
+                prompt: None,
                 command: Some("source $CLAUDE_ENV_FILE && export CUSTOM_VAR=value".to_string()),
                 timeout_ms: Some(60000),
             }],
@@ -1452,7 +1452,7 @@ fn test_scenario_mcp_tool_targeting() {
             matcher: HookMatcher::Regex("mcp__.*__.*".to_string()),
             hooks: vec![Hook {
                 r#type: "command".to_string(),
-        prompt: None,
+                prompt: None,
                 command: Some("validate_mcp_tool".to_string()),
                 timeout_ms: Some(60000),
             }],
@@ -1477,19 +1477,19 @@ fn test_scenario_parallel_hook_execution() {
             hooks: vec![
                 Hook {
                     r#type: "command".to_string(),
-        prompt: None,
+                    prompt: None,
                     command: Some("hook_1.sh".to_string()),
                     timeout_ms: Some(60000),
                 },
                 Hook {
                     r#type: "command".to_string(),
-        prompt: None,
+                    prompt: None,
                     command: Some("hook_2.sh".to_string()),
                     timeout_ms: Some(60000),
                 },
                 Hook {
                     r#type: "command".to_string(),
-        prompt: None,
+                    prompt: None,
                     command: Some("hook_3.sh".to_string()),
                     timeout_ms: Some(60000),
                 },
@@ -1517,19 +1517,19 @@ fn test_scenario_deduplication() {
             hooks: vec![
                 Hook {
                     r#type: "command".to_string(),
-        prompt: None,
+                    prompt: None,
                     command: Some("echo duplicate".to_string()),
                     timeout_ms: Some(60000),
                 },
                 Hook {
                     r#type: "command".to_string(),
-        prompt: None,
+                    prompt: None,
                     command: Some("echo duplicate".to_string()),
                     timeout_ms: Some(60000),
                 },
                 Hook {
                     r#type: "command".to_string(),
-        prompt: None,
+                    prompt: None,
                     command: Some("echo unique".to_string()),
                     timeout_ms: Some(60000),
                 },
@@ -1769,46 +1769,31 @@ fn test_hook_output_decision_with_reason() {
 #[test]
 fn test_session_start_matcher_startup() {
     // Test SessionStart with startup matcher
-    assert_eq!(
-        serde_json::to_string(&"startup").unwrap(),
-        r#""startup""#
-    );
+    assert_eq!(serde_json::to_string(&"startup").unwrap(), r#""startup""#);
 }
 
 #[test]
 fn test_session_start_matcher_resume() {
     // Test SessionStart with resume matcher
-    assert_eq!(
-        serde_json::to_string(&"resume").unwrap(),
-        r#""resume""#
-    );
+    assert_eq!(serde_json::to_string(&"resume").unwrap(), r#""resume""#);
 }
 
 #[test]
 fn test_session_start_matcher_clear() {
     // Test SessionStart with clear matcher
-    assert_eq!(
-        serde_json::to_string(&"clear").unwrap(),
-        r#""clear""#
-    );
+    assert_eq!(serde_json::to_string(&"clear").unwrap(), r#""clear""#);
 }
 
 #[test]
 fn test_session_start_matcher_compact() {
     // Test SessionStart with compact matcher
-    assert_eq!(
-        serde_json::to_string(&"compact").unwrap(),
-        r#""compact""#
-    );
+    assert_eq!(serde_json::to_string(&"compact").unwrap(), r#""compact""#);
 }
 
 #[test]
 fn test_session_end_reason_logout() {
     // Test SessionEnd reason - logout
-    assert_eq!(
-        serde_json::to_string(&"logout").unwrap(),
-        r#""logout""#
-    );
+    assert_eq!(serde_json::to_string(&"logout").unwrap(), r#""logout""#);
 }
 
 #[test]
@@ -1893,7 +1878,10 @@ fn test_hook_context_with_tool_params() {
     };
 
     assert!(context.tool_params.is_some());
-    assert_eq!(context.tool_params.as_ref().unwrap()["file_path"], "/tmp/test.txt");
+    assert_eq!(
+        context.tool_params.as_ref().unwrap()["file_path"],
+        "/tmp/test.txt"
+    );
 }
 
 #[test]
@@ -1978,7 +1966,9 @@ fn test_coverage_summary() {
     println!("  ✓ PreToolUse-specific output (updatedInput, permissionDecisionReason)");
     println!("  ✓ SessionStart matchers (startup, resume, clear, compact)");
     println!("  ✓ SessionEnd reasons (clear, logout, prompt_input_exit, other)");
-    println!("  ✓ Notification types (permission_prompt, idle_prompt, auth_success, elicitation_dialog)");
+    println!(
+        "  ✓ Notification types (permission_prompt, idle_prompt, auth_success, elicitation_dialog)"
+    );
     println!("  ✓ Custom prompt field with $ARGUMENTS placeholder");
     println!("  ✓ Event-specific context fields (tool_params, tool_result, user_prompt)\n");
 

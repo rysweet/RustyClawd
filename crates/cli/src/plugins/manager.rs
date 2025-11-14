@@ -95,13 +95,7 @@ impl PluginManager {
 
         let plugin_hooks: Vec<_> = all_plugins
             .iter()
-            .map(|p| {
-                (
-                    p.id.clone(),
-                    p.path.clone(),
-                    p.manifest.hooks.clone(),
-                )
-            })
+            .map(|p| (p.id.clone(), p.path.clone(), p.manifest.hooks.clone()))
             .collect();
 
         crate::plugins::hooks_integration::register_plugin_hooks(&plugin_hooks, hooks_registry)?;
@@ -215,26 +209,11 @@ impl PluginManager {
     /// Get summary of loaded plugins
     pub fn summary(&self) -> PluginSystemSummary {
         let plugins = self.loader.all_plugins();
-        let total_commands: usize = plugins
-            .iter()
-            .map(|p| p.manifest.commands.len())
-            .sum();
-        let total_skills: usize = plugins
-            .iter()
-            .map(|p| p.manifest.skills.len())
-            .sum();
-        let total_hooks: usize = plugins
-            .iter()
-            .map(|p| p.manifest.hooks.len())
-            .sum();
-        let total_agents: usize = plugins
-            .iter()
-            .map(|p| p.manifest.agents.len())
-            .sum();
-        let total_mcp_servers: usize = plugins
-            .iter()
-            .map(|p| p.manifest.mcp_servers.len())
-            .sum();
+        let total_commands: usize = plugins.iter().map(|p| p.manifest.commands.len()).sum();
+        let total_skills: usize = plugins.iter().map(|p| p.manifest.skills.len()).sum();
+        let total_hooks: usize = plugins.iter().map(|p| p.manifest.hooks.len()).sum();
+        let total_agents: usize = plugins.iter().map(|p| p.manifest.agents.len()).sum();
+        let total_mcp_servers: usize = plugins.iter().map(|p| p.manifest.mcp_servers.len()).sum();
 
         let discovered_agents = self.discover_agents().unwrap_or_default().len();
 
@@ -280,12 +259,20 @@ pub struct PluginSystemSummary {
 impl std::fmt::Display for PluginSystemSummary {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Plugin System Summary:")?;
-        writeln!(f, "  Plugins: {}/{} loaded", self.loaded_plugins, self.total_plugins)?;
+        writeln!(
+            f,
+            "  Plugins: {}/{} loaded",
+            self.loaded_plugins, self.total_plugins
+        )?;
         writeln!(f, "  Commands: {}", self.total_commands)?;
         writeln!(f, "  Skills: {}", self.total_skills)?;
         writeln!(f, "  Hooks: {}", self.total_hooks)?;
         writeln!(f, "  Agents: {}", self.total_agents)?;
-        writeln!(f, "  MCP Servers: {}/{} running", self.running_mcp_servers, self.total_mcp_servers)?;
+        writeln!(
+            f,
+            "  MCP Servers: {}/{} running",
+            self.running_mcp_servers, self.total_mcp_servers
+        )?;
         Ok(())
     }
 }
@@ -293,8 +280,8 @@ impl std::fmt::Display for PluginSystemSummary {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_plugin_manager_creation() {
@@ -307,8 +294,7 @@ mod tests {
     #[tokio::test]
     async fn test_plugin_manager_with_project_root() {
         let temp_dir = TempDir::new().unwrap();
-        let manager = PluginManager::new(temp_dir.path())
-            .with_project_root(temp_dir.path());
+        let manager = PluginManager::new(temp_dir.path()).with_project_root(temp_dir.path());
 
         assert!(manager.agent_discovery.is_some());
         assert!(manager.project_root.is_some());
@@ -322,8 +308,7 @@ mod tests {
 
         fs::write(agents_dir.join("test.md"), "# Test Agent\n\nTest").unwrap();
 
-        let manager = PluginManager::new(temp_dir.path())
-            .with_project_root(temp_dir.path());
+        let manager = PluginManager::new(temp_dir.path()).with_project_root(temp_dir.path());
 
         let agents = manager.discover_agents().unwrap();
         assert_eq!(agents.len(), 1);

@@ -57,7 +57,10 @@ impl CheckpointStorage {
 
         // Serialize checkpoint to JSON
         let json = checkpoint.to_json().map_err(|e| {
-            io::Error::new(io::ErrorKind::InvalidData, format!("Serialization failed: {}", e))
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("Serialization failed: {}", e),
+            )
         })?;
 
         // Write to file
@@ -116,7 +119,11 @@ impl CheckpointStorage {
     }
 
     /// Get checkpoint metadata without loading full content
-    pub fn checkpoint_metadata(&self, session_id: &str, checkpoint_id: &str) -> io::Result<CheckpointMetadata> {
+    pub fn checkpoint_metadata(
+        &self,
+        session_id: &str,
+        checkpoint_id: &str,
+    ) -> io::Result<CheckpointMetadata> {
         let checkpoint_path = self.checkpoint_path(session_id, checkpoint_id);
         let metadata = fs::metadata(&checkpoint_path)?;
 
@@ -138,7 +145,11 @@ impl CheckpointStorage {
     }
 
     /// Clean up old checkpoints for a session (keeping only the N most recent)
-    pub fn cleanup_old_checkpoints(&self, session_id: &str, keep_count: usize) -> io::Result<usize> {
+    pub fn cleanup_old_checkpoints(
+        &self,
+        session_id: &str,
+        keep_count: usize,
+    ) -> io::Result<usize> {
         let mut checkpoint_ids = self.list_checkpoints(session_id)?;
 
         if checkpoint_ids.len() <= keep_count {
@@ -204,10 +215,7 @@ mod tests {
     fn test_session_dir_path() {
         let storage = CheckpointStorage::new("/tmp/test-sessions");
         let session_dir = storage.session_dir("session-001");
-        assert_eq!(
-            session_dir,
-            PathBuf::from("/tmp/test-sessions/session-001")
-        );
+        assert_eq!(session_dir, PathBuf::from("/tmp/test-sessions/session-001"));
     }
 
     #[test]

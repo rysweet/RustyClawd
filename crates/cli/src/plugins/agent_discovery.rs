@@ -179,15 +179,15 @@ mod tests {
         let temp_dir = setup_test_agents_dir();
         let agents_dir = temp_dir.path().join(".claude").join("agents");
 
-        fs::write(
-            agents_dir.join("builder.md"),
-            "# Builder\n\nBuilds things.",
-        )
-        .unwrap();
+        fs::write(agents_dir.join("builder.md"), "# Builder\n\nBuilds things.").unwrap();
 
         fs::write(agents_dir.join("tester.md"), "# Tester\n\nTests things.").unwrap();
 
-        fs::write(agents_dir.join("reviewer.md"), "# Reviewer\n\nReviews things.").unwrap();
+        fs::write(
+            agents_dir.join("reviewer.md"),
+            "# Reviewer\n\nReviews things.",
+        )
+        .unwrap();
 
         let discovery = AgentDiscovery::new(temp_dir.path());
         let agents = discovery.discover_all().unwrap();

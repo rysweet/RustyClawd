@@ -188,10 +188,14 @@ mod tests {
 
     fn temp_storage() -> CheckpointStorage {
         // Use a unique name combining process ID and a random component to avoid conflicts
-        let unique_id = format!("checkpoint-test-{}-{}", std::process::id(), std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos());
+        let unique_id = format!(
+            "checkpoint-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
         let temp_dir = std::env::temp_dir().join(unique_id);
         CheckpointStorage::new(temp_dir)
     }
@@ -212,10 +216,13 @@ mod tests {
         let storage = temp_storage();
         let saver = SessionSaver::new(storage.clone());
         let loader = SessionLoader::new(storage);
-        let session_id = format!("session-{}", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos());
+        let session_id = format!(
+            "session-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
 
         // Save a checkpoint first
         let state = SessionState::new("/project");
@@ -236,10 +243,13 @@ mod tests {
         let storage = temp_storage();
         let saver = SessionSaver::new(storage.clone());
         let loader = SessionLoader::new(storage);
-        let session_id = format!("session-{}", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos());
+        let session_id = format!(
+            "session-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
 
         // Create and save a session
         let mut session = Session::new(&session_id, 10);
@@ -263,10 +273,13 @@ mod tests {
     fn test_can_load_checkpoint() {
         let storage = temp_storage();
         let loader = SessionLoader::new(storage);
-        let session_id = format!("session-{}", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos());
+        let session_id = format!(
+            "session-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
 
         // Non-existent checkpoint should return false
         assert!(!loader.can_load_checkpoint(&session_id, "cp-nonexistent"));
@@ -277,10 +290,13 @@ mod tests {
         let storage = temp_storage();
         let saver = SessionSaver::new(storage.clone());
         let loader = SessionLoader::new(storage);
-        let session_id = format!("session-{}", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos());
+        let session_id = format!(
+            "session-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
 
         // Create and save checkpoints
         let state = SessionState::new("/project");

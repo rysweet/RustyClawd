@@ -131,7 +131,10 @@ impl PluginExecutor {
         // Return skill execution result with loaded content
         Ok(PluginExecutionResult {
             success: true,
-            output: format!("Skill '{}' loaded successfully\n{}", skill.id, skill_content),
+            output: format!(
+                "Skill '{}' loaded successfully\n{}",
+                skill.id, skill_content
+            ),
             errors: vec![],
             duration_ms: duration,
         })
@@ -189,7 +192,9 @@ pub struct PluginValidator;
 
 impl PluginValidator {
     /// Validate plugin manifest structure
-    pub fn validate_manifest(manifest: &crate::plugins::manifest::PluginManifest) -> Result<(), Vec<String>> {
+    pub fn validate_manifest(
+        manifest: &crate::plugins::manifest::PluginManifest,
+    ) -> Result<(), Vec<String>> {
         let mut errors = Vec::new();
 
         if manifest.id.is_empty() {
@@ -248,11 +253,7 @@ mod tests {
     #[test]
     fn test_execute_command_plugin_not_found() {
         let executor = PluginExecutor::new();
-        let result = executor.execute_command(
-            "com.nonexistent",
-            "test",
-            serde_json::json!({}),
-        );
+        let result = executor.execute_command("com.nonexistent", "test", serde_json::json!({}));
         assert!(result.is_err());
     }
 

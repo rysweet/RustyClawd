@@ -279,10 +279,7 @@ impl BuiltinCommands {
              Messages exchanged: {}\n\
              Commands executed: {}\n\
              Tools: available",
-            stats.model,
-            stats.duration_seconds,
-            stats.message_count,
-            stats.commands_executed
+            stats.model, stats.duration_seconds, stats.message_count, stats.commands_executed
         )
     }
 

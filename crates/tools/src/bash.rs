@@ -7,9 +7,9 @@
 //! - Timeout handling
 //! - Error propagation
 
-use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream, ExecutionContext};
-use crate::process_registry::{global_registry, ProcessRegistry};
 use crate::process_isolation::{apply_isolation, ProcessSpawnConfig};
+use crate::process_registry::{global_registry, ProcessRegistry};
+use crate::{ExecutionContext, ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
 use async_stream::stream;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

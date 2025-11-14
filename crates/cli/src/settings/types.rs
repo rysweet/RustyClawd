@@ -213,7 +213,10 @@ mod tests {
 
     #[test]
     fn test_permission_mode_from_str() {
-        assert_eq!(PermissionMode::from_str("allow"), Some(PermissionMode::Allow));
+        assert_eq!(
+            PermissionMode::from_str("allow"),
+            Some(PermissionMode::Allow)
+        );
         assert_eq!(PermissionMode::from_str("ask"), Some(PermissionMode::Ask));
         assert_eq!(PermissionMode::from_str("deny"), Some(PermissionMode::Deny));
         assert_eq!(PermissionMode::from_str("invalid"), None);
@@ -241,8 +244,7 @@ mod tests {
     fn test_layer_priority() {
         assert!(SettingsLayer::Default.priority() < SettingsLayer::UserGlobal.priority());
         assert!(
-            SettingsLayer::EnterpriseManaged.priority()
-                > SettingsLayer::CommandLine.priority()
+            SettingsLayer::EnterpriseManaged.priority() > SettingsLayer::CommandLine.priority()
         );
     }
 }

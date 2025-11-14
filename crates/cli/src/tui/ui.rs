@@ -7,9 +7,12 @@
 //! - Status bar
 //! - Rust-colored theme (orange/rust colors)
 
+use super::input_viewport;
 use anyhow::Result;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers,
+    },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -22,7 +25,6 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::io::{self, Stdout};
-use super::input_viewport;
 use unicode_segmentation::UnicodeSegmentation;
 
 /// Rust-themed colors
@@ -164,12 +166,14 @@ impl TuiState {
                     // Convert grapheme position to byte position
                     let graphemes: Vec<&str> = self.input.graphemes(true).collect();
                     if self.cursor_position <= graphemes.len() {
-                        let byte_pos: usize = graphemes.iter()
+                        let byte_pos: usize = graphemes
+                            .iter()
                             .take(self.cursor_position - 1)
                             .map(|g| g.len())
                             .sum();
                         let grapheme_len = graphemes[self.cursor_position - 1].len();
-                        self.input.replace_range(byte_pos..byte_pos + grapheme_len, "");
+                        self.input
+                            .replace_range(byte_pos..byte_pos + grapheme_len, "");
                         self.cursor_position -= 1;
                     }
                 }
@@ -201,14 +205,16 @@ impl TuiState {
             }
             // Page Down - Scroll messages down
             (KeyCode::PageDown, _) => {
-                self.scroll_offset = (self.scroll_offset + 5).min(self.messages.len().saturating_sub(1));
+                self.scroll_offset =
+                    (self.scroll_offset + 5).min(self.messages.len().saturating_sub(1));
             }
             // Character input - Insert at cursor position
             (KeyCode::Char(c), _) => {
                 // Convert grapheme position to byte position
                 let graphemes: Vec<&str> = self.input.graphemes(true).collect();
                 if self.cursor_position <= graphemes.len() {
-                    let byte_pos: usize = graphemes.iter()
+                    let byte_pos: usize = graphemes
+                        .iter()
                         .take(self.cursor_position)
                         .map(|g| g.len())
                         .sum();
@@ -232,7 +238,15 @@ impl TuiState {
         let show_banner = self.show_banner;
 
         self.terminal.draw(|f| {
-            Self::render_ui(f, &messages, &input, cursor_position, scroll_offset, &status, show_banner);
+            Self::render_ui(
+                f,
+                &messages,
+                &input,
+                cursor_position,
+                scroll_offset,
+                &status,
+                show_banner,
+            );
         })?;
         Ok(())
     }
@@ -253,9 +267,9 @@ impl TuiState {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3),  // Status bar
-                Constraint::Min(0),     // Messages area
-                Constraint::Length(3),  // Input area
+                Constraint::Length(3), // Status bar
+                Constraint::Min(0),    // Messages area
+                Constraint::Length(3), // Input area
             ])
             .split(size);
 
@@ -271,22 +285,30 @@ impl TuiState {
 
     /// Render status bar
     fn render_status_bar(f: &mut Frame, area: Rect) {
-        let banner = vec![
-            Line::from(vec![
-                Span::styled(" 🦀 ", Style::default().fg(RUST_ORANGE)),
-                Span::styled("RustyClawd", Style::default().fg(RUST_ORANGE).add_modifier(Modifier::BOLD)),
-                Span::styled(" - Rusty Edition ", Style::default().fg(RUST_LIGHT)),
-                Span::styled("⛵", Style::default().fg(RUST_ORANGE)),
-                Span::styled(" Ahoy matey! ", Style::default().fg(RUST_LIGHT).add_modifier(Modifier::ITALIC)),
-            ]),
-        ];
+        let banner = vec![Line::from(vec![
+            Span::styled(" 🦀 ", Style::default().fg(RUST_ORANGE)),
+            Span::styled(
+                "RustyClawd",
+                Style::default()
+                    .fg(RUST_ORANGE)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(" - Rusty Edition ", Style::default().fg(RUST_LIGHT)),
+            Span::styled("⛵", Style::default().fg(RUST_ORANGE)),
+            Span::styled(
+                " Ahoy matey! ",
+                Style::default()
+                    .fg(RUST_LIGHT)
+                    .add_modifier(Modifier::ITALIC),
+            ),
+        ])];
 
         let status = Paragraph::new(banner)
             .style(Style::default().bg(RUST_DARK))
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(RUST_ORANGE))
+                    .border_style(Style::default().fg(RUST_ORANGE)),
             )
             .alignment(Alignment::Center);
 
@@ -308,11 +330,22 @@ impl TuiState {
             lines.extend(Self::render_pirate_ship());
             lines.push(Line::from(""));
             lines.push(Line::from(vec![
-                Span::styled("Welcome aboard! ", Style::default().fg(RUST_LIGHT).add_modifier(Modifier::BOLD)),
-                Span::styled("Type your message below and press Enter to chat with Claude.", Style::default().fg(TEXT_COLOR)),
+                Span::styled(
+                    "Welcome aboard! ",
+                    Style::default().fg(RUST_LIGHT).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    "Type your message below and press Enter to chat with Claude.",
+                    Style::default().fg(TEXT_COLOR),
+                ),
             ]));
             lines.push(Line::from(vec![
-                Span::styled("Commands: ", Style::default().fg(RUST_ORANGE).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    "Commands: ",
+                    Style::default()
+                        .fg(RUST_ORANGE)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Span::styled("/exit, /clear, /help", Style::default().fg(TEXT_COLOR)),
             ]));
         }
@@ -331,8 +364,11 @@ impl TuiState {
                     .border_style(Style::default().fg(RUST_ORANGE))
                     .title(vec![
                         Span::styled("⚓ ", Style::default().fg(RUST_ORANGE)),
-                        Span::styled("Messages", Style::default().fg(RUST_LIGHT).add_modifier(Modifier::BOLD)),
-                    ])
+                        Span::styled(
+                            "Messages",
+                            Style::default().fg(RUST_LIGHT).add_modifier(Modifier::BOLD),
+                        ),
+                    ]),
             )
             .wrap(Wrap { trim: false })
             .scroll((scroll_offset as u16, 0));
@@ -343,29 +379,35 @@ impl TuiState {
     /// Render pirate ship ASCII art
     fn render_pirate_ship() -> Vec<Line<'static>> {
         vec![
-            Line::from(vec![
-                Span::styled("                    |>", Style::default().fg(RUST_ORANGE)),
-            ]),
-            Line::from(vec![
-                Span::styled("                    |", Style::default().fg(RUST_DARK)),
-            ]),
-            Line::from(vec![
-                Span::styled("                   /|\\", Style::default().fg(RUST_DARK)),
-            ]),
-            Line::from(vec![
-                Span::styled("                  / | \\", Style::default().fg(RUST_DARK)),
-            ]),
-            Line::from(vec![
-                Span::styled("                 /  |  \\", Style::default().fg(RUST_DARK)),
-            ]),
+            Line::from(vec![Span::styled(
+                "                    |>",
+                Style::default().fg(RUST_ORANGE),
+            )]),
+            Line::from(vec![Span::styled(
+                "                    |",
+                Style::default().fg(RUST_DARK),
+            )]),
+            Line::from(vec![Span::styled(
+                "                   /|\\",
+                Style::default().fg(RUST_DARK),
+            )]),
+            Line::from(vec![Span::styled(
+                "                  / | \\",
+                Style::default().fg(RUST_DARK),
+            )]),
+            Line::from(vec![Span::styled(
+                "                 /  |  \\",
+                Style::default().fg(RUST_DARK),
+            )]),
             Line::from(vec![
                 Span::styled("                /   ", Style::default().fg(RUST_DARK)),
                 Span::styled("🦀", Style::default().fg(RUST_ORANGE)),
                 Span::styled("   \\", Style::default().fg(RUST_DARK)),
             ]),
-            Line::from(vec![
-                Span::styled("               /         \\", Style::default().fg(RUST_DARK)),
-            ]),
+            Line::from(vec![Span::styled(
+                "               /         \\",
+                Style::default().fg(RUST_DARK),
+            )]),
             Line::from(vec![
                 Span::styled("        ", Style::default()),
                 Span::styled("🌊", Style::default().fg(Color::Cyan)),
@@ -386,30 +428,38 @@ impl TuiState {
         let (prefix, style) = match message.role {
             MessageRole::User => (
                 "You",
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
             ),
             MessageRole::Assistant => (
                 "Claude",
-                Style::default().fg(RUST_ORANGE).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(RUST_ORANGE)
+                    .add_modifier(Modifier::BOLD),
             ),
             MessageRole::System => (
                 "System",
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
             ),
         };
 
         let mut lines = Vec::new();
 
         // Add role prefix
-        lines.push(Line::from(vec![
-            Span::styled(format!("{}> ", prefix), style),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            format!("{}> ", prefix),
+            style,
+        )]));
 
         // Add message content (word-wrapped)
         for line in message.content.lines() {
-            lines.push(Line::from(vec![
-                Span::styled(format!("  {}", line), Style::default().fg(TEXT_COLOR)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                format!("  {}", line),
+                Style::default().fg(TEXT_COLOR),
+            )]));
         }
 
         lines
@@ -429,7 +479,12 @@ impl TuiState {
 
         // Create input text with prompt and visible portion
         let input_text = vec![Line::from(vec![
-            Span::styled(prompt_text, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                prompt_text,
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(&viewport.visible_text, Style::default().fg(TEXT_COLOR)),
         ])];
 
@@ -441,8 +496,11 @@ impl TuiState {
                     .border_style(Style::default().fg(RUST_ORANGE))
                     .title(vec![
                         Span::styled("✏️  ", Style::default().fg(RUST_ORANGE)),
-                        Span::styled("Input", Style::default().fg(RUST_LIGHT).add_modifier(Modifier::BOLD)),
-                    ])
+                        Span::styled(
+                            "Input",
+                            Style::default().fg(RUST_LIGHT).add_modifier(Modifier::BOLD),
+                        ),
+                    ]),
             );
 
         f.render_widget(input_widget, area);
@@ -490,7 +548,7 @@ pub async fn run_tui() -> Result<()> {
 
     // Add welcome message
     tui.add_message(ChatMessage::system(
-        "Welcome to RustyClawd! Type your message and press Enter.".to_string()
+        "Welcome to RustyClawd! Type your message and press Enter.".to_string(),
     ));
 
     loop {
@@ -516,7 +574,8 @@ pub async fn run_tui() -> Result<()> {
             // Handle help
             if input == "/help" {
                 tui.add_message(ChatMessage::system(
-                    "Commands: /exit, /quit, /clear, /help\nPress Ctrl+C or Ctrl+D to exit.".to_string()
+                    "Commands: /exit, /quit, /clear, /help\nPress Ctrl+C or Ctrl+D to exit."
+                        .to_string(),
                 ));
                 continue;
             }
@@ -526,7 +585,8 @@ pub async fn run_tui() -> Result<()> {
                 tui.add_message(ChatMessage::user(input.to_string()));
 
                 tui.add_message(ChatMessage::system(
-                    "Error: TUI mode requires Claude API integration. Use CLI mode instead.".to_string()
+                    "Error: TUI mode requires Claude API integration. Use CLI mode instead."
+                        .to_string(),
                 ));
             }
         }

@@ -399,7 +399,10 @@ fn test_session_stats_no_placeholder_values() {
     let stats = SessionStats::new("claude-sonnet-4-5");
 
     // Verify all values are real, not placeholders
-    assert_eq!(stats.message_count, 0, "Should start at 0, not a fake value");
+    assert_eq!(
+        stats.message_count, 0,
+        "Should start at 0, not a fake value"
+    );
     assert_eq!(stats.total_tokens, 0, "Should start at 0, not a fake value");
     assert_ne!(stats.model, "placeholder", "Model should be real");
     assert_ne!(stats.model, "coming soon", "Model should be real");

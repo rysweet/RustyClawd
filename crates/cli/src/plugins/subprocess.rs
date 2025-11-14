@@ -189,7 +189,11 @@ mod tests {
 
             let interpreter = SubprocessExecutor::detect_interpreter(&script_path);
 
-            assert!(interpreter.is_ok(), "Should detect interpreter for {}", filename);
+            assert!(
+                interpreter.is_ok(),
+                "Should detect interpreter for {}",
+                filename
+            );
             assert_eq!(
                 interpreter.unwrap(),
                 expected_interpreter,

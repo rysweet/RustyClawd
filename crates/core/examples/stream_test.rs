@@ -2,8 +2,8 @@
 //!
 //! Usage: cargo run --example stream_test
 
-use rustyclawd_core::client::{Client, Config, CreateMessageRequest, Message, StreamEvent};
 use futures::StreamExt;
+use rustyclawd_core::client::{Client, Config, CreateMessageRequest, Message, StreamEvent};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

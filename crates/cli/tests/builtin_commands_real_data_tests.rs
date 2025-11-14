@@ -56,8 +56,7 @@ impl TestSessionState {
 fn test_only_implemented_commands_recognized() {
     // Commands that SHOULD be recognized
     let implemented = vec![
-        "help", "exit", "quit", "clear", "history", "stats",
-        "config", "model", "status", "version",
+        "help", "exit", "quit", "clear", "history", "stats", "config", "model", "status", "version",
     ];
 
     for cmd in implemented {
@@ -71,12 +70,7 @@ fn test_only_implemented_commands_recognized() {
 
 #[test]
 fn test_nonexistent_commands_not_recognized() {
-    let nonexistent = vec![
-        "nonexistent",
-        "fake-command",
-        "not-a-command",
-        "made-up",
-    ];
+    let nonexistent = vec!["nonexistent", "fake-command", "not-a-command", "made-up"];
 
     for cmd in nonexistent {
         assert!(
@@ -365,8 +359,7 @@ fn test_doctor_command_shows_diagnostics() {
 
     // Should show diagnostic information
     assert!(
-        output.to_lowercase().contains("check")
-            || output.to_lowercase().contains("diagnostic"),
+        output.to_lowercase().contains("check") || output.to_lowercase().contains("diagnostic"),
         "Doctor should show diagnostic info: {}",
         output
     );
@@ -400,8 +393,8 @@ fn test_command_parser_handles_all_builtins() {
     let parser = CommandParser::new();
 
     let builtin_names = vec![
-        "help", "exit", "quit", "clear", "history", "stats",
-        "config", "model", "status", "version", "doctor",
+        "help", "exit", "quit", "clear", "history", "stats", "config", "model", "status",
+        "version", "doctor",
     ];
 
     for name in builtin_names {
@@ -497,16 +490,32 @@ fn test_help_with_search_term() {
 #[test]
 fn test_all_builtins_return_non_empty_output() {
     let builtins = vec![
-        "help", "exit", "quit", "clear", "history", "stats",
-        "config", "model", "status", "version", "doctor",
-        "tools", "plugins", "checkpoint", "reset",
+        "help",
+        "exit",
+        "quit",
+        "clear",
+        "history",
+        "stats",
+        "config",
+        "model",
+        "status",
+        "version",
+        "doctor",
+        "tools",
+        "plugins",
+        "checkpoint",
+        "reset",
     ];
 
     for builtin in builtins {
         let cmd = Command::new(builtin.to_string(), None);
         let result = BuiltinCommands::execute(&cmd);
 
-        assert!(result.is_some(), "Builtin '{}' should return output", builtin);
+        assert!(
+            result.is_some(),
+            "Builtin '{}' should return output",
+            builtin
+        );
         let output = result.unwrap();
         assert!(
             !output.is_empty(),
@@ -645,10 +654,13 @@ fn test_no_emoji_in_error_paths() {
     // Usage messages should be clear
     if output.contains("Usage:") {
         // Count emoji-like characters
-        let emoji_count = output.chars().filter(|c| {
-            let code = *c as u32;
-            code >= 0x1F300 && code <= 0x1F9FF // Emoji range
-        }).count();
+        let emoji_count = output
+            .chars()
+            .filter(|c| {
+                let code = *c as u32;
+                code >= 0x1F300 && code <= 0x1F9FF // Emoji range
+            })
+            .count();
 
         // Usage messages should be straightforward
         assert!(

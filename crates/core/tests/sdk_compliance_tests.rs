@@ -9,8 +9,8 @@
 //! Tests organized by feature category with references to official documentation.
 
 use rustyclawd_core::client::{
-    Config, ContentBlock, CreateMessageRequest, Message, MessageResponse, Role,
-    StreamEvent, ToolChoice, ToolDefinition, Usage,
+    Config, ContentBlock, CreateMessageRequest, Message, MessageResponse, Role, StreamEvent,
+    ToolChoice, ToolDefinition, Usage,
 };
 use serde_json::json;
 
@@ -83,10 +83,7 @@ fn test_tool_definition_with_optional_params() {
     let properties = tool.input_schema["properties"].as_object().unwrap();
     assert!(properties.contains_key("query"));
     assert!(properties.contains_key("limit"));
-    assert_eq!(
-        tool.input_schema["required"].as_array().unwrap().len(),
-        1
-    );
+    assert_eq!(tool.input_schema["required"].as_array().unwrap().len(), 1);
 }
 
 #[test]
@@ -1061,8 +1058,11 @@ fn test_json_mode_structured_output() {
 
 #[test]
 fn test_model_claude_3_5_sonnet() {
-    let request =
-        CreateMessageRequest::new("claude-3-5-sonnet-20241022", vec![Message::user("Hi")], 1024);
+    let request = CreateMessageRequest::new(
+        "claude-3-5-sonnet-20241022",
+        vec![Message::user("Hi")],
+        1024,
+    );
 
     assert_eq!(request.model, "claude-3-5-sonnet-20241022");
 }
@@ -1085,8 +1085,11 @@ fn test_model_claude_3_haiku() {
 
 #[test]
 fn test_model_claude_sonnet_4_5() {
-    let request =
-        CreateMessageRequest::new("claude-sonnet-4-5-20250929", vec![Message::user("Hi")], 1024);
+    let request = CreateMessageRequest::new(
+        "claude-sonnet-4-5-20250929",
+        vec![Message::user("Hi")],
+        1024,
+    );
 
     assert_eq!(request.model, "claude-sonnet-4-5-20250929");
 }
@@ -1239,9 +1242,7 @@ fn test_tool_execution_conversation_flow() {
     ));
 
     // Claude provides final answer
-    messages.push(Message::assistant(
-        "The weather in NYC is 72°F and sunny.",
-    ));
+    messages.push(Message::assistant("The weather in NYC is 72°F and sunny."));
 
     assert_eq!(messages.len(), 4);
 }
@@ -1541,10 +1542,7 @@ fn test_tool_definition_empty_required() {
         }),
     };
 
-    assert_eq!(
-        tool.input_schema["required"].as_array().unwrap().len(),
-        0
-    );
+    assert_eq!(tool.input_schema["required"].as_array().unwrap().len(), 0);
 }
 
 #[test]
@@ -1870,10 +1868,7 @@ fn test_tool_schema_with_additional_properties() {
         }),
     };
 
-    assert_eq!(
-        tool.input_schema["additionalProperties"],
-        json!(true)
-    );
+    assert_eq!(tool.input_schema["additionalProperties"], json!(true));
 }
 
 #[test]
@@ -1934,8 +1929,11 @@ fn test_max_tokens_minimum() {
 
 #[test]
 fn test_max_tokens_large_value() {
-    let request =
-        CreateMessageRequest::new("claude-3-5-sonnet-20241022", vec![Message::user("Hi")], 200000);
+    let request = CreateMessageRequest::new(
+        "claude-3-5-sonnet-20241022",
+        vec![Message::user("Hi")],
+        200000,
+    );
 
     assert_eq!(request.max_tokens, 200000);
 }

@@ -15,8 +15,8 @@
 //! cargo run --example agent_example
 //! ```
 
-use rustyclawd_tools::{AgentTool, Tool, ToolContext, ToolEvent};
 use futures::StreamExt;
+use rustyclawd_tools::{AgentTool, Tool, ToolContext, ToolEvent};
 use std::env;
 
 #[tokio::main]
@@ -47,8 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "model": "haiku",  // Use fast model for demo
     });
 
-    let params: rustyclawd_tools::agent::AgentParams =
-        serde_json::from_value(params)?;
+    let params: rustyclawd_tools::agent::AgentParams = serde_json::from_value(params)?;
 
     // Set up context
     let ctx = ToolContext {
@@ -78,7 +77,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Agent ID: {}", output.agent_id);
                 println!("Agent Name: {}", output.agent_name);
                 println!("Model: {}", output.model);
-                println!("Tokens Used: {} (input) + {} (output) = {} (total)\n",
+                println!(
+                    "Tokens Used: {} (input) + {} (output) = {} (total)\n",
                     output.tokens_used.input_tokens,
                     output.tokens_used.output_tokens,
                     output.tokens_used.total_tokens

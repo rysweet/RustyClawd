@@ -97,12 +97,8 @@ impl HookExecutor {
         env_file: Option<String>,
     ) -> Result<HookResult> {
         match hook.hook_type {
-            HookType::Command => {
-                Self::execute_command_hook(hook, context, env_file).await
-            }
-            HookType::Prompt => {
-                Self::execute_prompt_hook(hook, context).await
-            }
+            HookType::Command => Self::execute_command_hook(hook, context, env_file).await,
+            HookType::Prompt => Self::execute_prompt_hook(hook, context).await,
         }
     }
 
@@ -174,10 +170,7 @@ impl HookExecutor {
     }
 
     /// Execute a prompt (LLM) hook
-    async fn execute_prompt_hook(
-        hook: &Hook,
-        context: &HookContext,
-    ) -> Result<HookResult> {
+    async fn execute_prompt_hook(hook: &Hook, context: &HookContext) -> Result<HookResult> {
         // Load API configuration and create client
         let config = Config::from_default_location()
             .await
@@ -189,12 +182,9 @@ impl HookExecutor {
 
         // Create the LLM request
         // Use claude-3-haiku-20240307 which is a fast, available model for hooks
-        let request = CreateMessageRequest::new(
-            "claude-3-haiku-20240307",
-            vec![Message::user(prompt)],
-            1024,
-        )
-        .with_temperature(0.0); // Use deterministic responses for hooks
+        let request =
+            CreateMessageRequest::new("claude-3-haiku-20240307", vec![Message::user(prompt)], 1024)
+                .with_temperature(0.0); // Use deterministic responses for hooks
 
         // Execute with timeout
         let timeout_duration = Duration::from_millis(hook.effective_timeout() as u64);
@@ -284,8 +274,8 @@ impl HookExecutor {
 
     /// Build a prompt for the LLM hook with context information
     fn build_hook_prompt(hook: &Hook, context: &HookContext) -> String {
-        let context_json = serde_json::to_string_pretty(context)
-            .unwrap_or_else(|_| "{}".to_string());
+        let context_json =
+            serde_json::to_string_pretty(context).unwrap_or_else(|_| "{}".to_string());
 
         // If hook has custom prompt, use it and replace $ARGUMENTS
         if let Some(custom_prompt) = &hook.prompt {

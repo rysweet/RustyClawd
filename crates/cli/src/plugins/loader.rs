@@ -62,7 +62,10 @@ impl PluginLoader {
         if let Err(errors) = validate_references(&metadata.manifest, &metadata.path) {
             metadata.load_status =
                 PluginLoadStatus::Failed(format!("Invalid references: {}", errors.join(", ")));
-            return Err(format!("File reference validation failed: {}", errors.join(", ")));
+            return Err(format!(
+                "File reference validation failed: {}",
+                errors.join(", ")
+            ));
         }
 
         // Mark as loaded

@@ -29,8 +29,13 @@ impl ToolName {
         if name.is_empty() || name.len() > 64 {
             return Err("Tool name must be 1-64 characters".to_string());
         }
-        if !name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
-            return Err("Tool name must contain only alphanumeric, underscore, or hyphen".to_string());
+        if !name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+        {
+            return Err(
+                "Tool name must contain only alphanumeric, underscore, or hyphen".to_string(),
+            );
         }
         Ok(ToolName(name.to_string()))
     }
@@ -60,7 +65,11 @@ impl InputSchema {
         Self {
             schema_type: "object".to_string(),
             properties: Some(properties),
-            required: if required.is_empty() { None } else { Some(required) },
+            required: if required.is_empty() {
+                None
+            } else {
+                Some(required)
+            },
             description: None,
         }
     }
@@ -209,7 +218,9 @@ impl ContentArray {
                 ContentBlock::ToolResult(result) => {
                     if let Some(ref last_id) = last_tool_use_id {
                         if result.tool_use_id != *last_id {
-                            return Err("Tool result must match preceding tool_use block".to_string());
+                            return Err(
+                                "Tool result must match preceding tool_use block".to_string()
+                            );
                         }
                     } else {
                         return Err("Tool result without preceding tool_use block".to_string());
@@ -247,7 +258,11 @@ impl ToolRegistry {
         }
     }
 
-    fn register(&mut self, def: ToolDefinition, executor: fn(Value) -> ToolExecutionResult) -> Result<(), String> {
+    fn register(
+        &mut self,
+        def: ToolDefinition,
+        executor: fn(Value) -> ToolExecutionResult,
+    ) -> Result<(), String> {
         let name = def.name.clone();
         if self.tools.contains_key(&name) {
             return Err(format!("Tool already registered: {}", name));
@@ -441,7 +456,10 @@ mod tool_use_blocks {
 
         assert_eq!(result.tool_use_id, "call_123");
         assert_eq!(result.is_error, Some(true));
-        assert_eq!(result.content, Value::String("Connection timeout".to_string()));
+        assert_eq!(
+            result.content,
+            Value::String("Connection timeout".to_string())
+        );
     }
 
     #[test]
@@ -750,7 +768,9 @@ mod execution_flow {
             let execution_result = self.registry.execute(&block.name, block.input.clone())?;
 
             match execution_result {
-                ToolExecutionResult::Success(output) => Ok(ToolResultBlock::success(&block.id, output)),
+                ToolExecutionResult::Success(output) => {
+                    Ok(ToolResultBlock::success(&block.id, output))
+                }
                 ToolExecutionResult::Error(msg) => Ok(ToolResultBlock::error(&block.id, &msg)),
             }
         }
@@ -793,7 +813,8 @@ mod execution_flow {
         )
         .unwrap();
 
-        let executor = |_input: Value| ToolExecutionResult::Success(json!({"status": "operational"}));
+        let executor =
+            |_input: Value| ToolExecutionResult::Success(json!({"status": "operational"}));
         registry.register(tool_def, executor).unwrap();
 
         let runner = ToolRunner::new(registry);
@@ -1208,14 +1229,8 @@ mod e2e_tool_lifecycle {
         ];
 
         assert_eq!(events.len(), 5);
-        assert!(matches!(
-            events[0],
-            ToolStreamEvent::ToolUseStart { .. }
-        ));
-        assert!(matches!(
-            events[4],
-            ToolStreamEvent::ToolResult { .. }
-        ));
+        assert!(matches!(events[0], ToolStreamEvent::ToolUseStart { .. }));
+        assert!(matches!(events[4], ToolStreamEvent::ToolResult { .. }));
     }
 
     #[test]
@@ -1389,7 +1404,9 @@ mod edge_cases {
         match result.unwrap() {
             ToolExecutionResult::Success(output) => {
                 assert_eq!(
-                    output.get("level1").and_then(|l1| l1.get("level2"))
+                    output
+                        .get("level1")
+                        .and_then(|l1| l1.get("level2"))
                         .and_then(|l2| l2.get("level3"))
                         .and_then(|l3| l3.get("level4"))
                         .and_then(|l4| l4.get("value")),

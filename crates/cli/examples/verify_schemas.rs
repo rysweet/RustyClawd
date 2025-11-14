@@ -22,17 +22,15 @@ fn main() {
                 println!("  ❌ MISSING 'required' field!");
                 all_ok = false;
             }
-            Some(required) => {
-                match required.as_array() {
-                    None => {
-                        println!("  ❌ 'required' is not an array!");
-                        all_ok = false;
-                    }
-                    Some(arr) => {
-                        println!("  ✓ Required fields: {:?}", arr);
-                    }
+            Some(required) => match required.as_array() {
+                None => {
+                    println!("  ❌ 'required' is not an array!");
+                    all_ok = false;
                 }
-            }
+                Some(arr) => {
+                    println!("  ✓ Required fields: {:?}", arr);
+                }
+            },
         }
         println!();
     }
@@ -46,7 +44,10 @@ fn main() {
             serde_json::from_str(&serialized).expect("Should deserialize");
 
         if deserialized.input_schema.get("required").is_none() {
-            println!("❌ Tool '{}' lost 'required' field during serialization!", tool.name);
+            println!(
+                "❌ Tool '{}' lost 'required' field during serialization!",
+                tool.name
+            );
             all_ok = false;
         } else {
             println!("✓ Tool '{}' serialization OK", tool.name);

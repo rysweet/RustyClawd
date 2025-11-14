@@ -8,11 +8,11 @@
 //! - Integration Tests (30%): Plugin system interactions
 //! - E2E Tests (10%): Full plugin lifecycle
 
-use std::fs;
-use std::path::{Path, PathBuf};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
-use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::{Path, PathBuf};
 
 // =============================================================================
 // TEST HELPERS
@@ -143,8 +143,7 @@ mod discovery {
 
         fn load_plugin_metadata(&self, plugin_path: &Path) -> Result<PluginMetadata, String> {
             let manifest_path = plugin_path.join("plugin.json");
-            let manifest_content =
-                fs::read_to_string(&manifest_path).map_err(|e| e.to_string())?;
+            let manifest_content = fs::read_to_string(&manifest_path).map_err(|e| e.to_string())?;
 
             let manifest: PluginManifest =
                 serde_json::from_str(&manifest_content).map_err(|e| e.to_string())?;
@@ -163,8 +162,8 @@ mod discovery {
                 return Err("Missing plugin.json".to_string());
             }
 
-            let manifest_content = fs::read_to_string(plugin_path.join("plugin.json"))
-                .map_err(|e| e.to_string())?;
+            let manifest_content =
+                fs::read_to_string(plugin_path.join("plugin.json")).map_err(|e| e.to_string())?;
             let manifest: PluginManifest =
                 serde_json::from_str(&manifest_content).map_err(|e| e.to_string())?;
 
@@ -207,7 +206,11 @@ mod discovery {
         };
 
         let manifest_path = plugin_dir.join("plugin.json");
-        fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+        fs::write(
+            &manifest_path,
+            serde_json::to_string_pretty(&manifest).unwrap(),
+        )
+        .unwrap();
         fs::write(plugin_dir.join("index.js"), "").unwrap();
 
         let discovery = PluginDiscovery::new(&test_dir);
@@ -241,7 +244,11 @@ mod discovery {
             };
 
             let manifest_path = plugin_dir.join("plugin.json");
-            fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+            fs::write(
+                &manifest_path,
+                serde_json::to_string_pretty(&manifest).unwrap(),
+            )
+            .unwrap();
             fs::write(plugin_dir.join("index.js"), "").unwrap();
         }
 
@@ -272,7 +279,11 @@ mod discovery {
             config_schema: serde_json::json!({}),
         };
 
-        fs::write(&plugin_dir.join("plugin.json"), serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+        fs::write(
+            &plugin_dir.join("plugin.json"),
+            serde_json::to_string_pretty(&manifest).unwrap(),
+        )
+        .unwrap();
         fs::write(&plugin_dir.join("main.js"), "").unwrap();
 
         let discovery = PluginDiscovery::new(&test_dir);
@@ -312,7 +323,11 @@ mod discovery {
             config_schema: serde_json::json!({}),
         };
 
-        fs::write(&plugin_dir.join("plugin.json"), serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+        fs::write(
+            &plugin_dir.join("plugin.json"),
+            serde_json::to_string_pretty(&manifest).unwrap(),
+        )
+        .unwrap();
 
         let discovery = PluginDiscovery::new(&test_dir);
         let result = discovery.validate_structure(&plugin_dir);
@@ -421,7 +436,11 @@ mod loading {
             config_schema: serde_json::json!({}),
         };
 
-        fs::write(&plugin_dir.join("plugin.json"), serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+        fs::write(
+            &plugin_dir.join("plugin.json"),
+            serde_json::to_string_pretty(&manifest).unwrap(),
+        )
+        .unwrap();
         fs::write(&plugin_dir.join("index.js"), "").unwrap();
 
         let metadata = PluginMetadata {
@@ -480,7 +499,11 @@ mod loading {
             config_schema: serde_json::json!({}),
         };
 
-        fs::write(&plugin_dir.join("plugin.json"), serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+        fs::write(
+            &plugin_dir.join("plugin.json"),
+            serde_json::to_string_pretty(&manifest).unwrap(),
+        )
+        .unwrap();
         fs::write(&plugin_dir.join("index.js"), "").unwrap();
         fs::write(&plugin_dir.join("cmds/cmd1.js"), "").unwrap();
         fs::write(&plugin_dir.join("cmds/cmd2.js"), "").unwrap();
@@ -520,7 +543,11 @@ mod loading {
             config_schema: serde_json::json!({}),
         };
 
-        fs::write(&plugin_dir.join("plugin.json"), serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+        fs::write(
+            &plugin_dir.join("plugin.json"),
+            serde_json::to_string_pretty(&manifest).unwrap(),
+        )
+        .unwrap();
         fs::write(&plugin_dir.join("index.js"), "").unwrap();
 
         let metadata = PluginMetadata {
@@ -870,7 +897,11 @@ fn test_full_plugin_lifecycle() {
         config_schema: serde_json::json!({}),
     };
 
-    fs::write(&plugin_dir.join("plugin.json"), serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+    fs::write(
+        &plugin_dir.join("plugin.json"),
+        serde_json::to_string_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
     fs::write(&plugin_dir.join("index.js"), "").unwrap();
     fs::write(&plugin_dir.join("cmd.js"), "").unwrap();
 
@@ -904,7 +935,8 @@ fn test_full_plugin_lifecycle() {
     let mut executor = execution::PluginExecutor::new();
     executor.register(plugin);
 
-    let exec_result = executor.execute_command("com.test.lifecycle", "process", serde_json::json!({}));
+    let exec_result =
+        executor.execute_command("com.test.lifecycle", "process", serde_json::json!({}));
     assert!(exec_result.is_ok());
     assert!(exec_result.unwrap().success);
 }

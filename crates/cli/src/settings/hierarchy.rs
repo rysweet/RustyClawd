@@ -163,7 +163,13 @@ impl SettingsHierarchy {
             if parts.is_empty() {
                 summary.push_str("(empty)");
             } else {
-                summary.push_str(&parts.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", "));
+                summary.push_str(
+                    &parts
+                        .iter()
+                        .map(|s| s.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                );
             }
 
             summary.push('\n');
@@ -199,16 +205,16 @@ mod tests {
         hierarchy.add_layer(SettingsLayer::UserGlobal, settings.clone());
 
         assert!(hierarchy.has_layer(SettingsLayer::UserGlobal));
-        assert_eq!(hierarchy.get_layer(SettingsLayer::UserGlobal), Some(&settings));
+        assert_eq!(
+            hierarchy.get_layer(SettingsLayer::UserGlobal),
+            Some(&settings)
+        );
     }
 
     #[test]
     fn test_remove_layer() {
         let mut hierarchy = SettingsHierarchy::new();
-        hierarchy.add_layer(
-            SettingsLayer::UserGlobal,
-            Settings::new().with_timeout(60),
-        );
+        hierarchy.add_layer(SettingsLayer::UserGlobal, Settings::new().with_timeout(60));
 
         let removed = hierarchy.remove_layer(SettingsLayer::UserGlobal);
         assert!(removed.is_some());

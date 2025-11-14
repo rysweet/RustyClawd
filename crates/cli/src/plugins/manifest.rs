@@ -182,7 +182,10 @@ fn is_valid_semver(version: &str) -> bool {
 }
 
 /// Validate that all referenced files exist
-pub fn validate_references(manifest: &PluginManifest, plugin_path: &Path) -> Result<(), Vec<String>> {
+pub fn validate_references(
+    manifest: &PluginManifest,
+    plugin_path: &Path,
+) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
 
     // Validate main entry point

@@ -6,8 +6,8 @@
 //! - Regex filtering of output
 //! - Shell state tracking
 
-use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
 use crate::process_registry::global_registry;
+use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
 use async_stream::stream;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -161,8 +161,14 @@ mod tests {
         registry.register(test_shell_id.clone(), child).await.ok();
 
         // Add some test output to the registry
-        registry.append_output(&test_shell_id, "Line 1".to_string(), false).await.ok();
-        registry.append_output(&test_shell_id, "Line 2".to_string(), false).await.ok();
+        registry
+            .append_output(&test_shell_id, "Line 1".to_string(), false)
+            .await
+            .ok();
+        registry
+            .append_output(&test_shell_id, "Line 2".to_string(), false)
+            .await
+            .ok();
 
         let tool = BashOutputTool;
         let params = BashOutputParams {
@@ -174,10 +180,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert_eq!(result.bash_id, "test_shell_basic");
         assert_eq!(result.status, "running");
@@ -199,8 +208,14 @@ mod tests {
         registry.register(test_shell_id.clone(), child).await.ok();
 
         // Add stdout and stderr
-        registry.append_output(&test_shell_id, "Standard output".to_string(), false).await.ok();
-        registry.append_output(&test_shell_id, "Error message".to_string(), true).await.ok();
+        registry
+            .append_output(&test_shell_id, "Standard output".to_string(), false)
+            .await
+            .ok();
+        registry
+            .append_output(&test_shell_id, "Error message".to_string(), true)
+            .await
+            .ok();
 
         let tool = BashOutputTool;
         let params = BashOutputParams {
@@ -212,10 +227,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert!(result.stdout.contains("Standard output"));
         assert!(result.stderr.contains("Error message"));
@@ -238,10 +256,26 @@ mod tests {
         registry.register(test_shell_id.clone(), child).await.ok();
 
         // Add multiple lines, only some match the filter
-        registry.append_output(&test_shell_id, "ERROR: Something went wrong".to_string(), false).await.ok();
-        registry.append_output(&test_shell_id, "INFO: Normal operation".to_string(), false).await.ok();
-        registry.append_output(&test_shell_id, "ERROR: Another problem".to_string(), false).await.ok();
-        registry.append_output(&test_shell_id, "DEBUG: Details here".to_string(), false).await.ok();
+        registry
+            .append_output(
+                &test_shell_id,
+                "ERROR: Something went wrong".to_string(),
+                false,
+            )
+            .await
+            .ok();
+        registry
+            .append_output(&test_shell_id, "INFO: Normal operation".to_string(), false)
+            .await
+            .ok();
+        registry
+            .append_output(&test_shell_id, "ERROR: Another problem".to_string(), false)
+            .await
+            .ok();
+        registry
+            .append_output(&test_shell_id, "DEBUG: Details here".to_string(), false)
+            .await
+            .ok();
 
         let tool = BashOutputTool;
         let params = BashOutputParams {
@@ -253,10 +287,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         // Should only contain ERROR lines
         assert!(result.stdout.contains("ERROR: Something went wrong"));
@@ -330,7 +367,10 @@ mod tests {
         registry.register(test_shell_id.clone(), child).await.ok();
 
         // Add output
-        registry.append_output(&test_shell_id, "First batch".to_string(), false).await.ok();
+        registry
+            .append_output(&test_shell_id, "First batch".to_string(), false)
+            .await
+            .ok();
 
         let tool = BashOutputTool;
         let params = BashOutputParams {
@@ -342,33 +382,45 @@ mod tests {
         // First read
         let stream = tool.execute(params.clone(), &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
-        let result1 = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result1 = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert!(result1.stdout.contains("First batch"));
 
         // Second read should return empty (buffer was cleared)
         let stream = tool.execute(params.clone(), &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
-        let result2 = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result2 = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert_eq!(result2.stdout, "");
 
         // Add new output
-        registry.append_output(&test_shell_id, "Second batch".to_string(), false).await.ok();
+        registry
+            .append_output(&test_shell_id, "Second batch".to_string(), false)
+            .await
+            .ok();
 
         // Third read should get only new output
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
-        let result3 = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result3 = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert!(result3.stdout.contains("Second batch"));
         assert!(!result3.stdout.contains("First batch"));
@@ -403,10 +455,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert_eq!(result.status, "completed:0");
     }
@@ -425,7 +480,10 @@ mod tests {
         registry.register(test_shell_id.clone(), child).await.ok();
 
         // Mark as failed
-        registry.mark_failed(&test_shell_id, "Test failure".to_string()).await.ok();
+        registry
+            .mark_failed(&test_shell_id, "Test failure".to_string())
+            .await
+            .ok();
 
         let tool = BashOutputTool;
         let params = BashOutputParams {
@@ -437,10 +495,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert!(result.status.starts_with("failed:"));
         assert!(result.status.contains("Test failure"));
@@ -471,10 +532,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert_eq!(result.stdout, "");
         assert_eq!(result.stderr, "");
@@ -498,7 +562,10 @@ mod tests {
 
         // Add multiple lines
         for i in 1..=10 {
-            registry.append_output(&test_shell_id, format!("Line {}", i), false).await.ok();
+            registry
+                .append_output(&test_shell_id, format!("Line {}", i), false)
+                .await
+                .ok();
         }
 
         let tool = BashOutputTool;
@@ -511,10 +578,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         // Check all lines are present
         for i in 1..=10 {
@@ -538,9 +608,18 @@ mod tests {
         let test_shell_id = "test_shell_case".to_string();
         registry.register(test_shell_id.clone(), child).await.ok();
 
-        registry.append_output(&test_shell_id, "error lowercase".to_string(), false).await.ok();
-        registry.append_output(&test_shell_id, "ERROR uppercase".to_string(), false).await.ok();
-        registry.append_output(&test_shell_id, "Error mixed".to_string(), false).await.ok();
+        registry
+            .append_output(&test_shell_id, "error lowercase".to_string(), false)
+            .await
+            .ok();
+        registry
+            .append_output(&test_shell_id, "ERROR uppercase".to_string(), false)
+            .await
+            .ok();
+        registry
+            .append_output(&test_shell_id, "Error mixed".to_string(), false)
+            .await
+            .ok();
 
         let tool = BashOutputTool;
         let params = BashOutputParams {
@@ -552,10 +631,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         // Should only match uppercase ERROR
         assert!(result.stdout.contains("ERROR uppercase"));

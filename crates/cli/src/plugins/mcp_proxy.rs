@@ -179,7 +179,10 @@ impl McpProxy {
                 .map_err(|e| format!("Failed to parse initialization response: {}", e))?;
 
             if let Some(error) = response.error {
-                return Err(format!("MCP server initialization error: {}", error.message));
+                return Err(format!(
+                    "MCP server initialization error: {}",
+                    error.message
+                ));
             }
 
             if let Some(result) = response.result {
@@ -267,9 +270,8 @@ impl McpProxy {
             }
 
             if let Some(result) = response.result {
-                let tools: Vec<McpToolDefinition> =
-                    serde_json::from_value(result["tools"].clone())
-                        .map_err(|e| format!("Failed to parse tools: {}", e))?;
+                let tools: Vec<McpToolDefinition> = serde_json::from_value(result["tools"].clone())
+                    .map_err(|e| format!("Failed to parse tools: {}", e))?;
                 return Ok(tools);
             }
         }

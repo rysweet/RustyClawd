@@ -9,10 +9,10 @@ pub mod interactive;
 pub mod plugins;
 pub mod session;
 pub mod settings;
+pub mod terminal_guard;
 pub mod tool_definitions;
 pub mod tool_executor;
 pub mod tui;
-pub mod terminal_guard;
 
 // Public exports
 pub use session::{SessionState, SessionStats};

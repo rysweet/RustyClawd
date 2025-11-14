@@ -199,7 +199,11 @@ impl Checkpoint {
     pub fn size_bytes(&self) -> usize {
         self.id.len()
             + self.messages.iter().map(|m| m.content.len()).sum::<usize>()
-            + self.file_changes.iter().map(|f| f.content.len()).sum::<usize>()
+            + self
+                .file_changes
+                .iter()
+                .map(|f| f.content.len())
+                .sum::<usize>()
     }
 
     /// Serialize checkpoint to JSON

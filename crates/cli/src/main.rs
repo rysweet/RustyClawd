@@ -10,10 +10,10 @@ mod interactive;
 mod plugins;
 mod session;
 mod settings;
+mod terminal_guard;
 mod tool_definitions;
 mod tool_executor;
 mod tui;
-mod terminal_guard;
 
 use anyhow::{Context as AnyhowContext, Result};
 use clap::Parser;
@@ -109,7 +109,6 @@ struct Cli {
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     prompt: Vec<String>,
 }
-
 
 /// Unified CLI application state
 struct App {
@@ -209,8 +208,8 @@ impl App {
         };
 
         // 6. Check for session resume or create new session
-        let session_saver = checkpoint::SessionSaver::default()
-            .context("Failed to initialize session saver")?;
+        let session_saver =
+            checkpoint::SessionSaver::default().context("Failed to initialize session saver")?;
 
         // Default checkpoint limit (not configurable via CLI in official spec)
         let checkpoint_limit = 50;
@@ -376,7 +375,11 @@ impl App {
             hooks::HookEvent::SessionStart,
         );
 
-        match self.hooks.execute_hooks(hooks::HookEvent::SessionStart, &context).await {
+        match self
+            .hooks
+            .execute_hooks(hooks::HookEvent::SessionStart, &context)
+            .await
+        {
             Ok(results) => {
                 for result in results {
                     if !result.is_success() {
@@ -405,7 +408,11 @@ impl App {
             hooks::HookEvent::SessionEnd,
         );
 
-        match self.hooks.execute_hooks(hooks::HookEvent::SessionEnd, &context).await {
+        match self
+            .hooks
+            .execute_hooks(hooks::HookEvent::SessionEnd, &context)
+            .await
+        {
             Ok(results) => {
                 for result in results {
                     if !result.is_success() {
@@ -429,15 +436,19 @@ impl App {
 
     /// Run in print mode (one-shot execution) - matches Claude Code's behavior
     async fn run_print_mode(&mut self, prompt: &str) -> Result<()> {
-        use rustyclawd_core::client::{Client, Config, CreateMessageRequest, Message as ApiMessage};
-        
+        use rustyclawd_core::client::{
+            Client, Config, CreateMessageRequest, Message as ApiMessage,
+        };
 
         // Load API configuration
         let config = Config::from_default_location().await?;
         let client = Client::new(config);
 
         // Model configuration - use CLI override or default
-        let model = self.cli.model.as_ref()
+        let model = self
+            .cli
+            .model
+            .as_ref()
             .map(|m| match m.as_str() {
                 "sonnet" => "claude-sonnet-4-5-20250929",
                 "opus" => "claude-opus-20240229",
@@ -455,8 +466,10 @@ impl App {
             Some(prompt.clone())
         } else if let Some(ref file_path) = self.cli.system_prompt_file {
             // --system-prompt-file: load from file
-            Some(std::fs::read_to_string(file_path)
-                .with_context(|| format!("Failed to read system prompt file: {}", file_path))?)
+            Some(
+                std::fs::read_to_string(file_path)
+                    .with_context(|| format!("Failed to read system prompt file: {}", file_path))?,
+            )
         } else if let Some(ref append) = self.cli.append_system_prompt {
             // --append-system-prompt: append to default (would need default system prompt)
             // For now, just use the append text

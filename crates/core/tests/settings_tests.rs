@@ -264,13 +264,19 @@ mod unit_config_loading {
             .with_timeout(60);
 
         assert_eq!(settings.model, Some("claude-3-sonnet".to_string()));
-        assert_eq!(settings.api_url, Some("https://api.anthropic.com".to_string()));
+        assert_eq!(
+            settings.api_url,
+            Some("https://api.anthropic.com".to_string())
+        );
         assert_eq!(settings.timeout_secs, Some(60));
     }
 
     #[test]
     fn test_permission_mode_from_str() {
-        assert_eq!(PermissionMode::from_str("allow"), Some(PermissionMode::Allow));
+        assert_eq!(
+            PermissionMode::from_str("allow"),
+            Some(PermissionMode::Allow)
+        );
         assert_eq!(PermissionMode::from_str("ask"), Some(PermissionMode::Ask));
         assert_eq!(PermissionMode::from_str("deny"), Some(PermissionMode::Deny));
         assert_eq!(PermissionMode::from_str("invalid"), None);
@@ -304,7 +310,10 @@ mod unit_config_loading {
             .with_env_var("DEBUG".to_string(), "true".to_string());
 
         assert_eq!(settings.env_vars.len(), 2);
-        assert_eq!(settings.env_vars.get("API_KEY"), Some(&"secret123".to_string()));
+        assert_eq!(
+            settings.env_vars.get("API_KEY"),
+            Some(&"secret123".to_string())
+        );
         assert_eq!(settings.env_vars.get("DEBUG"), Some(&"true".to_string()));
     }
 
@@ -332,9 +341,7 @@ mod unit_validation {
 
     #[test]
     fn test_valid_settings() {
-        let settings = Settings::new()
-            .with_timeout(120)
-            .with_cleanup_period(30);
+        let settings = Settings::new().with_timeout(120).with_cleanup_period(30);
 
         assert!(settings.validate().is_ok());
     }
@@ -489,14 +496,19 @@ mod unit_layer_precedence {
 
         hierarchy.add_layer(SettingsLayer::UserGlobal, user_settings.clone());
 
-        assert_eq!(hierarchy.get_layer(SettingsLayer::UserGlobal), Some(&user_settings));
+        assert_eq!(
+            hierarchy.get_layer(SettingsLayer::UserGlobal),
+            Some(&user_settings)
+        );
         assert_eq!(hierarchy.get_layer(SettingsLayer::ProjectLocal), None);
     }
 
     #[test]
     fn test_single_layer_merge() {
         let mut hierarchy = SettingsHierarchy::new();
-        let settings = Settings::new().with_timeout(120).with_model("claude-3".to_string());
+        let settings = Settings::new()
+            .with_timeout(120)
+            .with_model("claude-3".to_string());
 
         hierarchy.add_layer(SettingsLayer::UserGlobal, settings);
         let merged = hierarchy.merge();
@@ -519,7 +531,9 @@ mod integration_hierarchy_merging {
         let mut hierarchy = SettingsHierarchy::new();
 
         // User layer
-        let user = Settings::new().with_timeout(60).with_model("claude-1".to_string());
+        let user = Settings::new()
+            .with_timeout(60)
+            .with_model("claude-1".to_string());
         hierarchy.add_layer(SettingsLayer::UserGlobal, user);
 
         // Project layer overrides model
@@ -724,10 +738,7 @@ mod integration_hierarchy_merging {
         );
 
         // Tier 5: Command line
-        hierarchy.add_layer(
-            SettingsLayer::CommandLine,
-            Settings::new().with_timeout(90),
-        );
+        hierarchy.add_layer(SettingsLayer::CommandLine, Settings::new().with_timeout(90));
 
         let merged = hierarchy.merge();
 
@@ -743,14 +754,22 @@ mod integration_hierarchy_merging {
         let mut hierarchy = SettingsHierarchy::new();
 
         let mut user_settings = Settings::new();
-        user_settings.enabled_plugins.insert("plugin-a".to_string(), true);
-        user_settings.enabled_plugins.insert("plugin-b".to_string(), false);
+        user_settings
+            .enabled_plugins
+            .insert("plugin-a".to_string(), true);
+        user_settings
+            .enabled_plugins
+            .insert("plugin-b".to_string(), false);
 
         hierarchy.add_layer(SettingsLayer::UserGlobal, user_settings);
 
         let mut project_settings = Settings::new();
-        project_settings.enabled_plugins.insert("plugin-b".to_string(), true);
-        project_settings.enabled_plugins.insert("plugin-c".to_string(), true);
+        project_settings
+            .enabled_plugins
+            .insert("plugin-b".to_string(), true);
+        project_settings
+            .enabled_plugins
+            .insert("plugin-c".to_string(), true);
 
         hierarchy.add_layer(SettingsLayer::ProjectLocal, project_settings);
 
@@ -922,7 +941,10 @@ mod unit_edge_cases {
     fn test_special_characters_in_env_values() {
         let settings = Settings::new()
             .with_env_var("PATH".to_string(), "/usr/bin:/usr/local/bin".to_string())
-            .with_env_var("URL".to_string(), "https://api.example.com?key=value&other=data".to_string())
+            .with_env_var(
+                "URL".to_string(),
+                "https://api.example.com?key=value&other=data".to_string(),
+            )
             .with_env_var("JSON".to_string(), r#"{"key":"value"}"#.to_string());
 
         assert_eq!(settings.env_vars.len(), 3);
@@ -1059,7 +1081,10 @@ mod e2e_scenarios {
         assert_eq!(merged.model, Some("claude-3".to_string())); // From ProjectShared
         assert_eq!(merged.timeout_secs, Some(60)); // From ProjectLocal
         assert_eq!(merged.cleanup_period_days, 30); // From UserGlobal
-        assert_eq!(merged.env_vars.get("PROJECT_ID"), Some(&"proj-123".to_string()));
+        assert_eq!(
+            merged.env_vars.get("PROJECT_ID"),
+            Some(&"proj-123".to_string())
+        );
     }
 
     #[test]
@@ -1126,8 +1151,7 @@ mod e2e_scenarios {
         hierarchy.add_layer(SettingsLayer::UserGlobal, user);
 
         // Load project settings
-        let project = Settings::new()
-            .with_env_var("API_KEY".to_string(), "key123".to_string());
+        let project = Settings::new().with_env_var("API_KEY".to_string(), "key123".to_string());
         hierarchy.add_layer(SettingsLayer::ProjectShared, project);
 
         // Merge

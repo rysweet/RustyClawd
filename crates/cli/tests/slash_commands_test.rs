@@ -3,7 +3,9 @@ use claude_code_cli::commands::SlashCommands;
 #[tokio::test]
 async fn test_slash_commands_discovery() {
     // Initialize slash commands
-    let slash_commands = SlashCommands::new().await.expect("Failed to initialize SlashCommands");
+    let slash_commands = SlashCommands::new()
+        .await
+        .expect("Failed to initialize SlashCommands");
 
     // Get list of available commands
     let commands = slash_commands.list_commands();
@@ -33,5 +35,8 @@ async fn test_slash_commands_discovery() {
         "Expected to find 'debug' command"
     );
 
-    println!("\nAll tests passed! {} commands discovered.", commands.len());
+    println!(
+        "\nAll tests passed! {} commands discovered.",
+        commands.len()
+    );
 }

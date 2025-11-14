@@ -1,6 +1,6 @@
-/// Configuration loading from various sources (files, environment variables)
-use crate::settings::types::{Settings, SettingsLayer, PermissionMode, ToolPermission};
 use crate::settings::hierarchy::SettingsHierarchy;
+/// Configuration loading from various sources (files, environment variables)
+use crate::settings::types::{PermissionMode, Settings, SettingsLayer, ToolPermission};
 use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
@@ -13,9 +13,7 @@ pub struct SettingsLoader {
 impl SettingsLoader {
     /// Create a new settings loader
     pub fn new() -> Self {
-        Self {
-            project_root: None,
-        }
+        Self { project_root: None }
     }
 
     /// Create loader with specific project root
@@ -37,10 +35,7 @@ impl SettingsLoader {
         for (key, value) in env::vars() {
             if key.starts_with("CLAUDE_") {
                 // Convert CLAUDE_API_URL -> api_url
-                let setting_key = key
-                    .strip_prefix("CLAUDE_")
-                    .unwrap_or(&key)
-                    .to_lowercase();
+                let setting_key = key.strip_prefix("CLAUDE_").unwrap_or(&key).to_lowercase();
 
                 overrides.insert(setting_key, value);
             }
@@ -142,7 +137,10 @@ impl SettingsLoader {
         let config_path = project_root.join(".claude").join("config");
 
         if !config_path.exists() {
-            return Err(format!("Project shared config not found: {:?}", config_path));
+            return Err(format!(
+                "Project shared config not found: {:?}",
+                config_path
+            ));
         }
 
         self.load_settings_from_file(&config_path)
@@ -218,8 +216,8 @@ impl SettingsLoader {
 
     /// Parse JSON configuration into Settings
     fn parse_json_config(content: &str) -> Result<Settings, String> {
-        let json_value: serde_json::Value = serde_json::from_str(content)
-            .map_err(|e| format!("Invalid JSON: {}", e))?;
+        let json_value: serde_json::Value =
+            serde_json::from_str(content).map_err(|e| format!("Invalid JSON: {}", e))?;
 
         let mut settings = Settings::new();
 
@@ -241,7 +239,10 @@ impl SettingsLoader {
                 settings = settings.with_cleanup_period(cleanup as u32);
             }
 
-            if let Some(disable_bypass) = obj.get("disable_bypass_permissions").and_then(|v| v.as_bool()) {
+            if let Some(disable_bypass) = obj
+                .get("disable_bypass_permissions")
+                .and_then(|v| v.as_bool())
+            {
                 if disable_bypass {
                     settings = settings.disable_bypass();
                 }
@@ -251,12 +252,14 @@ impl SettingsLoader {
             if let Some(permissions) = obj.get("permissions").and_then(|v| v.as_object()) {
                 for (tool_name, tool_config) in permissions {
                     if let Some(tool_obj) = tool_config.as_object() {
-                        let mode_str = tool_obj.get("mode")
+                        let mode_str = tool_obj
+                            .get("mode")
                             .and_then(|v| v.as_str())
                             .unwrap_or("ask");
 
                         if let Some(mode) = PermissionMode::from_str(mode_str) {
-                            let patterns = tool_obj.get("patterns")
+                            let patterns = tool_obj
+                                .get("patterns")
                                 .and_then(|v| v.as_array())
                                 .map(|arr| {
                                     arr.iter()
@@ -388,7 +391,10 @@ mod tests {
 
         assert_eq!(settings.model, Some("claude-3".to_string()));
         assert_eq!(settings.timeout_secs, Some(120));
-        assert_eq!(settings.api_url, Some("https://api.example.com".to_string()));
+        assert_eq!(
+            settings.api_url,
+            Some("https://api.example.com".to_string())
+        );
     }
 
     #[test]
@@ -397,6 +403,8 @@ mod tests {
         assert!(result.is_ok());
 
         let path = result.unwrap();
-        assert!(path.to_string_lossy().contains("claude") || path.to_string_lossy().contains("Claude"));
+        assert!(
+            path.to_string_lossy().contains("claude") || path.to_string_lossy().contains("Claude")
+        );
     }
 }

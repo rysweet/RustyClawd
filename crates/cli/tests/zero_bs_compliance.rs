@@ -33,8 +33,7 @@ fn get_rust_files(dir: &Path) -> Vec<PathBuf> {
 #[test]
 fn test_no_global_allow_suppressions_in_lib_rs() {
     let lib_rs_path = get_cli_src_dir().join("lib.rs");
-    let content = fs::read_to_string(&lib_rs_path)
-        .expect("Failed to read lib.rs");
+    let content = fs::read_to_string(&lib_rs_path).expect("Failed to read lib.rs");
 
     // Check for global suppressions
     let banned_suppressions = vec![
@@ -136,11 +135,8 @@ fn test_no_ignored_tests_without_justification() {
             for (i, line) in lines.iter().enumerate() {
                 if line.contains("#[ignore]") {
                     // Check if the next few lines contain a justification comment
-                    let has_justification = lines
-                        .iter()
-                        .skip(i.saturating_sub(3))
-                        .take(4)
-                        .any(|l| {
+                    let has_justification =
+                        lines.iter().skip(i.saturating_sub(3)).take(4).any(|l| {
                             let trimmed = l.trim();
                             (trimmed.starts_with("//") || trimmed.starts_with("///"))
                                 && (trimmed.contains("reason:")
@@ -401,7 +397,11 @@ fn test_all_public_items_have_documentation() {
 
                     if !has_docs {
                         // Extract the item name
-                        let item = trimmed.split_whitespace().take(3).collect::<Vec<_>>().join(" ");
+                        let item = trimmed
+                            .split_whitespace()
+                            .take(3)
+                            .collect::<Vec<_>>()
+                            .join(" ");
                         violations.push(format!(
                             "{}:{} - Missing documentation for: {}",
                             file.file_name().unwrap().to_string_lossy(),
@@ -416,7 +416,10 @@ fn test_all_public_items_have_documentation() {
 
     // Allow some violations for now, but report them
     if !violations.is_empty() {
-        eprintln!("WARNING: Found public items without documentation:\n{}", violations.join("\n"));
+        eprintln!(
+            "WARNING: Found public items without documentation:\n{}",
+            violations.join("\n")
+        );
         eprintln!("This test currently allows violations but they should be fixed.");
     }
 }

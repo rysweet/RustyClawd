@@ -1,7 +1,7 @@
 //! Integration test for SlashCommand with real command files
 
-use rustyclawd_tools::{SlashCommandTool, Tool, ToolContext, ToolEvent};
 use futures::StreamExt;
+use rustyclawd_tools::{SlashCommandTool, Tool, ToolContext, ToolEvent};
 use std::path::Path;
 
 #[tokio::test]
@@ -26,10 +26,16 @@ async fn test_real_analyze_command() {
         _ => None,
     });
 
-    assert!(result.is_some(), "Expected result event but got: {:?}", events);
+    assert!(
+        result.is_some(),
+        "Expected result event but got: {:?}",
+        events
+    );
     let output = result.unwrap();
     assert_eq!(output.command_name, "analyze");
-    assert!(output.expanded_prompt.contains("Analyze") || output.expanded_prompt.contains("analysis"));
+    assert!(
+        output.expanded_prompt.contains("Analyze") || output.expanded_prompt.contains("analysis")
+    );
 }
 
 #[tokio::test]
@@ -54,7 +60,11 @@ async fn test_real_debug_command() {
         _ => None,
     });
 
-    assert!(result.is_some(), "Expected result event but got: {:?}", events);
+    assert!(
+        result.is_some(),
+        "Expected result event but got: {:?}",
+        events
+    );
     let output = result.unwrap();
     assert_eq!(output.command_name, "debug");
     assert!(output.expanded_prompt.contains("debug"));
@@ -82,7 +92,11 @@ async fn test_real_ultrathink_command() {
         _ => None,
     });
 
-    assert!(result.is_some(), "Expected result event but got: {:?}", events);
+    assert!(
+        result.is_some(),
+        "Expected result event but got: {:?}",
+        events
+    );
     let output = result.unwrap();
     assert_eq!(output.command_name, "ultrathink");
     assert!(output.expanded_prompt.contains("deep") || output.expanded_prompt.contains("Deep"));

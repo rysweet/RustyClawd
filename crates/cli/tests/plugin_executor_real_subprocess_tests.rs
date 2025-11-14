@@ -108,8 +108,8 @@ fn execute_subprocess(
 
 /// Detect interpreter for a script file
 fn detect_interpreter(file_path: &PathBuf) -> Result<String, String> {
-    let content = fs::read_to_string(file_path)
-        .map_err(|e| format!("Failed to read file: {}", e))?;
+    let content =
+        fs::read_to_string(file_path).map_err(|e| format!("Failed to read file: {}", e))?;
 
     // Check for shebang
     if let Some(first_line) = content.lines().next() {
@@ -159,7 +159,10 @@ fn test_execute_real_subprocess_echo() {
     let exec_result = result.unwrap();
 
     assert!(exec_result.success, "Echo command should succeed");
-    assert!(exec_result.output.contains("hello world"), "Output should contain echoed text");
+    assert!(
+        exec_result.output.contains("hello world"),
+        "Output should contain echoed text"
+    );
     assert_eq!(exec_result.exit_code, Some(0), "Exit code should be 0");
 }
 
@@ -172,7 +175,10 @@ fn test_execute_subprocess_captures_output() {
 
     assert!(exec_result.success);
     assert!(exec_result.output.contains("test output"));
-    assert!(exec_result.stderr.is_empty(), "Stderr should be empty for successful echo");
+    assert!(
+        exec_result.stderr.is_empty(),
+        "Stderr should be empty for successful echo"
+    );
 }
 
 #[test]
@@ -220,8 +226,14 @@ fn test_subprocess_duration_tracking() {
     let exec_result = result.unwrap();
 
     // Duration should be tracked and at least 100ms
-    assert!(exec_result.duration_ms >= 100, "Duration should be at least 100ms");
-    assert!(duration.as_millis() >= 100, "Actual duration should be at least 100ms");
+    assert!(
+        exec_result.duration_ms >= 100,
+        "Duration should be at least 100ms"
+    );
+    assert!(
+        duration.as_millis() >= 100,
+        "Actual duration should be at least 100ms"
+    );
 }
 
 #[test]
@@ -257,7 +269,11 @@ fn test_detect_interpreter_from_extension() {
 
         let interpreter = detect_interpreter(&script_path);
 
-        assert!(interpreter.is_ok(), "Should detect interpreter for {}", filename);
+        assert!(
+            interpreter.is_ok(),
+            "Should detect interpreter for {}",
+            filename
+        );
         assert_eq!(
             interpreter.unwrap(),
             expected_interpreter,
@@ -301,16 +317,15 @@ fn test_execute_python_script() {
     }
 
     let interpreter = detect_interpreter(&script_path).expect("Should detect python");
-    let result = execute_subprocess(
-        &interpreter,
-        &[script_path.to_str().unwrap()],
-        5000,
-    );
+    let result = execute_subprocess(&interpreter, &[script_path.to_str().unwrap()], 5000);
 
     assert!(result.is_ok());
     let exec_result = result.unwrap();
 
-    assert!(exec_result.success, "Python script should execute successfully");
+    assert!(
+        exec_result.success,
+        "Python script should execute successfully"
+    );
     assert!(
         exec_result.output.contains("Hello from Python"),
         "Output should contain script output"
@@ -351,11 +366,7 @@ fn test_subprocess_exit_codes() {
     let exit_codes = vec![0, 1, 2, 42, 127];
 
     for code in exit_codes {
-        let result = execute_subprocess(
-            "sh",
-            &["-c", &format!("exit {}", code)],
-            1000,
-        );
+        let result = execute_subprocess("sh", &["-c", &format!("exit {}", code)], 1000);
 
         assert!(result.is_ok());
         let exec_result = result.unwrap();
@@ -384,17 +395,16 @@ fn test_no_fake_success_responses() {
     let exec_result = result.unwrap();
 
     // Should NOT report success for a failed command
-    assert!(!exec_result.success, "Should not fake success for failed command");
+    assert!(
+        !exec_result.success,
+        "Should not fake success for failed command"
+    );
     assert_ne!(exec_result.exit_code, Some(0), "Exit code should not be 0");
 }
 
 #[test]
 fn test_subprocess_captures_multiline_output() {
-    let result = execute_subprocess(
-        "sh",
-        &["-c", "echo line1; echo line2; echo line3"],
-        1000,
-    );
+    let result = execute_subprocess("sh", &["-c", "echo line1; echo line2; echo line3"], 1000);
 
     assert!(result.is_ok());
     let exec_result = result.unwrap();
@@ -484,16 +494,11 @@ fn test_concurrent_subprocess_execution() {
 
     let handles: Vec<_> = (0..3)
         .map(|i| {
-            thread::spawn(move || {
-                execute_subprocess("echo", &[&format!("thread-{}", i)], 1000)
-            })
+            thread::spawn(move || execute_subprocess("echo", &[&format!("thread-{}", i)], 1000))
         })
         .collect();
 
-    let results: Vec<_> = handles
-        .into_iter()
-        .map(|h| h.join().unwrap())
-        .collect();
+    let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
 
     assert_eq!(results.len(), 3);
     for (i, result) in results.iter().enumerate() {
@@ -573,5 +578,8 @@ fn test_execution_result_timing_accuracy() {
         actual_ms - reported_ms
     };
 
-    assert!(diff < 100, "Duration tracking should be accurate within 100ms");
+    assert!(
+        diff < 100,
+        "Duration tracking should be accurate within 100ms"
+    );
 }
