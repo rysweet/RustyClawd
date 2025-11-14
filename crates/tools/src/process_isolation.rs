@@ -86,10 +86,10 @@ pub fn apply_isolation(mut command: Command, config: &ProcessSpawnConfig) -> Com
                 // This also creates a new process group
                 match nix::unistd::setsid() {
                     Ok(_) => Ok(()),
-                    Err(e) => Err(io::Error::new(
-                        io::ErrorKind::Other,
-                        format!("Failed to create new session: {}", e),
-                    )),
+                    Err(e) => Err(io::Error::other(format!(
+                        "Failed to create new session: {}",
+                        e
+                    ))),
                 }
             });
         }
@@ -252,10 +252,7 @@ mod tests {
     #[tokio::test]
     async fn test_apply_isolation_does_not_break_basic_commands() {
         // Test that isolation doesn't break basic command execution
-        let commands = vec![
-            ("echo", vec!["test"]),
-            ("printf", vec!["test\\n"]),
-        ];
+        let commands = vec![("echo", vec!["test"]), ("printf", vec!["test\\n"])];
 
         for (cmd_name, args) in commands {
             let mut cmd = Command::new(cmd_name);

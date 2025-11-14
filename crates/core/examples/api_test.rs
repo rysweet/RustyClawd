@@ -9,8 +9,8 @@
 //! Usage:
 //!   cargo run --example api_test
 
-use rustyclawd_core::client::{Client, Config, CreateMessageRequest, Message};
 use futures::StreamExt;
+use rustyclawd_core::client::{Client, Config, CreateMessageRequest, Message};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -113,9 +113,8 @@ async fn test_streaming(client: &Client) -> Result<(), Box<dyn std::error::Error
                         println!("[Content block {} started]", index);
                     }
                     StreamEvent::ContentBlockDelta { delta, .. } => {
-                        let rustyclawd_core::client::types::ContentDelta::TextDelta {
-                            text,
-                        } = delta;
+                        let rustyclawd_core::client::types::ContentDelta::TextDelta { text } =
+                            delta;
                         // Print in real-time without newline
                         print!("{}", text);
                         use std::io::Write;

@@ -282,8 +282,8 @@ mod tests {
     use super::*;
     use crate::Tool;
     use futures::StreamExt;
-    use tempfile::NamedTempFile;
     use std::io::Write;
+    use tempfile::NamedTempFile;
 
     #[tokio::test]
     async fn test_notebook_edit_replace() {
@@ -303,7 +303,12 @@ mod tests {
         });
 
         let mut temp_file = NamedTempFile::new().unwrap();
-        write!(temp_file, "{}", serde_json::to_string(&notebook_json).unwrap()).unwrap();
+        write!(
+            temp_file,
+            "{}",
+            serde_json::to_string(&notebook_json).unwrap()
+        )
+        .unwrap();
         temp_file.flush().unwrap();
 
         let tool = NotebookEditTool;
@@ -319,10 +324,13 @@ mod tests {
         let mut stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert_eq!(result.edit_mode, "Replace");
 

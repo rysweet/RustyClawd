@@ -17,19 +17,15 @@ use tokio::process::Command;
 /// Output mode for grep results
 #[derive(Debug, Deserialize, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum OutputMode {
     /// Show matching lines with content
     Content,
     /// Show only file paths with matches
+    #[default]
     FilesWithMatches,
     /// Show match counts per file
     Count,
-}
-
-impl Default for OutputMode {
-    fn default() -> Self {
-        Self::FilesWithMatches
-    }
 }
 
 /// Parameters for the Grep tool
@@ -101,8 +97,7 @@ impl crate::Tool for GrepTool {
         ctx: &ToolContext,
     ) -> ToolResult<ToolStream<Self::Output>> {
         let pattern = params.pattern.clone();
-        let search_path = params.path.clone()
-            .unwrap_or_else(|| ".".to_string());
+        let search_path = params.path.clone().unwrap_or_else(|| ".".to_string());
         let debug = ctx.debug;
 
         Ok(Box::pin(stream! {
@@ -242,8 +237,8 @@ mod tests {
     use super::*;
     use crate::Tool;
     use futures::StreamExt;
-    use tempfile::TempDir;
     use std::io::Write;
+    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_grep_basic_search() {

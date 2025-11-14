@@ -98,10 +98,7 @@ fn test_bash_command_required_argument() {
 #[test]
 fn test_bash_command_simple() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("bash")
-        .arg("echo hello")
-        .assert()
-        .success();
+    cmd.arg("bash").arg("echo hello").assert().success();
 }
 
 #[test]
@@ -130,10 +127,7 @@ fn test_bash_timeout_flag_long() {
 fn test_bash_timeout_default_value() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
     // Should work with default 120000ms timeout
-    cmd.arg("bash")
-        .arg("echo test")
-        .assert()
-        .success();
+    cmd.arg("bash").arg("echo test").assert().success();
 }
 
 #[test]
@@ -209,10 +203,7 @@ fn test_read_command_required_argument() {
 #[test]
 fn test_read_command_file_path() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("read")
-        .arg("/dev/null")
-        .assert()
-        .success();
+    cmd.arg("read").arg("/dev/null").assert().success();
 }
 
 #[test]
@@ -467,19 +458,13 @@ fn test_glob_command_pattern_required() {
 #[test]
 fn test_glob_pattern_simple() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("glob")
-        .arg("*.rs")
-        .assert()
-        .success();
+    cmd.arg("glob").arg("*.rs").assert().success();
 }
 
 #[test]
 fn test_glob_pattern_recursive() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("glob")
-        .arg("**/*.rs")
-        .assert()
-        .success();
+    cmd.arg("glob").arg("**/*.rs").assert().success();
 }
 
 #[test]
@@ -530,29 +515,19 @@ fn test_grep_pattern_required() {
 #[test]
 fn test_grep_simple_pattern() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("grep")
-        .arg("test")
-        .assert()
-        .success();
+    cmd.arg("grep").arg("test").assert().success();
 }
 
 #[test]
 fn test_grep_regex_pattern() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("grep")
-        .arg("^test.*end$")
-        .assert()
-        .success();
+    cmd.arg("grep").arg("^test.*end$").assert().success();
 }
 
 #[test]
 fn test_grep_case_insensitive_flag() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("grep")
-        .arg("test")
-        .arg("-i")
-        .assert()
-        .success();
+    cmd.arg("grep").arg("test").arg("-i").assert().success();
 }
 
 #[test]
@@ -674,16 +649,14 @@ fn test_grep_head_limit_invalid_value() {
 #[test]
 fn test_all_subcommands_in_help() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("--help")
-        .assert()
-        .success()
-        .stdout(
-            predicate::str::contains("bash").and(predicate::str::contains("read"))
-                .and(predicate::str::contains("write"))
-                .and(predicate::str::contains("edit"))
-                .and(predicate::str::contains("glob"))
-                .and(predicate::str::contains("grep"))
-        );
+    cmd.arg("--help").assert().success().stdout(
+        predicate::str::contains("bash")
+            .and(predicate::str::contains("read"))
+            .and(predicate::str::contains("write"))
+            .and(predicate::str::contains("edit"))
+            .and(predicate::str::contains("glob"))
+            .and(predicate::str::contains("grep")),
+    );
 }
 
 // ============================================================================
@@ -804,10 +777,7 @@ fn test_documented_subcommands() {
 fn test_bash_timeout_default_120000() {
     // The CLI reference documents default timeout as 120000ms
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("bash")
-        .arg("echo test")
-        .assert()
-        .success();
+    cmd.arg("bash").arg("echo test").assert().success();
     // NOTE: This test verifies the flag exists and defaults apply
     // Actual default value validation would require integration with tool execution
 }
@@ -819,10 +789,7 @@ fn test_bash_timeout_default_120000() {
 #[test]
 fn test_bash_empty_command() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("bash")
-        .arg("")
-        .assert()
-        .success(); // Empty string is a valid command (will do nothing)
+    cmd.arg("bash").arg("").assert().success(); // Empty string is a valid command (will do nothing)
 }
 
 #[test]
@@ -876,10 +843,7 @@ fn test_glob_complex_pattern() {
 #[test]
 fn test_grep_with_special_regex_chars() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("grep")
-        .arg("test.*pattern\\d+")
-        .assert()
-        .success();
+    cmd.arg("grep").arg("test.*pattern\\d+").assert().success();
 }
 
 #[test]
@@ -940,9 +904,7 @@ fn test_limit_boundary_one() {
 #[ignore = "Feature not yet implemented: Continue mode"]
 fn test_continue_flag() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("-c")
-        .assert()
-        .failure();
+    cmd.arg("-c").assert().failure();
 }
 
 /// Feature: Resume session by ID
@@ -952,10 +914,7 @@ fn test_continue_flag() {
 #[ignore = "Feature not yet implemented: Resume session"]
 fn test_resume_session_flag() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("-r")
-        .arg("session-123")
-        .assert()
-        .failure();
+    cmd.arg("-r").arg("session-123").assert().failure();
 }
 
 /// Feature: Query via SDK then exit
@@ -965,10 +924,7 @@ fn test_resume_session_flag() {
 #[ignore = "Feature not yet implemented: Print mode"]
 fn test_print_mode_flag() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("-p")
-        .arg("test query")
-        .assert()
-        .failure();
+    cmd.arg("-p").arg("test query").assert().failure();
 }
 
 /// Feature: Update to latest version
@@ -978,9 +934,7 @@ fn test_print_mode_flag() {
 #[ignore = "Feature not yet implemented: Update command"]
 fn test_update_command() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("update")
-        .assert()
-        .failure();
+    cmd.arg("update").assert().failure();
 }
 
 /// Feature: Configure MCP servers
@@ -990,9 +944,7 @@ fn test_update_command() {
 #[ignore = "Feature not yet implemented: MCP command"]
 fn test_mcp_command() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("mcp")
-        .assert()
-        .failure();
+    cmd.arg("mcp").assert().failure();
 }
 
 /// Feature: Add supplementary working directories

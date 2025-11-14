@@ -42,14 +42,11 @@ pub mod loader;
 pub mod manager;
 pub mod manifest;
 pub mod mcp_proxy;
+pub mod subprocess;
 
-pub use agent_discovery::AgentDiscovery;
 pub use discovery::PluginDiscovery;
 pub use executor::PluginExecutor;
-pub use hooks_integration::{PluginHooksIntegrator, register_plugin_hooks};
 pub use loader::PluginLoader;
-pub use manager::{PluginManager, PluginSystemSummary};
-pub use mcp_proxy::McpProxy;
 
 /// Plugin system version
 pub const PLUGIN_VERSION: &str = "1.0.0";
@@ -93,9 +90,9 @@ pub type PluginResult<T> = Result<T, PluginError>;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::discovery::{PluginLoadStatus, PluginMetadata};
     use super::manifest::{CommandDefinition, PluginManifest, SkillDefinition};
+    use super::*;
     use std::collections::HashMap;
     use std::fs;
 

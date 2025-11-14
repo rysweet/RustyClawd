@@ -24,8 +24,8 @@ impl HookLoader {
             .await
             .context("Failed to read hooks configuration file")?;
 
-        let config: HooksConfiguration = serde_json::from_str(&content)
-            .context("Failed to parse hooks configuration JSON")?;
+        let config: HooksConfiguration =
+            serde_json::from_str(&content).context("Failed to parse hooks configuration JSON")?;
 
         Ok(config)
     }
@@ -62,7 +62,7 @@ impl HookLoader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hooks::types::{Hook, HookConfig, HookMatcher, HookType};
+    use crate::hooks::types::{HookMatcher, HookType};
 
     #[tokio::test]
     async fn test_load_empty_config() {
@@ -91,7 +91,10 @@ mod tests {
         let config = HookLoader::load_from_string(json).unwrap();
         assert_eq!(config.session_start.len(), 1);
         assert_eq!(config.session_start[0].hooks.len(), 1);
-        assert_eq!(config.session_start[0].hooks[0].hook_type, HookType::Command);
+        assert_eq!(
+            config.session_start[0].hooks[0].hook_type,
+            HookType::Command
+        );
     }
 
     #[tokio::test]

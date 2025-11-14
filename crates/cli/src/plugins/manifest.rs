@@ -129,7 +129,7 @@ pub fn parse_manifest(plugin_path: &Path) -> Result<PluginManifest, String> {
 
     let content = fs::read_to_string(&manifest_path).map_err(|e| e.to_string())?;
 
-    serde_json::from_str(&content).map_err(|e| format!("Invalid JSON: {}", e.to_string()))
+    serde_json::from_str(&content).map_err(|e| format!("Invalid JSON: {}", e))
 }
 
 /// Validate manifest against required schema
@@ -182,7 +182,10 @@ fn is_valid_semver(version: &str) -> bool {
 }
 
 /// Validate that all referenced files exist
-pub fn validate_references(manifest: &PluginManifest, plugin_path: &Path) -> Result<(), Vec<String>> {
+pub fn validate_references(
+    manifest: &PluginManifest,
+    plugin_path: &Path,
+) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
 
     // Validate main entry point

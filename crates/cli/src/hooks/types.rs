@@ -519,7 +519,10 @@ pub struct HookOutput {
     #[serde(rename = "permissionDecision", skip_serializing_if = "Option::is_none")]
     pub permission_decision: Option<PermissionDecision>,
     /// Reason for permission decision
-    #[serde(rename = "permissionDecisionReason", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "permissionDecisionReason",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub permission_decision_reason: Option<String>,
     /// Stop decision for Stop/SubagentStop hooks
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -542,7 +545,10 @@ pub struct HookSpecificOutput {
     #[serde(rename = "permissionDecision", skip_serializing_if = "Option::is_none")]
     pub permission_decision: Option<PermissionDecision>,
     /// Reason for permission decision
-    #[serde(rename = "permissionDecisionReason", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "permissionDecisionReason",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub permission_decision_reason: Option<String>,
     /// Updated tool parameters
     #[serde(rename = "updatedInput", skip_serializing_if = "Option::is_none")]

@@ -133,11 +133,7 @@ impl crate::Tool for EditTool {
             };
 
             let new_bytes = new_content.len();
-            let bytes_changed = if new_bytes > original_bytes {
-                new_bytes - original_bytes
-            } else {
-                original_bytes - new_bytes
-            };
+            let bytes_changed = new_bytes.abs_diff(original_bytes);
 
             yield ToolEvent::Progress {
                 step: "Writing changes...".to_string(),
@@ -194,8 +190,8 @@ mod tests {
     use super::*;
     use crate::Tool;
     use futures::StreamExt;
-    use tempfile::NamedTempFile;
     use std::io::Write;
+    use tempfile::NamedTempFile;
 
     #[tokio::test]
     async fn test_edit_single_replacement() {
@@ -216,10 +212,13 @@ mod tests {
         let mut stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert_eq!(result.replacements, 1);
 
@@ -248,10 +247,13 @@ mod tests {
         let mut stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert_eq!(result.replacements, 3);
 

@@ -105,15 +105,18 @@ impl SessionSaver {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::checkpoint::types::{SessionState};
-    use std::path::PathBuf;
+    use crate::checkpoint::types::SessionState;
 
     fn temp_storage() -> CheckpointStorage {
         // Use a unique name combining process ID and a random component to avoid conflicts
-        let unique_id = format!("checkpoint-test-{}-{}", std::process::id(), std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos());
+        let unique_id = format!(
+            "checkpoint-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
         let temp_dir = std::env::temp_dir().join(unique_id);
         CheckpointStorage::new(temp_dir)
     }
@@ -122,17 +125,24 @@ mod tests {
     fn test_saver_creation() {
         let storage = temp_storage();
         let saver = SessionSaver::new(storage);
-        assert!(saver.storage().session_dir("test").to_string_lossy().contains("checkpoint-test"));
+        assert!(saver
+            .storage()
+            .session_dir("test")
+            .to_string_lossy()
+            .contains("checkpoint-test"));
     }
 
     #[test]
     fn test_save_checkpoint() {
         let storage = temp_storage();
         let saver = SessionSaver::new(storage);
-        let session_id = format!("session-{}", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos());
+        let session_id = format!(
+            "session-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
 
         let state = SessionState::new("/project");
         let checkpoint = Checkpoint::new("cp-001", 1, 1000, state);
@@ -148,10 +158,13 @@ mod tests {
     fn test_save_session() {
         let storage = temp_storage();
         let saver = SessionSaver::new(storage);
-        let session_id = format!("session-{}", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos());
+        let session_id = format!(
+            "session-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
         let mut session = Session::new(&session_id, 10);
 
         session.create_checkpoint(Some("First checkpoint".to_string()));

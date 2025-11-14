@@ -49,8 +49,8 @@ pub use config::{ApiKey, Config};
 pub use error::{ClientError, ClientResult};
 pub use stream::{EventStream, SseEvent, SseStream};
 pub use types::{
-    ContentBlock, CreateMessageRequest, Message, MessageResponse, Role, StreamEvent, Usage,
-    ToolDefinition, ToolChoice,
+    ContentBlock, CreateMessageRequest, Message, MessageResponse, Role, StreamEvent, ToolChoice,
+    ToolDefinition, Usage,
 };
 
 /// Anthropic API client
@@ -311,10 +311,9 @@ impl Client {
             ));
 
             // Then add tool results as user message with tool_result blocks
-            request.messages.push(Message::with_blocks(
-                Role::User,
-                tool_result_blocks,
-            ));
+            request
+                .messages
+                .push(Message::with_blocks(Role::User, tool_result_blocks));
         }
     }
 }

@@ -173,11 +173,7 @@ impl AgentSDK {
     }
 
     /// Simulate agent query with session management
-    fn query(
-        &self,
-        prompt: &str,
-        options: &AgentOptions,
-    ) -> Result<AgentResult, String> {
+    fn query(&self, prompt: &str, options: &AgentOptions) -> Result<AgentResult, String> {
         let session_id = self.get_or_create_session(options)?;
         let mut contexts = self.session_contexts.lock().unwrap();
         let context = contexts
@@ -188,11 +184,15 @@ impl AgentSDK {
         self.trigger_hook(HookEvent::SessionStart, &session_id);
 
         // Add user message to session
-        context.messages.push(("user".to_string(), prompt.to_string()));
+        context
+            .messages
+            .push(("user".to_string(), prompt.to_string()));
 
         // Simulate message processing
         let response = format!("Response to: {}", prompt);
-        context.messages.push(("assistant".to_string(), response.clone()));
+        context
+            .messages
+            .push(("assistant".to_string(), response.clone()));
         context.continuation_count += 1;
 
         // Fire SessionEnd hook
@@ -337,11 +337,7 @@ impl AgentSDK {
     }
 
     /// Start a background process and return shell ID
-    fn run_background(
-        &self,
-        _command: &str,
-        _session_id: &str,
-    ) -> Result<ShellId, String> {
+    fn run_background(&self, _command: &str, _session_id: &str) -> Result<ShellId, String> {
         let shell_id = ShellId::new(format!("shell_{}", uuid_stub()));
 
         let process = ProcessOutput {
@@ -483,7 +479,9 @@ fn test_agent_query_empty_prompt() {
     let sdk = AgentSDK::new();
     let options = AgentOptions::default();
 
-    let result = sdk.query("", &options).expect("Empty prompt should succeed");
+    let result = sdk
+        .query("", &options)
+        .expect("Empty prompt should succeed");
 
     assert_eq!(result.content, "Response to: ");
 }
@@ -669,7 +667,9 @@ fn test_result_error_handling_invalid_tool() {
     let sdk = AgentSDK::new();
     let options = AgentOptions::default();
 
-    let result = sdk.query("Use tool", &options).expect("Query should succeed");
+    let result = sdk
+        .query("Use tool", &options)
+        .expect("Query should succeed");
 
     // Successful query, error would be in tool execution
     assert!(result.error.is_none());
@@ -906,9 +906,15 @@ fn test_isolation_no_restrictions_allows_all() {
     let sdk = AgentSDK::new();
     let options = AgentOptions::default(); // No allowed/disallowed lists
 
-    assert!(sdk.execute_tool("session_1", "bash", "ls", &options).is_ok());
-    assert!(sdk.execute_tool("session_1", "web_search", "query", &options).is_ok());
-    assert!(sdk.execute_tool("session_1", "read_file", "file.txt", &options).is_ok());
+    assert!(sdk
+        .execute_tool("session_1", "bash", "ls", &options)
+        .is_ok());
+    assert!(sdk
+        .execute_tool("session_1", "web_search", "query", &options)
+        .is_ok());
+    assert!(sdk
+        .execute_tool("session_1", "read_file", "file.txt", &options)
+        .is_ok());
 }
 
 #[test]
@@ -918,8 +924,12 @@ fn test_isolation_empty_allowed_list_restricts_all() {
     let mut options = AgentOptions::default();
     options.allowed_tools = Some(vec![]); // Empty means no tools
 
-    assert!(sdk.execute_tool("session_1", "bash", "ls", &options).is_err());
-    assert!(sdk.execute_tool("session_1", "web_search", "query", &options).is_err());
+    assert!(sdk
+        .execute_tool("session_1", "bash", "ls", &options)
+        .is_err());
+    assert!(sdk
+        .execute_tool("session_1", "web_search", "query", &options)
+        .is_err());
 }
 
 #[test]
@@ -976,7 +986,9 @@ fn test_hooks_session_start_fired() {
     let _result = sdk.query("Test", &options).expect("Query should succeed");
 
     let hooks = sdk.get_hook_calls();
-    assert!(hooks.iter().any(|(event, _)| *event == HookEvent::SessionStart));
+    assert!(hooks
+        .iter()
+        .any(|(event, _)| *event == HookEvent::SessionStart));
 }
 
 #[test]
@@ -989,7 +1001,9 @@ fn test_hooks_session_end_fired() {
     let _result = sdk.query("Test", &options).expect("Query should succeed");
 
     let hooks = sdk.get_hook_calls();
-    assert!(hooks.iter().any(|(event, _)| *event == HookEvent::SessionEnd));
+    assert!(hooks
+        .iter()
+        .any(|(event, _)| *event == HookEvent::SessionEnd));
 }
 
 #[test]
@@ -1002,7 +1016,9 @@ fn test_hooks_pre_tool_use_fired() {
     let _result = sdk.execute_tool("session_1", "bash", "ls", &options);
 
     let hooks = sdk.get_hook_calls();
-    assert!(hooks.iter().any(|(event, _)| *event == HookEvent::PreToolUse));
+    assert!(hooks
+        .iter()
+        .any(|(event, _)| *event == HookEvent::PreToolUse));
 }
 
 #[test]
@@ -1015,7 +1031,9 @@ fn test_hooks_post_tool_use_fired() {
     let _result = sdk.execute_tool("session_1", "bash", "ls", &options);
 
     let hooks = sdk.get_hook_calls();
-    assert!(hooks.iter().any(|(event, _)| *event == HookEvent::PostToolUse));
+    assert!(hooks
+        .iter()
+        .any(|(event, _)| *event == HookEvent::PostToolUse));
 }
 
 #[test]
@@ -1070,8 +1088,14 @@ fn test_hooks_multiple_tool_executions() {
     let _tool2 = sdk.execute_tool("session_1", "web_search", "query", &options);
 
     let hooks = sdk.get_hook_calls();
-    let pre_count = hooks.iter().filter(|(e, _)| *e == HookEvent::PreToolUse).count();
-    let post_count = hooks.iter().filter(|(e, _)| *e == HookEvent::PostToolUse).count();
+    let pre_count = hooks
+        .iter()
+        .filter(|(e, _)| *e == HookEvent::PreToolUse)
+        .count();
+    let post_count = hooks
+        .iter()
+        .filter(|(e, _)| *e == HookEvent::PostToolUse)
+        .count();
 
     assert_eq!(pre_count, 2);
     assert_eq!(post_count, 2);
@@ -1177,10 +1201,7 @@ fn test_subagent_tool_isolation() {
         definition1.allowed_tools.as_ref().unwrap(),
         &vec!["bash".to_string()]
     );
-    assert_eq!(
-        definition2.allowed_tools.as_ref().unwrap().len(),
-        2
-    );
+    assert_eq!(definition2.allowed_tools.as_ref().unwrap().len(), 2);
 }
 
 #[test]
@@ -1194,10 +1215,7 @@ fn test_subagent_model_override() {
         model_override: Some("claude-sonnet".to_string()),
     };
 
-    assert_eq!(
-        definition.model_override,
-        Some("claude-sonnet".to_string())
-    );
+    assert_eq!(definition.model_override, Some("claude-sonnet".to_string()));
 }
 
 // ============================================================================
@@ -1211,7 +1229,9 @@ fn test_boundary_very_long_prompt() {
     let options = AgentOptions::default();
     let long_prompt = "x".repeat(10000);
 
-    let result = sdk.query(&long_prompt, &options).expect("Should handle long prompt");
+    let result = sdk
+        .query(&long_prompt, &options)
+        .expect("Should handle long prompt");
 
     assert!(!result.content.is_empty());
 }
@@ -1276,7 +1296,9 @@ fn test_boundary_deeply_nested_session_forks() {
     let mut options = AgentOptions::default();
 
     // Create parent
-    let _parent = sdk.query("Parent", &options).expect("Parent should succeed");
+    let _parent = sdk
+        .query("Parent", &options)
+        .expect("Parent should succeed");
 
     // Fork from parent
     options.fork_session = true;

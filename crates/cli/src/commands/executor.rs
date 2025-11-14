@@ -161,10 +161,7 @@ mod tests {
         let result = executor.execute(&cmd, &registry).await;
 
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("not found"));
+        assert!(result.unwrap_err().to_string().contains("not found"));
     }
 
     #[tokio::test]
@@ -180,13 +177,13 @@ mod tests {
 
         registry.register(cmd_obj).unwrap();
 
-        let cmd = Command::new(
-            "analyze".to_string(),
-            Some("456 high alice".to_string()),
-        );
+        let cmd = Command::new("analyze".to_string(), Some("456 high alice".to_string()));
         let result = executor.execute(&cmd, &registry).await.unwrap();
 
-        assert_eq!(result.expanded_prompt, "PR 456 priority high reviewer alice");
+        assert_eq!(
+            result.expanded_prompt,
+            "PR 456 priority high reviewer alice"
+        );
         assert_eq!(result.arguments.len(), 3);
     }
 
@@ -207,10 +204,7 @@ mod tests {
         let result = executor.execute(&cmd, &registry).await;
 
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("character limit"));
+        assert!(result.unwrap_err().to_string().contains("character limit"));
     }
 
     #[tokio::test]

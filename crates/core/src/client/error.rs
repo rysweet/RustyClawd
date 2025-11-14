@@ -40,9 +40,8 @@ static API_KEY_PATTERN: OnceLock<Regex> = OnceLock::new();
 
 /// Get or initialize the API key detection pattern
 fn api_key_pattern() -> &'static Regex {
-    API_KEY_PATTERN.get_or_init(|| {
-        Regex::new(r"sk-ant-[a-zA-Z0-9_-]+").expect("Invalid regex pattern")
-    })
+    API_KEY_PATTERN
+        .get_or_init(|| Regex::new(r"sk-ant-[a-zA-Z0-9_-]+").expect("Invalid regex pattern"))
 }
 
 /// Sanitize error messages to remove any API keys

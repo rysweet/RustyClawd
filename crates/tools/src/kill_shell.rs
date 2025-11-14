@@ -5,8 +5,8 @@
 //! - Signal handling
 //! - Resource cleanup
 
-use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
 use crate::process_registry::global_registry;
+use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
 use async_stream::stream;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -138,10 +138,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert_eq!(result.shell_id, "test_kill_basic");
         assert!(result.success);
@@ -162,10 +165,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert_eq!(result.shell_id, "nonexistent_shell");
         assert!(!result.success);
@@ -199,10 +205,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         // Should still succeed even if process already completed
         assert_eq!(result.shell_id, "test_kill_completed");
@@ -243,10 +252,13 @@ mod tests {
             let stream = tool.execute(params, &ctx).await.unwrap();
             let events: Vec<_> = stream.collect().await;
 
-            let result = events.iter().find_map(|e| match e {
-                ToolEvent::Result(output) => Some(output),
-                _ => None,
-            }).unwrap();
+            let result = events
+                .iter()
+                .find_map(|e| match e {
+                    ToolEvent::Result(output) => Some(output),
+                    _ => None,
+                })
+                .unwrap();
 
             assert!(result.success);
         }
@@ -279,20 +291,26 @@ mod tests {
         // First kill should succeed
         let stream = tool.execute(params.clone(), &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
-        let result1 = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result1 = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert!(result1.success);
 
         // Second kill should fail (not found)
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
-        let result2 = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result2 = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert!(!result2.success);
         assert!(result2.message.contains("not found"));
@@ -312,7 +330,10 @@ mod tests {
         registry.register(test_shell_id.clone(), child).await.ok();
 
         // Add some output
-        registry.append_output(&test_shell_id, "Output before kill".to_string(), false).await.ok();
+        registry
+            .append_output(&test_shell_id, "Output before kill".to_string(), false)
+            .await
+            .ok();
 
         let tool = KillShellTool;
         let params = KillShellParams {
@@ -323,10 +344,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert!(result.success);
         assert!(!registry.exists(&test_shell_id).await);
@@ -354,10 +378,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         // Check message format
         assert!(result.message.contains(&test_shell_id));
@@ -387,7 +414,9 @@ mod tests {
         let events: Vec<_> = stream.collect().await;
 
         // Should have at least one progress event
-        let has_progress = events.iter().any(|e| matches!(e, ToolEvent::Progress { .. }));
+        let has_progress = events
+            .iter()
+            .any(|e| matches!(e, ToolEvent::Progress { .. }));
         assert!(has_progress, "Expected progress event");
     }
 
@@ -405,10 +434,14 @@ mod tests {
                 .spawn()
                 .expect("Failed to spawn test process");
 
-            let shell_id = format!("test_kill_rapid_{}_{}", i, std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos());
+            let shell_id = format!(
+                "test_kill_rapid_{}_{}",
+                i,
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            );
             registry.register(shell_id.clone(), child).await.ok();
             shell_ids.push(shell_id);
         }
@@ -427,7 +460,11 @@ mod tests {
 
         // Verify all are gone
         for shell_id in &shell_ids {
-            assert!(!registry.exists(shell_id).await, "Shell {} still exists", shell_id);
+            assert!(
+                !registry.exists(shell_id).await,
+                "Shell {} still exists",
+                shell_id
+            );
         }
     }
 
@@ -442,10 +479,13 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert!(!result.success);
     }

@@ -7,9 +7,9 @@
 //! - Timeout handling
 //! - Error propagation
 
-use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream, ExecutionContext};
-use crate::process_registry::{global_registry, ProcessRegistry};
 use crate::process_isolation::{apply_isolation, ProcessSpawnConfig};
+use crate::process_registry::{global_registry, ProcessRegistry};
+use crate::{ExecutionContext, ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
 use async_stream::stream;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -195,9 +195,9 @@ impl crate::Tool for BashTool {
 
                 // Collect outputs
                 let stdout_output = stdout_handle.await
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))??;
+                    .map_err(|e| std::io::Error::other(e))??;
                 let stderr_output = stderr_handle.await
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))??;
+                    .map_err(|e| std::io::Error::other(e))??;
 
                 Ok::<_, std::io::Error>(BashOutput {
                     stdout: Some(stdout_output),

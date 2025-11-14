@@ -1,11 +1,11 @@
 //! Command registry - discovers and manages available commands
 
 use crate::commands::loader::{CommandLoader, LoadedCommand};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use tokio::fs;
 use thiserror::Error;
+use tokio::fs;
 
 /// Registry errors
 #[derive(Error, Debug)]
@@ -75,12 +75,16 @@ impl Registry {
         // Load from personal directory first (lower priority)
         let personal_dir_clone = registry.personal_dir.clone();
         if let Some(personal_dir) = personal_dir_clone {
-            registry.load_from_directory(&personal_dir, CommandScope::Personal).await?;
+            registry
+                .load_from_directory(&personal_dir, CommandScope::Personal)
+                .await?;
         }
 
         // Load from project directory (higher priority, can override personal commands)
         let project_dir_clone = registry.project_dir.clone();
-        registry.load_from_directory(&project_dir_clone, CommandScope::Project).await?;
+        registry
+            .load_from_directory(&project_dir_clone, CommandScope::Project)
+            .await?;
 
         Ok(registry)
     }
@@ -89,7 +93,11 @@ impl Registry {
     async fn load_from_directory(&mut self, dir: &Path, scope: CommandScope) -> Result<()> {
         // Create directory if it doesn't exist
         if let Err(e) = fs::create_dir_all(dir).await {
-            tracing::debug!("Could not create commands directory {}: {}", dir.display(), e);
+            tracing::debug!(
+                "Could not create commands directory {}: {}",
+                dir.display(),
+                e
+            );
             return Ok(()); // Not an error if personal dir doesn't exist
         }
 
@@ -116,18 +124,10 @@ impl Registry {
                                 scope,
                             },
                         );
-                        tracing::debug!(
-                            "Loaded command '{}' from {:?} scope",
-                            name,
-                            scope
-                        );
+                        tracing::debug!("Loaded command '{}' from {:?} scope", name, scope);
                     }
                     Err(e) => {
-                        tracing::warn!(
-                            "Failed to load command from {}: {}",
-                            path.display(),
-                            e
-                        );
+                        tracing::warn!("Failed to load command from {}: {}", path.display(), e);
                     }
                 }
             }
@@ -206,10 +206,7 @@ impl Registry {
                     .map(|h| format!(" {}", h))
                     .unwrap_or_default();
 
-                format!(
-                    "/{}{}\n  {}\n  Scope: {}",
-                    name, hint, desc, scope_str
-                )
+                format!("/{}{}\n  {}\n  Scope: {}", name, hint, desc, scope_str)
             }
             Err(_) => format!("Command '{}' not found", name),
         }

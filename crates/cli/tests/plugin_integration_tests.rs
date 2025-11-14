@@ -9,17 +9,18 @@
 //! - Hooks integration
 //! - Plugin manager orchestration
 
-use claude_code_cli::plugins::*;
 use claude_code_cli::hooks::registry::HookRegistry;
+use claude_code_cli::plugins::agent_discovery::AgentDiscovery;
+use claude_code_cli::plugins::hooks_integration::PluginHooksIntegrator;
+use claude_code_cli::plugins::manager::PluginManager;
+use claude_code_cli::plugins::mcp_proxy::McpProxy;
+use claude_code_cli::plugins::*;
 use std::collections::HashMap;
 use std::fs;
 use tempfile::TempDir;
 
 /// Helper to create a test plugin directory structure
-fn create_test_plugin(
-    root: &std::path::Path,
-    plugin_id: &str,
-) -> std::path::PathBuf {
+fn create_test_plugin(root: &std::path::Path, plugin_id: &str) -> std::path::PathBuf {
     let plugin_dir = root.join(plugin_id);
     fs::create_dir_all(&plugin_dir).unwrap();
 
@@ -48,11 +49,7 @@ fn create_test_plugin(
     .unwrap();
 
     // Create index.js
-    fs::write(
-        plugin_dir.join("index.js"),
-        "console.log('Plugin loaded');",
-    )
-    .unwrap();
+    fs::write(plugin_dir.join("index.js"), "console.log('Plugin loaded');").unwrap();
 
     plugin_dir
 }
@@ -165,10 +162,7 @@ async fn test_hooks_integration() {
         handler: "test-hook.sh".to_string(),
     };
 
-    let integrator = PluginHooksIntegrator::new(
-        "test-plugin".to_string(),
-        plugin_dir,
-    );
+    let integrator = PluginHooksIntegrator::new("test-plugin".to_string(), plugin_dir);
 
     let mut registry = HookRegistry::new();
     let result = integrator.register_hooks(&vec![hook_def], &mut registry);
@@ -189,11 +183,7 @@ async fn test_plugin_manager_lifecycle() {
     // Create commands directory
     let commands_dir = plugin_dir.join("commands");
     fs::create_dir(&commands_dir).unwrap();
-    fs::write(
-        commands_dir.join("test.js"),
-        "console.log('Test command');",
-    )
-    .unwrap();
+    fs::write(commands_dir.join("test.js"), "console.log('Test command');").unwrap();
 
     // Create skills directory
     let skills_dir = plugin_dir.join("skills");
@@ -238,21 +228,19 @@ async fn test_plugin_manager_lifecycle() {
     )
     .unwrap();
 
-    fs::write(
-        plugin_dir.join("index.js"),
-        "console.log('Plugin loaded');",
-    )
-    .unwrap();
+    fs::write(plugin_dir.join("index.js"), "console.log('Plugin loaded');").unwrap();
 
     // Test plugin manager
-    let mut manager = PluginManager::new(&plugins_root)
-        .with_project_root(temp_dir.path());
+    let mut manager = PluginManager::new(&plugins_root).with_project_root(temp_dir.path());
 
     let loaded = manager.discover_and_load_all().await.unwrap();
     eprintln!("Loaded plugins: {:?}", loaded);
 
     let summary = manager.summary();
-    eprintln!("Summary: total={}, loaded={}", summary.total_plugins, summary.loaded_plugins);
+    eprintln!(
+        "Summary: total={}, loaded={}",
+        summary.total_plugins, summary.loaded_plugins
+    );
 
     assert_eq!(loaded.len(), 1);
     assert_eq!(loaded[0], "full-plugin");
@@ -284,11 +272,7 @@ async fn test_plugin_with_agents() {
     // Create agents directory
     let agents_dir = temp_dir.path().join(".claude").join("agents");
     fs::create_dir_all(&agents_dir).unwrap();
-    fs::write(
-        agents_dir.join("my-agent.md"),
-        "# My Agent\n\nDoes things.",
-    )
-    .unwrap();
+    fs::write(agents_dir.join("my-agent.md"), "# My Agent\n\nDoes things.").unwrap();
 
     // Create plugin with agent reference
     let plugin_dir = plugins_root.join("agent-plugin");
@@ -331,14 +315,9 @@ async fn test_plugin_with_agents() {
     )
     .unwrap();
 
-    fs::write(
-        plugin_dir.join("index.js"),
-        "console.log('Agent plugin');",
-    )
-    .unwrap();
+    fs::write(plugin_dir.join("index.js"), "console.log('Agent plugin');").unwrap();
 
-    let mut manager = PluginManager::new(&plugins_root)
-        .with_project_root(temp_dir.path());
+    let mut manager = PluginManager::new(&plugins_root).with_project_root(temp_dir.path());
 
     let loaded = manager.discover_and_load_all().await.unwrap();
     assert_eq!(loaded.len(), 1);
@@ -380,11 +359,7 @@ async fn test_complete_plugin_system_workflow() {
         "# Skill\n\nSkill content.",
     )
     .unwrap();
-    fs::write(
-        plugin_dir.join("hooks/hook.sh"),
-        "#!/bin/bash\necho 'Hook'",
-    )
-    .unwrap();
+    fs::write(plugin_dir.join("hooks/hook.sh"), "#!/bin/bash\necho 'Hook'").unwrap();
     fs::write(
         plugin_dir.join("agents/agent.md"),
         "# Agent\n\nAgent content.",
@@ -443,8 +418,7 @@ async fn test_complete_plugin_system_workflow() {
     fs::write(plugin_dir.join("index.js"), "console.log('OK');").unwrap();
 
     // Full workflow
-    let mut manager = PluginManager::new(&plugins_root)
-        .with_project_root(temp_dir.path());
+    let mut manager = PluginManager::new(&plugins_root).with_project_root(temp_dir.path());
 
     // 1. Discover and load
     let loaded = manager.discover_and_load_all().await.unwrap();

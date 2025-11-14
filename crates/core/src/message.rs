@@ -58,11 +58,13 @@ impl Message {
 
     /// Estimate size in bytes for memory management
     pub fn estimated_size(&self) -> usize {
-        self.content.len() +
-        self.metadata.as_ref()
-            .and_then(|m| serde_json::to_string(m).ok())
-            .map(|s| s.len())
-            .unwrap_or(0)
+        self.content.len()
+            + self
+                .metadata
+                .as_ref()
+                .and_then(|m| serde_json::to_string(m).ok())
+                .map(|s| s.len())
+                .unwrap_or(0)
     }
 }
 

@@ -3,7 +3,7 @@
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tokio::fs;
 use tokio::process::Command as TokioCommand;
 
@@ -141,7 +141,11 @@ impl CommandLoader {
     /// Expand file references (@filename) in template
     ///
     /// Replaces @filename with the contents of the file
-    pub async fn expand_file_references(&self, template: &str, working_dir: &Path) -> Result<String> {
+    pub async fn expand_file_references(
+        &self,
+        template: &str,
+        working_dir: &Path,
+    ) -> Result<String> {
         let mut result = template.to_string();
 
         // Find all @filename patterns (supports @path/to/file.txt)
@@ -244,7 +248,9 @@ impl CommandLoader {
         let after_bash = self.expand_bash_commands(template).await?;
 
         // Step 2: Expand file references
-        let after_files = self.expand_file_references(&after_bash, working_dir).await?;
+        let after_files = self
+            .expand_file_references(&after_bash, working_dir)
+            .await?;
 
         // Step 3: Expand arguments
         Ok(self.expand_template(&after_files, args))
@@ -301,10 +307,7 @@ mod tests {
         let (_, body) = loader.parse_frontmatter(content).unwrap();
 
         // Should use content as-is when malformed
-        assert_eq!(
-            body,
-            "---\nincomplete frontmatter\nPrompt content"
-        );
+        assert_eq!(body, "---\nincomplete frontmatter\nPrompt content");
     }
 
     #[test]
@@ -341,11 +344,7 @@ mod tests {
     fn test_expand_template_multiple_positional() {
         let loader = CommandLoader::new();
         let template = "PR {0} priority {1} assignee {2}";
-        let args = vec![
-            "456".to_string(),
-            "high".to_string(),
-            "alice".to_string(),
-        ];
+        let args = vec!["456".to_string(), "high".to_string(), "alice".to_string()];
 
         let result = loader.expand_template(template, &args);
 
@@ -376,7 +375,7 @@ mod tests {
     }
 
     #[test]
-    fn test_expand_template_unused_placeholders() {
+    fn test_expand_template_with_unused_parameters() {
         let loader = CommandLoader::new();
         let template = "Use {0} and {1} but not {2}";
         let args = vec!["a".to_string(), "b".to_string()];

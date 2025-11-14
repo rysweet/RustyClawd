@@ -147,14 +147,8 @@ fn test_session_history_preserves_order() {
 
     assert_eq!(session.history_len(), 5);
     let history = session.get_history();
-    assert_eq!(
-        history.first().unwrap().content,
-        "message 0"
-    );
-    assert_eq!(
-        history.last().unwrap().content,
-        "message 4"
-    );
+    assert_eq!(history.first().unwrap().content, "message 0");
+    assert_eq!(history.last().unwrap().content, "message 4");
 }
 
 #[test]
@@ -361,10 +355,13 @@ fn test_output_shows_detailed_tool_usage_when_verbose() {
     let output_ctrl = OutputController::new();
     output_ctrl.toggle_verbose();
 
-    let output = ToolOutput::new("bash", vec![
-        ToolDetail::step("Running command"),
-        ToolDetail::result("Command executed"),
-    ]);
+    let output = ToolOutput::new(
+        "bash",
+        vec![
+            ToolDetail::step("Running command"),
+            ToolDetail::result("Command executed"),
+        ],
+    );
 
     let formatted = output_ctrl.format_output(&output);
     assert!(formatted.contains("Running command"));
@@ -490,7 +487,9 @@ fn test_multi_turn_user_assistant_exchange() {
     session.add_assistant_response("A trait is a collection of methods...");
 
     // Turn 2
-    let _user_input2 = session.process_input("Can I implement multiple traits?").unwrap();
+    let _user_input2 = session
+        .process_input("Can I implement multiple traits?")
+        .unwrap();
     session.add_assistant_response("Yes, absolutely. You can implement...");
 
     // Turn 3
@@ -587,7 +586,9 @@ fn test_verbose_output_shows_tool_details() {
 fn test_background_command_execution() {
     let session = InteractiveSession::new();
 
-    let task_id = session.process_background_command("find . -type f").unwrap();
+    let task_id = session
+        .process_background_command("find . -type f")
+        .unwrap();
     assert!(task_id.len() > 0);
 
     // Session should remain responsive
@@ -602,7 +603,9 @@ fn test_background_task_id_retrieval() {
     let session = InteractiveSession::new();
 
     let task_id1 = session.process_background_command("sleep 5").unwrap();
-    let task_id2 = session.process_background_command("grep pattern file").unwrap();
+    let task_id2 = session
+        .process_background_command("grep pattern file")
+        .unwrap();
 
     let tasks = session.get_background_tasks();
     assert!(tasks.contains(&task_id1));
@@ -621,7 +624,7 @@ fn test_session_survives_input_errors() {
     assert!(result1.is_ok());
 
     let _result2 = session.process_input(""); // Empty input
-    // Session should handle gracefully
+                                              // Session should handle gracefully
     assert_eq!(session.status(), SessionStatus::Active);
 
     let result3 = session.process_input("more valid input");
@@ -706,7 +709,9 @@ fn test_full_interactive_session_workflow() {
 
     // 2. Multi-turn conversation
     session.process_input("Help me create a test").unwrap();
-    session.process_input("What patterns should I use?").unwrap();
+    session
+        .process_input("What patterns should I use?")
+        .unwrap();
 
     // 3. Execute bash commands
     session.process_input("!cargo test").unwrap();
@@ -870,10 +875,7 @@ impl InteractiveSession {
                 .lock()
                 .unwrap()
                 .add_message(SessionMessage::user_prompt(input));
-            self.command_history
-                .lock()
-                .unwrap()
-                .add_command(input);
+            self.command_history.lock().unwrap().add_command(input);
         }
 
         Ok(parsed)
@@ -1070,12 +1072,7 @@ impl CommandHistory {
             .unwrap()
             .iter()
             .filter(|cmd| cmd.contains(pattern))
-            .map(|cmd| {
-                cmd.replace(
-                    pattern,
-                    &format!(">>>{}<<<", pattern),
-                )
-            })
+            .map(|cmd| cmd.replace(pattern, &format!(">>>{}<<<", pattern)))
             .collect();
 
         matches.join("\n")
@@ -1329,4 +1326,3 @@ fn parse_input(input: &str) -> ParsedInput {
         }
     }
 }
-

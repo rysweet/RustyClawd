@@ -82,15 +82,59 @@ impl HookRegistry {
 
     /// Count total hooks registered
     pub fn count_total_hooks(&self) -> usize {
-        self.configuration.session_start.iter().map(|c| c.hooks.len()).sum::<usize>()
-            + self.configuration.session_end.iter().map(|c| c.hooks.len()).sum::<usize>()
-            + self.configuration.pre_tool_use.iter().map(|c| c.hooks.len()).sum::<usize>()
-            + self.configuration.post_tool_use.iter().map(|c| c.hooks.len()).sum::<usize>()
-            + self.configuration.user_prompt_submit.iter().map(|c| c.hooks.len()).sum::<usize>()
-            + self.configuration.stop.iter().map(|c| c.hooks.len()).sum::<usize>()
-            + self.configuration.subagent_stop.iter().map(|c| c.hooks.len()).sum::<usize>()
-            + self.configuration.notification.iter().map(|c| c.hooks.len()).sum::<usize>()
-            + self.configuration.pre_compact.iter().map(|c| c.hooks.len()).sum::<usize>()
+        self.configuration
+            .session_start
+            .iter()
+            .map(|c| c.hooks.len())
+            .sum::<usize>()
+            + self
+                .configuration
+                .session_end
+                .iter()
+                .map(|c| c.hooks.len())
+                .sum::<usize>()
+            + self
+                .configuration
+                .pre_tool_use
+                .iter()
+                .map(|c| c.hooks.len())
+                .sum::<usize>()
+            + self
+                .configuration
+                .post_tool_use
+                .iter()
+                .map(|c| c.hooks.len())
+                .sum::<usize>()
+            + self
+                .configuration
+                .user_prompt_submit
+                .iter()
+                .map(|c| c.hooks.len())
+                .sum::<usize>()
+            + self
+                .configuration
+                .stop
+                .iter()
+                .map(|c| c.hooks.len())
+                .sum::<usize>()
+            + self
+                .configuration
+                .subagent_stop
+                .iter()
+                .map(|c| c.hooks.len())
+                .sum::<usize>()
+            + self
+                .configuration
+                .notification
+                .iter()
+                .map(|c| c.hooks.len())
+                .sum::<usize>()
+            + self
+                .configuration
+                .pre_compact
+                .iter()
+                .map(|c| c.hooks.len())
+                .sum::<usize>()
     }
 }
 
@@ -103,7 +147,7 @@ impl Default for HookRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hooks::types::{HookMatcher, HookType};
+    use crate::hooks::types::HookMatcher;
 
     #[test]
     fn test_registry_creation() {

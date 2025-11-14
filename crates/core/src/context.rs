@@ -70,7 +70,8 @@ impl Context {
 
     /// Estimate total memory usage in bytes
     pub fn memory_usage(&self) -> usize {
-        self.messages.iter()
+        self.messages
+            .iter()
             .map(|m| m.estimated_size())
             .sum::<usize>()
     }

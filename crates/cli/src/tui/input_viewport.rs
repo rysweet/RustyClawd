@@ -218,7 +218,10 @@ mod tests {
         // Cursor should be roughly centered
         assert!(viewport.viewport_offset > 0);
         assert!(viewport.viewport_offset < cursor_pos);
-        assert_eq!(viewport.viewport_cursor_pos, cursor_pos - viewport.viewport_offset);
+        assert_eq!(
+            viewport.viewport_cursor_pos,
+            cursor_pos - viewport.viewport_offset
+        );
         assert_eq!(count_graphemes(&viewport.visible_text), available_width);
     }
 

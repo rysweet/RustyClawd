@@ -2,15 +2,16 @@
 //!
 //! This module bridges between Anthropic API tool calls and our internal tool implementations.
 
+use crate::terminal_guard::TerminalGuard;
 use anyhow::Result;
+use futures::StreamExt;
 use rustyclawd_core::client::ClientError;
 use rustyclawd_tools::{
-    AgentTool, AskUserQuestionTool, BashTool, BashOutputTool, EditTool, GlobTool, GrepTool,
-    KillShellTool, ReadTool, SkillTool, SlashCommandTool, TodoWriteTool, Tool, ToolContext, ToolEvent, WriteTool,
+    AgentTool, AskUserQuestionTool, BashOutputTool, BashTool, EditTool, GlobTool, GrepTool,
+    KillShellTool, ReadTool, SkillTool, SlashCommandTool, TodoWriteTool, Tool, ToolContext,
+    ToolEvent, WriteTool,
 };
-use futures::StreamExt;
 use serde_json::{json, Value};
-use crate::terminal_guard::TerminalGuard;
 
 /// Create an educational error message that teaches Claude the correct schema
 fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
@@ -21,7 +22,7 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
             json!({
                 "file_path": "/absolute/path/to/file.txt",
                 "content": "The content to write to the file"
-            })
+            }),
         ),
         "Read" => (
             vec!["file_path"],
@@ -30,7 +31,7 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
                 "file_path": "/absolute/path/to/file.txt",
                 "offset": 0,
                 "limit": 100
-            })
+            }),
         ),
         "Edit" => (
             vec!["file_path", "old_string", "new_string"],
@@ -40,16 +41,21 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
                 "old_string": "text to replace",
                 "new_string": "replacement text",
                 "replace_all": false
-            })
+            }),
         ),
         "Bash" => (
             vec!["command"],
-            vec!["timeout", "description", "run_in_background", "dangerouslyDisableSandbox"],
+            vec![
+                "timeout",
+                "description",
+                "run_in_background",
+                "dangerouslyDisableSandbox",
+            ],
             json!({
                 "command": "ls -la",
                 "timeout": 120000,
                 "description": "List files in directory"
-            })
+            }),
         ),
         "Glob" => (
             vec!["pattern"],
@@ -57,16 +63,29 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
             json!({
                 "pattern": "**/*.rs",
                 "path": "/path/to/search"
-            })
+            }),
         ),
         "Grep" => (
             vec!["pattern"],
-            vec!["path", "output_mode", "glob", "type", "-i", "-n", "-A", "-B", "-C", "multiline", "head_limit", "offset"],
+            vec![
+                "path",
+                "output_mode",
+                "glob",
+                "type",
+                "-i",
+                "-n",
+                "-A",
+                "-B",
+                "-C",
+                "multiline",
+                "head_limit",
+                "offset",
+            ],
             json!({
                 "pattern": "search.*pattern",
                 "path": "/path/to/search",
                 "output_mode": "content"
-            })
+            }),
         ),
         "BashOutput" => (
             vec!["bash_id"],
@@ -74,14 +93,14 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
             json!({
                 "bash_id": "shell_abc123",
                 "filter": "ERROR.*"
-            })
+            }),
         ),
         "KillShell" => (
             vec!["shell_id"],
             vec![],
             json!({
                 "shell_id": "shell_abc123"
-            })
+            }),
         ),
         "AskUserQuestion" => (
             vec!["questions"],
@@ -97,21 +116,21 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
                     ]
                 }],
                 "answers": {}
-            })
+            }),
         ),
         "Skill" => (
             vec!["skill"],
             vec![],
             json!({
                 "skill": "skill-name"
-            })
+            }),
         ),
         "SlashCommand" => (
             vec!["command"],
             vec![],
             json!({
                 "command": "/command-name arg1 arg2"
-            })
+            }),
         ),
         "Task" => (
             vec!["subagent_type", "prompt", "description"],
@@ -121,7 +140,7 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
                 "prompt": "Full task description for the agent",
                 "description": "Brief task summary",
                 "model": "sonnet"
-            })
+            }),
         ),
         "TodoWrite" => (
             vec!["todos"],
@@ -139,13 +158,13 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
                         "activeForm": "Doing another task"
                     }
                 ]
-            })
+            }),
         ),
-        _ => (vec![], vec![], json!({}))
+        _ => (vec![], vec![], json!({})),
     };
 
     let error_response = json!({
-        "error": format!("Failed to parse {} tool parameters", tool_name),
+        "error": format!("Parameter validation failed for {} tool: {}. Required fields: {:?}", tool_name, error_msg, required_fields),
         "details": error_msg,
         "required_fields": required_fields,
         "optional_fields": optional_fields,
@@ -157,7 +176,9 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
         )
     });
 
-    ClientError::Api(serde_json::to_string_pretty(&error_response).unwrap_or_else(|_| error_msg.to_string()))
+    ClientError::Api(
+        serde_json::to_string_pretty(&error_response).unwrap_or_else(|_| error_msg.to_string()),
+    )
 }
 
 /// Execute a tool by name with given parameters
@@ -204,9 +225,7 @@ async fn execute_bash_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
         .map_err(|e| ClientError::Api(format!("Failed to create terminal guard: {}", e)))?;
 
     let params: rustyclawd_tools::bash::BashParams =
-        serde_json::from_value(input).map_err(|e| {
-            create_schema_error("Bash", &e.to_string())
-        })?;
+        serde_json::from_value(input).map_err(|e| create_schema_error("Bash", &e.to_string()))?;
 
     let tool = BashTool;
     let mut stream = tool
@@ -240,9 +259,7 @@ async fn execute_bash_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
 /// Execute Read tool
 async fn execute_read_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::read::ReadParams =
-        serde_json::from_value(input).map_err(|e| {
-            create_schema_error("Read", &e.to_string())
-        })?;
+        serde_json::from_value(input).map_err(|e| create_schema_error("Read", &e.to_string()))?;
 
     let tool = ReadTool;
     let mut stream = tool
@@ -272,9 +289,7 @@ async fn execute_read_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
 /// Execute Write tool
 async fn execute_write_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::write::WriteParams =
-        serde_json::from_value(input).map_err(|e| {
-            create_schema_error("Write", &e.to_string())
-        })?;
+        serde_json::from_value(input).map_err(|e| create_schema_error("Write", &e.to_string()))?;
 
     let tool = WriteTool;
     let mut stream = tool
@@ -304,9 +319,7 @@ async fn execute_write_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cl
 /// Execute Edit tool
 async fn execute_edit_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::edit::EditParams =
-        serde_json::from_value(input).map_err(|e| {
-            create_schema_error("Edit", &e.to_string())
-        })?;
+        serde_json::from_value(input).map_err(|e| create_schema_error("Edit", &e.to_string()))?;
 
     let tool = EditTool;
     let mut stream = tool
@@ -336,9 +349,7 @@ async fn execute_edit_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
 /// Execute Glob tool
 async fn execute_glob_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::glob_tool::GlobParams =
-        serde_json::from_value(input).map_err(|e| {
-            create_schema_error("Glob", &e.to_string())
-        })?;
+        serde_json::from_value(input).map_err(|e| create_schema_error("Glob", &e.to_string()))?;
 
     let tool = GlobTool;
     let mut stream = tool
@@ -368,9 +379,7 @@ async fn execute_glob_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
 /// Execute Grep tool
 async fn execute_grep_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::grep::GrepParams =
-        serde_json::from_value(input).map_err(|e| {
-            create_schema_error("Grep", &e.to_string())
-        })?;
+        serde_json::from_value(input).map_err(|e| create_schema_error("Grep", &e.to_string()))?;
 
     let tool = GrepTool;
     let mut stream = tool
@@ -399,10 +408,8 @@ async fn execute_grep_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
 
 /// Execute BashOutput tool
 async fn execute_bash_output_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::bash_output::BashOutputParams =
-        serde_json::from_value(input).map_err(|e| {
-            create_schema_error("BashOutput", &e.to_string())
-        })?;
+    let params: rustyclawd_tools::bash_output::BashOutputParams = serde_json::from_value(input)
+        .map_err(|e| create_schema_error("BashOutput", &e.to_string()))?;
 
     let tool = BashOutputTool;
     let mut stream = tool
@@ -418,7 +425,10 @@ async fn execute_bash_output_tool(input: Value, ctx: &ToolContext) -> Result<Val
                 });
             }
             ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!("BashOutput tool error: {}", message)));
+                return Err(ClientError::Api(format!(
+                    "BashOutput tool error: {}",
+                    message
+                )));
             }
             ToolEvent::Progress { .. } => {}
         }
@@ -431,10 +441,8 @@ async fn execute_bash_output_tool(input: Value, ctx: &ToolContext) -> Result<Val
 
 /// Execute KillShell tool
 async fn execute_kill_shell_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::kill_shell::KillShellParams =
-        serde_json::from_value(input).map_err(|e| {
-            create_schema_error("KillShell", &e.to_string())
-        })?;
+    let params: rustyclawd_tools::kill_shell::KillShellParams = serde_json::from_value(input)
+        .map_err(|e| create_schema_error("KillShell", &e.to_string()))?;
 
     let tool = KillShellTool;
     let mut stream = tool
@@ -450,7 +458,10 @@ async fn execute_kill_shell_tool(input: Value, ctx: &ToolContext) -> Result<Valu
                 });
             }
             ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!("KillShell tool error: {}", message)));
+                return Err(ClientError::Api(format!(
+                    "KillShell tool error: {}",
+                    message
+                )));
             }
             ToolEvent::Progress { .. } => {}
         }
@@ -462,15 +473,17 @@ async fn execute_kill_shell_tool(input: Value, ctx: &ToolContext) -> Result<Valu
 }
 
 /// Execute AskUserQuestion tool
-async fn execute_ask_user_question_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
+async fn execute_ask_user_question_tool(
+    input: Value,
+    ctx: &ToolContext,
+) -> Result<Value, ClientError> {
     // Protect terminal state during interactive prompts
     let _guard = TerminalGuard::new()
         .map_err(|e| ClientError::Api(format!("Failed to create terminal guard: {}", e)))?;
 
     let params: rustyclawd_tools::ask_user_question::AskUserQuestionParams =
-        serde_json::from_value(input).map_err(|e| {
-            create_schema_error("AskUserQuestion", &e.to_string())
-        })?;
+        serde_json::from_value(input)
+            .map_err(|e| create_schema_error("AskUserQuestion", &e.to_string()))?;
 
     let tool = AskUserQuestionTool;
     let mut stream = tool
@@ -486,7 +499,10 @@ async fn execute_ask_user_question_tool(input: Value, ctx: &ToolContext) -> Resu
                 });
             }
             ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!("AskUserQuestion tool error: {}", message)));
+                return Err(ClientError::Api(format!(
+                    "AskUserQuestion tool error: {}",
+                    message
+                )));
             }
             ToolEvent::Progress { step, percentage } => {
                 // Print progress to stderr so user can see what's happening
@@ -508,9 +524,7 @@ async fn execute_ask_user_question_tool(input: Value, ctx: &ToolContext) -> Resu
 /// Execute Skill tool
 async fn execute_skill_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::skill::SkillParams =
-        serde_json::from_value(input).map_err(|e| {
-            create_schema_error("Skill", &e.to_string())
-        })?;
+        serde_json::from_value(input).map_err(|e| create_schema_error("Skill", &e.to_string()))?;
 
     let tool = SkillTool;
     let mut stream = tool
@@ -539,10 +553,8 @@ async fn execute_skill_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cl
 
 /// Execute SlashCommand tool
 async fn execute_slash_command_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::slash_command::SlashCommandParams =
-        serde_json::from_value(input).map_err(|e| {
-            create_schema_error("SlashCommand", &e.to_string())
-        })?;
+    let params: rustyclawd_tools::slash_command::SlashCommandParams = serde_json::from_value(input)
+        .map_err(|e| create_schema_error("SlashCommand", &e.to_string()))?;
 
     let tool = SlashCommandTool;
     let mut stream = tool
@@ -558,7 +570,10 @@ async fn execute_slash_command_tool(input: Value, ctx: &ToolContext) -> Result<V
                 });
             }
             ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!("SlashCommand tool error: {}", message)));
+                return Err(ClientError::Api(format!(
+                    "SlashCommand tool error: {}",
+                    message
+                )));
             }
             ToolEvent::Progress { .. } => {}
         }
@@ -571,10 +586,8 @@ async fn execute_slash_command_tool(input: Value, ctx: &ToolContext) -> Result<V
 
 /// Execute TodoWrite tool
 async fn execute_todowrite_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::todo_write::TodoWriteParams =
-        serde_json::from_value(input).map_err(|e| {
-            create_schema_error("TodoWrite", &e.to_string())
-        })?;
+    let params: rustyclawd_tools::todo_write::TodoWriteParams = serde_json::from_value(input)
+        .map_err(|e| create_schema_error("TodoWrite", &e.to_string()))?;
 
     let tool = TodoWriteTool;
     let mut stream = tool
@@ -590,7 +603,10 @@ async fn execute_todowrite_tool(input: Value, ctx: &ToolContext) -> Result<Value
                 });
             }
             ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!("TodoWrite tool error: {}", message)));
+                return Err(ClientError::Api(format!(
+                    "TodoWrite tool error: {}",
+                    message
+                )));
             }
             ToolEvent::Progress { .. } => {}
         }
@@ -604,9 +620,7 @@ async fn execute_todowrite_tool(input: Value, ctx: &ToolContext) -> Result<Value
 /// Execute Agent/Task tool
 async fn execute_agent_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::agent::AgentParams =
-        serde_json::from_value(input).map_err(|e| {
-            create_schema_error("Task", &e.to_string())
-        })?;
+        serde_json::from_value(input).map_err(|e| create_schema_error("Task", &e.to_string()))?;
 
     let tool = AgentTool;
     let mut stream = tool
@@ -647,8 +661,8 @@ mod tests {
         };
 
         // Parse the error message as JSON
-        let error_json: serde_json::Value = serde_json::from_str(&error_msg)
-            .expect("Error message should be valid JSON");
+        let error_json: serde_json::Value =
+            serde_json::from_str(&error_msg).expect("Error message should be valid JSON");
 
         // Verify required fields are present
         assert!(error_json.get("error").is_some());
@@ -714,7 +728,10 @@ mod tests {
         assert!(result.is_err(), "Should fail with missing required fields");
 
         if let Err(ClientError::Api(msg)) = result {
-            assert!(msg.contains("required"), "Error should mention required fields");
+            assert!(
+                msg.contains("required"),
+                "Error should mention required fields"
+            );
         }
     }
 
@@ -746,13 +763,17 @@ mod tests {
             json!({
                 "subagent_type": "test",
                 // Missing required fields to trigger error quickly
-            })
-        ).await;
+            }),
+        )
+        .await;
 
         assert!(result.is_err(), "Should fail with missing parameters");
         // If it routes correctly, we should get a schema error, not "Unknown tool" error
         if let Err(ClientError::Api(msg)) = result {
-            assert!(!msg.contains("Unknown tool"), "Should not be unknown tool error");
+            assert!(
+                !msg.contains("Unknown tool"),
+                "Should not be unknown tool error"
+            );
         }
     }
 
@@ -769,7 +790,10 @@ mod tests {
         let required = error_json["required_fields"].as_array().unwrap();
 
         // Should not be empty (default case)
-        assert!(!required.is_empty(), "Task tool should have specific schema error handling");
+        assert!(
+            !required.is_empty(),
+            "Task tool should have specific schema error handling"
+        );
     }
 
     #[test]
@@ -783,9 +807,18 @@ mod tests {
         let error_json: serde_json::Value = serde_json::from_str(&error_msg).unwrap();
         let help = error_json["help"].as_str().unwrap();
 
-        assert!(help.contains("Task"), "Help message should mention Task tool");
-        assert!(help.contains("subagent_type"), "Help should list required fields");
+        assert!(
+            help.contains("Task"),
+            "Help message should mention Task tool"
+        );
+        assert!(
+            help.contains("subagent_type"),
+            "Help should list required fields"
+        );
         assert!(help.contains("prompt"), "Help should list required fields");
-        assert!(help.contains("description"), "Help should list required fields");
+        assert!(
+            help.contains("description"),
+            "Help should list required fields"
+        );
     }
 }

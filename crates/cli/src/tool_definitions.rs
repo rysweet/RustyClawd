@@ -60,7 +60,8 @@ fn bash_tool_definition() -> ToolDefinition {
 fn bash_output_tool_definition() -> ToolDefinition {
     ToolDefinition {
         name: "BashOutput".to_string(),
-        description: "Retrieve output from a running or completed background bash shell".to_string(),
+        description: "Retrieve output from a running or completed background bash shell"
+            .to_string(),
         input_schema: json!({
             "type": "object",
             "properties": {
@@ -340,7 +341,8 @@ fn slash_command_tool_definition() -> ToolDefinition {
 fn task_tool_definition() -> ToolDefinition {
     ToolDefinition {
         name: "Task".to_string(),
-        description: "Invoke specialized sub-agents for complex tasks with context isolation".to_string(),
+        description: "Invoke specialized sub-agents for complex tasks with context isolation"
+            .to_string(),
         input_schema: json!({
             "type": "object",
             "properties": {
@@ -437,7 +439,11 @@ mod tests {
                 tool.name
             );
 
-            println!("✓ Tool '{}' has required fields: {:?}", tool.name, required_array.unwrap());
+            println!(
+                "✓ Tool '{}' has required fields: {:?}",
+                tool.name,
+                required_array.unwrap()
+            );
         }
     }
 
@@ -551,8 +557,14 @@ mod tests {
     #[test]
     fn test_task_tool_has_description() {
         let task = task_tool_definition();
-        assert!(!task.description.is_empty(), "Task tool must have a description");
-        assert!(task.description.contains("agent"), "Task tool description should mention agents");
+        assert!(
+            !task.description.is_empty(),
+            "Task tool must have a description"
+        );
+        assert!(
+            task.description.contains("agent"),
+            "Task tool description should mention agents"
+        );
     }
 
     #[test]
@@ -605,51 +617,78 @@ mod tests {
         let task = task_tool_definition();
 
         // Check top-level schema structure
-        assert_eq!(task.input_schema["type"], "object", "Task tool schema must be an object");
-        assert!(task.input_schema.get("properties").is_some(), "Task tool must have properties");
-        assert!(task.input_schema.get("required").is_some(), "Task tool must have required array");
+        assert_eq!(
+            task.input_schema["type"], "object",
+            "Task tool schema must be an object"
+        );
+        assert!(
+            task.input_schema.get("properties").is_some(),
+            "Task tool must have properties"
+        );
+        assert!(
+            task.input_schema.get("required").is_some(),
+            "Task tool must have required array"
+        );
     }
 
     #[test]
     fn test_all_tools_include_task() {
         let tools = get_all_tool_definitions();
         let has_task = tools.iter().any(|t| t.name == "Task");
-        assert!(has_task, "get_all_tool_definitions() must include Task tool");
+        assert!(
+            has_task,
+            "get_all_tool_definitions() must include Task tool"
+        );
     }
 
     #[test]
     fn test_all_tools_include_ask_user_question() {
         let tools = get_all_tool_definitions();
         let has_ask = tools.iter().any(|t| t.name == "AskUserQuestion");
-        assert!(has_ask, "get_all_tool_definitions() must include AskUserQuestion tool");
+        assert!(
+            has_ask,
+            "get_all_tool_definitions() must include AskUserQuestion tool"
+        );
     }
 
     #[test]
     fn test_all_tools_include_skill() {
         let tools = get_all_tool_definitions();
         let has_skill = tools.iter().any(|t| t.name == "Skill");
-        assert!(has_skill, "get_all_tool_definitions() must include Skill tool");
+        assert!(
+            has_skill,
+            "get_all_tool_definitions() must include Skill tool"
+        );
     }
 
     #[test]
     fn test_all_tools_include_slashcommand() {
         let tools = get_all_tool_definitions();
         let has_slashcommand = tools.iter().any(|t| t.name == "SlashCommand");
-        assert!(has_slashcommand, "get_all_tool_definitions() must include SlashCommand tool");
+        assert!(
+            has_slashcommand,
+            "get_all_tool_definitions() must include SlashCommand tool"
+        );
     }
 
     #[test]
     fn test_all_tools_include_todowrite() {
         let tools = get_all_tool_definitions();
         let has_todowrite = tools.iter().any(|t| t.name == "TodoWrite");
-        assert!(has_todowrite, "get_all_tool_definitions() must include TodoWrite tool");
+        assert!(
+            has_todowrite,
+            "get_all_tool_definitions() must include TodoWrite tool"
+        );
     }
 
     #[test]
     fn test_task_tool_count_in_all_tools() {
         let tools = get_all_tool_definitions();
         let task_count = tools.iter().filter(|t| t.name == "Task").count();
-        assert_eq!(task_count, 1, "Task tool should appear exactly once in all tool definitions");
+        assert_eq!(
+            task_count, 1,
+            "Task tool should appear exactly once in all tool definitions"
+        );
     }
 
     #[test]
@@ -681,16 +720,12 @@ mod tests {
 
         for tool in tools {
             // Serialize to JSON (simulating API request)
-            let serialized = serde_json::to_string(&tool).expect(&format!(
-                "Tool '{}' should serialize to JSON",
-                tool.name
-            ));
+            let serialized = serde_json::to_string(&tool)
+                .unwrap_or_else(|_| panic!("Tool '{}' should serialize to JSON", tool.name));
 
             // Deserialize back
-            let deserialized: ToolDefinition = serde_json::from_str(&serialized).expect(&format!(
-                "Tool '{}' should deserialize from JSON",
-                tool.name
-            ));
+            let deserialized: ToolDefinition = serde_json::from_str(&serialized)
+                .unwrap_or_else(|_| panic!("Tool '{}' should deserialize from JSON", tool.name));
 
             // Verify required fields survive serialization round-trip
             let required = deserialized.input_schema.get("required");

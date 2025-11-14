@@ -13,10 +13,10 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio::process::Child;
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::sync::OnceLock;
+use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::process::Child;
+use tokio::sync::Mutex;
 
 /// Registry for tracking background processes
 ///
@@ -102,7 +102,12 @@ impl ProcessRegistry {
     }
 
     /// Append output to a process's buffers
-    pub async fn append_output(&self, id: &str, line: String, is_stderr: bool) -> Result<(), String> {
+    pub async fn append_output(
+        &self,
+        id: &str,
+        line: String,
+        is_stderr: bool,
+    ) -> Result<(), String> {
         let mut processes = self.processes.lock().await;
         if let Some(handle) = processes.get_mut(id) {
             if is_stderr {
@@ -243,7 +248,6 @@ impl ProcessRegistry {
         let processes = self.processes.lock().await;
         processes.keys().cloned().collect()
     }
-
 }
 
 /// Global process registry instance (singleton pattern)
@@ -251,9 +255,7 @@ static GLOBAL_REGISTRY: OnceLock<Arc<ProcessRegistry>> = OnceLock::new();
 
 /// Get or create the global registry instance
 pub fn global_registry() -> Arc<ProcessRegistry> {
-    Arc::clone(
-        GLOBAL_REGISTRY.get_or_init(|| Arc::new(ProcessRegistry::new()))
-    )
+    Arc::clone(GLOBAL_REGISTRY.get_or_init(|| Arc::new(ProcessRegistry::new())))
 }
 
 impl Clone for ProcessRegistry {
@@ -296,9 +298,18 @@ mod tests {
         let id = "test_shell".to_string();
 
         // Simulate registration (would normally be done with real child process)
-        registry.append_output(&id, "Line 1".to_string(), false).await.ok();
-        registry.append_output(&id, "Line 2".to_string(), false).await.ok();
-        registry.append_output(&id, "Error".to_string(), true).await.ok();
+        registry
+            .append_output(&id, "Line 1".to_string(), false)
+            .await
+            .ok();
+        registry
+            .append_output(&id, "Line 2".to_string(), false)
+            .await
+            .ok();
+        registry
+            .append_output(&id, "Error".to_string(), true)
+            .await
+            .ok();
 
         // Note: This will fail because process wasn't actually registered
         // In real usage, register() would be called first

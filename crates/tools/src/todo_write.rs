@@ -213,10 +213,13 @@ mod tests {
         let mut stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert_eq!(result.tasks_written, 3);
         assert_eq!(result.pending, 1);
@@ -369,10 +372,13 @@ mod tests {
         let mut stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert_eq!(result.pending, 2);
         assert_eq!(result.in_progress, 1);
@@ -407,10 +413,13 @@ mod tests {
         let mut stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert_eq!(result.pending, 0);
         assert_eq!(result.in_progress, 1);
@@ -422,23 +431,24 @@ mod tests {
         clear_todos();
         let tool = TodoWriteTool;
         let params = TodoWriteParams {
-            todos: vec![
-                Task {
-                    content: "Only task".to_string(),
-                    status: TaskStatus::InProgress,
-                    active_form: "Doing only task".to_string(),
-                },
-            ],
+            todos: vec![Task {
+                content: "Only task".to_string(),
+                status: TaskStatus::InProgress,
+                active_form: "Doing only task".to_string(),
+            }],
         };
         let ctx = ToolContext::default();
 
         let mut stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert_eq!(result.tasks_written, 1);
         assert_eq!(result.in_progress, 1);
@@ -448,9 +458,7 @@ mod tests {
     async fn test_todowrite_empty_list_invalid() {
         clear_todos();
         let tool = TodoWriteTool;
-        let params = TodoWriteParams {
-            todos: vec![],
-        };
+        let params = TodoWriteParams { todos: vec![] };
         let ctx = ToolContext::default();
 
         let mut stream = tool.execute(params, &ctx).await.unwrap();
@@ -494,10 +502,13 @@ mod tests {
         let mut stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         assert_eq!(result.tasks_written, 50);
         assert_eq!(result.pending, 25);
@@ -510,26 +521,29 @@ mod tests {
         clear_todos();
         let tool = TodoWriteTool;
         let params = TodoWriteParams {
-            todos: vec![
-                Task {
-                    content: "Task".to_string(),
-                    status: TaskStatus::InProgress,
-                    active_form: "Doing task".to_string(),
-                },
-            ],
+            todos: vec![Task {
+                content: "Task".to_string(),
+                status: TaskStatus::InProgress,
+                active_form: "Doing task".to_string(),
+            }],
         };
         let ctx = ToolContext::default();
 
         let mut stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events.iter().find_map(|e| match e {
-            ToolEvent::Result(output) => Some(output),
-            _ => None,
-        }).unwrap();
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .unwrap();
 
         // Verify message format matches expected pattern
-        assert!(result.message.contains("Todos have been modified successfully"));
+        assert!(result
+            .message
+            .contains("Todos have been modified successfully"));
         assert!(result.message.contains("0 pending"));
         assert!(result.message.contains("1 in progress"));
         assert!(result.message.contains("0 completed"));
@@ -540,13 +554,11 @@ mod tests {
         clear_todos();
         let tool = TodoWriteTool;
         let params = TodoWriteParams {
-            todos: vec![
-                Task {
-                    content: "Task".to_string(),
-                    status: TaskStatus::InProgress,
-                    active_form: "Doing task".to_string(),
-                },
-            ],
+            todos: vec![Task {
+                content: "Task".to_string(),
+                status: TaskStatus::InProgress,
+                active_form: "Doing task".to_string(),
+            }],
         };
         let ctx = ToolContext::default();
 
@@ -554,12 +566,12 @@ mod tests {
         let events: Vec<_> = stream.collect().await;
 
         // Should have progress events
-        let has_validation_progress = events.iter().any(|e| {
-            matches!(e, ToolEvent::Progress { step, .. } if step.contains("Validating"))
-        });
-        let has_writing_progress = events.iter().any(|e| {
-            matches!(e, ToolEvent::Progress { step, .. } if step.contains("Writing"))
-        });
+        let has_validation_progress = events
+            .iter()
+            .any(|e| matches!(e, ToolEvent::Progress { step, .. } if step.contains("Validating")));
+        let has_writing_progress = events
+            .iter()
+            .any(|e| matches!(e, ToolEvent::Progress { step, .. } if step.contains("Writing")));
 
         assert!(has_validation_progress);
         assert!(has_writing_progress);
@@ -573,13 +585,11 @@ mod tests {
         assert_eq!(get_todos().len(), 0);
 
         // Set some todos
-        let todos = vec![
-            Task {
-                content: "Test".to_string(),
-                status: TaskStatus::InProgress,
-                active_form: "Testing".to_string(),
-            },
-        ];
+        let todos = vec![Task {
+            content: "Test".to_string(),
+            status: TaskStatus::InProgress,
+            active_form: "Testing".to_string(),
+        }];
         set_todos(todos.clone());
 
         // Verify they were stored

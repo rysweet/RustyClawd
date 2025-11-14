@@ -3,22 +3,20 @@
 //! This is a Rust implementation that matches Claude Code's exact CLI interface
 //! as documented at https://code.claude.com/docs/en/cli-reference
 
-#![allow(dead_code)]
-#![allow(unused_imports)]
-
 mod checkpoint;
 mod commands;
 mod hooks;
 mod interactive;
 mod plugins;
+mod session;
 mod settings;
+mod terminal_guard;
 mod tool_definitions;
 mod tool_executor;
 mod tui;
-mod terminal_guard;
 
 use anyhow::{Context as AnyhowContext, Result};
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use futures::StreamExt;
 use std::io::{self, IsTerminal, Read};
 
@@ -30,9 +28,6 @@ use std::io::{self, IsTerminal, Read};
 #[command(about = "Claude AI assistant command-line interface", long_about = None)]
 #[command(disable_help_subcommand = true)]
 struct Cli {
-    #[command(subcommand)]
-    command: Option<Commands>,
-
     /// Print mode - execute prompt and exit
     #[arg(short = 'p', long = "print")]
     print_mode: bool,
@@ -113,14 +108,6 @@ struct Cli {
     /// When provided, runs in print mode (one-shot execution)
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     prompt: Vec<String>,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Update to latest version
-    Update,
-    /// Configure Model Context Protocol (MCP) servers
-    Mcp,
 }
 
 /// Unified CLI application state
@@ -221,8 +208,8 @@ impl App {
         };
 
         // 6. Check for session resume or create new session
-        let session_saver = checkpoint::SessionSaver::default()
-            .context("Failed to initialize session saver")?;
+        let session_saver =
+            checkpoint::SessionSaver::default().context("Failed to initialize session saver")?;
 
         // Default checkpoint limit (not configurable via CLI in official spec)
         let checkpoint_limit = 50;
@@ -309,11 +296,6 @@ impl App {
 
     /// Run the application
     async fn run(mut self) -> Result<()> {
-        // Handle subcommands first
-        if let Some(command) = &self.cli.command {
-            return self.run_subcommand(command).await;
-        }
-
         // Call SessionStart hook
         self.execute_session_start_hook().await?;
 
@@ -327,22 +309,6 @@ impl App {
         self.save_session()?;
 
         result
-    }
-
-    /// Run subcommands (update, mcp)
-    async fn run_subcommand(&self, command: &Commands) -> Result<()> {
-        match command {
-            Commands::Update => {
-                println!("Update functionality not yet implemented.");
-                println!("This would check for and install the latest version of Claude Code.");
-                Ok(())
-            }
-            Commands::Mcp => {
-                println!("MCP (Model Context Protocol) configuration not yet implemented.");
-                println!("This would allow you to configure MCP servers.");
-                Ok(())
-            }
-        }
     }
 
     /// Determine which mode to run based on CLI arguments and stdin
@@ -409,7 +375,11 @@ impl App {
             hooks::HookEvent::SessionStart,
         );
 
-        match self.hooks.execute_hooks(hooks::HookEvent::SessionStart, &context).await {
+        match self
+            .hooks
+            .execute_hooks(hooks::HookEvent::SessionStart, &context)
+            .await
+        {
             Ok(results) => {
                 for result in results {
                     if !result.is_success() {
@@ -438,7 +408,11 @@ impl App {
             hooks::HookEvent::SessionEnd,
         );
 
-        match self.hooks.execute_hooks(hooks::HookEvent::SessionEnd, &context).await {
+        match self
+            .hooks
+            .execute_hooks(hooks::HookEvent::SessionEnd, &context)
+            .await
+        {
             Ok(results) => {
                 for result in results {
                     if !result.is_success() {
@@ -462,17 +436,19 @@ impl App {
 
     /// Run in print mode (one-shot execution) - matches Claude Code's behavior
     async fn run_print_mode(&mut self, prompt: &str) -> Result<()> {
-        use rustyclawd_core::{
-            client::{Client, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent},
+        use rustyclawd_core::client::{
+            Client, Config, CreateMessageRequest, Message as ApiMessage,
         };
-        use std::io::Write;
 
         // Load API configuration
         let config = Config::from_default_location().await?;
         let client = Client::new(config);
 
         // Model configuration - use CLI override or default
-        let model = self.cli.model.as_ref()
+        let model = self
+            .cli
+            .model
+            .as_ref()
             .map(|m| match m.as_str() {
                 "sonnet" => "claude-sonnet-4-5-20250929",
                 "opus" => "claude-opus-20240229",
@@ -490,8 +466,10 @@ impl App {
             Some(prompt.clone())
         } else if let Some(ref file_path) = self.cli.system_prompt_file {
             // --system-prompt-file: load from file
-            Some(std::fs::read_to_string(file_path)
-                .with_context(|| format!("Failed to read system prompt file: {}", file_path))?)
+            Some(
+                std::fs::read_to_string(file_path)
+                    .with_context(|| format!("Failed to read system prompt file: {}", file_path))?,
+            )
         } else if let Some(ref append) = self.cli.append_system_prompt {
             // --append-system-prompt: append to default (would need default system prompt)
             // For now, just use the append text

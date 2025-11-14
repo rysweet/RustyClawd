@@ -1,3 +1,5 @@
+pub mod hierarchy;
+pub mod loader;
 /// Settings and configuration system for Claude Code
 ///
 /// Implements a 5-tier configuration hierarchy with proper precedence:
@@ -22,21 +24,18 @@
 ///     println!("Using model: {}", model);
 /// }
 /// ```
-
 pub mod types;
 pub mod validation;
-pub mod hierarchy;
-pub mod loader;
 
 // Re-export public API
-pub use types::Settings;
 pub use loader::SettingsLoader;
+pub use types::Settings;
 
 #[cfg(test)]
 mod integration_tests {
-    use super::*;
     use super::hierarchy::SettingsHierarchy;
-    use super::types::{PermissionMode, SettingsLayer};
+    use super::types::SettingsLayer;
+    use super::*;
 
     #[test]
     fn test_full_hierarchy_workflow() {
@@ -117,8 +116,8 @@ mod integration_tests {
 
     #[test]
     fn test_permissions_accumulate_across_layers() {
-        use super::types::{ToolPermission, PermissionMode, SettingsLayer};
         use super::hierarchy::SettingsHierarchy;
+        use super::types::{PermissionMode, SettingsLayer, ToolPermission};
 
         let mut hierarchy = SettingsHierarchy::new();
 

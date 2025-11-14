@@ -7,17 +7,13 @@
 //! - Built-in commands (/help, /exit, /clear)
 //! - Full command lifecycle management
 
-pub mod parser;
-pub mod loader;
-pub mod registry;
-pub mod executor;
 pub mod builtins;
+pub mod executor;
+pub mod loader;
+pub mod parser;
+pub mod registry;
 
-pub use self::{
-    executor::Executor,
-    parser::CommandParser,
-    registry::Registry,
-};
+pub use self::{executor::Executor, parser::CommandParser, registry::Registry};
 
 use anyhow::Result;
 use std::path::PathBuf;

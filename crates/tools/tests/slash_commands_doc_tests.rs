@@ -42,7 +42,12 @@ impl TestFixture {
         }
     }
 
-    async fn create_command(&self, name: &str, content: &str, is_personal: bool) -> std::io::Result<PathBuf> {
+    async fn create_command(
+        &self,
+        name: &str,
+        content: &str,
+        is_personal: bool,
+    ) -> std::io::Result<PathBuf> {
         let dir = if is_personal {
             &self.personal_commands_dir
         } else {
@@ -53,7 +58,12 @@ impl TestFixture {
         Ok(path)
     }
 
-    async fn create_namespaced_command(&self, namespace: &str, name: &str, content: &str) -> std::io::Result<PathBuf> {
+    async fn create_namespaced_command(
+        &self,
+        namespace: &str,
+        name: &str,
+        content: &str,
+    ) -> std::io::Result<PathBuf> {
         let dir = self.project_commands_dir.join(namespace);
         let _ = fs::create_dir_all(&dir).await;
         let path = dir.join(format!("{}.md", name));
@@ -72,7 +82,6 @@ impl TestFixture {
 // ============================================================================
 
 mod builtin_commands {
-    use super::*;
 
     #[test]
     fn test_help_command_exists() {
@@ -106,14 +115,20 @@ mod builtin_commands {
     fn test_export_command_exists() {
         // FAILING: /export must be a built-in command
         let cmd_name = "export";
-        assert!(is_builtin_command(cmd_name), "/export is a built-in command");
+        assert!(
+            is_builtin_command(cmd_name),
+            "/export is a built-in command"
+        );
     }
 
     #[test]
     fn test_sandbox_command_exists() {
         // FAILING: /sandbox must be a built-in command
         let cmd_name = "sandbox";
-        assert!(is_builtin_command(cmd_name), "/sandbox is a built-in command");
+        assert!(
+            is_builtin_command(cmd_name),
+            "/sandbox is a built-in command"
+        );
     }
 
     #[test]
@@ -127,14 +142,21 @@ mod builtin_commands {
     fn test_builtin_commands_not_overridable() {
         // FAILING: Built-in commands cannot be overridden by custom commands
         let builtin = "help";
-        assert!(!can_override_builtin(builtin), "Built-in commands are protected");
+        assert!(
+            !can_override_builtin(builtin),
+            "Built-in commands are protected"
+        );
     }
 
     #[test]
     fn test_builtin_command_count() {
         // FAILING: There must be 30+ built-in commands
         let count = get_builtin_command_count();
-        assert!(count >= 30, "Expected at least 30 built-in commands, got {}", count);
+        assert!(
+            count >= 30,
+            "Expected at least 30 built-in commands, got {}",
+            count
+        );
     }
 
     // Helper functions (these would fail to compile - that's the point!)
@@ -164,7 +186,10 @@ mod custom_commands {
         let fixture = TestFixture::new().await;
         let content = "Project command content";
 
-        let path = fixture.create_command("project-cmd", content, false).await.unwrap();
+        let path = fixture
+            .create_command("project-cmd", content, false)
+            .await
+            .unwrap();
 
         assert!(path.to_string_lossy().contains(".claude/commands"));
         assert!(command_exists("project-cmd", CommandScope::Project).await);
@@ -178,7 +203,10 @@ mod custom_commands {
         let fixture = TestFixture::new().await;
         let content = "Personal command content";
 
-        let _path = fixture.create_command("personal-cmd", content, true).await.unwrap();
+        let _path = fixture
+            .create_command("personal-cmd", content, true)
+            .await
+            .unwrap();
 
         assert!(command_exists("personal-cmd", CommandScope::Personal).await);
 
@@ -190,7 +218,9 @@ mod custom_commands {
         // FAILING: Command name must be filename without .md extension
         let fixture = TestFixture::new().await;
 
-        let _ = fixture.create_command("my-awesome-command", "Content", false).await;
+        let _ = fixture
+            .create_command("my-awesome-command", "Content", false)
+            .await;
 
         let cmd_name = get_command_name_from_file("my-awesome-command.md");
         assert_eq!(cmd_name, "my-awesome-command");
@@ -244,7 +274,9 @@ mod argument_handling {
 
         let _ = fixture.create_command("process", content, false).await;
 
-        let expanded = expand_command("process", Some("foo bar baz")).await.unwrap();
+        let expanded = expand_command("process", Some("foo bar baz"))
+            .await
+            .unwrap();
         assert_eq!(expanded, "Process these: foo bar baz");
 
         fixture.cleanup().await;
@@ -286,7 +318,9 @@ mod argument_handling {
 
         let _ = fixture.create_command("review", content, false).await;
 
-        let expanded = expand_command("review", Some("789 high alice")).await.unwrap();
+        let expanded = expand_command("review", Some("789 high alice"))
+            .await
+            .unwrap();
         assert_eq!(expanded, "PR #789 priority high assigned to alice");
 
         fixture.cleanup().await;
@@ -372,7 +406,9 @@ mod advanced_features {
         let fixture = TestFixture::new().await;
         let content = "Namespaced command";
 
-        let _ = fixture.create_namespaced_command("utils", "helper", content).await;
+        let _ = fixture
+            .create_namespaced_command("utils", "helper", content)
+            .await;
 
         // Command should still be invoked as /helper, not /utils:helper
         assert!(command_exists_in_namespace("helper", "utils").await);
@@ -388,7 +424,9 @@ mod advanced_features {
         let fixture = TestFixture::new().await;
         let content = "---\ndescription: Helper command\n---\nContent";
 
-        let _ = fixture.create_namespaced_command("utils", "helper", content).await;
+        let _ = fixture
+            .create_namespaced_command("utils", "helper", content)
+            .await;
 
         let help_entry = get_help_entry("helper").await.unwrap();
         assert!(help_entry.contains("(project:utils)") || help_entry.contains("project:utils"));
@@ -447,7 +485,8 @@ mod advanced_features {
     async fn test_bash_output_in_context() {
         // FAILING: Bash output is included in command context
         let fixture = TestFixture::new().await;
-        let content = "---\nallowed-tools:\n  - Bash:echo\n---\n!echo 'test output'\nAbove is the output";
+        let content =
+            "---\nallowed-tools:\n  - Bash:echo\n---\n!echo 'test output'\nAbove is the output";
 
         let _ = fixture.create_command("echotest", content, false).await;
 
@@ -466,7 +505,9 @@ mod advanced_features {
 
         // Create a test file
         let test_file = "/tmp/test_include.js";
-        fs::write(test_file, "function test() { return 42; }").await.unwrap();
+        fs::write(test_file, "function test() { return 42; }")
+            .await
+            .unwrap();
 
         let content = "Review this file:\n@/tmp/test_include.js";
         let _ = fixture.create_command("review-file", content, false).await;
@@ -504,7 +545,9 @@ mod advanced_features {
         let _ = fixture.create_command("review-arg", content, false).await;
 
         fs::write("/tmp/target.js", "code").await.unwrap();
-        let result = execute_command("review-arg", Some("/tmp/target.js")).await.unwrap();
+        let result = execute_command("review-arg", Some("/tmp/target.js"))
+            .await
+            .unwrap();
         assert!(result.output.contains("code"));
 
         fixture.cleanup().await;
@@ -534,7 +577,11 @@ mod advanced_features {
         for keyword in thinking_keywords {
             let content = format!("Please {} this problem", keyword);
             let triggers = detect_extended_thinking(&content);
-            assert!(triggers, "Keyword '{}' should trigger extended thinking", keyword);
+            assert!(
+                triggers,
+                "Keyword '{}' should trigger extended thinking",
+                keyword
+            );
         }
     }
 
@@ -583,7 +630,10 @@ mod frontmatter_config {
         let _ = fixture.create_command("review", content, false).await;
 
         let frontmatter = parse_frontmatter(content).unwrap();
-        assert_eq!(frontmatter.description, Some("Review a pull request".to_string()));
+        assert_eq!(
+            frontmatter.description,
+            Some("Review a pull request".to_string())
+        );
 
         fixture.cleanup().await;
     }
@@ -611,7 +661,10 @@ mod frontmatter_config {
         let _ = fixture.create_command("review", content, false).await;
 
         let frontmatter = parse_frontmatter(content).unwrap();
-        assert_eq!(frontmatter.argument_hint, Some("<pr-number> <priority>".to_string()));
+        assert_eq!(
+            frontmatter.argument_hint,
+            Some("<pr-number> <priority>".to_string())
+        );
 
         fixture.cleanup().await;
     }
@@ -725,11 +778,19 @@ mod slash_command_tool {
         let fixture = TestFixture::new().await;
 
         let result = can_invoke_via_tool("help").await;
-        assert!(!result, "Built-in commands cannot be invoked via SlashCommand tool");
+        assert!(
+            !result,
+            "Built-in commands cannot be invoked via SlashCommand tool"
+        );
 
-        let _ = fixture.create_command("custom", "Custom content", false).await;
+        let _ = fixture
+            .create_command("custom", "Custom content", false)
+            .await;
         let result = can_invoke_via_tool("custom").await;
-        assert!(result, "Custom commands can be invoked via SlashCommand tool");
+        assert!(
+            result,
+            "Custom commands can be invoked via SlashCommand tool"
+        );
 
         fixture.cleanup().await;
     }
@@ -791,7 +852,9 @@ mod slash_command_tool {
         // FAILING: Can restrict specific commands (SlashCommand:/commit)
         let fixture = TestFixture::new().await;
 
-        let _ = fixture.create_command("commit", "---\ndescription: Commit\n---\nContent", false).await;
+        let _ = fixture
+            .create_command("commit", "---\ndescription: Commit\n---\nContent", false)
+            .await;
 
         set_command_permission("commit", false).await;
         assert!(!can_invoke_via_tool("commit").await);
@@ -807,8 +870,20 @@ mod slash_command_tool {
         // FAILING: Permission rules support prefix matching (SlashCommand:/review-pr:*)
         let fixture = TestFixture::new().await;
 
-        let _ = fixture.create_command("review-pr-quick", "---\ndescription: Quick review\n---\nContent", false).await;
-        let _ = fixture.create_command("review-pr-detailed", "---\ndescription: Detailed review\n---\nContent", false).await;
+        let _ = fixture
+            .create_command(
+                "review-pr-quick",
+                "---\ndescription: Quick review\n---\nContent",
+                false,
+            )
+            .await;
+        let _ = fixture
+            .create_command(
+                "review-pr-detailed",
+                "---\ndescription: Detailed review\n---\nContent",
+                false,
+            )
+            .await;
 
         set_prefix_permission("review-pr", false).await;
         assert!(!can_invoke_via_tool("review-pr-quick").await);
@@ -851,7 +926,6 @@ mod slash_command_tool {
 // ============================================================================
 
 mod plugin_mcp_commands {
-    use super::*;
 
     #[test]
     fn test_plugin_command_namespace_format() {
@@ -1058,11 +1132,11 @@ mod error_handling {
         let _ = fixture.create_command("msg", content, false).await;
 
         let special_chars = vec![
-            "hello\nworld",           // newline
-            "quote\"inside",          // quote
-            "slash/path",             // slash
-            "dollar$sign",            // dollar
-            "back\\slash",            // backslash
+            "hello\nworld",  // newline
+            "quote\"inside", // quote
+            "slash/path",    // slash
+            "dollar$sign",   // dollar
+            "back\\slash",   // backslash
         ];
 
         for special in special_chars {
@@ -1251,7 +1325,9 @@ mod performance_boundaries {
 
         for i in 0..100 {
             let content = format!("Command {}", i);
-            let _ = fixture.create_command(&format!("cmd{}", i), &content, false).await;
+            let _ = fixture
+                .create_command(&format!("cmd{}", i), &content, false)
+                .await;
         }
 
         let all_commands = list_all_commands().await;
@@ -1300,15 +1376,17 @@ mod performance_boundaries {
 
         for i in 0..5 {
             let content = format!("Concurrent command {}", i);
-            let _ = fixture.create_command(&format!("concurrent{}", i), &content, false).await;
+            let _ = fixture
+                .create_command(&format!("concurrent{}", i), &content, false)
+                .await;
         }
 
         let mut handles = vec![];
         for i in 0..5 {
             let name = format!("concurrent{}", i);
-            handles.push(tokio::spawn(async move {
-                execute_command_async(&name).await
-            }));
+            handles.push(tokio::spawn(
+                async move { execute_command_async(&name).await },
+            ));
         }
 
         for handle in handles {

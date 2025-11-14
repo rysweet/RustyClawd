@@ -21,8 +21,8 @@ use claude_code_cli::hooks::{
     loader::HookLoader,
     registry::HookRegistry,
     types::{
-        Hook, HookConfig, HookContext, HookEvent, HookMatcher, HookOutput, HookResult,
-        HooksConfiguration, HookType, PermissionDecision, StopDecision,
+        Hook, HookConfig, HookContext, HookEvent, HookMatcher, HookOutput, HookResult, HookType,
+        HooksConfiguration, PermissionDecision, StopDecision,
     },
     HooksSystem,
 };
@@ -680,7 +680,10 @@ async fn test_load_session_start_configuration() {
 
     let config = HookLoader::load_from_string(json).unwrap();
     assert_eq!(config.session_start.len(), 1);
-    assert_eq!(config.session_start[0].hooks[0].hook_type, HookType::Command);
+    assert_eq!(
+        config.session_start[0].hooks[0].hook_type,
+        HookType::Command
+    );
 }
 
 #[tokio::test]
