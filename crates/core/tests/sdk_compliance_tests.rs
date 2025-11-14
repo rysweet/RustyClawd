@@ -599,7 +599,7 @@ fn test_create_message_request_streaming_flag() {
     )
     .with_stream(true);
 
-    assert_eq!(request.stream, true);
+    assert!(request.stream);
 }
 
 #[test]

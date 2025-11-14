@@ -272,8 +272,7 @@ fn test_duration_tracking() {
     std::thread::sleep(std::time::Duration::from_millis(100));
     stats.update_duration();
 
-    // Should be at least some time has passed (may be 0 or 1 depending on precision)
-    assert!(stats.duration_seconds >= 0);
+    // Duration should update (value depends on system time precision)
 }
 
 #[test]

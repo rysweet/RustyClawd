@@ -343,7 +343,7 @@ mod tests {
 
         assert_eq!(request.model, "claude-3-5-sonnet-20241022");
         assert_eq!(request.max_tokens, 1024);
-        assert_eq!(request.stream, true);
+        assert!(request.stream);
         assert_eq!(request.temperature, Some(0.7));
     }
 }

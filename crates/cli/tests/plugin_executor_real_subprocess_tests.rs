@@ -429,7 +429,7 @@ fn test_subprocess_handles_binary_output() {
 
     assert!(exec_result.success);
     // Binary output should be captured (possibly with lossy conversion)
-    assert!(!exec_result.output.is_empty() || exec_result.output.len() >= 0);
+    // Note: output may be empty or contain binary data converted to string
 }
 
 #[test]

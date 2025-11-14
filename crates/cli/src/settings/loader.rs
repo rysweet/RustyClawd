@@ -348,9 +348,8 @@ mod tests {
         let loader = SettingsLoader::new();
         let overrides = loader.load_env_overrides();
 
-        // Will vary based on environment, but should be a HashMap
-        // At minimum it should be empty or contain env vars
-        assert!(overrides.len() >= 0);
+        // Will vary based on environment, but should be a valid HashMap
+        // (can be empty or contain env vars)
     }
 
     #[test]
