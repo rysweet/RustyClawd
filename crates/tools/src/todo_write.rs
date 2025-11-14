@@ -14,7 +14,7 @@ use std::sync::{Arc, OnceLock, RwLock};
 
 /// Task status
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum TaskStatus {
     Pending,
     InProgress,
@@ -603,7 +603,7 @@ mod tests {
         let completed_json = serde_json::to_string(&completed).unwrap();
 
         assert_eq!(pending_json, "\"pending\"");
-        assert_eq!(in_progress_json, "\"inprogress\""); // Note: serde(rename_all = "lowercase") removes underscore
+        assert_eq!(in_progress_json, "\"in_progress\""); // Note: serde(rename_all = "snake_case") keeps underscore
         assert_eq!(completed_json, "\"completed\"");
     }
 }
