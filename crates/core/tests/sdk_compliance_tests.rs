@@ -1733,7 +1733,7 @@ fn test_model_version_formats() {
 #[test]
 fn test_sequential_tool_calls_conversation() {
     // Sequential tools: Later tool depends on earlier result
-    let conversation = vec![
+    let conversation = [
         Message::user("Find and read the config file"),
         // Claude first searches
         Message::with_blocks(
