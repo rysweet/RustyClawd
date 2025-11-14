@@ -14,6 +14,8 @@ pub fn get_all_tool_definitions() -> Vec<ToolDefinition> {
         edit_tool_definition(),
         glob_tool_definition(),
         grep_tool_definition(),
+        slash_command_tool_definition(),
+        todowrite_tool_definition(),
         task_tool_definition(),
     ]
 }
@@ -192,6 +194,61 @@ fn grep_tool_definition() -> ToolDefinition {
                 }
             },
             "required": ["pattern"]
+        }),
+    }
+}
+
+/// SlashCommand tool definition
+fn slash_command_tool_definition() -> ToolDefinition {
+    ToolDefinition {
+        name: "SlashCommand".to_string(),
+        description: "Execute slash commands within the main conversation".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string",
+                    "description": "The slash command to execute with its arguments (e.g., '/review-pr 123')"
+                }
+            },
+            "required": ["command"]
+        }),
+    }
+}
+
+/// TodoWrite tool definition
+fn todowrite_tool_definition() -> ToolDefinition {
+    ToolDefinition {
+        name: "TodoWrite".to_string(),
+        description: "Manage structured task lists for tracking progress".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "todos": {
+                    "type": "array",
+                    "description": "List of tasks to manage",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "content": {
+                                "type": "string",
+                                "description": "Task description (what needs to be done)"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["pending", "inprogress", "completed"],
+                                "description": "Current status of the task"
+                            },
+                            "activeForm": {
+                                "type": "string",
+                                "description": "Present continuous form for in-progress display"
+                            }
+                        },
+                        "required": ["content", "status", "activeForm"]
+                    }
+                }
+            },
+            "required": ["todos"]
         }),
     }
 }
