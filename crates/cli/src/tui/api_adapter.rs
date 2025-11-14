@@ -14,10 +14,8 @@
 use super::{ChatMessage, MessageRole};
 use anyhow::{Context as AnyhowContext, Result};
 use futures::Stream;
-use rustyclawd_core::client::{
-    Client, Config, CreateMessageRequest, Message as ApiMessage, Role,
-};
 use rustyclawd_core::client::types::MessageContent;
+use rustyclawd_core::client::{Client, Config, CreateMessageRequest, Message as ApiMessage, Role};
 use std::pin::Pin;
 
 /// TUI API adapter for Claude API integration
@@ -107,9 +105,8 @@ impl TuiApiAdapter {
             .context("Failed to create message stream")?;
 
         // Convert ClientResult<String> to Result<String> and box the stream
-        let result_stream = text_stream.map(|result| {
-            result.map_err(|e| anyhow::anyhow!("Stream error: {}", e))
-        });
+        let result_stream =
+            text_stream.map(|result| result.map_err(|e| anyhow::anyhow!("Stream error: {}", e)));
 
         Ok(Box::pin(result_stream))
     }
@@ -198,7 +195,9 @@ impl TuiApiAdapter {
 
         // Validate we have at least one message
         if api_messages.is_empty() {
-            anyhow::bail!("No valid messages to send (need at least one user or assistant message)");
+            anyhow::bail!(
+                "No valid messages to send (need at least one user or assistant message)"
+            );
         }
 
         Ok(api_messages)

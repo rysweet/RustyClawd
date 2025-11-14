@@ -147,10 +147,11 @@ impl TuiState {
 
         // Create streaming request (take ownership of adapter temporarily)
         let mut stream = {
-            let adapter = self
-                .api_adapter
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("API adapter not configured. Use set_api_adapter() first or provide API key."))?;
+            let adapter = self.api_adapter.as_ref().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "API adapter not configured. Use set_api_adapter() first or provide API key."
+                )
+            })?;
 
             adapter.send_message_stream(&conversation).await?
         };
@@ -675,9 +676,10 @@ pub async fn run_tui() -> Result<()> {
 
                 // Send message and stream response
                 if let Err(e) = tui.send_and_stream_response(user_message).await {
-                    tui.add_message(ChatMessage::system(
-                        format!("Error communicating with API: {}", e),
-                    ));
+                    tui.add_message(ChatMessage::system(format!(
+                        "Error communicating with API: {}",
+                        e
+                    )));
                     tui.draw()?;
                 }
             }

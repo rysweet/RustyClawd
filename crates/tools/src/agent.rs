@@ -7,12 +7,12 @@
 //! - Supports model selection (haiku/sonnet/opus)
 //! - Allows resuming previous agent executions
 
-use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
+use crate::{ExecutionContext, ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
 use async_stream::stream;
 use async_trait::async_trait;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokio::fs;
 
 /// Parameters for the Agent tool
