@@ -273,10 +273,7 @@ mod unit_config_loading {
 
     #[test]
     fn test_permission_mode_from_str() {
-        assert_eq!(
-            PermissionMode::parse("allow"),
-            Some(PermissionMode::Allow)
-        );
+        assert_eq!(PermissionMode::parse("allow"), Some(PermissionMode::Allow));
         assert_eq!(PermissionMode::parse("ask"), Some(PermissionMode::Ask));
         assert_eq!(PermissionMode::parse("deny"), Some(PermissionMode::Deny));
         assert_eq!(PermissionMode::parse("invalid"), None);

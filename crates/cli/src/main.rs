@@ -221,8 +221,8 @@ impl App {
         };
 
         // 6. Check for session resume or create new session
-        let session_saver =
-            checkpoint::SessionSaver::with_default_storage().context("Failed to initialize session saver")?;
+        let session_saver = checkpoint::SessionSaver::with_default_storage()
+            .context("Failed to initialize session saver")?;
 
         // Default checkpoint limit (not configurable via CLI in official spec)
         let checkpoint_limit = 50;
