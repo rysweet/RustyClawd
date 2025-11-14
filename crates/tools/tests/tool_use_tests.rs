@@ -1214,7 +1214,8 @@ mod e2e_tool_lifecycle {
     #[test]
     fn test_tool_use_with_streaming() {
         // Test streaming tool use events
-        let events = [ToolStreamEvent::ToolUseStart {
+        let events = [
+            ToolStreamEvent::ToolUseStart {
                 id: "call_1".to_string(),
                 name: "search".to_string(),
             },
@@ -1224,7 +1225,8 @@ mod e2e_tool_lifecycle {
             ToolStreamEvent::ToolResult {
                 success: true,
                 content: "Results found".to_string(),
-            }];
+            },
+        ];
 
         assert_eq!(events.len(), 5);
         assert!(matches!(events[0], ToolStreamEvent::ToolUseStart { .. }));

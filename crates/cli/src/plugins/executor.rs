@@ -247,8 +247,6 @@ impl PluginValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
-    
 
     #[test]
     fn test_execute_command_plugin_not_found() {

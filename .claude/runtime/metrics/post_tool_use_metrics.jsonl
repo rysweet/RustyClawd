@@ -2858,3 +2858,5 @@
 {"timestamp": "2025-11-14T15:46:00.476056", "metric": "tool_usage", "value": "unknown", "hook": "post_tool_use"}
 {"timestamp": "2025-11-14T15:46:40.017151", "metric": "tool_usage", "value": "unknown", "hook": "post_tool_use"}
 {"timestamp": "2025-11-14T15:46:40.025617", "metric": "tool_usage", "value": "unknown", "hook": "post_tool_use"}
+{"timestamp": "2025-11-14T15:46:47.934813", "metric": "tool_usage", "value": "unknown", "hook": "post_tool_use"}
+{"timestamp": "2025-11-14T15:46:47.942674", "metric": "tool_usage", "value": "unknown", "hook": "post_tool_use"}

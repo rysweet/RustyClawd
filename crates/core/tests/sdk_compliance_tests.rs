@@ -460,7 +460,8 @@ fn test_message_with_tool_result_blocks() {
 
 #[test]
 fn test_message_alternating_roles() {
-    let messages = [Message::user("Calculate 5 + 3"),
+    let messages = [
+        Message::user("Calculate 5 + 3"),
         Message::with_blocks(
             Role::Assistant,
             vec![ContentBlock::ToolUse {
@@ -477,7 +478,8 @@ fn test_message_alternating_roles() {
                 is_error: None,
             }],
         ),
-        Message::assistant("The answer is 8")];
+        Message::assistant("The answer is 8"),
+    ];
 
     assert_eq!(messages.len(), 4);
     assert_eq!(messages[0].role, Role::User);
@@ -1899,13 +1901,15 @@ fn test_tool_schema_with_one_of() {
 #[test]
 fn test_streaming_event_sequence() {
     // Verify expected event types in streaming
-    let events = ["message_start",
+    let events = [
+        "message_start",
         "content_block_start",
         "content_block_delta",
         "content_block_delta",
         "content_block_stop",
         "message_delta",
-        "message_stop"];
+        "message_stop",
+    ];
 
     assert_eq!(events[0], "message_start");
     assert_eq!(events[events.len() - 1], "message_stop");

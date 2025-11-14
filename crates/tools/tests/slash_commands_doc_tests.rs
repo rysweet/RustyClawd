@@ -82,7 +82,6 @@ impl TestFixture {
 // ============================================================================
 
 mod builtin_commands {
-    
 
     #[test]
     fn test_help_command_exists() {
@@ -927,7 +926,6 @@ mod slash_command_tool {
 // ============================================================================
 
 mod plugin_mcp_commands {
-    
 
     #[test]
     fn test_plugin_command_namespace_format() {

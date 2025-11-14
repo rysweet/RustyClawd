@@ -28,7 +28,6 @@ pub enum OutputMode {
     Count,
 }
 
-
 /// Parameters for the Grep tool
 #[derive(Debug, Deserialize)]
 pub struct GrepParams {

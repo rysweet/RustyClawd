@@ -17,8 +17,7 @@ use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 
 /// Execution context indicating whether we're running in TUI mode
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExecutionContext {
     /// Running in TUI/interactive mode - terminal state must be protected
     Tui,
@@ -26,7 +25,6 @@ pub enum ExecutionContext {
     #[default]
     NonInteractive,
 }
-
 
 // Global execution context
 //

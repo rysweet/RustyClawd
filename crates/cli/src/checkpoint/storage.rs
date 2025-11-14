@@ -203,7 +203,6 @@ pub struct CheckpointMetadata {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[test]
     fn test_storage_creation() {

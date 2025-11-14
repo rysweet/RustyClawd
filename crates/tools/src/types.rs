@@ -33,8 +33,7 @@ pub struct ToolMetadata {
 }
 
 /// Execution context for tools
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExecutionContext {
     /// Running in TUI/interactive mode - process isolation needed
     Tui,
@@ -42,7 +41,6 @@ pub enum ExecutionContext {
     #[default]
     NonInteractive,
 }
-
 
 /// Context passed to tools during execution
 #[derive(Debug, Clone)]
