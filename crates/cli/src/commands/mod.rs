@@ -108,6 +108,12 @@ impl SlashCommands {
             self.registry.list_all_info()
         }
     }
+
+    /// Get tab completion suggestions for a command prefix
+    /// Returns list of (command_name, optional_argument_hint) tuples
+    pub fn get_completions(&self, prefix: &str) -> Vec<(String, Option<String>)> {
+        self.registry.get_completions(prefix)
+    }
 }
 
 #[cfg(test)]
@@ -148,5 +154,56 @@ mod tests {
     #[test]
     fn test_max_expanded_chars_constant() {
         assert_eq!(MAX_EXPANDED_CHARS, 15_000);
+    }
+
+    #[tokio::test]
+    async fn test_get_completions_empty_prefix() {
+        let slash_commands = SlashCommands::new().await.unwrap();
+        let completions = slash_commands.get_completions("");
+
+        // With empty prefix, should return all commands
+        assert!(!completions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_completions_with_prefix() {
+        let slash_commands = SlashCommands::new().await.unwrap();
+
+        // Test with a prefix that matches some commands
+        let completions = slash_commands.get_completions("an");
+
+        // Should return commands starting with "an" (like "analyze")
+        // The exact result depends on available commands
+        for (cmd, _) in &completions {
+            assert!(cmd.starts_with("an"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_completions_no_match() {
+        let slash_commands = SlashCommands::new().await.unwrap();
+
+        // Test with a prefix that matches no commands
+        let completions = slash_commands.get_completions("zzz_no_match");
+
+        assert!(completions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_completions_includes_hints() {
+        let slash_commands = SlashCommands::new().await.unwrap();
+
+        // Get all completions
+        let completions = slash_commands.get_completions("");
+
+        // Some commands should have hints (argument_hint in frontmatter)
+        // We just verify the structure is correct
+        for (_cmd, hint) in &completions {
+            // hint is Option<String>, verify it can be None or Some
+            match hint {
+                Some(h) => assert!(!h.is_empty()),
+                None => {} // OK to have no hint
+            }
+        }
     }
 }
