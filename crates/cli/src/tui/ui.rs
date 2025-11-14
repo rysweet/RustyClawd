@@ -10,9 +10,7 @@
 use super::input_viewport;
 use anyhow::Result;
 use crossterm::{
-    event::{
-        self, Event, KeyCode, KeyEvent, KeyModifiers,
-    },
+    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -608,10 +606,7 @@ impl TuiState {
     /// Cleanup terminal on drop
     pub fn cleanup(&mut self) -> Result<()> {
         disable_raw_mode()?;
-        execute!(
-            self.terminal.backend_mut(),
-            LeaveAlternateScreen
-        )?;
+        execute!(self.terminal.backend_mut(), LeaveAlternateScreen)?;
         self.terminal.show_cursor()?;
         Ok(())
     }
