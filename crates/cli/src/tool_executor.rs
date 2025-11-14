@@ -5,7 +5,8 @@
 use anyhow::Result;
 use rustyclawd_core::client::ClientError;
 use rustyclawd_tools::{
-    AgentTool, AskUserQuestionTool, BashTool, EditTool, GlobTool, GrepTool, ReadTool, SlashCommandTool, TodoWriteTool, Tool, ToolContext, ToolEvent, WriteTool,
+    AgentTool, AskUserQuestionTool, BashTool, EditTool, GlobTool, GrepTool, ReadTool,
+    SkillTool, SlashCommandTool, TodoWriteTool, Tool, ToolContext, ToolEvent, WriteTool,
 };
 use futures::StreamExt;
 use serde_json::{json, Value};
@@ -71,23 +72,23 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
             vec!["questions"],
             vec!["answers"],
             json!({
-                "questions": [
-                    {
-                        "question": "What would you like to do?",
-                        "header": "Action",
-                        "multiSelect": false,
-                        "options": [
-                            {
-                                "label": "Option 1",
-                                "description": "First option description"
-                            },
-                            {
-                                "label": "Option 2",
-                                "description": "Second option description"
-                            }
-                        ]
-                    }
-                ]
+                "questions": [{
+                    "question": "What is your choice?",
+                    "header": "choice",
+                    "multiSelect": false,
+                    "options": [
+                        {"label": "Option 1", "description": "First option"},
+                        {"label": "Option 2", "description": "Second option"}
+                    ]
+                }],
+                "answers": {}
+            })
+        ),
+        "Skill" => (
+            vec!["skill"],
+            vec![],
+            json!({
+                "skill": "skill-name"
             })
         ),
         "SlashCommand" => (
@@ -95,6 +96,16 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
             vec![],
             json!({
                 "command": "/command-name arg1 arg2"
+            })
+        ),
+        "Task" => (
+            vec!["subagent_type", "prompt", "description"],
+            vec!["model", "resume"],
+            json!({
+                "subagent_type": "agent_name",
+                "prompt": "Full task description for the agent",
+                "description": "Brief task summary",
+                "model": "sonnet"
             })
         ),
         "TodoWrite" => (
@@ -113,16 +124,6 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
                         "activeForm": "Doing another task"
                     }
                 ]
-            })
-        ),
-        "Task" => (
-            vec!["subagent_type", "prompt", "description"],
-            vec!["model", "resume"],
-            json!({
-                "subagent_type": "agent_name",
-                "prompt": "Full task description for the agent",
-                "description": "Brief task summary",
-                "model": "sonnet"
             })
         ),
         _ => (vec![], vec![], json!({}))
@@ -171,6 +172,7 @@ pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value,
         "Glob" => execute_glob_tool(tool_input, &ctx).await,
         "Grep" => execute_grep_tool(tool_input, &ctx).await,
         "AskUserQuestion" => execute_ask_user_question_tool(tool_input, &ctx).await,
+        "Skill" => execute_skill_tool(tool_input, &ctx).await,
         "SlashCommand" => execute_slash_command_tool(tool_input, &ctx).await,
         "Task" => execute_agent_tool(tool_input, &ctx).await,
         "TodoWrite" => execute_todowrite_tool(tool_input, &ctx).await,
@@ -420,6 +422,38 @@ async fn execute_ask_user_question_tool(input: Value, ctx: &ToolContext) -> Resu
         "AskUserQuestion tool completed without result".to_string(),
     ))
     // Guard is automatically dropped here, restoring terminal state
+}
+
+/// Execute Skill tool
+async fn execute_skill_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
+    let params: rustyclawd_tools::skill::SkillParams =
+        serde_json::from_value(input).map_err(|e| {
+            create_schema_error("Skill", &e.to_string())
+        })?;
+
+    let tool = SkillTool;
+    let mut stream = tool
+        .execute(params, ctx)
+        .await
+        .map_err(|e| ClientError::Api(format!("Skill tool execution failed: {}", e)))?;
+
+    while let Some(event) = stream.next().await {
+        match event {
+            ToolEvent::Result(output) => {
+                return serde_json::to_value(&output).map_err(|e| {
+                    ClientError::Api(format!("Failed to serialize Skill output: {}", e))
+                });
+            }
+            ToolEvent::Error { message } => {
+                return Err(ClientError::Api(format!("Skill tool error: {}", message)));
+            }
+            ToolEvent::Progress { .. } => {}
+        }
+    }
+
+    Err(ClientError::Api(
+        "Skill tool completed without result".to_string(),
+    ))
 }
 
 /// Execute SlashCommand tool
