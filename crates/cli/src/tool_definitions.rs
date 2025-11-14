@@ -14,7 +14,11 @@ pub fn get_all_tool_definitions() -> Vec<ToolDefinition> {
         edit_tool_definition(),
         glob_tool_definition(),
         grep_tool_definition(),
+<<<<<<< HEAD
+        todowrite_tool_definition(),
+=======
         task_tool_definition(),
+>>>>>>> origin/master
     ]
 }
 
@@ -196,6 +200,41 @@ fn grep_tool_definition() -> ToolDefinition {
     }
 }
 
+<<<<<<< HEAD
+/// TodoWrite tool definition
+fn todowrite_tool_definition() -> ToolDefinition {
+    ToolDefinition {
+        name: "TodoWrite".to_string(),
+        description: "Manage structured task lists for tracking progress".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "todos": {
+                    "type": "array",
+                    "description": "List of tasks to manage",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "content": {
+                                "type": "string",
+                                "description": "Task description (what needs to be done)"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["pending", "inprogress", "completed"],
+                                "description": "Current status of the task"
+                            },
+                            "activeForm": {
+                                "type": "string",
+                                "description": "Present continuous form for in-progress display"
+                            }
+                        },
+                        "required": ["content", "status", "activeForm"]
+                    }
+                }
+            },
+            "required": ["todos"]
+=======
 /// Task tool definition (Agent orchestration)
 fn task_tool_definition() -> ToolDefinition {
     ToolDefinition {
@@ -226,6 +265,7 @@ fn task_tool_definition() -> ToolDefinition {
                 }
             },
             "required": ["subagent_type", "prompt", "description"]
+>>>>>>> origin/master
         }),
     }
 }

@@ -1,4 +1,1 @@
----
-description: Helper command
----
-Content
+Namespaced command

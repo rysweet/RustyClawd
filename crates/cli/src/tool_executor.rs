@@ -5,7 +5,12 @@
 use anyhow::Result;
 use rustyclawd_core::client::ClientError;
 use rustyclawd_tools::{
+<<<<<<< HEAD
+    BashTool, EditTool, GlobTool, GrepTool, ReadTool, Tool, ToolContext, ToolEvent, WriteTool,
+    TodoWriteTool,
+=======
     AgentTool, BashTool, EditTool, GlobTool, GrepTool, ReadTool, Tool, ToolContext, ToolEvent, WriteTool,
+>>>>>>> origin/master
 };
 use futures::StreamExt;
 use serde_json::{json, Value};
@@ -67,6 +72,24 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
                 "output_mode": "content"
             })
         ),
+<<<<<<< HEAD
+        "TodoWrite" => (
+            vec!["todos"],
+            vec![],
+            json!({
+                "todos": [
+                    {
+                        "content": "Task description",
+                        "status": "pending",
+                        "activeForm": "Present continuous form"
+                    },
+                    {
+                        "content": "Another task",
+                        "status": "in_progress",
+                        "activeForm": "Doing another task"
+                    }
+                ]
+=======
         "Task" => (
             vec!["subagent_type", "prompt", "description"],
             vec!["model", "resume"],
@@ -75,6 +98,7 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
                 "prompt": "Full task description for the agent",
                 "description": "Brief task summary",
                 "model": "sonnet"
+>>>>>>> origin/master
             })
         ),
         _ => (vec![], vec![], json!({}))
@@ -123,6 +147,7 @@ pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value,
         "Glob" => execute_glob_tool(tool_input, &ctx).await,
         "Grep" => execute_grep_tool(tool_input, &ctx).await,
         "Task" => execute_agent_tool(tool_input, &ctx).await,
+        "TodoWrite" => execute_todowrite_tool(tool_input, &ctx).await,
         _ => Err(ClientError::Api(format!("Unknown tool: {}", tool_name))),
     }
 }
@@ -327,6 +352,20 @@ async fn execute_grep_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
     ))
 }
 
+<<<<<<< HEAD
+/// Execute TodoWrite tool
+async fn execute_todowrite_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
+    let params: rustyclawd_tools::todo_write::TodoWriteParams =
+        serde_json::from_value(input).map_err(|e| {
+            create_schema_error("TodoWrite", &e.to_string())
+        })?;
+
+    let tool = TodoWriteTool;
+    let mut stream = tool
+        .execute(params, ctx)
+        .await
+        .map_err(|e| ClientError::Api(format!("TodoWrite tool execution failed: {}", e)))?;
+=======
 /// Execute Agent/Task tool
 async fn execute_agent_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::agent::AgentParams =
@@ -339,22 +378,36 @@ async fn execute_agent_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cl
         .execute(params, ctx)
         .await
         .map_err(|e| ClientError::Api(format!("Task tool execution failed: {}", e)))?;
+>>>>>>> origin/master
 
     while let Some(event) = stream.next().await {
         match event {
             ToolEvent::Result(output) => {
                 return serde_json::to_value(&output).map_err(|e| {
+<<<<<<< HEAD
+                    ClientError::Api(format!("Failed to serialize TodoWrite output: {}", e))
+                });
+            }
+            ToolEvent::Error { message } => {
+                return Err(ClientError::Api(format!("TodoWrite tool error: {}", message)));
+=======
                     ClientError::Api(format!("Failed to serialize Task output: {}", e))
                 });
             }
             ToolEvent::Error { message } => {
                 return Err(ClientError::Api(format!("Task tool error: {}", message)));
+>>>>>>> origin/master
             }
             ToolEvent::Progress { .. } => {}
         }
     }
 
     Err(ClientError::Api(
+<<<<<<< HEAD
+        "TodoWrite tool completed without result".to_string(),
+    ))
+}
+=======
         "Task tool completed without result".to_string(),
     ))
 }
@@ -515,3 +568,4 @@ mod tests {
         assert!(help.contains("description"), "Help should list required fields");
     }
 }
+>>>>>>> origin/master
