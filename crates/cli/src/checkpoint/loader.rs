@@ -22,8 +22,8 @@ impl SessionLoader {
     }
 
     /// Create with default storage location
-    pub fn default() -> io::Result<Self> {
-        let storage = CheckpointStorage::default()?;
+    pub fn with_default_storage() -> io::Result<Self> {
+        let storage = CheckpointStorage::with_default_path()?;
         Ok(Self { storage })
     }
 

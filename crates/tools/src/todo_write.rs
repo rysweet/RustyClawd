@@ -210,7 +210,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events
@@ -247,7 +247,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         // Should have error event
@@ -275,7 +275,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         // Should have error event
@@ -304,7 +304,7 @@ mod tests {
             ],
         };
         let ctx = ToolContext::default();
-        let mut stream = tool.execute(params1, &ctx).await.unwrap();
+        let stream = tool.execute(params1, &ctx).await.unwrap();
         let _: Vec<_> = stream.collect().await;
 
         // Verify state was stored
@@ -333,7 +333,7 @@ mod tests {
                 },
             ],
         };
-        let mut stream = tool.execute(params2, &ctx).await.unwrap();
+        let stream = tool.execute(params2, &ctx).await.unwrap();
         let _: Vec<_> = stream.collect().await;
 
         // Verify state was updated
@@ -369,7 +369,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events
@@ -410,7 +410,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events
@@ -439,7 +439,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events
@@ -461,7 +461,7 @@ mod tests {
         let params = TodoWriteParams { todos: vec![] };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         // Should have error - no in_progress task
@@ -499,7 +499,7 @@ mod tests {
         let params = TodoWriteParams { todos };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events
@@ -529,7 +529,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events
@@ -562,7 +562,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         // Should have progress events

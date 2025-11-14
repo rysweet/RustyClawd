@@ -257,7 +257,7 @@ impl SettingsLoader {
                             .and_then(|v| v.as_str())
                             .unwrap_or("ask");
 
-                        if let Some(mode) = PermissionMode::from_str(mode_str) {
+                        if let Some(mode) = PermissionMode::parse(mode_str) {
                             let patterns = tool_obj
                                 .get("patterns")
                                 .and_then(|v| v.as_array())
@@ -348,8 +348,10 @@ mod tests {
         let loader = SettingsLoader::new();
         let overrides = loader.load_env_overrides();
 
-        // Will vary based on environment, but should be a valid HashMap
-        // (can be empty or contain env vars)
+        // Will vary based on environment, but should be a HashMap
+        // At minimum it should be empty or contain env vars
+        // Length is always >= 0 for HashMap, so just verify it's a valid HashMap
+        let _count = overrides.len();
     }
 
     #[test]

@@ -94,11 +94,11 @@ impl crate::Tool for SlashCommandTool {
             };
 
             // Parse markdown frontmatter if present
-            let expanded_prompt = if prompt_content.starts_with("---") {
+            let expanded_prompt = if let Some(stripped) = prompt_content.strip_prefix("---") {
                 // Find the end of frontmatter
-                if let Some(end_idx) = prompt_content[3..].find("---") {
-                    let frontmatter = &prompt_content[3..3 + end_idx];
-                    let content = prompt_content[3 + end_idx + 3..].trim();
+                if let Some(end_idx) = stripped.find("---") {
+                    let frontmatter = &stripped[..end_idx];
+                    let content = stripped[end_idx + 3..].trim();
 
                     // Parse frontmatter as YAML (optional - for future use)
                     if let Ok(meta) = serde_yaml::from_str::<serde_json::Value>(frontmatter) {

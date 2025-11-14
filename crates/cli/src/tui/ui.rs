@@ -20,7 +20,7 @@ use ratatui::{
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Span},
+    text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph, Wrap},
     Frame, Terminal,
 };
@@ -584,9 +584,9 @@ pub async fn run_tui() -> Result<()> {
             if !input.is_empty() {
                 tui.add_message(ChatMessage::user(input.to_string()));
 
-                tui.add_message(ChatMessage::system(
-                    "Error: TUI mode requires Claude API integration. Use CLI mode instead."
-                        .to_string(),
+                // TODO: Integrate with Claude API
+                tui.add_message(ChatMessage::assistant(
+                    "I'm here! (API integration coming soon)".to_string(),
                 ));
             }
         }

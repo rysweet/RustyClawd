@@ -416,6 +416,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires API configuration at ~/.claude-msec-k; run manually when testing hooks
     async fn test_execute_prompt_hook() {
         let hook = Hook::prompt(None, Some(60000));
         let context = HookContext::for_session(

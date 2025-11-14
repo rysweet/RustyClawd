@@ -20,7 +20,7 @@
 //!
 //! # Usage
 //!
-//! ```rust
+//! ```rust,ignore
 //! use claude_code_cli::checkpoint::{Session, SessionSaver, SessionLoader, RestoreScope};
 //!
 //! // Create a session

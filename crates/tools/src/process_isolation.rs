@@ -65,7 +65,7 @@ impl ProcessSpawnConfig {
 /// cmd.arg("-c").arg("echo hello");
 ///
 /// let config = ProcessSpawnConfig::with_isolation();
-/// let cmd = apply_isolation(cmd, &config);
+/// let mut cmd = apply_isolation(cmd, &config);
 ///
 /// let child = cmd.spawn()?;
 /// # Ok(())
@@ -264,7 +264,7 @@ mod tests {
             let config = ProcessSpawnConfig::with_isolation();
             let mut child = spawn_with_isolation(cmd, &config)
                 .await
-                .expect(&format!("Failed to spawn {}", cmd_name));
+                .unwrap_or_else(|_| panic!("Failed to spawn {}", cmd_name));
 
             let status = child.wait().await.expect("Failed to wait for child");
             assert!(

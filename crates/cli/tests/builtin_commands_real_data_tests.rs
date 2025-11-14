@@ -8,6 +8,10 @@
 //! - No placeholder strings in any output
 //! - All commands work with SessionState
 
+#![allow(unused_imports)]
+#![allow(dead_code)]
+#![allow(clippy::manual_range_contains)]
+
 use claude_code_cli::commands::builtins::BuiltinCommands;
 use claude_code_cli::commands::parser::{Command, CommandParser};
 

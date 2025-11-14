@@ -28,7 +28,7 @@ pub enum PermissionMode {
 }
 
 impl PermissionMode {
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
             "allow" => Some(PermissionMode::Allow),
             "ask" => Some(PermissionMode::Ask),
@@ -273,14 +273,11 @@ mod unit_config_loading {
 
     #[test]
     fn test_permission_mode_from_str() {
-        assert_eq!(
-            PermissionMode::from_str("allow"),
-            Some(PermissionMode::Allow)
-        );
-        assert_eq!(PermissionMode::from_str("ask"), Some(PermissionMode::Ask));
-        assert_eq!(PermissionMode::from_str("deny"), Some(PermissionMode::Deny));
-        assert_eq!(PermissionMode::from_str("invalid"), None);
-        assert_eq!(PermissionMode::from_str(""), None);
+        assert_eq!(PermissionMode::parse("allow"), Some(PermissionMode::Allow));
+        assert_eq!(PermissionMode::parse("ask"), Some(PermissionMode::Ask));
+        assert_eq!(PermissionMode::parse("deny"), Some(PermissionMode::Deny));
+        assert_eq!(PermissionMode::parse("invalid"), None);
+        assert_eq!(PermissionMode::parse(""), None);
     }
 
     #[test]

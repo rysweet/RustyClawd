@@ -3,17 +3,17 @@
 //! Tests the complete plugin system including:
 //! - Plugin discovery and loading
 //! - Command execution
+
+#![allow(unused_variables)]
 //! - Skill loading
 //! - Agent discovery
 //! - MCP server management
 //! - Hooks integration
 //! - Plugin manager orchestration
 
+#![allow(clippy::useless_vec)]
+
 use claude_code_cli::hooks::registry::HookRegistry;
-use claude_code_cli::plugins::agent_discovery::AgentDiscovery;
-use claude_code_cli::plugins::hooks_integration::PluginHooksIntegrator;
-use claude_code_cli::plugins::manager::PluginManager;
-use claude_code_cli::plugins::mcp_proxy::McpProxy;
 use claude_code_cli::plugins::*;
 use std::collections::HashMap;
 use std::fs;

@@ -15,6 +15,9 @@
 //! - Configuration precedence
 //! - Special features (SessionStart persistence, MCP targeting, plugin hooks)
 
+#![allow(clippy::useless_vec)]
+#![allow(clippy::assertions_on_constants)]
+
 // Import from the parent CLI crate (uses lib name "claude_code_cli" from Cargo.toml)
 use claude_code_cli::hooks::{
     executor::HookExecutor,
@@ -26,7 +29,6 @@ use claude_code_cli::hooks::{
     },
     HooksSystem,
 };
-use serde_json;
 
 // Helper function to create minimal HookOutput for testing
 fn hook_output_minimal() -> HookOutput {

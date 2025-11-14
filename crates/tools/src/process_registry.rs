@@ -275,7 +275,6 @@ impl Default for ProcessRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
 
     #[tokio::test]
     async fn test_registry_creation() {
