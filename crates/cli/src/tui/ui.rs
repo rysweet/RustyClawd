@@ -178,7 +178,7 @@ impl TuiState {
                     // Handle stream error
                     self.set_status(format!("Error: {}", e));
                     self.draw()?;
-                    return Err(e.into());
+                    return Err(e);
                 }
             }
         }
