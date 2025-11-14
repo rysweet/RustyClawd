@@ -195,9 +195,9 @@ impl crate::Tool for BashTool {
 
                 // Collect outputs
                 let stdout_output = stdout_handle.await
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))??;
+                    .map_err(|e| std::io::Error::other(e))??;
                 let stderr_output = stderr_handle.await
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))??;
+                    .map_err(|e| std::io::Error::other(e))??;
 
                 Ok::<_, std::io::Error>(BashOutput {
                     stdout: Some(stdout_output),

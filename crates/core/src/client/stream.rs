@@ -103,7 +103,7 @@ where
 
         loop {
             // Try to parse events from buffer first
-            let events = parse_sse_events(&mut this.buffer);
+            let events = parse_sse_events(this.buffer);
             if !events.is_empty() {
                 return Poll::Ready(Some(Ok(events.into_iter().next().unwrap())));
             }

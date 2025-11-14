@@ -86,8 +86,7 @@ pub fn apply_isolation(mut command: Command, config: &ProcessSpawnConfig) -> Com
                 // This also creates a new process group
                 match nix::unistd::setsid() {
                     Ok(_) => Ok(()),
-                    Err(e) => Err(io::Error::new(
-                        io::ErrorKind::Other,
+                    Err(e) => Err(io::Error::other(
                         format!("Failed to create new session: {}", e),
                     )),
                 }

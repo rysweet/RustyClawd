@@ -62,7 +62,7 @@ impl HookLoader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hooks::types::{Hook, HookConfig, HookMatcher, HookType};
+    use crate::hooks::types::{HookMatcher, HookType};
 
     #[tokio::test]
     async fn test_load_empty_config() {

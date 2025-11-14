@@ -17,20 +17,17 @@ use tokio::process::Command;
 /// Output mode for grep results
 #[derive(Debug, Deserialize, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum OutputMode {
     /// Show matching lines with content
     Content,
     /// Show only file paths with matches
+    #[default]
     FilesWithMatches,
     /// Show match counts per file
     Count,
 }
 
-impl Default for OutputMode {
-    fn default() -> Self {
-        Self::FilesWithMatches
-    }
-}
 
 /// Parameters for the Grep tool
 #[derive(Debug, Deserialize)]

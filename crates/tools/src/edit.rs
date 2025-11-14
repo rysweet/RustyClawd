@@ -133,11 +133,7 @@ impl crate::Tool for EditTool {
             };
 
             let new_bytes = new_content.len();
-            let bytes_changed = if new_bytes > original_bytes {
-                new_bytes - original_bytes
-            } else {
-                original_bytes - new_bytes
-            };
+            let bytes_changed = new_bytes.abs_diff(original_bytes);
 
             yield ToolEvent::Progress {
                 step: "Writing changes...".to_string(),

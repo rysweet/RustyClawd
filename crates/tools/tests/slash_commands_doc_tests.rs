@@ -82,7 +82,7 @@ impl TestFixture {
 // ============================================================================
 
 mod builtin_commands {
-    use super::*;
+    
 
     #[test]
     fn test_help_command_exists() {
@@ -927,7 +927,7 @@ mod slash_command_tool {
 // ============================================================================
 
 mod plugin_mcp_commands {
-    use super::*;
+    
 
     #[test]
     fn test_plugin_command_namespace_format() {

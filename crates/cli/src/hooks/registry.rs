@@ -147,7 +147,7 @@ impl Default for HookRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hooks::types::{HookMatcher, HookType};
+    use crate::hooks::types::HookMatcher;
 
     #[test]
     fn test_registry_creation() {

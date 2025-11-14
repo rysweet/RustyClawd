@@ -34,7 +34,7 @@ pub use types::Settings;
 #[cfg(test)]
 mod integration_tests {
     use super::hierarchy::SettingsHierarchy;
-    use super::types::{PermissionMode, SettingsLayer};
+    use super::types::SettingsLayer;
     use super::*;
 
     #[test]

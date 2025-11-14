@@ -117,7 +117,7 @@ impl crate::Tool for GlobTool {
                 }
 
                 // Progress update every 100 files
-                if files.len() % 100 == 0 {
+                if files.len().is_multiple_of(100) {
                     yield ToolEvent::Progress {
                         step: format!("Found {} files...", files.len()),
                         percentage: None,

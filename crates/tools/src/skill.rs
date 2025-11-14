@@ -121,7 +121,7 @@ impl crate::Tool for SkillTool {
                         }
 
                         // Parse the skill file
-                        let parsed = parse_skill_file(&content, &path);
+                        let parsed = parse_skill_file(&content, path);
 
                         if !parsed.prompt.is_empty() {
                             found = true;

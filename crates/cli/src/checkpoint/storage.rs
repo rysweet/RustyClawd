@@ -203,7 +203,7 @@ pub struct CheckpointMetadata {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::checkpoint::types::SessionState;
+    
 
     #[test]
     fn test_storage_creation() {

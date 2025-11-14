@@ -7,7 +7,7 @@
 //! - Supports model selection (haiku/sonnet/opus)
 //! - Allows resuming previous agent executions
 
-use crate::{ExecutionContext, ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
+use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
 use async_stream::stream;
 use async_trait::async_trait;
 use futures::StreamExt;

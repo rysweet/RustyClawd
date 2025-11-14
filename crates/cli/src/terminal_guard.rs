@@ -18,18 +18,15 @@ use std::sync::{Arc, Mutex};
 
 /// Execution context indicating whether we're running in TUI mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum ExecutionContext {
     /// Running in TUI/interactive mode - terminal state must be protected
     Tui,
     /// Running in non-interactive mode - no terminal state to protect
+    #[default]
     NonInteractive,
 }
 
-impl Default for ExecutionContext {
-    fn default() -> Self {
-        ExecutionContext::NonInteractive
-    }
-}
 
 // Global execution context
 //

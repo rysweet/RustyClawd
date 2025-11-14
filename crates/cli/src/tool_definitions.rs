@@ -721,13 +721,11 @@ mod tests {
         for tool in tools {
             // Serialize to JSON (simulating API request)
             let serialized = serde_json::to_string(&tool)
-                .expect(&format!("Tool '{}' should serialize to JSON", tool.name));
+                .unwrap_or_else(|_| panic!("Tool '{}' should serialize to JSON", tool.name));
 
             // Deserialize back
-            let deserialized: ToolDefinition = serde_json::from_str(&serialized).expect(&format!(
-                "Tool '{}' should deserialize from JSON",
-                tool.name
-            ));
+            let deserialized: ToolDefinition = serde_json::from_str(&serialized).unwrap_or_else(|_| panic!("Tool '{}' should deserialize from JSON",
+                tool.name));
 
             // Verify required fields survive serialization round-trip
             let required = deserialized.input_schema.get("required");

@@ -125,7 +125,7 @@ impl TuiState {
 
     /// Scroll to bottom of messages
     fn scroll_to_bottom(&mut self) {
-        if self.messages.len() > 0 {
+        if !self.messages.is_empty() {
             self.scroll_offset = self.messages.len().saturating_sub(1);
         }
     }

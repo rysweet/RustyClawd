@@ -280,11 +280,11 @@ mod discovery {
         };
 
         fs::write(
-            &plugin_dir.join("plugin.json"),
+            plugin_dir.join("plugin.json"),
             serde_json::to_string_pretty(&manifest).unwrap(),
         )
         .unwrap();
-        fs::write(&plugin_dir.join("main.js"), "").unwrap();
+        fs::write(plugin_dir.join("main.js"), "").unwrap();
 
         let discovery = PluginDiscovery::new(&test_dir);
         assert!(discovery.validate_structure(&plugin_dir).is_ok());
@@ -324,7 +324,7 @@ mod discovery {
         };
 
         fs::write(
-            &plugin_dir.join("plugin.json"),
+            plugin_dir.join("plugin.json"),
             serde_json::to_string_pretty(&manifest).unwrap(),
         )
         .unwrap();
@@ -437,11 +437,11 @@ mod loading {
         };
 
         fs::write(
-            &plugin_dir.join("plugin.json"),
+            plugin_dir.join("plugin.json"),
             serde_json::to_string_pretty(&manifest).unwrap(),
         )
         .unwrap();
-        fs::write(&plugin_dir.join("index.js"), "").unwrap();
+        fs::write(plugin_dir.join("index.js"), "").unwrap();
 
         let metadata = PluginMetadata {
             id: manifest.id.clone(),
@@ -500,13 +500,13 @@ mod loading {
         };
 
         fs::write(
-            &plugin_dir.join("plugin.json"),
+            plugin_dir.join("plugin.json"),
             serde_json::to_string_pretty(&manifest).unwrap(),
         )
         .unwrap();
-        fs::write(&plugin_dir.join("index.js"), "").unwrap();
-        fs::write(&plugin_dir.join("cmds/cmd1.js"), "").unwrap();
-        fs::write(&plugin_dir.join("cmds/cmd2.js"), "").unwrap();
+        fs::write(plugin_dir.join("index.js"), "").unwrap();
+        fs::write(plugin_dir.join("cmds/cmd1.js"), "").unwrap();
+        fs::write(plugin_dir.join("cmds/cmd2.js"), "").unwrap();
 
         let metadata = PluginMetadata {
             id: manifest.id.clone(),
@@ -544,11 +544,11 @@ mod loading {
         };
 
         fs::write(
-            &plugin_dir.join("plugin.json"),
+            plugin_dir.join("plugin.json"),
             serde_json::to_string_pretty(&manifest).unwrap(),
         )
         .unwrap();
-        fs::write(&plugin_dir.join("index.js"), "").unwrap();
+        fs::write(plugin_dir.join("index.js"), "").unwrap();
 
         let metadata = PluginMetadata {
             id: manifest.id.clone(),
@@ -827,7 +827,7 @@ mod api_contract {
         let result = PluginValidator::validate_manifest(&manifest);
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert!(errors.len() > 0);
+        assert!(!errors.is_empty());
     }
 
     #[test]
@@ -898,12 +898,12 @@ fn test_full_plugin_lifecycle() {
     };
 
     fs::write(
-        &plugin_dir.join("plugin.json"),
+        plugin_dir.join("plugin.json"),
         serde_json::to_string_pretty(&manifest).unwrap(),
     )
     .unwrap();
-    fs::write(&plugin_dir.join("index.js"), "").unwrap();
-    fs::write(&plugin_dir.join("cmd.js"), "").unwrap();
+    fs::write(plugin_dir.join("index.js"), "").unwrap();
+    fs::write(plugin_dir.join("cmd.js"), "").unwrap();
 
     // 1. Discovery
     let discovery_result = discovery::PluginDiscovery::new(&test_dir).discover_all();

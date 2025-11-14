@@ -247,8 +247,8 @@ impl PluginValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::plugins::manifest::PluginManifest;
-    use std::collections::HashMap;
+    
+    
 
     #[test]
     fn test_execute_command_plugin_not_found() {
