@@ -9,6 +9,8 @@ use serde_json::json;
 pub fn get_all_tool_definitions() -> Vec<ToolDefinition> {
     vec![
         bash_tool_definition(),
+        bash_output_tool_definition(),
+        kill_shell_tool_definition(),
         read_tool_definition(),
         write_tool_definition(),
         edit_tool_definition(),
@@ -50,6 +52,46 @@ fn bash_tool_definition() -> ToolDefinition {
                 }
             },
             "required": ["command"]
+        }),
+    }
+}
+
+/// BashOutput tool definition
+fn bash_output_tool_definition() -> ToolDefinition {
+    ToolDefinition {
+        name: "BashOutput".to_string(),
+        description: "Retrieve output from a running or completed background bash shell".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "bash_id": {
+                    "type": "string",
+                    "description": "The ID of the background shell to retrieve output from"
+                },
+                "filter": {
+                    "type": "string",
+                    "description": "Optional regular expression to filter output lines"
+                }
+            },
+            "required": ["bash_id"]
+        }),
+    }
+}
+
+/// KillShell tool definition
+fn kill_shell_tool_definition() -> ToolDefinition {
+    ToolDefinition {
+        name: "KillShell".to_string(),
+        description: "Kills a running background bash shell by its ID".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "shell_id": {
+                    "type": "string",
+                    "description": "The ID of the background shell to kill"
+                }
+            },
+            "required": ["shell_id"]
         }),
     }
 }

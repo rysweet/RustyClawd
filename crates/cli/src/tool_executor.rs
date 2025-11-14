@@ -5,8 +5,8 @@
 use anyhow::Result;
 use rustyclawd_core::client::ClientError;
 use rustyclawd_tools::{
-    AgentTool, AskUserQuestionTool, BashTool, EditTool, GlobTool, GrepTool, ReadTool,
-    SkillTool, SlashCommandTool, TodoWriteTool, Tool, ToolContext, ToolEvent, WriteTool,
+    AgentTool, AskUserQuestionTool, BashTool, BashOutputTool, EditTool, GlobTool, GrepTool,
+    KillShellTool, ReadTool, SkillTool, SlashCommandTool, TodoWriteTool, Tool, ToolContext, ToolEvent, WriteTool,
 };
 use futures::StreamExt;
 use serde_json::{json, Value};
@@ -66,6 +66,21 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
                 "pattern": "search.*pattern",
                 "path": "/path/to/search",
                 "output_mode": "content"
+            })
+        ),
+        "BashOutput" => (
+            vec!["bash_id"],
+            vec!["filter"],
+            json!({
+                "bash_id": "shell_abc123",
+                "filter": "ERROR.*"
+            })
+        ),
+        "KillShell" => (
+            vec!["shell_id"],
+            vec![],
+            json!({
+                "shell_id": "shell_abc123"
             })
         ),
         "AskUserQuestion" => (
@@ -166,6 +181,8 @@ pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value,
 
     match tool_name.as_str() {
         "Bash" => execute_bash_tool(tool_input, &ctx).await,
+        "BashOutput" => execute_bash_output_tool(tool_input, &ctx).await,
+        "KillShell" => execute_kill_shell_tool(tool_input, &ctx).await,
         "Read" => execute_read_tool(tool_input, &ctx).await,
         "Write" => execute_write_tool(tool_input, &ctx).await,
         "Edit" => execute_edit_tool(tool_input, &ctx).await,
@@ -377,6 +394,70 @@ async fn execute_grep_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
 
     Err(ClientError::Api(
         "Grep tool completed without result".to_string(),
+    ))
+}
+
+/// Execute BashOutput tool
+async fn execute_bash_output_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
+    let params: rustyclawd_tools::bash_output::BashOutputParams =
+        serde_json::from_value(input).map_err(|e| {
+            create_schema_error("BashOutput", &e.to_string())
+        })?;
+
+    let tool = BashOutputTool;
+    let mut stream = tool
+        .execute(params, ctx)
+        .await
+        .map_err(|e| ClientError::Api(format!("BashOutput tool execution failed: {}", e)))?;
+
+    while let Some(event) = stream.next().await {
+        match event {
+            ToolEvent::Result(output) => {
+                return serde_json::to_value(&output).map_err(|e| {
+                    ClientError::Api(format!("Failed to serialize BashOutput output: {}", e))
+                });
+            }
+            ToolEvent::Error { message } => {
+                return Err(ClientError::Api(format!("BashOutput tool error: {}", message)));
+            }
+            ToolEvent::Progress { .. } => {}
+        }
+    }
+
+    Err(ClientError::Api(
+        "BashOutput tool completed without result".to_string(),
+    ))
+}
+
+/// Execute KillShell tool
+async fn execute_kill_shell_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
+    let params: rustyclawd_tools::kill_shell::KillShellParams =
+        serde_json::from_value(input).map_err(|e| {
+            create_schema_error("KillShell", &e.to_string())
+        })?;
+
+    let tool = KillShellTool;
+    let mut stream = tool
+        .execute(params, ctx)
+        .await
+        .map_err(|e| ClientError::Api(format!("KillShell tool execution failed: {}", e)))?;
+
+    while let Some(event) = stream.next().await {
+        match event {
+            ToolEvent::Result(output) => {
+                return serde_json::to_value(&output).map_err(|e| {
+                    ClientError::Api(format!("Failed to serialize KillShell output: {}", e))
+                });
+            }
+            ToolEvent::Error { message } => {
+                return Err(ClientError::Api(format!("KillShell tool error: {}", message)));
+            }
+            ToolEvent::Progress { .. } => {}
+        }
+    }
+
+    Err(ClientError::Api(
+        "KillShell tool completed without result".to_string(),
     ))
 }
 
