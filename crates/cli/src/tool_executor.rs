@@ -5,7 +5,11 @@
 use anyhow::Result;
 use rustyclawd_core::client::ClientError;
 use rustyclawd_tools::{
+<<<<<<< HEAD
     BashTool, EditTool, GlobTool, GrepTool, ReadTool, SlashCommandTool, Tool, ToolContext, ToolEvent, WriteTool,
+=======
+    AgentTool, BashTool, EditTool, GlobTool, GrepTool, ReadTool, Tool, ToolContext, ToolEvent, WriteTool,
+>>>>>>> origin/master
 };
 use futures::StreamExt;
 use serde_json::{json, Value};
@@ -67,11 +71,22 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
                 "output_mode": "content"
             })
         ),
+<<<<<<< HEAD
         "SlashCommand" => (
             vec!["command"],
             vec![],
             json!({
                 "command": "/command-name arg1 arg2"
+=======
+        "Task" => (
+            vec!["subagent_type", "prompt", "description"],
+            vec!["model", "resume"],
+            json!({
+                "subagent_type": "agent_name",
+                "prompt": "Full task description for the agent",
+                "description": "Brief task summary",
+                "model": "sonnet"
+>>>>>>> origin/master
             })
         ),
         _ => (vec![], vec![], json!({}))
@@ -120,6 +135,7 @@ pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value,
         "Glob" => execute_glob_tool(tool_input, &ctx).await,
         "Grep" => execute_grep_tool(tool_input, &ctx).await,
         "SlashCommand" => execute_slash_command_tool(tool_input, &ctx).await,
+        "Task" => execute_agent_tool(tool_input, &ctx).await,
         _ => Err(ClientError::Api(format!("Unknown tool: {}", tool_name))),
     }
 }
@@ -324,6 +340,7 @@ async fn execute_grep_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
     ))
 }
 
+<<<<<<< HEAD
 /// Execute SlashCommand tool
 async fn execute_slash_command_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::slash_command::SlashCommandParams =
@@ -336,22 +353,207 @@ async fn execute_slash_command_tool(input: Value, ctx: &ToolContext) -> Result<V
         .execute(params, ctx)
         .await
         .map_err(|e| ClientError::Api(format!("SlashCommand tool execution failed: {}", e)))?;
+=======
+/// Execute Agent/Task tool
+async fn execute_agent_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
+    let params: rustyclawd_tools::agent::AgentParams =
+        serde_json::from_value(input).map_err(|e| {
+            create_schema_error("Task", &e.to_string())
+        })?;
+
+    let tool = AgentTool;
+    let mut stream = tool
+        .execute(params, ctx)
+        .await
+        .map_err(|e| ClientError::Api(format!("Task tool execution failed: {}", e)))?;
+>>>>>>> origin/master
 
     while let Some(event) = stream.next().await {
         match event {
             ToolEvent::Result(output) => {
                 return serde_json::to_value(&output).map_err(|e| {
+<<<<<<< HEAD
                     ClientError::Api(format!("Failed to serialize SlashCommand output: {}", e))
                 });
             }
             ToolEvent::Error { message } => {
                 return Err(ClientError::Api(format!("SlashCommand tool error: {}", message)));
+=======
+                    ClientError::Api(format!("Failed to serialize Task output: {}", e))
+                });
+            }
+            ToolEvent::Error { message } => {
+                return Err(ClientError::Api(format!("Task tool error: {}", message)));
+>>>>>>> origin/master
             }
             ToolEvent::Progress { .. } => {}
         }
     }
 
     Err(ClientError::Api(
+<<<<<<< HEAD
         "SlashCommand tool completed without result".to_string(),
     ))
 }
+=======
+        "Task tool completed without result".to_string(),
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_create_schema_error_for_task_tool() {
+        let error = create_schema_error("Task", "Missing required field");
+        let error_msg = match error {
+            ClientError::Api(msg) => msg,
+            _ => panic!("Expected ClientError::Api"),
+        };
+
+        // Parse the error message as JSON
+        let error_json: serde_json::Value = serde_json::from_str(&error_msg)
+            .expect("Error message should be valid JSON");
+
+        // Verify required fields are present
+        assert!(error_json.get("error").is_some());
+        assert!(error_json.get("required_fields").is_some());
+        assert!(error_json.get("optional_fields").is_some());
+        assert!(error_json.get("example").is_some());
+
+        // Verify Task-specific required fields
+        let required = error_json["required_fields"].as_array().unwrap();
+        assert!(required.contains(&json!("subagent_type")));
+        assert!(required.contains(&json!("prompt")));
+        assert!(required.contains(&json!("description")));
+    }
+
+    #[test]
+    fn test_task_schema_error_includes_optional_fields() {
+        let error = create_schema_error("Task", "Test error");
+        let error_msg = match error {
+            ClientError::Api(msg) => msg,
+            _ => panic!("Expected ClientError::Api"),
+        };
+
+        let error_json: serde_json::Value = serde_json::from_str(&error_msg).unwrap();
+        let optional = error_json["optional_fields"].as_array().unwrap();
+
+        assert!(optional.contains(&json!("model")));
+        assert!(optional.contains(&json!("resume")));
+    }
+
+    #[test]
+    fn test_task_schema_error_includes_example() {
+        let error = create_schema_error("Task", "Test error");
+        let error_msg = match error {
+            ClientError::Api(msg) => msg,
+            _ => panic!("Expected ClientError::Api"),
+        };
+
+        let error_json: serde_json::Value = serde_json::from_str(&error_msg).unwrap();
+        let example = &error_json["example"];
+
+        assert!(example.get("subagent_type").is_some());
+        assert!(example.get("prompt").is_some());
+        assert!(example.get("description").is_some());
+        assert_eq!(example["subagent_type"], "agent_name");
+    }
+
+    #[tokio::test]
+    async fn test_execute_agent_tool_invalid_params_missing_required() {
+        let ctx = ToolContext {
+            cwd: std::env::current_dir().unwrap_or_default(),
+            debug: false,
+            metadata: serde_json::Value::Null,
+            execution_context: rustyclawd_tools::ExecutionContext::NonInteractive,
+        };
+
+        // Missing required fields
+        let invalid_input = json!({
+            "subagent_type": "test_agent"
+            // Missing "prompt" and "description"
+        });
+
+        let result = execute_agent_tool(invalid_input, &ctx).await;
+        assert!(result.is_err(), "Should fail with missing required fields");
+
+        if let Err(ClientError::Api(msg)) = result {
+            assert!(msg.contains("required"), "Error should mention required fields");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_execute_agent_tool_invalid_params_wrong_types() {
+        let ctx = ToolContext {
+            cwd: std::env::current_dir().unwrap_or_default(),
+            debug: false,
+            metadata: serde_json::Value::Null,
+            execution_context: rustyclawd_tools::ExecutionContext::NonInteractive,
+        };
+
+        // Wrong type for subagent_type (should be string)
+        let invalid_input = json!({
+            "subagent_type": 123,
+            "prompt": "test",
+            "description": "test"
+        });
+
+        let result = execute_agent_tool(invalid_input, &ctx).await;
+        assert!(result.is_err(), "Should fail with wrong parameter types");
+    }
+
+    #[tokio::test]
+    async fn test_execute_tool_routes_to_task() {
+        // Test that the execute_tool function correctly routes to Task
+        let result = execute_tool(
+            "Task".to_string(),
+            json!({
+                "subagent_type": "test",
+                // Missing required fields to trigger error quickly
+            })
+        ).await;
+
+        assert!(result.is_err(), "Should fail with missing parameters");
+        // If it routes correctly, we should get a schema error, not "Unknown tool" error
+        if let Err(ClientError::Api(msg)) = result {
+            assert!(!msg.contains("Unknown tool"), "Should not be unknown tool error");
+        }
+    }
+
+    #[test]
+    fn test_all_schema_error_tools_include_task() {
+        // Verify that Task is handled in create_schema_error
+        let error = create_schema_error("Task", "test");
+        let error_msg = match error {
+            ClientError::Api(msg) => msg,
+            _ => panic!("Expected ClientError::Api"),
+        };
+
+        let error_json: serde_json::Value = serde_json::from_str(&error_msg).unwrap();
+        let required = error_json["required_fields"].as_array().unwrap();
+
+        // Should not be empty (default case)
+        assert!(!required.is_empty(), "Task tool should have specific schema error handling");
+    }
+
+    #[test]
+    fn test_task_schema_error_help_message() {
+        let error = create_schema_error("Task", "test");
+        let error_msg = match error {
+            ClientError::Api(msg) => msg,
+            _ => panic!("Expected ClientError::Api"),
+        };
+
+        let error_json: serde_json::Value = serde_json::from_str(&error_msg).unwrap();
+        let help = error_json["help"].as_str().unwrap();
+
+        assert!(help.contains("Task"), "Help message should mention Task tool");
+        assert!(help.contains("subagent_type"), "Help should list required fields");
+        assert!(help.contains("prompt"), "Help should list required fields");
+        assert!(help.contains("description"), "Help should list required fields");
+    }
+}
+>>>>>>> origin/master
