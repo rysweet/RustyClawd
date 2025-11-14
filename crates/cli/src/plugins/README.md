@@ -115,7 +115,7 @@ The plugin system provides:
 Scan a plugin directory:
 
 ```rust
-use claude_code_cli::plugins::*;
+use rustyclawd::plugins::*;
 
 let discovery = PluginDiscovery::new("./plugins");
 let plugins = discovery.discover_all()?;
@@ -176,7 +176,7 @@ let result = executor.execute_skill("com.example.plugin", "my-skill")?;
 Validate plugin contracts:
 
 ```rust
-use claude_code_cli::plugins::executor::PluginValidator;
+use rustyclawd::plugins::executor::PluginValidator;
 
 // Validate manifest
 PluginValidator::validate_manifest(&manifest)?;

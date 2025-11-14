@@ -346,7 +346,7 @@ mod tests {
     #[test]
     fn test_load_env_overrides() {
         let loader = SettingsLoader::new();
-        let overrides = loader.load_env_overrides();
+        let _overrides = loader.load_env_overrides();
 
         // Will vary based on environment, but should be a valid HashMap
         // (can be empty or contain env vars)

@@ -15,8 +15,8 @@
 //! - Configuration precedence
 //! - Special features (SessionStart persistence, MCP targeting, plugin hooks)
 
-// Import from the parent CLI crate (uses lib name "claude_code_cli" from Cargo.toml)
-use claude_code_cli::hooks::{
+// Import from the parent CLI crate (uses lib name "rustyclawd" from Cargo.toml)
+use rustyclawd::hooks::{
     executor::HookExecutor,
     loader::HookLoader,
     registry::HookRegistry,

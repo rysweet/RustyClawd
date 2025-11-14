@@ -34,7 +34,7 @@ async fn example_basic_setup() -> anyhow::Result<()> {
 
     // This demonstrates the API once integrated:
     /*
-    use claude_code_cli::hooks::{HooksSystem, HookEvent, HookContext};
+    use rustyclawd::hooks::{HooksSystem, HookEvent, HookContext};
 
     // Create hooks system
     let mut hooks = HooksSystem::new();
@@ -76,7 +76,7 @@ async fn example_pretool_permission() -> anyhow::Result<()> {
 
     // This demonstrates PreToolUse hook pattern:
     /*
-    use claude_code_cli::hooks::{HooksSystem, HookEvent, HookContext};
+    use rustyclawd::hooks::{HooksSystem, HookEvent, HookContext};
 
     let hooks = HooksSystem::new();
     let tool_name = "Bash";
@@ -150,7 +150,7 @@ async fn example_stop_completion() -> anyhow::Result<()> {
 
     // This demonstrates Stop hook pattern:
     /*
-    use claude_code_cli::hooks::{HooksSystem, HookEvent, HookContext};
+    use rustyclawd::hooks::{HooksSystem, HookEvent, HookContext};
 
     let hooks = HooksSystem::new();
 
@@ -206,7 +206,7 @@ async fn example_load_config() -> anyhow::Result<()> {
 
     // This demonstrates loading hooks from config:
     /*
-    use claude_code_cli::hooks::HooksSystem;
+    use rustyclawd::hooks::HooksSystem;
 
     let mut hooks = HooksSystem::new();
 
@@ -217,7 +217,7 @@ async fn example_load_config() -> anyhow::Result<()> {
     }
 
     // Or use default loading (searches parent directories)
-    use claude_code_cli::hooks::HookLoader;
+    use rustyclawd::hooks::HookLoader;
     match HookLoader::load_default().await {
         Ok(config) => {
             println!("✓ Hooks loaded from default location");
@@ -245,7 +245,7 @@ async fn example_full_integration() -> anyhow::Result<()> {
 
     // This shows the complete pattern for integrating hooks:
     /*
-    use claude_code_cli::hooks::{HooksSystem, HookEvent, HookContext};
+    use rustyclawd::hooks::{HooksSystem, HookEvent, HookContext};
 
     // Initialize hooks system
     let mut hooks = HooksSystem::new();

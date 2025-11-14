@@ -73,7 +73,7 @@ Controls what gets restored from a checkpoint:
 ### Creating and Saving Checkpoints
 
 ```rust
-use claude_code_cli::checkpoint::{Session, SessionSaver, SessionState};
+use rustyclawd::checkpoint::{Session, SessionSaver, SessionState};
 
 // Create a new session
 let mut session = Session::new("my-session", 50);
@@ -94,7 +94,7 @@ saver.save_session(&session)?;
 ### Loading and Restoring Sessions
 
 ```rust
-use claude_code_cli::checkpoint::{SessionLoader, RestoreScope};
+use rustyclawd::checkpoint::{SessionLoader, RestoreScope};
 
 // Load a session from disk
 let loader = SessionLoader::default()?;
@@ -110,7 +110,7 @@ let latest = loader.load_latest_checkpoint("my-session")?;
 ### Working with File Changes
 
 ```rust
-use claude_code_cli::checkpoint::FileChange;
+use rustyclawd::checkpoint::FileChange;
 
 // Record a file change in a checkpoint
 let change = FileChange::new("/src/main.rs", "fn main() {}", 1000);
@@ -123,7 +123,7 @@ assert!(checkpoint.verify_integrity());
 ### Checkpoint Messages
 
 ```rust
-use claude_code_cli::checkpoint::CheckpointMessage;
+use rustyclawd::checkpoint::CheckpointMessage;
 
 // Add conversation messages to a checkpoint
 checkpoint.add_message(CheckpointMessage::user("What should I do?", 1000));

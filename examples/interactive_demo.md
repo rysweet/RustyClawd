@@ -213,7 +213,7 @@ User Output ← Terminal ← Stream Handler ← Event Stream
 If you want to use the interactive session programmatically:
 
 ```rust
-use claude_code_cli::interactive::run_interactive;
+use rustyclawd::interactive::run_interactive;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

@@ -1,6 +1,6 @@
 //! Integration tests for the slash command system
 
-use claude_code_cli::commands::*;
+use rustyclawd::commands::*;
 use std::path::PathBuf;
 use tokio::fs;
 
@@ -32,9 +32,9 @@ async fn test_registry_creation() {
 async fn test_registry_register_and_retrieve() {
     let mut registry = Registry::new(PathBuf::from(".test"));
 
-    let cmd = claude_code_cli::commands::loader::LoadedCommand {
+    let cmd = rustyclawd::commands::loader::LoadedCommand {
         name: "hello".to_string(),
-        frontmatter: claude_code_cli::commands::loader::FrontMatter::default(),
+        frontmatter: rustyclawd::commands::loader::FrontMatter::default(),
         content: "Hello world".to_string(),
     };
 
@@ -63,9 +63,9 @@ async fn test_executor_custom_command() {
     let executor = Executor::new();
     let mut registry = Registry::new(PathBuf::from(".test"));
 
-    let cmd_obj = claude_code_cli::commands::loader::LoadedCommand {
+    let cmd_obj = rustyclawd::commands::loader::LoadedCommand {
         name: "review".to_string(),
-        frontmatter: claude_code_cli::commands::loader::FrontMatter::default(),
+        frontmatter: rustyclawd::commands::loader::FrontMatter::default(),
         content: "Review PR #{0}".to_string(),
     };
 
@@ -84,9 +84,9 @@ async fn test_template_expansion_multiple_args() {
     let executor = Executor::new();
     let mut registry = Registry::new(PathBuf::from(".test"));
 
-    let cmd_obj = claude_code_cli::commands::loader::LoadedCommand {
+    let cmd_obj = rustyclawd::commands::loader::LoadedCommand {
         name: "analyze".to_string(),
-        frontmatter: claude_code_cli::commands::loader::FrontMatter::default(),
+        frontmatter: rustyclawd::commands::loader::FrontMatter::default(),
         content: "Analyze {0} with priority {1} assigned to {2}".to_string(),
     };
 
@@ -121,9 +121,9 @@ async fn test_executor_character_limit() {
     let executor = Executor::new();
     let mut registry = Registry::new(PathBuf::from(".test"));
 
-    let cmd_obj = claude_code_cli::commands::loader::LoadedCommand {
+    let cmd_obj = rustyclawd::commands::loader::LoadedCommand {
         name: "huge".to_string(),
-        frontmatter: claude_code_cli::commands::loader::FrontMatter::default(),
+        frontmatter: rustyclawd::commands::loader::FrontMatter::default(),
         content: "x".repeat(15_001),
     };
 
@@ -143,7 +143,7 @@ fn test_slash_commands_constants() {
 
 #[test]
 fn test_builtin_command_help() {
-    use claude_code_cli::commands::builtins::BuiltinCommands;
+    use rustyclawd::commands::builtins::BuiltinCommands;
 
     let cmd = Command::new("help".to_string(), None);
     let output = BuiltinCommands::execute(&cmd);
@@ -154,7 +154,7 @@ fn test_builtin_command_help() {
 
 #[test]
 fn test_builtin_command_exit() {
-    use claude_code_cli::commands::builtins::BuiltinCommands;
+    use rustyclawd::commands::builtins::BuiltinCommands;
 
     let cmd = Command::new("exit".to_string(), None);
     let output = BuiltinCommands::execute(&cmd);
@@ -165,7 +165,7 @@ fn test_builtin_command_exit() {
 
 #[test]
 fn test_builtin_command_clear() {
-    use claude_code_cli::commands::builtins::BuiltinCommands;
+    use rustyclawd::commands::builtins::BuiltinCommands;
 
     let cmd = Command::new("clear".to_string(), None);
     let output = BuiltinCommands::execute(&cmd);

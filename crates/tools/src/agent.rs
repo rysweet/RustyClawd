@@ -7,12 +7,12 @@
 //! - Supports model selection (haiku/sonnet/opus)
 //! - Allows resuming previous agent executions
 
-use crate::{ExecutionContext, ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
+use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
 use async_stream::stream;
 use async_trait::async_trait;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::Path;
 use tokio::fs;
 
 /// Parameters for the Agent tool
@@ -68,7 +68,7 @@ pub struct AgentTool;
 
 impl AgentTool {
     /// Load agent system prompt from .claude/agents/{agent_type}.md
-    async fn load_agent_prompt(agent_type: &str, cwd: &PathBuf) -> Result<String, String> {
+    async fn load_agent_prompt(agent_type: &str, cwd: &Path) -> Result<String, String> {
         let agent_path = cwd
             .join(".claude")
             .join("agents")

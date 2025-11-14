@@ -171,7 +171,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events
@@ -205,7 +205,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events
@@ -236,7 +236,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events

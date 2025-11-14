@@ -195,9 +195,9 @@ impl crate::Tool for BashTool {
 
                 // Collect outputs
                 let stdout_output = stdout_handle.await
-                    .map_err(|e| std::io::Error::other(e))??;
+                    .map_err(std::io::Error::other)??;
                 let stderr_output = stderr_handle.await
-                    .map_err(|e| std::io::Error::other(e))??;
+                    .map_err(std::io::Error::other)??;
 
                 Ok::<_, std::io::Error>(BashOutput {
                     stdout: Some(stdout_output),
@@ -266,7 +266,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
 
         // Collect all events
         let events: Vec<_> = stream.collect().await;
@@ -295,7 +295,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         if let ToolEvent::Result(output) = &events[events.len() - 1] {
@@ -315,7 +315,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         if let ToolEvent::Result(output) = &events[events.len() - 1] {

@@ -7,7 +7,7 @@
 //! 4. Handle built-in commands
 //! 5. Track character budget
 
-use claude_code_cli::commands::*;
+use rustyclawd::commands::*;
 use std::path::PathBuf;
 
 #[tokio::main]
@@ -44,7 +44,7 @@ async fn main() -> anyhow::Result<()> {
          - Documentation"
     ).unwrap();
 
-    let cmd1 = claude_code_cli::commands::loader::LoadedCommand {
+    let cmd1 = rustyclawd::commands::loader::LoadedCommand {
         name: "review-pr".to_string(),
         frontmatter: review_cmd.0,
         content: review_cmd.1,
@@ -53,18 +53,18 @@ async fn main() -> anyhow::Result<()> {
     println!("   ✓ Registered: /review-pr <number>");
 
     // Command 2: Analyze code
-    let cmd2 = claude_code_cli::commands::loader::LoadedCommand {
+    let cmd2 = rustyclawd::commands::loader::LoadedCommand {
         name: "analyze".to_string(),
-        frontmatter: claude_code_cli::commands::loader::FrontMatter::default(),
+        frontmatter: rustyclawd::commands::loader::FrontMatter::default(),
         content: "Analyze {0} for issues and suggest improvements".to_string(),
     };
     registry.register(cmd2)?;
     println!("   ✓ Registered: /analyze <file>");
 
     // Command 3: Document function
-    let cmd3 = claude_code_cli::commands::loader::LoadedCommand {
+    let cmd3 = rustyclawd::commands::loader::LoadedCommand {
         name: "doc".to_string(),
-        frontmatter: claude_code_cli::commands::loader::FrontMatter {
+        frontmatter: rustyclawd::commands::loader::FrontMatter {
             description: Some("Generate documentation".to_string()),
             ..Default::default()
         },

@@ -88,6 +88,8 @@ pub struct TuiState {
     status: String,
     /// Whether to show the pirate banner
     show_banner: bool,
+    /// API adapter for Claude API integration
+    api_adapter: Option<super::api_adapter::TuiApiAdapter>,
 }
 
 impl TuiState {
@@ -108,7 +110,84 @@ impl TuiState {
             scroll_offset: 0,
             status: "Ready".to_string(),
             show_banner: true,
+            api_adapter: None,
         })
+    }
+
+    /// Set the API adapter for Claude API integration
+    pub fn set_api_adapter(&mut self, adapter: super::api_adapter::TuiApiAdapter) {
+        self.api_adapter = Some(adapter);
+    }
+
+    /// Send a user message and get streaming response from Claude API
+    ///
+    /// This method:
+    /// 1. Adds user message to conversation
+    /// 2. Sends to Claude API via adapter
+    /// 3. Streams response chunks and updates UI in real-time
+    ///
+    /// Returns error if API is not configured or request fails
+    pub async fn send_and_stream_response(&mut self, user_message: String) -> Result<()> {
+        use futures::StreamExt;
+
+        // Add user message to conversation
+        self.add_message(ChatMessage::user(user_message.clone()));
+
+        // Update status
+        self.set_status("Sending request...".to_string());
+        self.draw()?;
+
+        // Get conversation history (only user/assistant messages for API)
+        let conversation: Vec<ChatMessage> = self
+            .messages
+            .iter()
+            .filter(|m| !matches!(m.role, MessageRole::System))
+            .cloned()
+            .collect();
+
+        // Create streaming request (take ownership of adapter temporarily)
+        let mut stream = {
+            let adapter = self
+                .api_adapter
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("API adapter not configured. Use set_api_adapter() first or provide API key."))?;
+
+            adapter.send_message_stream(&conversation).await?
+        };
+
+        // Update status
+        self.set_status("Receiving response...".to_string());
+
+        // Create assistant message with empty content
+        let assistant_msg_index = self.messages.len();
+        self.add_message(ChatMessage::assistant(String::new()));
+
+        // Stream response chunks
+        while let Some(result) = stream.next().await {
+            match result {
+                Ok(chunk) => {
+                    // Append chunk to assistant message
+                    if let Some(msg) = self.messages.get_mut(assistant_msg_index) {
+                        msg.content.push_str(&chunk);
+                    }
+
+                    // Update UI with new content
+                    self.draw()?;
+                }
+                Err(e) => {
+                    // Handle stream error
+                    self.set_status(format!("Error: {}", e));
+                    self.draw()?;
+                    return Err(e.into());
+                }
+            }
+        }
+
+        // Update status to ready
+        self.set_status("Ready".to_string());
+        self.draw()?;
+
+        Ok(())
     }
 
     /// Add a message to the chat
@@ -546,10 +625,20 @@ impl Drop for TuiState {
 pub async fn run_tui() -> Result<()> {
     let mut tui = TuiState::new()?;
 
-    // Add welcome message
-    tui.add_message(ChatMessage::system(
-        "Welcome to RustyClawd! Type your message and press Enter.".to_string(),
-    ));
+    // Try to load API configuration
+    match super::api_adapter::TuiApiAdapter::from_default_config(None, None).await {
+        Ok(adapter) => {
+            tui.set_api_adapter(adapter);
+            tui.add_message(ChatMessage::system(
+                "Welcome to RustyClawd! Connected to Claude API. Type your message and press Enter.".to_string(),
+            ));
+        }
+        Err(e) => {
+            tui.add_message(ChatMessage::system(
+                format!("Warning: Could not load API config: {}. API calls will fail. Please ensure ~/.claude-msec-k exists.", e),
+            ));
+        }
+    }
 
     loop {
         // Draw UI
@@ -580,14 +669,17 @@ pub async fn run_tui() -> Result<()> {
                 continue;
             }
 
-            // Add user message
+            // Send user message to API
             if !input.is_empty() {
-                tui.add_message(ChatMessage::user(input.to_string()));
+                let user_message = input.to_string();
 
-                tui.add_message(ChatMessage::system(
-                    "Error: TUI mode requires Claude API integration. Use CLI mode instead."
-                        .to_string(),
-                ));
+                // Send message and stream response
+                if let Err(e) = tui.send_and_stream_response(user_message).await {
+                    tui.add_message(ChatMessage::system(
+                        format!("Error communicating with API: {}", e),
+                    ));
+                    tui.draw()?;
+                }
             }
         }
     }

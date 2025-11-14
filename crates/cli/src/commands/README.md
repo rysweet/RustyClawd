@@ -240,7 +240,7 @@ println!("{}", result.expanded_prompt);
 
 ### Basic Command Execution
 ```rust
-use claude_code_cli::commands::*;
+use rustyclawd::commands::*;
 
 let parser = CommandParser::new();
 let cmd = parser.parse("/help")?;

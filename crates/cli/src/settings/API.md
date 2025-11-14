@@ -480,7 +480,7 @@ assert_eq!(settings.timeout_secs, Some(180));
 ### Example 5: Permissions
 
 ```rust
-use claude_code_cli::settings::{PermissionMode, ToolPermission};
+use rustyclawd::settings::{PermissionMode, ToolPermission};
 
 let bash_perm = ToolPermission {
     mode: PermissionMode::Allow,

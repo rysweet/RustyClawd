@@ -9,12 +9,12 @@
 //! - Hooks integration
 //! - Plugin manager orchestration
 
-use claude_code_cli::hooks::registry::HookRegistry;
-use claude_code_cli::plugins::agent_discovery::AgentDiscovery;
-use claude_code_cli::plugins::hooks_integration::PluginHooksIntegrator;
-use claude_code_cli::plugins::manager::PluginManager;
-use claude_code_cli::plugins::mcp_proxy::McpProxy;
-use claude_code_cli::plugins::*;
+use rustyclawd::hooks::registry::HookRegistry;
+use rustyclawd::plugins::agent_discovery::AgentDiscovery;
+use rustyclawd::plugins::hooks_integration::PluginHooksIntegrator;
+use rustyclawd::plugins::manager::PluginManager;
+use rustyclawd::plugins::mcp_proxy::McpProxy;
+use rustyclawd::plugins::*;
 use std::collections::HashMap;
 use std::fs;
 use tempfile::TempDir;
@@ -25,7 +25,7 @@ fn create_test_plugin(root: &std::path::Path, plugin_id: &str) -> std::path::Pat
     fs::create_dir_all(&plugin_dir).unwrap();
 
     // Create plugin.json
-    let manifest = claude_code_cli::plugins::manifest::PluginManifest {
+    let manifest = rustyclawd::plugins::manifest::PluginManifest {
         id: plugin_id.to_string(),
         name: format!("{} Plugin", plugin_id),
         version: "1.0.0".to_string(),
@@ -127,7 +127,7 @@ async fn test_agent_discovery() {
 async fn test_mcp_proxy_registration() {
     let mut proxy = McpProxy::new();
 
-    let server_def = claude_code_cli::plugins::manifest::McpServerDefinition {
+    let server_def = rustyclawd::plugins::manifest::McpServerDefinition {
         id: "test-server".to_string(),
         name: "Test Server".to_string(),
         command: "node".to_string(),
@@ -157,7 +157,7 @@ async fn test_hooks_integration() {
     )
     .unwrap();
 
-    let hook_def = claude_code_cli::plugins::manifest::HookDefinition {
+    let hook_def = rustyclawd::plugins::manifest::HookDefinition {
         event: "PreToolUse".to_string(),
         handler: "test-hook.sh".to_string(),
     };
@@ -195,7 +195,7 @@ async fn test_plugin_manager_lifecycle() {
     .unwrap();
 
     // Create manifest with command and skill
-    let manifest = claude_code_cli::plugins::manifest::PluginManifest {
+    let manifest = rustyclawd::plugins::manifest::PluginManifest {
         id: "full-plugin".to_string(),
         name: "Full Plugin".to_string(),
         version: "1.0.0".to_string(),
@@ -203,13 +203,13 @@ async fn test_plugin_manager_lifecycle() {
         author: "Test".to_string(),
         license: "MIT".to_string(),
         main: "index.js".to_string(),
-        commands: vec![claude_code_cli::plugins::manifest::CommandDefinition {
+        commands: vec![rustyclawd::plugins::manifest::CommandDefinition {
             name: "test-cmd".to_string(),
             description: "Test command".to_string(),
             path: "commands/test.js".to_string(),
             args_schema: serde_json::json!({}),
         }],
-        skills: vec![claude_code_cli::plugins::manifest::SkillDefinition {
+        skills: vec![rustyclawd::plugins::manifest::SkillDefinition {
             id: "test-skill".to_string(),
             name: "Test Skill".to_string(),
             description: "A test skill".to_string(),
@@ -286,7 +286,7 @@ async fn test_plugin_with_agents() {
     )
     .unwrap();
 
-    let manifest = claude_code_cli::plugins::manifest::PluginManifest {
+    let manifest = rustyclawd::plugins::manifest::PluginManifest {
         id: "agent-plugin".to_string(),
         name: "Agent Plugin".to_string(),
         version: "1.0.0".to_string(),
@@ -297,7 +297,7 @@ async fn test_plugin_with_agents() {
         commands: vec![],
         skills: vec![],
         hooks: vec![],
-        agents: vec![claude_code_cli::plugins::manifest::AgentDefinition {
+        agents: vec![rustyclawd::plugins::manifest::AgentDefinition {
             id: "plugin-agent".to_string(),
             name: "Plugin Agent".to_string(),
             description: "Agent defined in plugin".to_string(),
@@ -366,7 +366,7 @@ async fn test_complete_plugin_system_workflow() {
     )
     .unwrap();
 
-    let manifest = claude_code_cli::plugins::manifest::PluginManifest {
+    let manifest = rustyclawd::plugins::manifest::PluginManifest {
         id: "workflow-plugin".to_string(),
         name: "Workflow Plugin".to_string(),
         version: "1.0.0".to_string(),
@@ -374,30 +374,30 @@ async fn test_complete_plugin_system_workflow() {
         author: "Test".to_string(),
         license: "MIT".to_string(),
         main: "index.js".to_string(),
-        commands: vec![claude_code_cli::plugins::manifest::CommandDefinition {
+        commands: vec![rustyclawd::plugins::manifest::CommandDefinition {
             name: "cmd".to_string(),
             description: "Test".to_string(),
             path: "commands/cmd.js".to_string(),
             args_schema: serde_json::json!({}),
         }],
-        skills: vec![claude_code_cli::plugins::manifest::SkillDefinition {
+        skills: vec![rustyclawd::plugins::manifest::SkillDefinition {
             id: "skill".to_string(),
             name: "Skill".to_string(),
             description: "Test".to_string(),
             path: "skills/skill.md".to_string(),
         }],
-        hooks: vec![claude_code_cli::plugins::manifest::HookDefinition {
+        hooks: vec![rustyclawd::plugins::manifest::HookDefinition {
             event: "PreToolUse".to_string(),
             handler: "hooks/hook.sh".to_string(),
         }],
-        agents: vec![claude_code_cli::plugins::manifest::AgentDefinition {
+        agents: vec![rustyclawd::plugins::manifest::AgentDefinition {
             id: "agent".to_string(),
             name: "Agent".to_string(),
             description: "Test".to_string(),
             path: "agents/agent.md".to_string(),
             model: None,
         }],
-        mcp_servers: vec![claude_code_cli::plugins::manifest::McpServerDefinition {
+        mcp_servers: vec![rustyclawd::plugins::manifest::McpServerDefinition {
             id: "mcp".to_string(),
             name: "MCP".to_string(),
             command: "node".to_string(),

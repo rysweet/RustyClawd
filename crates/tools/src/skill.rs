@@ -275,11 +275,11 @@ fn parse_skill_file(content: &str, path: &Path) -> ParsedSkill {
 
 /// Parse a markdown skill file with optional YAML frontmatter
 fn parse_markdown_skill(content: &str) -> ParsedSkill {
-    if content.starts_with("---") {
+    if let Some(stripped) = content.strip_prefix("---") {
         // Has YAML frontmatter
-        if let Some(end_idx) = content[3..].find("---") {
-            let frontmatter = &content[3..3 + end_idx];
-            let prompt = content[3 + end_idx + 3..].trim().to_string();
+        if let Some(end_idx) = stripped.find("---") {
+            let frontmatter = &stripped[..end_idx];
+            let prompt = stripped[end_idx + 3..].trim().to_string();
 
             // Parse frontmatter as YAML
             let metadata = serde_yaml::from_str::<SkillMetadata>(frontmatter).ok();

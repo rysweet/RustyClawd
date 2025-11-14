@@ -242,7 +242,7 @@ Hooks can output JSON to stdout for advanced control:
 ### Basic Usage
 
 ```rust
-use claude_code_cli::hooks::{HooksSystem, HookEvent, HookContext};
+use rustyclawd::hooks::{HooksSystem, HookEvent, HookContext};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -279,7 +279,7 @@ async fn main() -> anyhow::Result<()> {
 ### PreToolUse Permission Check
 
 ```rust
-use claude_code_cli::hooks::{HooksSystem, HookEvent, HookContext};
+use rustyclawd::hooks::{HooksSystem, HookEvent, HookContext};
 
 async fn check_tool_permission(
     hooks: &HooksSystem,

@@ -1,0 +1,22 @@
+[2025-11-14T04:18:42.038541] INFO: session_start hook starting (Python 3.11.14)
+[2025-11-14T04:18:42.038649] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'hook_event_name', 'source']
+[2025-11-14T04:18:42.038690] INFO: Event type: SessionStart
+[2025-11-14T04:18:42.038722] INFO: Prompt length: 0
+[2025-11-14T04:18:42.038859] INFO: Neo4j not enabled (use --use-graph-mem to enable)
+[2025-11-14T04:18:42.039220] INFO: Successfully read preferences from: /home/azureuser/.cache/uv/archive-v0/JoTnLIj96dHO9EHdTwOz3/lib/python3.11/site-packages/amplihack/.claude/context/USER_PREFERENCES.md
+[2025-11-14T04:18:42.039258] INFO: Injected full USER_PREFERENCES.md content into session
+[2025-11-14T04:18:42.039469] INFO: Session initialized - Original request: ❌
+[2025-11-14T04:18:42.039505] INFO: Injected 8647 characters of context
+[2025-11-14T04:18:42.039539] INFO: Returning output with keys: ['hookSpecificOutput']
+[2025-11-14T04:18:42.039647] INFO: session_start hook completed successfully
+[2025-11-14T04:18:42.040128] INFO: session_start hook starting (Python 3.11.14)
+[2025-11-14T04:18:42.040211] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'hook_event_name', 'source']
+[2025-11-14T04:18:42.040250] INFO: Event type: SessionStart
+[2025-11-14T04:18:42.040282] INFO: Prompt length: 0
+[2025-11-14T04:18:42.040390] INFO: Neo4j not enabled (use --use-graph-mem to enable)
+[2025-11-14T04:18:42.040725] INFO: Successfully read preferences from: /home/azureuser/.cache/uv/archive-v0/JoTnLIj96dHO9EHdTwOz3/lib/python3.11/site-packages/amplihack/.claude/context/USER_PREFERENCES.md
+[2025-11-14T04:18:42.040760] INFO: Injected full USER_PREFERENCES.md content into session
+[2025-11-14T04:18:42.040967] INFO: Session initialized - Original request: ❌
+[2025-11-14T04:18:42.041003] INFO: Injected 8647 characters of context
+[2025-11-14T04:18:42.041062] INFO: Returning output with keys: ['hookSpecificOutput']
+[2025-11-14T04:18:42.041167] INFO: session_start hook completed successfully
