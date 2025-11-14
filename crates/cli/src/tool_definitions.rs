@@ -14,11 +14,9 @@ pub fn get_all_tool_definitions() -> Vec<ToolDefinition> {
         edit_tool_definition(),
         glob_tool_definition(),
         grep_tool_definition(),
-<<<<<<< HEAD
-        todowrite_tool_definition(),
-=======
+        ask_user_question_tool_definition(),
         task_tool_definition(),
->>>>>>> origin/master
+        todowrite_tool_definition(),
     ]
 }
 
@@ -200,7 +198,98 @@ fn grep_tool_definition() -> ToolDefinition {
     }
 }
 
-<<<<<<< HEAD
+/// AskUserQuestion tool definition
+fn ask_user_question_tool_definition() -> ToolDefinition {
+    ToolDefinition {
+        name: "AskUserQuestion".to_string(),
+        description: "Ask the user questions and collect their answers interactively".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "questions": {
+                    "type": "array",
+                    "description": "List of questions to ask the user",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "question": {
+                                "type": "string",
+                                "description": "The question to ask"
+                            },
+                            "header": {
+                                "type": "string",
+                                "description": "Short label for the question (max 12 chars)"
+                            },
+                            "multiSelect": {
+                                "type": "boolean",
+                                "description": "Allow multiple option selection"
+                            },
+                            "options": {
+                                "type": "array",
+                                "description": "Available answer options",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "label": {
+                                            "type": "string",
+                                            "description": "Option label"
+                                        },
+                                        "description": {
+                                            "type": "string",
+                                            "description": "Option description"
+                                        }
+                                    },
+                                    "required": ["label", "description"]
+                                }
+                            }
+                        },
+                        "required": ["question", "header", "options", "multiSelect"]
+                    }
+                },
+                "answers": {
+                    "type": "object",
+                    "description": "Optional pre-filled answers"
+                }
+            },
+            "required": ["questions"]
+        }),
+    }
+}
+
+/// Task tool definition (Agent orchestration)
+fn task_tool_definition() -> ToolDefinition {
+    ToolDefinition {
+        name: "Task".to_string(),
+        description: "Invoke specialized sub-agents for complex tasks with context isolation".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "subagent_type": {
+                    "type": "string",
+                    "description": "Name of the agent (loads from .claude/agents/{subagent_type}.md)"
+                },
+                "prompt": {
+                    "type": "string",
+                    "description": "Full prompt/task for the agent to execute"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Brief 3-5 word description of the task"
+                },
+                "model": {
+                    "type": "string",
+                    "description": "Optional model override (haiku, sonnet, opus)"
+                },
+                "resume": {
+                    "type": "string",
+                    "description": "Optional agent ID to resume a previous execution"
+                }
+            },
+            "required": ["subagent_type", "prompt", "description"]
+        }),
+    }
+}
+
 /// TodoWrite tool definition
 fn todowrite_tool_definition() -> ToolDefinition {
     ToolDefinition {
@@ -234,38 +323,6 @@ fn todowrite_tool_definition() -> ToolDefinition {
                 }
             },
             "required": ["todos"]
-=======
-/// Task tool definition (Agent orchestration)
-fn task_tool_definition() -> ToolDefinition {
-    ToolDefinition {
-        name: "Task".to_string(),
-        description: "Invoke specialized sub-agents for complex tasks with context isolation".to_string(),
-        input_schema: json!({
-            "type": "object",
-            "properties": {
-                "subagent_type": {
-                    "type": "string",
-                    "description": "Name of the agent (loads from .claude/agents/{subagent_type}.md)"
-                },
-                "prompt": {
-                    "type": "string",
-                    "description": "Full prompt/task for the agent to execute"
-                },
-                "description": {
-                    "type": "string",
-                    "description": "Brief 3-5 word description of the task"
-                },
-                "model": {
-                    "type": "string",
-                    "description": "Optional model override (haiku, sonnet, opus)"
-                },
-                "resume": {
-                    "type": "string",
-                    "description": "Optional agent ID to resume a previous execution"
-                }
-            },
-            "required": ["subagent_type", "prompt", "description"]
->>>>>>> origin/master
         }),
     }
 }

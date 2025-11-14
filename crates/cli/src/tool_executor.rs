@@ -627,6 +627,4 @@ mod tests {
         assert!(help.contains("prompt"), "Help should list required fields");
         assert!(help.contains("description"), "Help should list required fields");
     }
->>>>>>> origin/master
 }
->>>>>>> origin/master
