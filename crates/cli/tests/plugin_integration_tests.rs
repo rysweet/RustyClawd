@@ -3,6 +3,8 @@
 //! Tests the complete plugin system including:
 //! - Plugin discovery and loading
 //! - Command execution
+
+#![allow(unused_variables)]
 //! - Skill loading
 //! - Agent discovery
 //! - MCP server management

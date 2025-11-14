@@ -3,6 +3,12 @@
 //! Comprehensive tests for Claude Code interactive REPL/chat mode.
 //! Tests cover session management, multi-turn conversations, command input/output,
 //! and session continuity following the testing pyramid principle.
+
+#![allow(dead_code)]
+#![allow(clippy::bool_assert_comparison)]
+#![allow(clippy::len_zero)]
+#![allow(clippy::derivable_impls)]
+#![allow(clippy::type_complexity)]
 //!
 //! Test Coverage:
 //! - 60% Unit Tests: Individual components (input parsing, command handling)

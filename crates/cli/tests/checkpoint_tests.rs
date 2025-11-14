@@ -3,6 +3,9 @@
 //! This module tests all checkpointing functionality based on the Claude Code
 //! checkpointing documentation at https://docs.claude.com/en/docs/claude-code/checkpointing
 //!
+
+#![allow(unused_variables)]
+#![allow(clippy::bool_assert_comparison)]
 //! Checkpointing provides session-level recovery by automatically capturing state
 //! before each edit operation. Key features tested:
 //! - Session state persistence (conversations and code changes)

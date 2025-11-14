@@ -26,7 +26,6 @@ use claude_code_cli::hooks::{
     },
     HooksSystem,
 };
-use serde_json;
 
 // Helper function to create minimal HookOutput for testing
 fn hook_output_minimal() -> HookOutput {

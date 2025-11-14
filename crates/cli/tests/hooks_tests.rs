@@ -8,6 +8,12 @@
 //! - Integration tests: Hook execution and event lifecycle
 //! - E2E patterns: Full hook workflow scenarios
 
+#![allow(unused_imports)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unused_mut)]
+#![allow(clippy::bool_assert_comparison)]
+#![allow(clippy::len_zero)]
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
