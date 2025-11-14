@@ -844,7 +844,7 @@ mod tests {
     async fn test_notebook_edit_replace_by_index() {
         let notebook_json = create_test_notebook(true, 5);
 
-        let mut temp_file = NamedTempFile::with_suffix(".ipynb").unwrap()
+        let mut temp_file = NamedTempFile::with_suffix(".ipynb").unwrap();
         write!(
             temp_file,
             "{}",
@@ -916,7 +916,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events
@@ -957,7 +957,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events
@@ -1000,7 +1000,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events
@@ -1042,7 +1042,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events
@@ -1272,7 +1272,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events
@@ -1317,7 +1317,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
         let result = events
@@ -1360,7 +1360,7 @@ mod tests {
         };
         let ctx = ToolContext::default();
 
-        let mut stream = tool.execute(params, &ctx).await.unwrap();
+        let stream = tool.execute(params, &ctx).await.unwrap();
         let _events: Vec<_> = stream.collect().await;
 
         let content = tokio::fs::read_to_string(temp_file.path()).await.unwrap();
