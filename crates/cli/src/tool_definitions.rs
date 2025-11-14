@@ -14,9 +14,10 @@ pub fn get_all_tool_definitions() -> Vec<ToolDefinition> {
         edit_tool_definition(),
         glob_tool_definition(),
         grep_tool_definition(),
+        ask_user_question_tool_definition(),
         slash_command_tool_definition(),
-        todowrite_tool_definition(),
         task_tool_definition(),
+        todowrite_tool_definition(),
     ]
 }
 
@@ -194,6 +195,64 @@ fn grep_tool_definition() -> ToolDefinition {
                 }
             },
             "required": ["pattern"]
+        }),
+    }
+}
+
+/// AskUserQuestion tool definition
+fn ask_user_question_tool_definition() -> ToolDefinition {
+    ToolDefinition {
+        name: "AskUserQuestion".to_string(),
+        description: "Ask the user questions and collect their answers interactively".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "questions": {
+                    "type": "array",
+                    "description": "List of questions to ask the user",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "question": {
+                                "type": "string",
+                                "description": "The question to ask"
+                            },
+                            "header": {
+                                "type": "string",
+                                "description": "Short label for the question (max 12 chars)"
+                            },
+                            "multiSelect": {
+                                "type": "boolean",
+                                "description": "Allow multiple option selection"
+                            },
+                            "options": {
+                                "type": "array",
+                                "description": "Available answer options",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "label": {
+                                            "type": "string",
+                                            "description": "Option label"
+                                        },
+                                        "description": {
+                                            "type": "string",
+                                            "description": "Option description"
+                                        }
+                                    },
+                                    "required": ["label", "description"]
+                                }
+                            }
+                        },
+                        "required": ["question", "header", "options", "multiSelect"]
+                    }
+                },
+                "answers": {
+                    "type": "object",
+                    "description": "Optional pre-filled answers"
+                }
+            },
+            "required": ["questions"]
         }),
     }
 }
