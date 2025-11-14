@@ -17,6 +17,7 @@ pub fn get_all_tool_definitions() -> Vec<ToolDefinition> {
         glob_tool_definition(),
         grep_tool_definition(),
         ask_user_question_tool_definition(),
+        skill_tool_definition(),
         task_tool_definition(),
         todowrite_tool_definition(),
     ]
@@ -298,40 +299,20 @@ fn ask_user_question_tool_definition() -> ToolDefinition {
     }
 }
 
-
-/// TodoWrite tool definition
-fn todowrite_tool_definition() -> ToolDefinition {
+/// Skill tool definition
+fn skill_tool_definition() -> ToolDefinition {
     ToolDefinition {
-        name: "TodoWrite".to_string(),
-        description: "Manage structured task lists for tracking progress".to_string(),
+        name: "Skill".to_string(),
+        description: "Execute skills from the skill registry".to_string(),
         input_schema: json!({
             "type": "object",
             "properties": {
-                "todos": {
-                    "type": "array",
-                    "description": "List of tasks to manage",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "content": {
-                                "type": "string",
-                                "description": "Task description (what needs to be done)"
-                            },
-                            "status": {
-                                "type": "string",
-                                "enum": ["pending", "inprogress", "completed"],
-                                "description": "Current status of the task"
-                            },
-                            "activeForm": {
-                                "type": "string",
-                                "description": "Present continuous form for in-progress display"
-                            }
-                        },
-                        "required": ["content", "status", "activeForm"]
-                    }
+                "skill": {
+                    "type": "string",
+                    "description": "Name of the skill (loads from .claude/skills/{skill}.md)"
                 }
             },
-            "required": ["todos"]
+            "required": ["skill"]
         }),
     }
 }
@@ -366,6 +347,43 @@ fn task_tool_definition() -> ToolDefinition {
                 }
             },
             "required": ["subagent_type", "prompt", "description"]
+        }),
+    }
+}
+
+/// TodoWrite tool definition
+fn todowrite_tool_definition() -> ToolDefinition {
+    ToolDefinition {
+        name: "TodoWrite".to_string(),
+        description: "Manage structured task lists for tracking progress".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "todos": {
+                    "type": "array",
+                    "description": "List of tasks to manage",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "content": {
+                                "type": "string",
+                                "description": "Task description (what needs to be done)"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["pending", "inprogress", "completed"],
+                                "description": "Current status of the task"
+                            },
+                            "activeForm": {
+                                "type": "string",
+                                "description": "Present continuous form for in-progress display"
+                            }
+                        },
+                        "required": ["content", "status", "activeForm"]
+                    }
+                }
+            },
+            "required": ["todos"]
         }),
     }
 }
@@ -478,6 +496,16 @@ mod tests {
     }
 
     #[test]
+    fn test_skill_tool_requires_skill() {
+        let skill = skill_tool_definition();
+        let required = skill.input_schema["required"].as_array().unwrap();
+        assert!(
+            required.contains(&serde_json::json!("skill")),
+            "Skill tool must require 'skill' parameter"
+        );
+    }
+
+    #[test]
     fn test_task_tool_requires_all_parameters() {
         let task = task_tool_definition();
         let required = task.input_schema["required"].as_array().unwrap();
@@ -568,6 +596,27 @@ mod tests {
         let tools = get_all_tool_definitions();
         let has_task = tools.iter().any(|t| t.name == "Task");
         assert!(has_task, "get_all_tool_definitions() must include Task tool");
+    }
+
+    #[test]
+    fn test_all_tools_include_ask_user_question() {
+        let tools = get_all_tool_definitions();
+        let has_ask = tools.iter().any(|t| t.name == "AskUserQuestion");
+        assert!(has_ask, "get_all_tool_definitions() must include AskUserQuestion tool");
+    }
+
+    #[test]
+    fn test_all_tools_include_skill() {
+        let tools = get_all_tool_definitions();
+        let has_skill = tools.iter().any(|t| t.name == "Skill");
+        assert!(has_skill, "get_all_tool_definitions() must include Skill tool");
+    }
+
+    #[test]
+    fn test_all_tools_include_todowrite() {
+        let tools = get_all_tool_definitions();
+        let has_todowrite = tools.iter().any(|t| t.name == "TodoWrite");
+        assert!(has_todowrite, "get_all_tool_definitions() must include TodoWrite tool");
     }
 
     #[test]
