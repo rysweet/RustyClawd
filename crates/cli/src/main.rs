@@ -503,10 +503,12 @@ impl App {
                 std::fs::read_to_string(file_path)
                     .with_context(|| format!("Failed to read system prompt file: {}", file_path))?,
             )
-        } else {
+        } else if let Some(ref append) = self.cli.append_system_prompt {
             // --append-system-prompt: append to default (would need default system prompt)
             // For now, just use the append text
             self.cli.append_system_prompt.clone()
+        } else {
+            None
         };
 
         // Create message request

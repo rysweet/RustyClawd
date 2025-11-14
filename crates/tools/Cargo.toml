@@ -31,6 +31,7 @@ gray_matter = "0.2"
 url = "2.5"
 urlencoding = "2.1"
 serde_yaml = "0.9"
+rand = "0.8"
 
 # Process isolation (Unix-specific)
 [target.'cfg(unix)'.dependencies]
