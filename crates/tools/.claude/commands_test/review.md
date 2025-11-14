@@ -1,4 +1,4 @@
 ---
-description: Review a pull request
+argument-hint: <pr-number> <priority>
 ---
 Content

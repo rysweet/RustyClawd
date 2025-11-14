@@ -65,7 +65,7 @@ impl ProcessSpawnConfig {
 /// cmd.arg("-c").arg("echo hello");
 ///
 /// let config = ProcessSpawnConfig::with_isolation();
-/// let cmd = apply_isolation(cmd, &config);
+/// let mut cmd = apply_isolation(cmd, &config);
 ///
 /// let child = cmd.spawn()?;
 /// # Ok(())
