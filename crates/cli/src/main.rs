@@ -16,7 +16,7 @@ mod tui;
 mod terminal_guard;
 
 use anyhow::{Context as AnyhowContext, Result};
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use futures::StreamExt;
 use std::io::{self, IsTerminal, Read};
 
@@ -28,9 +28,6 @@ use std::io::{self, IsTerminal, Read};
 #[command(about = "Claude AI assistant command-line interface", long_about = None)]
 #[command(disable_help_subcommand = true)]
 struct Cli {
-    #[command(subcommand)]
-    command: Option<Commands>,
-
     /// Print mode - execute prompt and exit
     #[arg(short = 'p', long = "print")]
     print_mode: bool,
@@ -113,13 +110,6 @@ struct Cli {
     prompt: Vec<String>,
 }
 
-#[derive(Subcommand)]
-enum Commands {
-    /// Update to latest version
-    Update,
-    /// Configure Model Context Protocol (MCP) servers
-    Mcp,
-}
 
 /// Unified CLI application state
 struct App {
@@ -307,11 +297,6 @@ impl App {
 
     /// Run the application
     async fn run(mut self) -> Result<()> {
-        // Handle subcommands first
-        if let Some(command) = &self.cli.command {
-            return self.run_subcommand(command).await;
-        }
-
         // Call SessionStart hook
         self.execute_session_start_hook().await?;
 
@@ -325,22 +310,6 @@ impl App {
         self.save_session()?;
 
         result
-    }
-
-    /// Run subcommands (update, mcp)
-    async fn run_subcommand(&self, command: &Commands) -> Result<()> {
-        match command {
-            Commands::Update => {
-                println!("Update functionality not yet implemented.");
-                println!("This would check for and install the latest version of Claude Code.");
-                Ok(())
-            }
-            Commands::Mcp => {
-                println!("MCP (Model Context Protocol) configuration not yet implemented.");
-                println!("This would allow you to configure MCP servers.");
-                Ok(())
-            }
-        }
     }
 
     /// Determine which mode to run based on CLI arguments and stdin

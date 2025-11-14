@@ -145,7 +145,7 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
     };
 
     let error_response = json!({
-        "error": format!("Failed to parse {} tool parameters", tool_name),
+        "error": format!("Parameter validation failed for {} tool: {}. Required fields: {:?}", tool_name, error_msg, required_fields),
         "details": error_msg,
         "required_fields": required_fields,
         "optional_fields": optional_fields,

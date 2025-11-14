@@ -376,7 +376,7 @@ mod tests {
     }
 
     #[test]
-    fn test_expand_template_unused_placeholders() {
+    fn test_expand_template_with_unused_parameters() {
         let loader = CommandLoader::new();
         let template = "Use {0} and {1} but not {2}";
         let args = vec!["a".to_string(), "b".to_string()];
