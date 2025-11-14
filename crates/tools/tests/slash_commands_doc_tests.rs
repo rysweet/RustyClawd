@@ -82,7 +82,6 @@ impl TestFixture {
 // ============================================================================
 
 mod builtin_commands {
-
     #[test]
     fn test_help_command_exists() {
         // FAILING: /help must be a built-in command
@@ -926,7 +925,6 @@ mod slash_command_tool {
 // ============================================================================
 
 mod plugin_mcp_commands {
-
     #[test]
     fn test_plugin_command_namespace_format() {
         // FAILING: Plugin commands use /plugin-name:command-name format

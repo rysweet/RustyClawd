@@ -86,10 +86,9 @@ pub fn apply_isolation(mut command: Command, config: &ProcessSpawnConfig) -> Com
                 // This also creates a new process group
                 match nix::unistd::setsid() {
                     Ok(_) => Ok(()),
-                    Err(e) => Err(io::Error::other(format!(
-                        "Failed to create new session: {}",
-                        e
-                    ))),
+                    Err(e) => Err(io::Error::other(
+                        format!("Failed to create new session: {}", e),
+                    )),
                 }
             });
         }
@@ -264,7 +263,7 @@ mod tests {
             let config = ProcessSpawnConfig::with_isolation();
             let mut child = spawn_with_isolation(cmd, &config)
                 .await
-                .expect(&format!("Failed to spawn {}", cmd_name));
+                .unwrap_or_else(|_| panic!("Failed to spawn {}", cmd_name));
 
             let status = child.wait().await.expect("Failed to wait for child");
             assert!(

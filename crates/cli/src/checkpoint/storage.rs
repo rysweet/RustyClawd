@@ -27,7 +27,7 @@ impl CheckpointStorage {
     }
 
     /// Create storage in default location (.claude/sessions/)
-    pub fn default() -> io::Result<Self> {
+    pub fn with_default_path() -> io::Result<Self> {
         let cwd = std::env::current_dir()?;
         let base_dir = cwd.join(".claude").join("sessions");
         Ok(Self { base_dir })

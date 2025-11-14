@@ -13,7 +13,7 @@ use crate::tui::{ChatMessage, MessageRole as TuiMessageRole, TuiState};
 use anyhow::Result;
 use futures::StreamExt;
 use rustyclawd_core::{
-    client::{Client, Config, CreateMessageRequest, Message as ApiMessage},
+    client::{Client, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent},
     Context, Message, MessageRole,
 };
 use rustyclawd_tools::{
@@ -103,8 +103,8 @@ impl InteractiveSession {
     /// Returns true if command was handled, false if input should be processed as message
     async fn handle_command(&mut self, input: &str) -> Result<bool> {
         // Handle "!" prefix for direct shell execution
-        if input.starts_with('!') {
-            let command = input[1..].trim();
+        if let Some(stripped) = input.strip_prefix('!') {
+            let command = stripped.trim();
             if command.is_empty() {
                 self.tui.add_message(ChatMessage {
                     role: TuiMessageRole::System,

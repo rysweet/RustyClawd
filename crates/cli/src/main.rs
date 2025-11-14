@@ -3,12 +3,14 @@
 //! This is a Rust implementation that matches Claude Code's exact CLI interface
 //! as documented at https://code.claude.com/docs/en/cli-reference
 
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 mod checkpoint;
 mod commands;
 mod hooks;
 mod interactive;
 mod plugins;
-mod session;
 mod settings;
 mod terminal_guard;
 mod tool_definitions;
@@ -16,7 +18,7 @@ mod tool_executor;
 mod tui;
 
 use anyhow::{Context as AnyhowContext, Result};
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use futures::StreamExt;
 use std::io::{self, IsTerminal, Read};
 
@@ -28,6 +30,9 @@ use std::io::{self, IsTerminal, Read};
 #[command(about = "Claude AI assistant command-line interface", long_about = None)]
 #[command(disable_help_subcommand = true)]
 struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+
     /// Print mode - execute prompt and exit
     #[arg(short = 'p', long = "print")]
     print_mode: bool,
@@ -108,6 +113,14 @@ struct Cli {
     /// When provided, runs in print mode (one-shot execution)
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     prompt: Vec<String>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Update to latest version
+    Update,
+    /// Configure Model Context Protocol (MCP) servers
+    Mcp,
 }
 
 /// Unified CLI application state
@@ -209,7 +222,7 @@ impl App {
 
         // 6. Check for session resume or create new session
         let session_saver =
-            checkpoint::SessionSaver::default().context("Failed to initialize session saver")?;
+            checkpoint::SessionSaver::with_default_storage().context("Failed to initialize session saver")?;
 
         // Default checkpoint limit (not configurable via CLI in official spec)
         let checkpoint_limit = 50;
@@ -217,7 +230,7 @@ impl App {
         let session = if cli.continue_session {
             // Continue from last session
             tracing::info!("Continuing from last session");
-            let loader = checkpoint::SessionLoader::default()
+            let loader = checkpoint::SessionLoader::with_default_storage()
                 .context("Failed to initialize session loader")?;
 
             // Find the most recent session
@@ -245,7 +258,7 @@ impl App {
             // Resume specific session
             if let Some(session_id) = session_id_opt {
                 tracing::info!("Resuming session: {}", session_id);
-                let loader = checkpoint::SessionLoader::default()
+                let loader = checkpoint::SessionLoader::with_default_storage()
                     .context("Failed to initialize session loader")?;
 
                 loader
@@ -253,7 +266,7 @@ impl App {
                     .context("Failed to resume session")?
             } else {
                 // --resume without ID: list available sessions
-                let loader = checkpoint::SessionLoader::default()
+                let loader = checkpoint::SessionLoader::with_default_storage()
                     .context("Failed to initialize session loader")?;
 
                 match loader.list_sessions() {
@@ -296,6 +309,11 @@ impl App {
 
     /// Run the application
     async fn run(mut self) -> Result<()> {
+        // Handle subcommands first
+        if let Some(command) = &self.cli.command {
+            return self.run_subcommand(command).await;
+        }
+
         // Call SessionStart hook
         self.execute_session_start_hook().await?;
 
@@ -311,6 +329,22 @@ impl App {
         result
     }
 
+    /// Run subcommands (update, mcp)
+    async fn run_subcommand(&self, command: &Commands) -> Result<()> {
+        match command {
+            Commands::Update => {
+                println!("Update functionality not yet implemented.");
+                println!("This would check for and install the latest version of Claude Code.");
+                Ok(())
+            }
+            Commands::Mcp => {
+                println!("MCP (Model Context Protocol) configuration not yet implemented.");
+                println!("This would allow you to configure MCP servers.");
+                Ok(())
+            }
+        }
+    }
+
     /// Determine which mode to run based on CLI arguments and stdin
     async fn determine_and_run_mode(&mut self) -> Result<()> {
         // Check for piped stdin first
@@ -320,11 +354,9 @@ impl App {
         let prompt_text = if !self.cli.prompt.is_empty() {
             // Join all positional args as the prompt
             Some(self.cli.prompt.join(" "))
-        } else if let Some(ref stdin) = stdin_input {
-            // Use stdin as prompt
-            Some(stdin.clone())
         } else {
-            None
+            // Use stdin as prompt
+            stdin_input.clone()
         };
 
         // If print_mode flag is set or we have a prompt, run in print mode
@@ -437,8 +469,9 @@ impl App {
     /// Run in print mode (one-shot execution) - matches Claude Code's behavior
     async fn run_print_mode(&mut self, prompt: &str) -> Result<()> {
         use rustyclawd_core::client::{
-            Client, Config, CreateMessageRequest, Message as ApiMessage,
+            Client, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent,
         };
+        use std::io::Write;
 
         // Load API configuration
         let config = Config::from_default_location().await?;
@@ -470,12 +503,10 @@ impl App {
                 std::fs::read_to_string(file_path)
                     .with_context(|| format!("Failed to read system prompt file: {}", file_path))?,
             )
-        } else if let Some(ref append) = self.cli.append_system_prompt {
+        } else {
             // --append-system-prompt: append to default (would need default system prompt)
             // For now, just use the append text
-            Some(append.clone())
-        } else {
-            None
+            self.cli.append_system_prompt.clone()
         };
 
         // Create message request

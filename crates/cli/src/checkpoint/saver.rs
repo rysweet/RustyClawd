@@ -22,8 +22,8 @@ impl SessionSaver {
     }
 
     /// Create with default storage location
-    pub fn default() -> io::Result<Self> {
-        let storage = CheckpointStorage::default()?;
+    pub fn with_default_storage() -> io::Result<Self> {
+        let storage = CheckpointStorage::with_default_path()?;
         Ok(Self { storage })
     }
 
@@ -106,6 +106,7 @@ impl SessionSaver {
 mod tests {
     use super::*;
     use crate::checkpoint::types::SessionState;
+    use std::path::PathBuf;
 
     fn temp_storage() -> CheckpointStorage {
         // Use a unique name combining process ID and a random component to avoid conflicts
