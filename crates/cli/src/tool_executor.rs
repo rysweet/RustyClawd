@@ -5,12 +5,8 @@
 use anyhow::Result;
 use rustyclawd_core::client::ClientError;
 use rustyclawd_tools::{
-<<<<<<< HEAD
-    BashTool, EditTool, GlobTool, GrepTool, ReadTool, Tool, ToolContext, ToolEvent, WriteTool,
-    TodoWriteTool,
-=======
-    AgentTool, BashTool, EditTool, GlobTool, GrepTool, ReadTool, Tool, ToolContext, ToolEvent, WriteTool,
->>>>>>> origin/master
+    AgentTool, AskUserQuestionTool, BashTool, EditTool, GlobTool, GrepTool, ReadTool,
+    TodoWriteTool, Tool, ToolContext, ToolEvent, WriteTool,
 };
 use futures::StreamExt;
 use serde_json::{json, Value};
@@ -72,7 +68,32 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
                 "output_mode": "content"
             })
         ),
-<<<<<<< HEAD
+        "AskUserQuestion" => (
+            vec!["questions"],
+            vec!["answers"],
+            json!({
+                "questions": [{
+                    "question": "What is your choice?",
+                    "header": "choice",
+                    "multiSelect": false,
+                    "options": [
+                        {"label": "Option 1", "description": "First option"},
+                        {"label": "Option 2", "description": "Second option"}
+                    ]
+                }],
+                "answers": {}
+            })
+        ),
+        "Task" => (
+            vec!["subagent_type", "prompt", "description"],
+            vec!["model", "resume"],
+            json!({
+                "subagent_type": "agent_name",
+                "prompt": "Full task description for the agent",
+                "description": "Brief task summary",
+                "model": "sonnet"
+            })
+        ),
         "TodoWrite" => (
             vec!["todos"],
             vec![],
@@ -89,16 +110,6 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
                         "activeForm": "Doing another task"
                     }
                 ]
-=======
-        "Task" => (
-            vec!["subagent_type", "prompt", "description"],
-            vec!["model", "resume"],
-            json!({
-                "subagent_type": "agent_name",
-                "prompt": "Full task description for the agent",
-                "description": "Brief task summary",
-                "model": "sonnet"
->>>>>>> origin/master
             })
         ),
         _ => (vec![], vec![], json!({}))
@@ -146,6 +157,7 @@ pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value,
         "Edit" => execute_edit_tool(tool_input, &ctx).await,
         "Glob" => execute_glob_tool(tool_input, &ctx).await,
         "Grep" => execute_grep_tool(tool_input, &ctx).await,
+        "AskUserQuestion" => execute_ask_user_question_tool(tool_input, &ctx).await,
         "Task" => execute_agent_tool(tool_input, &ctx).await,
         "TodoWrite" => execute_todowrite_tool(tool_input, &ctx).await,
         _ => Err(ClientError::Api(format!("Unknown tool: {}", tool_name))),
@@ -352,7 +364,50 @@ async fn execute_grep_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
     ))
 }
 
-<<<<<<< HEAD
+/// Execute AskUserQuestion tool
+async fn execute_ask_user_question_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
+    // Protect terminal state during interactive prompts
+    let _guard = TerminalGuard::new()
+        .map_err(|e| ClientError::Api(format!("Failed to create terminal guard: {}", e)))?;
+
+    let params: rustyclawd_tools::ask_user_question::AskUserQuestionParams =
+        serde_json::from_value(input).map_err(|e| {
+            create_schema_error("AskUserQuestion", &e.to_string())
+        })?;
+
+    let tool = AskUserQuestionTool;
+    let mut stream = tool
+        .execute(params, ctx)
+        .await
+        .map_err(|e| ClientError::Api(format!("AskUserQuestion tool execution failed: {}", e)))?;
+
+    while let Some(event) = stream.next().await {
+        match event {
+            ToolEvent::Result(output) => {
+                return serde_json::to_value(&output).map_err(|e| {
+                    ClientError::Api(format!("Failed to serialize AskUserQuestion output: {}", e))
+                });
+            }
+            ToolEvent::Error { message } => {
+                return Err(ClientError::Api(format!("AskUserQuestion tool error: {}", message)));
+            }
+            ToolEvent::Progress { step, percentage } => {
+                // Print progress to stderr so user can see what's happening
+                if let Some(pct) = percentage {
+                    eprintln!("[{:.0}%] {}", pct, step);
+                } else {
+                    eprintln!("{}", step);
+                }
+            }
+        }
+    }
+
+    Err(ClientError::Api(
+        "AskUserQuestion tool completed without result".to_string(),
+    ))
+    // Guard is automatically dropped here, restoring terminal state
+}
+
 /// Execute TodoWrite tool
 async fn execute_todowrite_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::todo_write::TodoWriteParams =
@@ -365,7 +420,26 @@ async fn execute_todowrite_tool(input: Value, ctx: &ToolContext) -> Result<Value
         .execute(params, ctx)
         .await
         .map_err(|e| ClientError::Api(format!("TodoWrite tool execution failed: {}", e)))?;
-=======
+
+    while let Some(event) = stream.next().await {
+        match event {
+            ToolEvent::Result(output) => {
+                return serde_json::to_value(&output).map_err(|e| {
+                    ClientError::Api(format!("Failed to serialize TodoWrite output: {}", e))
+                });
+            }
+            ToolEvent::Error { message } => {
+                return Err(ClientError::Api(format!("TodoWrite tool error: {}", message)));
+            }
+            ToolEvent::Progress { .. } => {}
+        }
+    }
+
+    Err(ClientError::Api(
+        "TodoWrite tool completed without result".to_string(),
+    ))
+}
+
 /// Execute Agent/Task tool
 async fn execute_agent_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     let params: rustyclawd_tools::agent::AgentParams =
@@ -378,36 +452,22 @@ async fn execute_agent_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cl
         .execute(params, ctx)
         .await
         .map_err(|e| ClientError::Api(format!("Task tool execution failed: {}", e)))?;
->>>>>>> origin/master
 
     while let Some(event) = stream.next().await {
         match event {
             ToolEvent::Result(output) => {
                 return serde_json::to_value(&output).map_err(|e| {
-<<<<<<< HEAD
-                    ClientError::Api(format!("Failed to serialize TodoWrite output: {}", e))
-                });
-            }
-            ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!("TodoWrite tool error: {}", message)));
-=======
                     ClientError::Api(format!("Failed to serialize Task output: {}", e))
                 });
             }
             ToolEvent::Error { message } => {
                 return Err(ClientError::Api(format!("Task tool error: {}", message)));
->>>>>>> origin/master
             }
             ToolEvent::Progress { .. } => {}
         }
     }
 
     Err(ClientError::Api(
-<<<<<<< HEAD
-        "TodoWrite tool completed without result".to_string(),
-    ))
-}
-=======
         "Task tool completed without result".to_string(),
     ))
 }
@@ -568,4 +628,3 @@ mod tests {
         assert!(help.contains("description"), "Help should list required fields");
     }
 }
->>>>>>> origin/master
