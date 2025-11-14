@@ -11,7 +11,7 @@ use super::input_viewport;
 use anyhow::Result;
 use crossterm::{
     event::{
-        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers,
+        self, Event, KeyCode, KeyEvent, KeyModifiers,
     },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -32,7 +32,7 @@ const RUST_ORANGE: Color = Color::Rgb(222, 165, 132);
 const RUST_DARK: Color = Color::Rgb(165, 42, 42);
 const RUST_LIGHT: Color = Color::Rgb(255, 195, 160);
 const RUST_BACKGROUND: Color = Color::Rgb(40, 40, 50);
-const TEXT_COLOR: Color = Color::Rgb(230, 230, 230);
+const TEXT_COLOR: Color = Color::Rgb(255, 255, 255);
 
 /// Message role
 #[derive(Debug, Clone)]
@@ -72,6 +72,9 @@ impl ChatMessage {
     }
 }
 
+/// Completion callback type
+pub type CompletionCallback = Box<dyn Fn(&str) -> Vec<(String, Option<String>)> + Send>;
+
 /// TUI state
 pub struct TuiState {
     /// Terminal instance
@@ -88,6 +91,12 @@ pub struct TuiState {
     status: String,
     /// Whether to show the pirate banner
     show_banner: bool,
+    /// Autocomplete suggestions (command_name, optional_hint)
+    suggestions: Vec<(String, Option<String>)>,
+    /// Selected suggestion index
+    selected_suggestion: usize,
+    /// Completion callback function
+    completion_callback: Option<CompletionCallback>,
 }
 
 impl TuiState {
@@ -96,7 +105,7 @@ impl TuiState {
         // Setup terminal
         enable_raw_mode()?;
         let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+        execute!(stdout, EnterAlternateScreen)?;
         let backend = CrosstermBackend::new(stdout);
         let terminal = Terminal::new(backend)?;
 
@@ -108,7 +117,81 @@ impl TuiState {
             scroll_offset: 0,
             status: "Ready".to_string(),
             show_banner: true,
+            suggestions: vec![],
+            selected_suggestion: 0,
+            completion_callback: None,
         })
+    }
+
+    /// Set the completion callback function
+    pub fn set_completion_callback(&mut self, callback: CompletionCallback) {
+        self.completion_callback = Some(callback);
+    }
+
+    /// Update autocomplete suggestions based on current input
+    fn update_suggestions(&mut self) {
+        // Check if input starts with '/' for slash command completion
+        if let Some(callback) = &self.completion_callback {
+            if self.input.starts_with('/') {
+                // Get the command prefix (everything after '/')
+                let prefix = &self.input[1..];
+
+                // Get completions from callback
+                self.suggestions = callback(prefix);
+
+                // Reset selection to first item
+                self.selected_suggestion = 0;
+            } else {
+                // Clear suggestions if not a slash command
+                self.suggestions.clear();
+                self.selected_suggestion = 0;
+            }
+        }
+    }
+
+    /// Get current suggestions
+    pub fn get_suggestions(&self) -> &[(String, Option<String>)] {
+        &self.suggestions
+    }
+
+    /// Select next suggestion
+    fn select_next_suggestion(&mut self) {
+        if !self.suggestions.is_empty() {
+            self.selected_suggestion = (self.selected_suggestion + 1) % self.suggestions.len();
+        }
+    }
+
+    /// Select previous suggestion
+    fn select_previous_suggestion(&mut self) {
+        if !self.suggestions.is_empty() {
+            if self.selected_suggestion == 0 {
+                self.selected_suggestion = self.suggestions.len() - 1;
+            } else {
+                self.selected_suggestion -= 1;
+            }
+        }
+    }
+
+    /// Apply selected suggestion to input
+    fn apply_suggestion(&mut self) {
+        if !self.suggestions.is_empty() && self.selected_suggestion < self.suggestions.len() {
+            let (command, hint) = &self.suggestions[self.selected_suggestion];
+
+            // Replace input with selected command
+            self.input = format!("/{}", command);
+
+            // If there's an argument hint, add a space
+            if hint.is_some() {
+                self.input.push(' ');
+            }
+
+            // Move cursor to end
+            self.cursor_position = self.input.graphemes(true).count();
+
+            // Clear suggestions after applying
+            self.suggestions.clear();
+            self.selected_suggestion = 0;
+        }
     }
 
     /// Add a message to the chat
@@ -527,8 +610,7 @@ impl TuiState {
         disable_raw_mode()?;
         execute!(
             self.terminal.backend_mut(),
-            LeaveAlternateScreen,
-            DisableMouseCapture
+            LeaveAlternateScreen
         )?;
         self.terminal.show_cursor()?;
         Ok(())
