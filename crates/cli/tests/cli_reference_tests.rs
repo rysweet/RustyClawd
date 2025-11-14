@@ -1273,7 +1273,6 @@ fn test_permission_prompt_tool_flag() {
 /// Status: NOT IMPLEMENTED
 /// Reference: --dangerously-skip-permissions
 #[test]
-#[ignore] // Testing unimplemented CLI features
 #[ignore = "Feature not yet implemented: --dangerously-skip-permissions flag"]
 fn test_dangerously_skip_permissions_flag() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();

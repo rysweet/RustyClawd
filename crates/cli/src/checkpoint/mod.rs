@@ -20,26 +20,7 @@
 //!
 //! # Usage
 //!
-//! ```rust
-//! use rustyclawd::checkpoint::{Session, SessionSaver, SessionLoader, RestoreScope};
-//!
-//! // Create a session
-//! let mut session = Session::new("my-session", 50);
-//!
-//! // Create checkpoints
-//! let checkpoint_id = session.create_checkpoint(Some("Before refactor".to_string()));
-//!
-//! // Save to disk
-//! let saver = SessionSaver::default()?;
-//! saver.save_session(&session)?;
-//!
-//! // Later, resume the session
-//! let loader = SessionLoader::default()?;
-//! let restored_session = loader.resume_session("my-session", 50)?;
-//!
-//! // Restore from a specific checkpoint
-//! restored_session.restore_checkpoint(&checkpoint_id, RestoreScope::Both)?;
-//! ```
+//! See individual module documentation for usage examples.
 //!
 //! # Checkpoint Structure
 //!
