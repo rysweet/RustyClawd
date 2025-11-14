@@ -8,6 +8,13 @@
 //! - Agent isolation (tool permissions, capability filtering)
 //! - Hook-based event system (PreToolUse, PostToolUse, SessionStart, SessionEnd)
 //! - Subagent delegation (autonomous multi-step tasks)
+
+#![allow(unused_imports)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(clippy::bool_assert_comparison)]
+#![allow(clippy::useless_vec)]
+#![allow(clippy::let_unit_value)]
 //!
 //! Following Testing Pyramid:
 //! - 60% Unit tests: Agent configuration, context state, permission logic

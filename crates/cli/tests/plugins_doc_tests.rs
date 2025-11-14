@@ -8,6 +8,13 @@
 //! - Agents (specialized subagents)
 //! - Skills (model-invoked capabilities)
 //! - Hooks (lifecycle event handlers)
+
+#![allow(unused_imports)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(clippy::bool_assert_comparison)]
+#![allow(clippy::len_zero)]
+#![allow(clippy::useless_vec)]
 //! - MCP Servers (Model Context Protocol integration)
 //! - Loading and discovery
 //! - Permission system
