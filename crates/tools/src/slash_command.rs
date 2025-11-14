@@ -204,4 +204,220 @@ mod tests {
         // Clean up
         let _ = fs::remove_file(&cmd_path).await;
     }
+
+    #[tokio::test]
+    async fn test_command_not_found() {
+        let tool = SlashCommandTool;
+        let params = SlashCommandParams {
+            command: "/nonexistent-command".to_string(),
+        };
+        let ctx = ToolContext::default();
+
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+
+        // Should get an error event
+        let has_error = events.iter().any(|e| matches!(e, ToolEvent::Error { .. }));
+        assert!(has_error);
+    }
+
+    #[tokio::test]
+    async fn test_multiple_argument_substitution() {
+        let cmd_dir = PathBuf::from(".claude/commands");
+        let _ = fs::create_dir_all(&cmd_dir).await;
+
+        let cmd_path = cmd_dir.join("multi-arg.md");
+        let test_content = "---\ndescription: Test multiple args\n---\n\nFirst: {0}, Second: {1}, Third: {2}\n";
+        let _ = fs::write(&cmd_path, test_content).await;
+
+        let tool = SlashCommandTool;
+        let params = SlashCommandParams {
+            command: "/multi-arg foo bar baz".to_string(),
+        };
+        let ctx = ToolContext::default();
+
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+
+        let result = events.iter().find_map(|e| match e {
+            ToolEvent::Result(output) => Some(output),
+            _ => None,
+        }).unwrap();
+
+        assert!(result.expanded_prompt.contains("foo"));
+        assert!(result.expanded_prompt.contains("bar"));
+        assert!(result.expanded_prompt.contains("baz"));
+
+        let _ = fs::remove_file(&cmd_path).await;
+    }
+
+    #[tokio::test]
+    async fn test_args_placeholder_substitution() {
+        let cmd_dir = PathBuf::from(".claude/commands");
+        let _ = fs::create_dir_all(&cmd_dir).await;
+
+        let cmd_path = cmd_dir.join("args-placeholder.md");
+        let test_content = "---\ndescription: Test {{args}} placeholder\n---\n\nAll arguments: {{args}}\n";
+        let _ = fs::write(&cmd_path, test_content).await;
+
+        let tool = SlashCommandTool;
+        let params = SlashCommandParams {
+            command: "/args-placeholder one two three".to_string(),
+        };
+        let ctx = ToolContext::default();
+
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+
+        let result = events.iter().find_map(|e| match e {
+            ToolEvent::Result(output) => Some(output),
+            _ => None,
+        }).unwrap();
+
+        assert!(result.expanded_prompt.contains("one two three"));
+
+        let _ = fs::remove_file(&cmd_path).await;
+    }
+
+    #[tokio::test]
+    async fn test_no_frontmatter() {
+        let cmd_dir = PathBuf::from(".claude/commands");
+        let _ = fs::create_dir_all(&cmd_dir).await;
+
+        let cmd_path = cmd_dir.join("no-frontmatter.md");
+        let test_content = "Simple command without frontmatter\n";
+        let _ = fs::write(&cmd_path, test_content).await;
+
+        let tool = SlashCommandTool;
+        let params = SlashCommandParams {
+            command: "/no-frontmatter".to_string(),
+        };
+        let ctx = ToolContext::default();
+
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+
+        let result = events.iter().find_map(|e| match e {
+            ToolEvent::Result(output) => Some(output),
+            _ => None,
+        }).unwrap();
+
+        assert!(result.expanded_prompt.contains("Simple command"));
+
+        let _ = fs::remove_file(&cmd_path).await;
+    }
+
+    #[tokio::test]
+    async fn test_command_without_args() {
+        let cmd_dir = PathBuf::from(".claude/commands");
+        let _ = fs::create_dir_all(&cmd_dir).await;
+
+        let cmd_path = cmd_dir.join("no-args.md");
+        let test_content = "---\ndescription: Command without args\n---\n\nThis command takes no arguments.\n";
+        let _ = fs::write(&cmd_path, test_content).await;
+
+        let tool = SlashCommandTool;
+        let params = SlashCommandParams {
+            command: "/no-args".to_string(),
+        };
+        let ctx = ToolContext::default();
+
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+
+        let result = events.iter().find_map(|e| match e {
+            ToolEvent::Result(output) => Some(output),
+            _ => None,
+        }).unwrap();
+
+        assert!(result.expanded_prompt.contains("This command takes no arguments"));
+
+        let _ = fs::remove_file(&cmd_path).await;
+    }
+
+    #[tokio::test]
+    async fn test_empty_command_name() {
+        let tool = SlashCommandTool;
+        let params = SlashCommandParams {
+            command: "/".to_string(),
+        };
+        let ctx = ToolContext::default();
+
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+
+        // Should get an error since command name is empty
+        let has_error = events.iter().any(|e| matches!(e, ToolEvent::Error { .. }));
+        assert!(has_error);
+    }
+
+    #[tokio::test]
+    async fn test_command_with_spaces_in_args() {
+        let cmd_dir = PathBuf::from(".claude/commands");
+        let _ = fs::create_dir_all(&cmd_dir).await;
+
+        let cmd_path = cmd_dir.join("space-args.md");
+        let test_content = "---\ndescription: Test args with spaces\n---\n\nArgs: {{args}}\n";
+        let _ = fs::write(&cmd_path, test_content).await;
+
+        let tool = SlashCommandTool;
+        let params = SlashCommandParams {
+            command: "/space-args arg with multiple words".to_string(),
+        };
+        let ctx = ToolContext::default();
+
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+
+        let result = events.iter().find_map(|e| match e {
+            ToolEvent::Result(output) => Some(output),
+            _ => None,
+        }).unwrap();
+
+        assert!(result.expanded_prompt.contains("arg with multiple words"));
+
+        let _ = fs::remove_file(&cmd_path).await;
+    }
+
+    #[tokio::test]
+    async fn test_read_only_flag() {
+        let tool = SlashCommandTool;
+        assert!(tool.is_read_only());
+    }
+
+    #[tokio::test]
+    async fn test_concurrency_safe_flag() {
+        let tool = SlashCommandTool;
+        assert!(tool.is_concurrency_safe());
+    }
+
+    #[tokio::test]
+    async fn test_malformed_frontmatter() {
+        let cmd_dir = PathBuf::from(".claude/commands");
+        let _ = fs::create_dir_all(&cmd_dir).await;
+
+        let cmd_path = cmd_dir.join("malformed.md");
+        // Frontmatter without closing ---
+        let test_content = "---\ndescription: Test\n\nContent here\n";
+        let _ = fs::write(&cmd_path, test_content).await;
+
+        let tool = SlashCommandTool;
+        let params = SlashCommandParams {
+            command: "/malformed".to_string(),
+        };
+        let ctx = ToolContext::default();
+
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+
+        let result = events.iter().find_map(|e| match e {
+            ToolEvent::Result(output) => Some(output),
+            _ => None,
+        }).unwrap();
+
+        // Should still return content even with malformed frontmatter
+        assert!(!result.expanded_prompt.is_empty());
+
+        let _ = fs::remove_file(&cmd_path).await;
+    }
 }
