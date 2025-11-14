@@ -158,7 +158,10 @@ fn test_suggestion_popup_sizing() {
     // Test popup size calculations
     let suggestions = vec![
         ("short".to_string(), None),
-        ("very-long-command-name".to_string(), Some("<args>".to_string())),
+        (
+            "very-long-command-name".to_string(),
+            Some("<args>".to_string()),
+        ),
     ];
 
     let max_width = suggestions

@@ -606,14 +606,7 @@ impl TuiState {
     /// Cleanup terminal on drop
     pub fn cleanup(&mut self) -> Result<()> {
         disable_raw_mode()?;
-<<<<<<< HEAD
         execute!(self.terminal.backend_mut(), LeaveAlternateScreen)?;
-=======
-        execute!(
-            self.terminal.backend_mut(),
-            LeaveAlternateScreen
-        )?;
->>>>>>> 752278a (feat: Add slash command autocomplete to TUI (#32))
         self.terminal.show_cursor()?;
         Ok(())
     }
