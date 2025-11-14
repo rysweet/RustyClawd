@@ -3,14 +3,12 @@
 //! This is a Rust implementation that matches Claude Code's exact CLI interface
 //! as documented at https://code.claude.com/docs/en/cli-reference
 
-#![allow(dead_code)]
-#![allow(unused_imports)]
-
 mod checkpoint;
 mod commands;
 mod hooks;
 mod interactive;
 mod plugins;
+mod session;
 mod settings;
 mod tool_definitions;
 mod tool_executor;
@@ -462,10 +460,8 @@ impl App {
 
     /// Run in print mode (one-shot execution) - matches Claude Code's behavior
     async fn run_print_mode(&mut self, prompt: &str) -> Result<()> {
-        use rustyclawd_core::{
-            client::{Client, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent},
-        };
-        use std::io::Write;
+        use rustyclawd_core::client::{Client, Config, CreateMessageRequest, Message as ApiMessage};
+        
 
         // Load API configuration
         let config = Config::from_default_location().await?;

@@ -9,7 +9,6 @@ use crate::plugins::{
     agent_discovery::AgentDiscovery,
     discovery::{PluginDiscovery, PluginMetadata},
     executor::PluginExecutor,
-    hooks_integration::PluginHooksIntegrator,
     loader::PluginLoader,
     mcp_proxy::McpProxy,
 };

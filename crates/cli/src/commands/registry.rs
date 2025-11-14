@@ -1,7 +1,7 @@
 //! Command registry - discovers and manages available commands
 
 use crate::commands::loader::{CommandLoader, LoadedCommand};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tokio::fs;

@@ -9,7 +9,7 @@
 
 use anyhow::Result;
 use rustyclawd_core::{
-    client::{Client, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent},
+    client::{Client, Config, CreateMessageRequest, Message as ApiMessage},
     Context, Message, MessageRole,
 };
 use rustyclawd_tools::{bash::BashParams, BashTool, Tool, ToolContext, ToolEvent, ExecutionContext};

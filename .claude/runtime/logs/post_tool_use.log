@@ -12922,3 +12922,1839 @@
 [2025-11-13T14:18:31.637645] INFO: Tool used: unknown
 [2025-11-13T14:18:31.639351] INFO: Returning empty output (allows default behavior)
 [2025-11-13T14:18:31.643507] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:00.222347] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:00.222470] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:00.222513] INFO: Event type: PostToolUse
+[2025-11-14T05:14:00.222547] INFO: Tool used: unknown
+[2025-11-14T05:14:00.222626] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:00.222689] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:00.228613] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:00.228700] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:00.228741] INFO: Event type: PostToolUse
+[2025-11-14T05:14:00.228775] INFO: Tool used: unknown
+[2025-11-14T05:14:00.228852] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:00.228908] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:20.908796] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:20.908941] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:20.908985] INFO: Event type: PostToolUse
+[2025-11-14T05:14:20.909039] INFO: Tool used: unknown
+[2025-11-14T05:14:20.909220] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:20.909281] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:20.916557] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:20.916676] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:20.916719] INFO: Event type: PostToolUse
+[2025-11-14T05:14:20.916753] INFO: Tool used: unknown
+[2025-11-14T05:14:20.916930] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:20.916982] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:27.788593] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:27.788692] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:27.788734] INFO: Event type: PostToolUse
+[2025-11-14T05:14:27.788775] INFO: Tool used: unknown
+[2025-11-14T05:14:27.788856] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:27.788915] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:27.794969] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:27.795090] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:27.795134] INFO: Event type: PostToolUse
+[2025-11-14T05:14:27.795168] INFO: Tool used: unknown
+[2025-11-14T05:14:27.795246] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:27.795296] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:28.252932] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:28.253140] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:28.253188] INFO: Event type: PostToolUse
+[2025-11-14T05:14:28.253222] INFO: Tool used: unknown
+[2025-11-14T05:14:28.253301] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:28.253352] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:28.260109] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:28.260275] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:28.260319] INFO: Event type: PostToolUse
+[2025-11-14T05:14:28.260353] INFO: Tool used: unknown
+[2025-11-14T05:14:28.260430] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:28.260488] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:30.505661] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:30.505778] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:30.505824] INFO: Event type: PostToolUse
+[2025-11-14T05:14:30.505860] INFO: Tool used: unknown
+[2025-11-14T05:14:30.505944] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:30.506022] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:30.512166] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:30.512280] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:30.512325] INFO: Event type: PostToolUse
+[2025-11-14T05:14:30.512360] INFO: Tool used: unknown
+[2025-11-14T05:14:30.512440] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:30.512497] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:37.784362] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:37.784460] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:37.784505] INFO: Event type: PostToolUse
+[2025-11-14T05:14:37.784539] INFO: Tool used: unknown
+[2025-11-14T05:14:37.784622] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:37.784673] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:37.789258] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:37.789351] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:37.789396] INFO: Event type: PostToolUse
+[2025-11-14T05:14:37.789432] INFO: Tool used: unknown
+[2025-11-14T05:14:37.789513] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:37.789565] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:37.838031] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:37.838131] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:37.838183] INFO: Event type: PostToolUse
+[2025-11-14T05:14:37.838220] INFO: Tool used: unknown
+[2025-11-14T05:14:37.838302] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:37.838353] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:37.844740] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:37.844829] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:37.844871] INFO: Event type: PostToolUse
+[2025-11-14T05:14:37.844905] INFO: Tool used: unknown
+[2025-11-14T05:14:37.844985] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:37.845062] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:38.024082] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:38.031348] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:38.036974] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:38.037046] INFO: Event type: PostToolUse
+[2025-11-14T05:14:38.037084] INFO: Tool used: unknown
+[2025-11-14T05:14:38.037063] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:38.037134] INFO: Event type: PostToolUse
+[2025-11-14T05:14:38.037168] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:38.037178] INFO: Tool used: unknown
+[2025-11-14T05:14:38.037220] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:38.037278] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:38.037338] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:38.056734] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:38.056857] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:38.056900] INFO: Event type: PostToolUse
+[2025-11-14T05:14:38.056933] INFO: Tool used: unknown
+[2025-11-14T05:14:38.057033] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:38.057090] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:38.062741] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:38.062837] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:38.062879] INFO: Event type: PostToolUse
+[2025-11-14T05:14:38.062913] INFO: Tool used: unknown
+[2025-11-14T05:14:38.062992] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:38.063065] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:43.326848] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:43.333467] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:43.338052] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:43.338098] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:43.338132] INFO: Event type: PostToolUse
+[2025-11-14T05:14:43.338148] INFO: Event type: PostToolUse
+[2025-11-14T05:14:43.338177] INFO: Tool used: unknown
+[2025-11-14T05:14:43.338184] INFO: Tool used: unknown
+[2025-11-14T05:14:43.338269] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:43.338280] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:43.338322] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:43.338343] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:43.340950] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:43.341086] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:43.341133] INFO: Event type: PostToolUse
+[2025-11-14T05:14:43.341167] INFO: Tool used: unknown
+[2025-11-14T05:14:43.341258] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:43.341308] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:43.344912] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:43.345032] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:43.345080] INFO: Event type: PostToolUse
+[2025-11-14T05:14:43.345114] INFO: Tool used: unknown
+[2025-11-14T05:14:43.345199] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:43.345249] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:43.351748] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:43.351864] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:43.351909] INFO: Event type: PostToolUse
+[2025-11-14T05:14:43.351943] INFO: Tool used: unknown
+[2025-11-14T05:14:43.352044] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:43.352105] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:43.356760] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:43.356860] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:43.356903] INFO: Event type: PostToolUse
+[2025-11-14T05:14:43.356937] INFO: Tool used: unknown
+[2025-11-14T05:14:43.357035] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:43.357091] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:50.842514] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:50.842609] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:50.842652] INFO: Event type: PostToolUse
+[2025-11-14T05:14:50.842686] INFO: Tool used: unknown
+[2025-11-14T05:14:50.842764] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:50.842814] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:50.849849] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:50.849966] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:50.850025] INFO: Event type: PostToolUse
+[2025-11-14T05:14:50.850066] INFO: Tool used: unknown
+[2025-11-14T05:14:50.850147] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:50.850197] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:57.797365] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:57.797480] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:57.797522] INFO: Event type: PostToolUse
+[2025-11-14T05:14:57.797555] INFO: Tool used: unknown
+[2025-11-14T05:14:57.797633] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:57.797685] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:14:57.803690] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:14:57.803775] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:14:57.803825] INFO: Event type: PostToolUse
+[2025-11-14T05:14:57.803860] INFO: Tool used: unknown
+[2025-11-14T05:14:57.803938] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:14:57.803988] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:15:01.194170] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:15:01.194289] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:15:01.194332] INFO: Event type: PostToolUse
+[2025-11-14T05:15:01.194365] INFO: Tool used: unknown
+[2025-11-14T05:15:01.194444] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:15:01.194505] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:15:01.200973] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:15:01.201105] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:15:01.201149] INFO: Event type: PostToolUse
+[2025-11-14T05:15:01.201183] INFO: Tool used: unknown
+[2025-11-14T05:15:01.201261] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:15:01.201317] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:15:06.433930] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:15:06.434058] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:15:06.434107] INFO: Event type: PostToolUse
+[2025-11-14T05:15:06.434144] INFO: Tool used: unknown
+[2025-11-14T05:15:06.434230] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:15:06.434282] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:15:06.439424] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:15:06.439537] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:15:06.439582] INFO: Event type: PostToolUse
+[2025-11-14T05:15:06.439619] INFO: Tool used: unknown
+[2025-11-14T05:15:06.439703] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:15:06.439755] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:15:06.489527] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:15:06.489620] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:15:06.489665] INFO: Event type: PostToolUse
+[2025-11-14T05:15:06.489700] INFO: Tool used: unknown
+[2025-11-14T05:15:06.489783] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:15:06.489834] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:15:06.494809] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:15:06.494933] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:15:06.494979] INFO: Event type: PostToolUse
+[2025-11-14T05:15:06.495039] INFO: Tool used: unknown
+[2025-11-14T05:15:06.495127] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:15:06.495180] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:17:49.032109] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:17:49.032425] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:17:49.032474] INFO: Event type: PostToolUse
+[2025-11-14T05:17:49.032511] INFO: Tool used: unknown
+[2025-11-14T05:17:49.032608] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:17:49.032669] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:17:49.037748] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:17:49.038079] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:17:49.038137] INFO: Event type: PostToolUse
+[2025-11-14T05:17:49.038173] INFO: Tool used: unknown
+[2025-11-14T05:17:49.038257] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:17:49.038308] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:25.731319] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:25.731464] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:25.731510] INFO: Event type: PostToolUse
+[2025-11-14T05:18:25.731546] INFO: Tool used: unknown
+[2025-11-14T05:18:25.731735] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:25.731792] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:25.738045] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:25.738179] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:25.738226] INFO: Event type: PostToolUse
+[2025-11-14T05:18:25.738262] INFO: Tool used: unknown
+[2025-11-14T05:18:25.738447] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:25.738509] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:32.864770] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:32.864872] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:32.864916] INFO: Event type: PostToolUse
+[2025-11-14T05:18:32.864952] INFO: Tool used: unknown
+[2025-11-14T05:18:32.865057] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:32.865111] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:32.871041] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:32.871144] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:32.871189] INFO: Event type: PostToolUse
+[2025-11-14T05:18:32.871225] INFO: Tool used: unknown
+[2025-11-14T05:18:32.871307] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:32.871359] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:32.918526] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:32.918630] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:32.918675] INFO: Event type: PostToolUse
+[2025-11-14T05:18:32.918711] INFO: Tool used: unknown
+[2025-11-14T05:18:32.918794] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:32.918845] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:32.926221] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:32.926317] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:32.926361] INFO: Event type: PostToolUse
+[2025-11-14T05:18:32.926396] INFO: Tool used: unknown
+[2025-11-14T05:18:32.926478] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:32.926528] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:33.010367] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:33.010483] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:33.010527] INFO: Event type: PostToolUse
+[2025-11-14T05:18:33.010562] INFO: Tool used: unknown
+[2025-11-14T05:18:33.010657] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:33.010707] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:33.016079] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:33.016177] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:33.016219] INFO: Event type: PostToolUse
+[2025-11-14T05:18:33.016252] INFO: Tool used: unknown
+[2025-11-14T05:18:33.016338] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:33.016389] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:38.722715] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:38.722832] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:38.722875] INFO: Event type: PostToolUse
+[2025-11-14T05:18:38.722909] INFO: Tool used: unknown
+[2025-11-14T05:18:38.722989] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:38.723066] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:38.727860] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:38.727951] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:38.727993] INFO: Event type: PostToolUse
+[2025-11-14T05:18:38.728053] INFO: Tool used: unknown
+[2025-11-14T05:18:38.728134] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:38.728182] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:38.779089] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:38.786528] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:38.813188] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:38.813257] INFO: Event type: PostToolUse
+[2025-11-14T05:18:38.813255] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:38.813296] INFO: Tool used: unknown
+[2025-11-14T05:18:38.813329] INFO: Event type: PostToolUse
+[2025-11-14T05:18:38.813372] INFO: Tool used: unknown
+[2025-11-14T05:18:38.813387] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:38.813442] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:38.813481] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:38.813541] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:38.823656] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:38.823750] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:38.823793] INFO: Event type: PostToolUse
+[2025-11-14T05:18:38.823827] INFO: Tool used: unknown
+[2025-11-14T05:18:38.823906] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:38.823956] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:38.830748] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:38.830858] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:38.830901] INFO: Event type: PostToolUse
+[2025-11-14T05:18:38.830934] INFO: Tool used: unknown
+[2025-11-14T05:18:38.831067] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:38.831127] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:44.385307] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:44.385431] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:44.385483] INFO: Event type: PostToolUse
+[2025-11-14T05:18:44.385518] INFO: Tool used: unknown
+[2025-11-14T05:18:44.385600] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:44.385652] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:44.391861] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:44.391953] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:44.391995] INFO: Event type: PostToolUse
+[2025-11-14T05:18:44.392052] INFO: Tool used: unknown
+[2025-11-14T05:18:44.392146] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:44.392199] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:44.398761] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:44.398938] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:44.398982] INFO: Event type: PostToolUse
+[2025-11-14T05:18:44.399037] INFO: Tool used: unknown
+[2025-11-14T05:18:44.399123] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:44.399172] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:44.404810] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:44.404986] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:44.405065] INFO: Event type: PostToolUse
+[2025-11-14T05:18:44.405107] INFO: Tool used: unknown
+[2025-11-14T05:18:44.405192] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:44.405243] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:44.563637] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:44.563753] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:44.563796] INFO: Event type: PostToolUse
+[2025-11-14T05:18:44.563829] INFO: Tool used: unknown
+[2025-11-14T05:18:44.563909] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:44.563970] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:44.570429] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:44.570514] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:44.570557] INFO: Event type: PostToolUse
+[2025-11-14T05:18:44.570590] INFO: Tool used: unknown
+[2025-11-14T05:18:44.570668] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:44.570724] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:50.235951] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:50.244153] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:50.250242] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:50.251604] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:50.251675] INFO: Event type: PostToolUse
+[2025-11-14T05:18:50.251672] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:50.251676] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:50.251722] INFO: Event type: PostToolUse
+[2025-11-14T05:18:50.251719] INFO: Tool used: unknown
+[2025-11-14T05:18:50.251739] INFO: Event type: PostToolUse
+[2025-11-14T05:18:50.251757] INFO: Tool used: unknown
+[2025-11-14T05:18:50.251792] INFO: Tool used: unknown
+[2025-11-14T05:18:50.251829] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:50.251864] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:50.251893] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:50.251906] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:50.251923] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:50.251954] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:50.255977] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:50.256099] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:50.256143] INFO: Event type: PostToolUse
+[2025-11-14T05:18:50.256177] INFO: Tool used: unknown
+[2025-11-14T05:18:50.256256] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:50.256306] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:50.263355] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:50.263454] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:50.263497] INFO: Event type: PostToolUse
+[2025-11-14T05:18:50.263530] INFO: Tool used: unknown
+[2025-11-14T05:18:50.263609] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:50.263660] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:50.270195] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:50.270310] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:50.270353] INFO: Event type: PostToolUse
+[2025-11-14T05:18:50.270387] INFO: Tool used: unknown
+[2025-11-14T05:18:50.270464] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:50.270513] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:56.923953] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:56.924100] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:56.924148] INFO: Event type: PostToolUse
+[2025-11-14T05:18:56.924182] INFO: Tool used: unknown
+[2025-11-14T05:18:56.924262] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:56.924312] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:56.930957] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:56.931088] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:56.931133] INFO: Event type: PostToolUse
+[2025-11-14T05:18:56.931166] INFO: Tool used: unknown
+[2025-11-14T05:18:56.931246] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:56.931297] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:56.937738] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:56.937849] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:56.937892] INFO: Event type: PostToolUse
+[2025-11-14T05:18:56.937925] INFO: Tool used: unknown
+[2025-11-14T05:18:56.938021] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:56.938079] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:56.942560] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:56.942674] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:56.942718] INFO: Event type: PostToolUse
+[2025-11-14T05:18:56.942760] INFO: Tool used: unknown
+[2025-11-14T05:18:56.942842] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:56.942892] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:56.999170] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:56.999284] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:56.999327] INFO: Event type: PostToolUse
+[2025-11-14T05:18:56.999361] INFO: Tool used: unknown
+[2025-11-14T05:18:56.999441] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:56.999491] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:18:57.006082] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:18:57.006185] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:18:57.006233] INFO: Event type: PostToolUse
+[2025-11-14T05:18:57.006273] INFO: Tool used: unknown
+[2025-11-14T05:18:57.006353] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:18:57.006403] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:19:05.092091] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:19:05.092203] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:19:05.092249] INFO: Event type: PostToolUse
+[2025-11-14T05:19:05.092286] INFO: Tool used: unknown
+[2025-11-14T05:19:05.092371] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:19:05.092425] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:19:05.099403] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:19:05.099501] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:19:05.099547] INFO: Event type: PostToolUse
+[2025-11-14T05:19:05.099583] INFO: Tool used: unknown
+[2025-11-14T05:19:05.099663] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:19:05.099713] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:19:57.390335] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:19:57.390523] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:19:57.390569] INFO: Event type: PostToolUse
+[2025-11-14T05:19:57.390605] INFO: Tool used: unknown
+[2025-11-14T05:19:57.390688] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:19:57.390752] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:19:57.397439] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:19:57.397601] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:19:57.397647] INFO: Event type: PostToolUse
+[2025-11-14T05:19:57.397683] INFO: Tool used: unknown
+[2025-11-14T05:19:57.397765] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:19:57.397816] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:20:04.095078] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:20:04.095196] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:20:04.095241] INFO: Event type: PostToolUse
+[2025-11-14T05:20:04.095277] INFO: Tool used: unknown
+[2025-11-14T05:20:04.095360] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:20:04.095413] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:20:04.099948] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:20:04.100077] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:20:04.100126] INFO: Event type: PostToolUse
+[2025-11-14T05:20:04.100160] INFO: Tool used: unknown
+[2025-11-14T05:20:04.100239] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:20:04.100289] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:20:10.412840] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:20:10.420213] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:20:10.433197] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:20:10.433264] INFO: Event type: PostToolUse
+[2025-11-14T05:20:10.433308] INFO: Tool used: unknown
+[2025-11-14T05:20:10.433301] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:20:10.433377] INFO: Event type: PostToolUse
+[2025-11-14T05:20:10.433410] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:20:10.433422] INFO: Tool used: unknown
+[2025-11-14T05:20:10.433473] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:20:10.433525] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:20:10.433587] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:20:10.448489] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:20:10.448583] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:20:10.448627] INFO: Event type: PostToolUse
+[2025-11-14T05:20:10.448661] INFO: Tool used: unknown
+[2025-11-14T05:20:10.448741] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:20:10.448792] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:20:10.453185] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:20:10.453273] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:20:10.453314] INFO: Event type: PostToolUse
+[2025-11-14T05:20:10.453348] INFO: Tool used: unknown
+[2025-11-14T05:20:10.453426] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:20:10.453477] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:20:14.103655] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:20:14.103808] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:20:14.103851] INFO: Event type: PostToolUse
+[2025-11-14T05:20:14.103885] INFO: Tool used: unknown
+[2025-11-14T05:20:14.103965] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:20:14.104044] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:20:14.110935] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:20:14.111083] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:20:14.111132] INFO: Event type: PostToolUse
+[2025-11-14T05:20:14.111166] INFO: Tool used: unknown
+[2025-11-14T05:20:14.111245] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:20:14.111302] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:21:09.892552] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:21:09.892733] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:21:09.892778] INFO: Event type: PostToolUse
+[2025-11-14T05:21:09.892814] INFO: Tool used: unknown
+[2025-11-14T05:21:09.892906] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:21:09.892968] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:21:09.898375] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:21:09.898525] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:21:09.898569] INFO: Event type: PostToolUse
+[2025-11-14T05:21:09.898603] INFO: Tool used: unknown
+[2025-11-14T05:21:09.898684] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:21:09.898733] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:21:15.246276] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:21:15.246387] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:21:15.246430] INFO: Event type: PostToolUse
+[2025-11-14T05:21:15.246464] INFO: Tool used: unknown
+[2025-11-14T05:21:15.246545] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:21:15.246595] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:21:15.253705] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:21:15.253808] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:21:15.253852] INFO: Event type: PostToolUse
+[2025-11-14T05:21:15.253886] INFO: Tool used: unknown
+[2025-11-14T05:21:15.253967] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:21:15.254044] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:22:19.088578] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:22:19.088766] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:22:19.088813] INFO: Event type: PostToolUse
+[2025-11-14T05:22:19.088849] INFO: Tool used: unknown
+[2025-11-14T05:22:19.088933] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:22:19.088985] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:22:19.094620] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:22:19.094790] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:22:19.094835] INFO: Event type: PostToolUse
+[2025-11-14T05:22:19.094872] INFO: Tool used: unknown
+[2025-11-14T05:22:19.094955] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:22:19.095026] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:22:25.692130] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:22:25.692261] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:22:25.692308] INFO: Event type: PostToolUse
+[2025-11-14T05:22:25.692344] INFO: Tool used: unknown
+[2025-11-14T05:22:25.692428] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:22:25.692490] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:22:25.699454] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:22:25.699553] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:22:25.699599] INFO: Event type: PostToolUse
+[2025-11-14T05:22:25.699634] INFO: Tool used: unknown
+[2025-11-14T05:22:25.699716] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:22:25.699775] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:22:31.988401] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:22:31.988497] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:22:31.988549] INFO: Event type: PostToolUse
+[2025-11-14T05:22:31.988585] INFO: Tool used: unknown
+[2025-11-14T05:22:31.988665] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:22:31.988715] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:22:31.993642] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:22:31.993747] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:22:31.993789] INFO: Event type: PostToolUse
+[2025-11-14T05:22:31.993822] INFO: Tool used: unknown
+[2025-11-14T05:22:31.993909] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:22:31.993960] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:22:32.036442] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:22:32.036539] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:22:32.036591] INFO: Event type: PostToolUse
+[2025-11-14T05:22:32.036625] INFO: Tool used: unknown
+[2025-11-14T05:22:32.036706] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:22:32.036755] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:22:32.044121] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:22:32.044227] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:22:32.044272] INFO: Event type: PostToolUse
+[2025-11-14T05:22:32.044305] INFO: Tool used: unknown
+[2025-11-14T05:22:32.044385] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:22:32.044434] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:22:36.057828] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:22:36.057950] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:22:36.057994] INFO: Event type: PostToolUse
+[2025-11-14T05:22:36.058052] INFO: Tool used: unknown
+[2025-11-14T05:22:36.058136] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:22:36.058195] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:22:36.063930] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:22:36.064061] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:22:36.064109] INFO: Event type: PostToolUse
+[2025-11-14T05:22:36.064143] INFO: Tool used: unknown
+[2025-11-14T05:22:36.064231] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:22:36.064290] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:23:36.254657] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:23:36.255033] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:23:36.255086] INFO: Event type: PostToolUse
+[2025-11-14T05:23:36.255124] INFO: Tool used: unknown
+[2025-11-14T05:23:36.255209] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:23:36.255261] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:23:36.259562] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:23:36.259903] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:23:36.259951] INFO: Event type: PostToolUse
+[2025-11-14T05:23:36.259988] INFO: Tool used: unknown
+[2025-11-14T05:23:36.260103] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:23:36.260155] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:23:41.704368] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:23:41.704476] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:23:41.704520] INFO: Event type: PostToolUse
+[2025-11-14T05:23:41.704554] INFO: Tool used: unknown
+[2025-11-14T05:23:41.704636] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:23:41.704695] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:23:41.711425] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:23:41.711528] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:23:41.711571] INFO: Event type: PostToolUse
+[2025-11-14T05:23:41.711604] INFO: Tool used: unknown
+[2025-11-14T05:23:41.711685] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:23:41.711735] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:24:46.086834] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:24:46.087041] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:24:46.087092] INFO: Event type: PostToolUse
+[2025-11-14T05:24:46.087128] INFO: Tool used: unknown
+[2025-11-14T05:24:46.087213] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:24:46.087265] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:24:46.095160] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:24:46.095327] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:24:46.095372] INFO: Event type: PostToolUse
+[2025-11-14T05:24:46.095408] INFO: Tool used: unknown
+[2025-11-14T05:24:46.095491] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:24:46.095551] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:24:52.323347] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:24:52.323460] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:24:52.323505] INFO: Event type: PostToolUse
+[2025-11-14T05:24:52.323551] INFO: Tool used: unknown
+[2025-11-14T05:24:52.323634] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:24:52.323686] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:24:52.330776] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:24:52.330878] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:24:52.330930] INFO: Event type: PostToolUse
+[2025-11-14T05:24:52.330968] INFO: Tool used: unknown
+[2025-11-14T05:24:52.331077] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:24:52.331131] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:25:03.360638] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:25:03.360762] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:25:03.360808] INFO: Event type: PostToolUse
+[2025-11-14T05:25:03.360845] INFO: Tool used: unknown
+[2025-11-14T05:25:03.360928] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:25:03.360991] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:25:03.367194] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:25:03.367288] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:25:03.367332] INFO: Event type: PostToolUse
+[2025-11-14T05:25:03.367377] INFO: Tool used: unknown
+[2025-11-14T05:25:03.367459] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:25:03.367514] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:25:11.625364] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:25:11.625486] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:25:11.625530] INFO: Event type: PostToolUse
+[2025-11-14T05:25:11.625564] INFO: Tool used: unknown
+[2025-11-14T05:25:11.625645] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:25:11.625707] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:25:11.631731] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:25:11.631823] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:25:11.631865] INFO: Event type: PostToolUse
+[2025-11-14T05:25:11.631898] INFO: Tool used: unknown
+[2025-11-14T05:25:11.631976] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:25:11.632052] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:25:17.197076] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:25:17.197175] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:25:17.197219] INFO: Event type: PostToolUse
+[2025-11-14T05:25:17.197253] INFO: Tool used: unknown
+[2025-11-14T05:25:17.197335] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:25:17.197396] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:25:17.203552] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:25:17.203661] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:25:17.203703] INFO: Event type: PostToolUse
+[2025-11-14T05:25:17.203736] INFO: Tool used: unknown
+[2025-11-14T05:25:17.203816] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:25:17.203873] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:25:21.454481] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:25:21.454598] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:25:21.454643] INFO: Event type: PostToolUse
+[2025-11-14T05:25:21.454679] INFO: Tool used: unknown
+[2025-11-14T05:25:21.454765] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:25:21.454828] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:25:21.460478] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:25:21.460567] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:25:21.460612] INFO: Event type: PostToolUse
+[2025-11-14T05:25:21.460647] INFO: Tool used: unknown
+[2025-11-14T05:25:21.460728] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:25:21.460779] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:25:55.698270] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:25:55.698442] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:25:55.698490] INFO: Event type: PostToolUse
+[2025-11-14T05:25:55.698526] INFO: Tool used: unknown
+[2025-11-14T05:25:55.698612] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:25:55.698671] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:25:55.703721] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:25:55.703860] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:25:55.703914] INFO: Event type: PostToolUse
+[2025-11-14T05:25:55.703950] INFO: Tool used: unknown
+[2025-11-14T05:25:55.704055] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:25:55.704128] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:26:44.095167] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:26:44.095303] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:26:44.095349] INFO: Event type: PostToolUse
+[2025-11-14T05:26:44.095385] INFO: Tool used: unknown
+[2025-11-14T05:26:44.095566] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:26:44.095631] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:26:44.103778] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:26:44.103917] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:26:44.103964] INFO: Event type: PostToolUse
+[2025-11-14T05:26:44.104001] INFO: Tool used: unknown
+[2025-11-14T05:26:44.104202] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:26:44.104258] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:26:50.259365] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:26:50.259471] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:26:50.259516] INFO: Event type: PostToolUse
+[2025-11-14T05:26:50.259551] INFO: Tool used: unknown
+[2025-11-14T05:26:50.259634] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:26:50.259685] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:26:50.266395] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:26:50.266488] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:26:50.266532] INFO: Event type: PostToolUse
+[2025-11-14T05:26:50.266567] INFO: Tool used: unknown
+[2025-11-14T05:26:50.266647] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:26:50.266698] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:26:50.311384] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:26:50.311481] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:26:50.311526] INFO: Event type: PostToolUse
+[2025-11-14T05:26:50.311567] INFO: Tool used: unknown
+[2025-11-14T05:26:50.311652] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:26:50.311706] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:26:50.317958] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:26:50.318065] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:26:50.318113] INFO: Event type: PostToolUse
+[2025-11-14T05:26:50.318148] INFO: Tool used: unknown
+[2025-11-14T05:26:50.318230] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:26:50.318280] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:26:50.458636] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:26:50.459486] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:26:50.459539] INFO: Event type: PostToolUse
+[2025-11-14T05:26:50.459576] INFO: Tool used: unknown
+[2025-11-14T05:26:50.459661] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:26:50.459722] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:26:50.466493] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:26:50.466581] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:26:50.466623] INFO: Event type: PostToolUse
+[2025-11-14T05:26:50.466657] INFO: Tool used: unknown
+[2025-11-14T05:26:50.466735] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:26:50.466786] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:26:54.634718] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:26:54.634845] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:26:54.634889] INFO: Event type: PostToolUse
+[2025-11-14T05:26:54.634923] INFO: Tool used: unknown
+[2025-11-14T05:26:54.635021] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:26:54.635080] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:26:54.642210] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:26:54.642302] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:26:54.642344] INFO: Event type: PostToolUse
+[2025-11-14T05:26:54.642377] INFO: Tool used: unknown
+[2025-11-14T05:26:54.642455] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:26:54.642505] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:26:54.684123] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:26:54.684238] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:26:54.684280] INFO: Event type: PostToolUse
+[2025-11-14T05:26:54.684313] INFO: Tool used: unknown
+[2025-11-14T05:26:54.684393] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:26:54.684443] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:26:54.691146] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:26:54.691235] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:26:54.691278] INFO: Event type: PostToolUse
+[2025-11-14T05:26:54.691313] INFO: Tool used: unknown
+[2025-11-14T05:26:54.691394] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:26:54.691445] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:26:59.701405] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:26:59.701509] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:26:59.701551] INFO: Event type: PostToolUse
+[2025-11-14T05:26:59.701584] INFO: Tool used: unknown
+[2025-11-14T05:26:59.701663] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:26:59.701722] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:26:59.708416] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:26:59.708507] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:26:59.708550] INFO: Event type: PostToolUse
+[2025-11-14T05:26:59.708585] INFO: Tool used: unknown
+[2025-11-14T05:26:59.708666] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:26:59.708717] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:05.118131] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:05.124987] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:05.131041] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:05.131073] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:05.131137] INFO: Event type: PostToolUse
+[2025-11-14T05:27:05.131137] INFO: Event type: PostToolUse
+[2025-11-14T05:27:05.131181] INFO: Tool used: unknown
+[2025-11-14T05:27:05.131183] INFO: Tool used: unknown
+[2025-11-14T05:27:05.131281] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:05.131288] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:05.131343] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:05.131350] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:05.132285] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:05.132428] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:05.132471] INFO: Event type: PostToolUse
+[2025-11-14T05:27:05.132505] INFO: Tool used: unknown
+[2025-11-14T05:27:05.132586] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:05.132637] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:05.137583] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:05.137728] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:05.137772] INFO: Event type: PostToolUse
+[2025-11-14T05:27:05.137805] INFO: Tool used: unknown
+[2025-11-14T05:27:05.137894] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:05.137947] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:05.144559] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:05.144758] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:05.144802] INFO: Event type: PostToolUse
+[2025-11-14T05:27:05.144836] INFO: Tool used: unknown
+[2025-11-14T05:27:05.144916] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:05.144966] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:05.150171] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:05.150379] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:05.150427] INFO: Event type: PostToolUse
+[2025-11-14T05:27:05.150462] INFO: Tool used: unknown
+[2025-11-14T05:27:05.150541] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:05.150591] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:11.671956] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:11.672170] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:11.672214] INFO: Event type: PostToolUse
+[2025-11-14T05:27:11.672254] INFO: Tool used: unknown
+[2025-11-14T05:27:11.672334] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:11.672384] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:11.680177] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:11.680317] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:11.680360] INFO: Event type: PostToolUse
+[2025-11-14T05:27:11.680394] INFO: Tool used: unknown
+[2025-11-14T05:27:11.680473] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:11.680522] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:11.686306] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:11.686445] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:11.686487] INFO: Event type: PostToolUse
+[2025-11-14T05:27:11.686519] INFO: Tool used: unknown
+[2025-11-14T05:27:11.686597] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:11.686645] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:11.691832] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:11.691957] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:11.692001] INFO: Event type: PostToolUse
+[2025-11-14T05:27:11.692063] INFO: Tool used: unknown
+[2025-11-14T05:27:11.692145] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:11.692195] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:17.982220] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:17.982320] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:17.982363] INFO: Event type: PostToolUse
+[2025-11-14T05:27:17.982396] INFO: Tool used: unknown
+[2025-11-14T05:27:17.982476] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:17.982526] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:17.989323] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:17.989410] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:17.989452] INFO: Event type: PostToolUse
+[2025-11-14T05:27:17.989485] INFO: Tool used: unknown
+[2025-11-14T05:27:17.989561] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:17.989610] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:18.033916] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:18.034042] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:18.034092] INFO: Event type: PostToolUse
+[2025-11-14T05:27:18.034127] INFO: Tool used: unknown
+[2025-11-14T05:27:18.034206] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:18.034255] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:18.040859] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:18.040957] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:18.041001] INFO: Event type: PostToolUse
+[2025-11-14T05:27:18.041065] INFO: Tool used: unknown
+[2025-11-14T05:27:18.041146] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:18.041198] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:28.602853] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:28.602968] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:28.603032] INFO: Event type: PostToolUse
+[2025-11-14T05:27:28.603072] INFO: Tool used: unknown
+[2025-11-14T05:27:28.603170] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:28.603330] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:28.613414] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:28.613547] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:28.613610] INFO: Event type: PostToolUse
+[2025-11-14T05:27:28.613661] INFO: Tool used: unknown
+[2025-11-14T05:27:28.613787] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:28.613986] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:56.396466] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:56.396611] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:56.396656] INFO: Event type: PostToolUse
+[2025-11-14T05:27:56.396692] INFO: Tool used: unknown
+[2025-11-14T05:27:56.396783] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:56.396834] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:27:56.404261] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:27:56.404390] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:27:56.404436] INFO: Event type: PostToolUse
+[2025-11-14T05:27:56.404471] INFO: Tool used: unknown
+[2025-11-14T05:27:56.404554] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:27:56.404606] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:28:02.507213] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:28:02.507357] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:28:02.507406] INFO: Event type: PostToolUse
+[2025-11-14T05:28:02.507443] INFO: Tool used: unknown
+[2025-11-14T05:28:02.507526] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:28:02.507682] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:28:02.514193] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:28:02.514309] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:28:02.514355] INFO: Event type: PostToolUse
+[2025-11-14T05:28:02.514391] INFO: Tool used: unknown
+[2025-11-14T05:28:02.514472] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:28:02.514629] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:28:09.296205] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:28:09.296325] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:28:09.296371] INFO: Event type: PostToolUse
+[2025-11-14T05:28:09.296408] INFO: Tool used: unknown
+[2025-11-14T05:28:09.296491] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:28:09.296553] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:28:09.302754] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:28:09.302850] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:28:09.302895] INFO: Event type: PostToolUse
+[2025-11-14T05:28:09.302931] INFO: Tool used: unknown
+[2025-11-14T05:28:09.303048] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:28:09.303110] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:28:16.227136] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:28:16.227249] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:28:16.227294] INFO: Event type: PostToolUse
+[2025-11-14T05:28:16.227329] INFO: Tool used: unknown
+[2025-11-14T05:28:16.227411] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:28:16.227473] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:28:16.232587] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:28:16.232694] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:28:16.232746] INFO: Event type: PostToolUse
+[2025-11-14T05:28:16.232782] INFO: Tool used: unknown
+[2025-11-14T05:28:16.232865] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:28:16.232924] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:28:25.210661] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:28:25.210776] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:28:25.210818] INFO: Event type: PostToolUse
+[2025-11-14T05:28:25.210851] INFO: Tool used: unknown
+[2025-11-14T05:28:25.210931] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:28:25.210991] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:28:25.215593] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:28:25.215684] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:28:25.215726] INFO: Event type: PostToolUse
+[2025-11-14T05:28:25.215760] INFO: Tool used: unknown
+[2025-11-14T05:28:25.215840] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:28:25.215889] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:28:36.883237] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:28:36.883342] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:28:36.883388] INFO: Event type: PostToolUse
+[2025-11-14T05:28:36.883423] INFO: Tool used: unknown
+[2025-11-14T05:28:36.883507] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:28:36.883558] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:28:36.890223] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:28:36.890323] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:28:36.890367] INFO: Event type: PostToolUse
+[2025-11-14T05:28:36.890403] INFO: Tool used: unknown
+[2025-11-14T05:28:36.890485] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:28:36.890536] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:28:52.255169] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:28:52.255290] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:28:52.255336] INFO: Event type: PostToolUse
+[2025-11-14T05:28:52.255371] INFO: Tool used: unknown
+[2025-11-14T05:28:52.255455] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:28:52.255506] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:28:52.263358] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:28:52.263467] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:28:52.263514] INFO: Event type: PostToolUse
+[2025-11-14T05:28:52.263550] INFO: Tool used: unknown
+[2025-11-14T05:28:52.263634] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:28:52.263686] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:28:57.368423] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:28:57.368545] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:28:57.368591] INFO: Event type: PostToolUse
+[2025-11-14T05:28:57.368627] INFO: Tool used: unknown
+[2025-11-14T05:28:57.368717] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:28:57.368778] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:28:57.376559] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:28:57.376667] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:28:57.376710] INFO: Event type: PostToolUse
+[2025-11-14T05:28:57.376743] INFO: Tool used: unknown
+[2025-11-14T05:28:57.376823] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:28:57.376874] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:29:01.950846] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:29:01.950950] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:29:01.951020] INFO: Event type: PostToolUse
+[2025-11-14T05:29:01.951061] INFO: Tool used: unknown
+[2025-11-14T05:29:01.951148] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:29:01.951207] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:29:01.958680] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:29:01.958802] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:29:01.958845] INFO: Event type: PostToolUse
+[2025-11-14T05:29:01.958878] INFO: Tool used: unknown
+[2025-11-14T05:29:01.958959] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:29:01.959033] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:29:15.734750] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:29:15.734883] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:29:15.734930] INFO: Event type: PostToolUse
+[2025-11-14T05:29:15.734976] INFO: Tool used: unknown
+[2025-11-14T05:29:15.735086] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:29:15.735142] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:29:15.741692] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:29:15.741792] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:29:15.741838] INFO: Event type: PostToolUse
+[2025-11-14T05:29:15.741874] INFO: Tool used: unknown
+[2025-11-14T05:29:15.741954] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:29:15.742026] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:29:23.354497] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:29:23.354635] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:29:23.354684] INFO: Event type: PostToolUse
+[2025-11-14T05:29:23.354721] INFO: Tool used: unknown
+[2025-11-14T05:29:23.354804] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:29:23.354966] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:29:23.364691] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:29:23.364852] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:29:23.364917] INFO: Event type: PostToolUse
+[2025-11-14T05:29:23.364965] INFO: Tool used: unknown
+[2025-11-14T05:29:23.365114] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:29:23.365335] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:29:28.055754] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:29:28.055951] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:29:28.056025] INFO: Event type: PostToolUse
+[2025-11-14T05:29:28.056067] INFO: Tool used: unknown
+[2025-11-14T05:29:28.056150] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:29:28.056208] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:29:28.063518] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:29:28.063700] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:29:28.063745] INFO: Event type: PostToolUse
+[2025-11-14T05:29:28.063777] INFO: Tool used: unknown
+[2025-11-14T05:29:28.063867] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:29:28.063927] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:30:17.638947] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:30:17.639515] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:30:17.639569] INFO: Event type: PostToolUse
+[2025-11-14T05:30:17.639606] INFO: Tool used: unknown
+[2025-11-14T05:30:17.639694] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:30:17.639751] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:30:17.646202] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:30:17.646729] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:30:17.646783] INFO: Event type: PostToolUse
+[2025-11-14T05:30:17.646820] INFO: Tool used: unknown
+[2025-11-14T05:30:17.646906] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:30:17.646961] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:30:30.657348] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:30:30.663122] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:30:30.737281] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:30:30.737363] INFO: Event type: PostToolUse
+[2025-11-14T05:30:30.737348] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:30:30.737416] INFO: Tool used: unknown
+[2025-11-14T05:30:30.737424] INFO: Event type: PostToolUse
+[2025-11-14T05:30:30.737475] INFO: Tool used: unknown
+[2025-11-14T05:30:30.737532] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:30:30.737585] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:30:30.737605] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:30:30.737656] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:30:37.861842] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:30:37.862039] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:30:37.862091] INFO: Event type: PostToolUse
+[2025-11-14T05:30:37.862127] INFO: Tool used: unknown
+[2025-11-14T05:30:37.862211] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:30:37.862272] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:30:37.868509] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:30:37.868677] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:30:37.868728] INFO: Event type: PostToolUse
+[2025-11-14T05:30:37.868765] INFO: Tool used: unknown
+[2025-11-14T05:30:37.868846] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:30:37.868897] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:30:44.317794] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:30:44.317973] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:30:44.318042] INFO: Event type: PostToolUse
+[2025-11-14T05:30:44.318078] INFO: Tool used: unknown
+[2025-11-14T05:30:44.318159] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:30:44.318214] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:30:44.325105] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:30:44.325279] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:30:44.325323] INFO: Event type: PostToolUse
+[2025-11-14T05:30:44.325356] INFO: Tool used: unknown
+[2025-11-14T05:30:44.325434] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:30:44.325483] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:30:48.674963] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:30:48.675111] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:30:48.675155] INFO: Event type: PostToolUse
+[2025-11-14T05:30:48.675189] INFO: Tool used: unknown
+[2025-11-14T05:30:48.675269] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:30:48.675327] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:30:48.682684] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:30:48.682781] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:30:48.682823] INFO: Event type: PostToolUse
+[2025-11-14T05:30:48.682857] INFO: Tool used: unknown
+[2025-11-14T05:30:48.682937] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:30:48.682995] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:30:57.399434] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:30:57.399542] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:30:57.399588] INFO: Event type: PostToolUse
+[2025-11-14T05:30:57.399622] INFO: Tool used: unknown
+[2025-11-14T05:30:57.399704] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:30:57.399766] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:30:57.406846] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:30:57.406954] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:30:57.407023] INFO: Event type: PostToolUse
+[2025-11-14T05:30:57.407067] INFO: Tool used: unknown
+[2025-11-14T05:30:57.407160] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:30:57.407217] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:31:04.941464] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:31:04.941645] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:31:04.941692] INFO: Event type: PostToolUse
+[2025-11-14T05:31:04.941727] INFO: Tool used: unknown
+[2025-11-14T05:31:04.941811] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:31:04.941863] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:31:04.945975] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:31:04.946160] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:31:04.946208] INFO: Event type: PostToolUse
+[2025-11-14T05:31:04.946244] INFO: Tool used: unknown
+[2025-11-14T05:31:04.946337] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:31:04.946387] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:31:13.525202] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:31:13.525331] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:31:13.525374] INFO: Event type: PostToolUse
+[2025-11-14T05:31:13.525407] INFO: Tool used: unknown
+[2025-11-14T05:31:13.525486] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:31:13.525547] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:31:13.532441] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:31:13.532543] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:31:13.532586] INFO: Event type: PostToolUse
+[2025-11-14T05:31:13.532619] INFO: Tool used: unknown
+[2025-11-14T05:31:13.532698] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:31:13.532755] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:31:18.509877] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:31:18.509976] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:31:18.510039] INFO: Event type: PostToolUse
+[2025-11-14T05:31:18.510075] INFO: Tool used: unknown
+[2025-11-14T05:31:18.510156] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:31:18.510206] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:31:18.515328] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:31:18.515445] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:31:18.515488] INFO: Event type: PostToolUse
+[2025-11-14T05:31:18.515522] INFO: Tool used: unknown
+[2025-11-14T05:31:18.515601] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:31:18.515650] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:31:25.141760] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:31:25.141907] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:31:25.141950] INFO: Event type: PostToolUse
+[2025-11-14T05:31:25.141983] INFO: Tool used: unknown
+[2025-11-14T05:31:25.142088] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:31:25.142148] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:31:25.148715] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:31:25.148860] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:31:25.148903] INFO: Event type: PostToolUse
+[2025-11-14T05:31:25.148936] INFO: Tool used: unknown
+[2025-11-14T05:31:25.149037] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:31:25.149098] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:31:33.743776] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:31:33.743903] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:31:33.743949] INFO: Event type: PostToolUse
+[2025-11-14T05:31:33.743984] INFO: Tool used: unknown
+[2025-11-14T05:31:33.744091] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:31:33.744146] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:31:33.749693] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:31:33.749799] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:31:33.749853] INFO: Event type: PostToolUse
+[2025-11-14T05:31:33.749890] INFO: Tool used: unknown
+[2025-11-14T05:31:33.749970] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:31:33.750048] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:31:49.042342] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:31:49.042519] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:31:49.042563] INFO: Event type: PostToolUse
+[2025-11-14T05:31:49.042597] INFO: Tool used: unknown
+[2025-11-14T05:31:49.042677] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:31:49.042739] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:31:49.049125] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:31:49.049304] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:31:49.049348] INFO: Event type: PostToolUse
+[2025-11-14T05:31:49.049381] INFO: Tool used: unknown
+[2025-11-14T05:31:49.049459] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:31:49.049508] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:32:02.093335] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:32:02.093561] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:32:02.093606] INFO: Event type: PostToolUse
+[2025-11-14T05:32:02.093640] INFO: Tool used: unknown
+[2025-11-14T05:32:02.093722] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:32:02.093772] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:32:02.100388] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:32:02.100578] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:32:02.100623] INFO: Event type: PostToolUse
+[2025-11-14T05:32:02.100657] INFO: Tool used: unknown
+[2025-11-14T05:32:02.100737] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:32:02.100788] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:32:10.575083] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:32:10.575204] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:32:10.575250] INFO: Event type: PostToolUse
+[2025-11-14T05:32:10.575286] INFO: Tool used: unknown
+[2025-11-14T05:32:10.575370] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:32:10.575433] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:32:10.581861] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:32:10.581957] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:32:10.582003] INFO: Event type: PostToolUse
+[2025-11-14T05:32:10.582060] INFO: Tool used: unknown
+[2025-11-14T05:32:10.582144] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:32:10.582201] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:32:19.270357] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:32:19.270479] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:32:19.270528] INFO: Event type: PostToolUse
+[2025-11-14T05:32:19.270564] INFO: Tool used: unknown
+[2025-11-14T05:32:19.270648] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:32:19.270797] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:32:19.275730] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:32:19.275856] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:32:19.275900] INFO: Event type: PostToolUse
+[2025-11-14T05:32:19.275934] INFO: Tool used: unknown
+[2025-11-14T05:32:19.276033] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:32:19.276197] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:32:46.248718] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:32:46.248857] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:32:46.248902] INFO: Event type: PostToolUse
+[2025-11-14T05:32:46.248938] INFO: Tool used: unknown
+[2025-11-14T05:32:46.249041] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:32:46.249106] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:32:46.255789] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:32:46.255913] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:32:46.255959] INFO: Event type: PostToolUse
+[2025-11-14T05:32:46.255996] INFO: Tool used: unknown
+[2025-11-14T05:32:46.256113] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:32:46.256165] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:32:50.613730] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:32:50.613870] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:32:50.613916] INFO: Event type: PostToolUse
+[2025-11-14T05:32:50.613951] INFO: Tool used: unknown
+[2025-11-14T05:32:50.614066] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:32:50.614123] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:32:50.621124] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:32:50.621249] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:32:50.621295] INFO: Event type: PostToolUse
+[2025-11-14T05:32:50.621330] INFO: Tool used: unknown
+[2025-11-14T05:32:50.621409] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:32:50.621467] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:32:56.100072] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:32:56.100222] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:32:56.100267] INFO: Event type: PostToolUse
+[2025-11-14T05:32:56.100302] INFO: Tool used: unknown
+[2025-11-14T05:32:56.100385] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:32:56.100446] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:32:56.107189] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:32:56.107315] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:32:56.107360] INFO: Event type: PostToolUse
+[2025-11-14T05:32:56.107396] INFO: Tool used: unknown
+[2025-11-14T05:32:56.107478] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:32:56.107528] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:33:05.286205] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:33:05.286318] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:33:05.286363] INFO: Event type: PostToolUse
+[2025-11-14T05:33:05.286432] INFO: Tool used: unknown
+[2025-11-14T05:33:05.286524] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:33:05.286587] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:33:05.293937] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:33:05.294058] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:33:05.294118] INFO: Event type: PostToolUse
+[2025-11-14T05:33:05.294152] INFO: Tool used: unknown
+[2025-11-14T05:33:05.294232] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:33:05.294288] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:33:13.649393] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:33:13.649500] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:33:13.649543] INFO: Event type: PostToolUse
+[2025-11-14T05:33:13.649577] INFO: Tool used: unknown
+[2025-11-14T05:33:13.649657] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:33:13.649718] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:33:13.655378] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:33:13.655468] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:33:13.655510] INFO: Event type: PostToolUse
+[2025-11-14T05:33:13.655543] INFO: Tool used: unknown
+[2025-11-14T05:33:13.655619] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:33:13.655675] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:33:20.036872] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:33:20.036999] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:33:20.037065] INFO: Event type: PostToolUse
+[2025-11-14T05:33:20.037102] INFO: Tool used: unknown
+[2025-11-14T05:33:20.037192] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:33:20.037254] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:33:20.044228] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:33:20.044346] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:33:20.044392] INFO: Event type: PostToolUse
+[2025-11-14T05:33:20.044428] INFO: Tool used: unknown
+[2025-11-14T05:33:20.044511] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:33:20.044562] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:33:28.201539] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:33:28.201673] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:33:28.201719] INFO: Event type: PostToolUse
+[2025-11-14T05:33:28.201754] INFO: Tool used: unknown
+[2025-11-14T05:33:28.201835] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:33:28.201895] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:33:28.208234] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:33:28.208376] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:33:28.208422] INFO: Event type: PostToolUse
+[2025-11-14T05:33:28.208457] INFO: Tool used: unknown
+[2025-11-14T05:33:28.208539] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:33:28.208588] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:33:36.515404] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:33:36.515518] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:33:36.515571] INFO: Event type: PostToolUse
+[2025-11-14T05:33:36.515606] INFO: Tool used: unknown
+[2025-11-14T05:33:36.515686] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:33:36.515745] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:33:36.520399] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:33:36.520491] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:33:36.520533] INFO: Event type: PostToolUse
+[2025-11-14T05:33:36.520566] INFO: Tool used: unknown
+[2025-11-14T05:33:36.520645] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:33:36.520701] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:33:41.379937] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:33:41.380073] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:33:41.380119] INFO: Event type: PostToolUse
+[2025-11-14T05:33:41.380153] INFO: Tool used: unknown
+[2025-11-14T05:33:41.380233] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:33:41.380292] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:33:41.387364] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:33:41.387467] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:33:41.387510] INFO: Event type: PostToolUse
+[2025-11-14T05:33:41.387544] INFO: Tool used: unknown
+[2025-11-14T05:33:41.387624] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:33:41.387680] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:33:46.822357] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:33:46.822482] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:33:46.822524] INFO: Event type: PostToolUse
+[2025-11-14T05:33:46.822558] INFO: Tool used: unknown
+[2025-11-14T05:33:46.822639] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:33:46.822700] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:33:46.827647] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:33:46.827743] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:33:46.827786] INFO: Event type: PostToolUse
+[2025-11-14T05:33:46.827820] INFO: Tool used: unknown
+[2025-11-14T05:33:46.827898] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:33:46.827959] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:33:56.240941] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:33:56.241116] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:33:56.241166] INFO: Event type: PostToolUse
+[2025-11-14T05:33:56.241202] INFO: Tool used: unknown
+[2025-11-14T05:33:56.241285] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:33:56.241346] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:33:56.246764] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:33:56.246921] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:33:56.246967] INFO: Event type: PostToolUse
+[2025-11-14T05:33:56.247020] INFO: Tool used: unknown
+[2025-11-14T05:33:56.247111] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:33:56.247170] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:34:03.881188] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:34:03.881363] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:34:03.881407] INFO: Event type: PostToolUse
+[2025-11-14T05:34:03.881439] INFO: Tool used: unknown
+[2025-11-14T05:34:03.881526] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:34:03.881588] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:34:03.888201] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:34:03.888340] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:34:03.888383] INFO: Event type: PostToolUse
+[2025-11-14T05:34:03.888417] INFO: Tool used: unknown
+[2025-11-14T05:34:03.888503] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:34:03.888553] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:34:09.989081] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:34:09.989218] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:34:09.989260] INFO: Event type: PostToolUse
+[2025-11-14T05:34:09.989293] INFO: Tool used: unknown
+[2025-11-14T05:34:09.989372] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:34:09.989422] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:34:09.994675] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:34:09.994785] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:34:09.994829] INFO: Event type: PostToolUse
+[2025-11-14T05:34:09.994863] INFO: Tool used: unknown
+[2025-11-14T05:34:09.994941] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:34:09.994991] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:34:17.822606] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:34:17.822723] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:34:17.822766] INFO: Event type: PostToolUse
+[2025-11-14T05:34:17.822799] INFO: Tool used: unknown
+[2025-11-14T05:34:17.822880] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:34:17.822941] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:34:17.827302] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:34:17.827397] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:34:17.827440] INFO: Event type: PostToolUse
+[2025-11-14T05:34:17.827474] INFO: Tool used: unknown
+[2025-11-14T05:34:17.827554] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:34:17.827604] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:34:23.888889] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:34:23.888991] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:34:23.889055] INFO: Event type: PostToolUse
+[2025-11-14T05:34:23.889091] INFO: Tool used: unknown
+[2025-11-14T05:34:23.889172] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:34:23.889231] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:34:23.895751] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:34:23.895839] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:34:23.895891] INFO: Event type: PostToolUse
+[2025-11-14T05:34:23.895925] INFO: Tool used: unknown
+[2025-11-14T05:34:23.896004] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:34:23.896089] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:34:36.761501] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:34:36.761632] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:34:36.761679] INFO: Event type: PostToolUse
+[2025-11-14T05:34:36.761716] INFO: Tool used: unknown
+[2025-11-14T05:34:36.761801] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:34:36.761854] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:34:36.766657] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:34:36.766769] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:34:36.766815] INFO: Event type: PostToolUse
+[2025-11-14T05:34:36.766851] INFO: Tool used: unknown
+[2025-11-14T05:34:36.766935] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:34:36.766986] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:34:47.642835] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:34:47.642982] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:34:47.643047] INFO: Event type: PostToolUse
+[2025-11-14T05:34:47.643084] INFO: Tool used: unknown
+[2025-11-14T05:34:47.643168] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:34:47.643228] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:34:47.648363] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:34:47.648492] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:34:47.648538] INFO: Event type: PostToolUse
+[2025-11-14T05:34:47.648574] INFO: Tool used: unknown
+[2025-11-14T05:34:47.648657] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:34:47.648709] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:34:56.162316] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:34:56.162431] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:34:56.162477] INFO: Event type: PostToolUse
+[2025-11-14T05:34:56.162513] INFO: Tool used: unknown
+[2025-11-14T05:34:56.162595] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:34:56.162657] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:34:56.168702] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:34:56.168797] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:34:56.168841] INFO: Event type: PostToolUse
+[2025-11-14T05:34:56.168876] INFO: Tool used: unknown
+[2025-11-14T05:34:56.168958] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:34:56.169029] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:35:01.655054] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:35:01.655172] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:35:01.655216] INFO: Event type: PostToolUse
+[2025-11-14T05:35:01.655254] INFO: Tool used: unknown
+[2025-11-14T05:35:01.655336] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:35:01.655392] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:35:01.659869] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:35:01.659962] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:35:01.660026] INFO: Event type: PostToolUse
+[2025-11-14T05:35:01.660069] INFO: Tool used: unknown
+[2025-11-14T05:35:01.660159] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:35:01.660217] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:35:11.107358] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:35:11.107484] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:35:11.107530] INFO: Event type: PostToolUse
+[2025-11-14T05:35:11.107567] INFO: Tool used: unknown
+[2025-11-14T05:35:11.107651] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:35:11.107713] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:35:11.113882] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:35:11.113974] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:35:11.114044] INFO: Event type: PostToolUse
+[2025-11-14T05:35:11.114091] INFO: Tool used: unknown
+[2025-11-14T05:35:11.114173] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:35:11.114228] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:35:19.269377] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:35:19.269551] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:35:19.269597] INFO: Event type: PostToolUse
+[2025-11-14T05:35:19.269633] INFO: Tool used: unknown
+[2025-11-14T05:35:19.269716] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:35:19.269778] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:35:19.275944] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:35:19.276107] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:35:19.276157] INFO: Event type: PostToolUse
+[2025-11-14T05:35:19.276193] INFO: Tool used: unknown
+[2025-11-14T05:35:19.276275] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:35:19.276327] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:35:25.434807] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:35:25.434907] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:35:25.434951] INFO: Event type: PostToolUse
+[2025-11-14T05:35:25.434987] INFO: Tool used: unknown
+[2025-11-14T05:35:25.435102] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:35:25.435174] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:35:25.441568] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:35:25.441655] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:35:25.441699] INFO: Event type: PostToolUse
+[2025-11-14T05:35:25.441735] INFO: Tool used: unknown
+[2025-11-14T05:35:25.441813] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:35:25.441871] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:35:33.705741] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:35:33.705901] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:35:33.705947] INFO: Event type: PostToolUse
+[2025-11-14T05:35:33.705988] INFO: Tool used: unknown
+[2025-11-14T05:35:33.706108] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:35:33.706262] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:35:33.713167] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:35:33.713291] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:35:33.713336] INFO: Event type: PostToolUse
+[2025-11-14T05:35:33.713370] INFO: Tool used: unknown
+[2025-11-14T05:35:33.713449] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:35:33.713596] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:35:42.261889] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:35:42.262026] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:35:42.262078] INFO: Event type: PostToolUse
+[2025-11-14T05:35:42.262115] INFO: Tool used: unknown
+[2025-11-14T05:35:42.262197] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:35:42.262256] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:35:42.268570] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:35:42.268662] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:35:42.268704] INFO: Event type: PostToolUse
+[2025-11-14T05:35:42.268737] INFO: Tool used: unknown
+[2025-11-14T05:35:42.268814] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:35:42.268872] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:35:50.682440] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:35:50.682548] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:35:50.682594] INFO: Event type: PostToolUse
+[2025-11-14T05:35:50.682629] INFO: Tool used: unknown
+[2025-11-14T05:35:50.682713] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:35:50.682775] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:35:50.689725] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:35:50.689818] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:35:50.689862] INFO: Event type: PostToolUse
+[2025-11-14T05:35:50.689898] INFO: Tool used: unknown
+[2025-11-14T05:35:50.689979] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:35:50.690062] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:35:57.871370] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:35:57.871499] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:35:57.871545] INFO: Event type: PostToolUse
+[2025-11-14T05:35:57.871580] INFO: Tool used: unknown
+[2025-11-14T05:35:57.871663] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:35:57.871726] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:35:57.878758] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:35:57.878853] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:35:57.878897] INFO: Event type: PostToolUse
+[2025-11-14T05:35:57.878933] INFO: Tool used: unknown
+[2025-11-14T05:35:57.879041] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:35:57.879105] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:36:05.218020] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:36:05.218188] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:36:05.218243] INFO: Event type: PostToolUse
+[2025-11-14T05:36:05.218279] INFO: Tool used: unknown
+[2025-11-14T05:36:05.218362] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:36:05.218413] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:36:05.223185] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:36:05.223319] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:36:05.223361] INFO: Event type: PostToolUse
+[2025-11-14T05:36:05.223394] INFO: Tool used: unknown
+[2025-11-14T05:36:05.223470] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:36:05.223519] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:36:21.893601] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:36:21.893733] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:36:21.893780] INFO: Event type: PostToolUse
+[2025-11-14T05:36:21.893815] INFO: Tool used: unknown
+[2025-11-14T05:36:21.893907] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:36:21.893959] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:36:21.898558] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:36:21.898664] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:36:21.898710] INFO: Event type: PostToolUse
+[2025-11-14T05:36:21.898745] INFO: Tool used: unknown
+[2025-11-14T05:36:21.898827] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:36:21.898889] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:36:31.315834] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:36:31.315972] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:36:31.316038] INFO: Event type: PostToolUse
+[2025-11-14T05:36:31.316077] INFO: Tool used: unknown
+[2025-11-14T05:36:31.316161] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:36:31.316323] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:36:31.323687] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:36:31.323813] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:36:31.323860] INFO: Event type: PostToolUse
+[2025-11-14T05:36:31.323896] INFO: Tool used: unknown
+[2025-11-14T05:36:31.323977] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:36:31.324152] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:36:45.075897] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:36:45.076035] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:36:45.076084] INFO: Event type: PostToolUse
+[2025-11-14T05:36:45.076121] INFO: Tool used: unknown
+[2025-11-14T05:36:45.076204] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:36:45.076265] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:36:45.082704] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:36:45.082801] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:36:45.082846] INFO: Event type: PostToolUse
+[2025-11-14T05:36:45.082881] INFO: Tool used: unknown
+[2025-11-14T05:36:45.082962] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:36:45.083043] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:37:08.007286] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:37:08.007490] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:37:08.007538] INFO: Event type: PostToolUse
+[2025-11-14T05:37:08.007573] INFO: Tool used: unknown
+[2025-11-14T05:37:08.007657] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:37:08.007717] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:37:08.014533] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:37:08.014710] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:37:08.014758] INFO: Event type: PostToolUse
+[2025-11-14T05:37:08.014794] INFO: Tool used: unknown
+[2025-11-14T05:37:08.014877] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:37:08.014928] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:37:41.792502] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:37:41.792632] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:37:41.792677] INFO: Event type: PostToolUse
+[2025-11-14T05:37:41.792712] INFO: Tool used: unknown
+[2025-11-14T05:37:41.792796] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:37:41.792858] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:37:41.797990] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:37:41.798117] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:37:41.798162] INFO: Event type: PostToolUse
+[2025-11-14T05:37:41.798198] INFO: Tool used: unknown
+[2025-11-14T05:37:41.798281] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:37:41.798338] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:37:48.626925] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:37:48.627085] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:37:48.627135] INFO: Event type: PostToolUse
+[2025-11-14T05:37:48.627171] INFO: Tool used: unknown
+[2025-11-14T05:37:48.627255] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:37:48.627318] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:37:48.634500] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:37:48.634602] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:37:48.634648] INFO: Event type: PostToolUse
+[2025-11-14T05:37:48.634684] INFO: Tool used: unknown
+[2025-11-14T05:37:48.634767] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:37:48.634826] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:37:57.258892] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:37:57.259039] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:37:57.259088] INFO: Event type: PostToolUse
+[2025-11-14T05:37:57.259128] INFO: Tool used: unknown
+[2025-11-14T05:37:57.259221] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:37:57.259283] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:37:57.264734] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:37:57.264844] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:37:57.264899] INFO: Event type: PostToolUse
+[2025-11-14T05:37:57.264934] INFO: Tool used: unknown
+[2025-11-14T05:37:57.265031] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:37:57.265094] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:38:04.915329] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:38:04.915449] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:38:04.915491] INFO: Event type: PostToolUse
+[2025-11-14T05:38:04.915523] INFO: Tool used: unknown
+[2025-11-14T05:38:04.915604] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:38:04.915665] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:38:04.924784] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:38:04.924890] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:38:04.924944] INFO: Event type: PostToolUse
+[2025-11-14T05:38:04.924977] INFO: Tool used: unknown
+[2025-11-14T05:38:04.925083] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:38:04.925135] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:38:23.347994] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:38:23.348180] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:38:23.348238] INFO: Event type: PostToolUse
+[2025-11-14T05:38:23.348286] INFO: Tool used: unknown
+[2025-11-14T05:38:23.348394] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:38:23.348460] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:38:23.354073] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:38:23.354217] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:38:23.354273] INFO: Event type: PostToolUse
+[2025-11-14T05:38:23.354321] INFO: Tool used: unknown
+[2025-11-14T05:38:23.354429] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:38:23.354497] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:38:31.479821] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:38:31.479926] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:38:31.479971] INFO: Event type: PostToolUse
+[2025-11-14T05:38:31.480027] INFO: Tool used: unknown
+[2025-11-14T05:38:31.480119] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:38:31.480171] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:38:31.486694] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:38:31.486783] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:38:31.486827] INFO: Event type: PostToolUse
+[2025-11-14T05:38:31.486862] INFO: Tool used: unknown
+[2025-11-14T05:38:31.486943] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:38:31.486992] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:38:45.916178] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:38:45.916302] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:38:45.916348] INFO: Event type: PostToolUse
+[2025-11-14T05:38:45.916384] INFO: Tool used: unknown
+[2025-11-14T05:38:45.916466] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:38:45.916527] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:38:45.923899] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:38:45.923997] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:38:45.924061] INFO: Event type: PostToolUse
+[2025-11-14T05:38:45.924106] INFO: Tool used: unknown
+[2025-11-14T05:38:45.924185] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:38:45.924241] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:39:29.328814] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:39:29.328946] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:39:29.328993] INFO: Event type: PostToolUse
+[2025-11-14T05:39:29.329054] INFO: Tool used: unknown
+[2025-11-14T05:39:29.329146] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:39:29.329210] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:39:29.335428] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:39:29.335524] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:39:29.335568] INFO: Event type: PostToolUse
+[2025-11-14T05:39:29.335603] INFO: Tool used: unknown
+[2025-11-14T05:39:29.335685] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:39:29.335743] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:39:41.484199] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:39:41.484302] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:39:41.484347] INFO: Event type: PostToolUse
+[2025-11-14T05:39:41.484384] INFO: Tool used: unknown
+[2025-11-14T05:39:41.484476] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:39:41.484541] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:39:41.491239] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:39:41.491351] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:39:41.491395] INFO: Event type: PostToolUse
+[2025-11-14T05:39:41.491430] INFO: Tool used: unknown
+[2025-11-14T05:39:41.491509] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:39:41.491566] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:39:49.356396] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:39:49.356501] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:39:49.356547] INFO: Event type: PostToolUse
+[2025-11-14T05:39:49.356583] INFO: Tool used: unknown
+[2025-11-14T05:39:49.356664] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:39:49.356725] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:39:49.363841] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:39:49.363931] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:39:49.363975] INFO: Event type: PostToolUse
+[2025-11-14T05:39:49.364034] INFO: Tool used: unknown
+[2025-11-14T05:39:49.364129] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:39:49.364184] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:40:03.256513] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:40:03.256621] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:40:03.256666] INFO: Event type: PostToolUse
+[2025-11-14T05:40:03.256703] INFO: Tool used: unknown
+[2025-11-14T05:40:03.256798] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:40:03.256849] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:40:03.262180] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:40:03.262273] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:40:03.262315] INFO: Event type: PostToolUse
+[2025-11-14T05:40:03.262349] INFO: Tool used: unknown
+[2025-11-14T05:40:03.262429] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:40:03.262480] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:40:11.641775] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:40:11.641888] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:40:11.641930] INFO: Event type: PostToolUse
+[2025-11-14T05:40:11.641962] INFO: Tool used: unknown
+[2025-11-14T05:40:11.642067] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:40:11.642127] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:40:11.650041] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:40:11.650147] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:40:11.650190] INFO: Event type: PostToolUse
+[2025-11-14T05:40:11.650223] INFO: Tool used: unknown
+[2025-11-14T05:40:11.650303] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:40:11.650361] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:40:29.462230] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:40:29.462358] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:40:29.462403] INFO: Event type: PostToolUse
+[2025-11-14T05:40:29.462437] INFO: Tool used: unknown
+[2025-11-14T05:40:29.462518] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:40:29.462568] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:40:29.470239] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:40:29.470340] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:40:29.470383] INFO: Event type: PostToolUse
+[2025-11-14T05:40:29.470416] INFO: Tool used: unknown
+[2025-11-14T05:40:29.470496] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:40:29.470553] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:40:35.327775] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:40:35.327874] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:40:35.327917] INFO: Event type: PostToolUse
+[2025-11-14T05:40:35.327956] INFO: Tool used: unknown
+[2025-11-14T05:40:35.328062] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:40:35.328123] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:40:35.335069] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:40:35.335186] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:40:35.335228] INFO: Event type: PostToolUse
+[2025-11-14T05:40:35.335261] INFO: Tool used: unknown
+[2025-11-14T05:40:35.335341] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:40:35.335404] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:40:53.205394] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:40:53.205525] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:40:53.205587] INFO: Event type: PostToolUse
+[2025-11-14T05:40:53.205624] INFO: Tool used: unknown
+[2025-11-14T05:40:53.205708] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:40:53.205865] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:40:53.212466] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:40:53.212591] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:40:53.212636] INFO: Event type: PostToolUse
+[2025-11-14T05:40:53.212670] INFO: Tool used: unknown
+[2025-11-14T05:40:53.212749] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:40:53.212896] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:40:56.910847] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:40:56.910961] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:40:56.911003] INFO: Event type: PostToolUse
+[2025-11-14T05:40:56.911057] INFO: Tool used: unknown
+[2025-11-14T05:40:56.911138] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:40:56.911198] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:40:56.918422] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:40:56.918514] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:40:56.918557] INFO: Event type: PostToolUse
+[2025-11-14T05:40:56.918591] INFO: Tool used: unknown
+[2025-11-14T05:40:56.918668] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:40:56.918726] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:41:04.612803] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:41:04.612914] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:41:04.612957] INFO: Event type: PostToolUse
+[2025-11-14T05:41:04.612991] INFO: Tool used: unknown
+[2025-11-14T05:41:04.613096] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:41:04.613155] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:41:04.621073] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:41:04.621182] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:41:04.621224] INFO: Event type: PostToolUse
+[2025-11-14T05:41:04.621258] INFO: Tool used: unknown
+[2025-11-14T05:41:04.621340] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:41:04.621398] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:41:14.910266] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:41:14.910365] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:41:14.910408] INFO: Event type: PostToolUse
+[2025-11-14T05:41:14.910442] INFO: Tool used: unknown
+[2025-11-14T05:41:14.910523] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:41:14.910584] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:41:14.915960] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:41:14.916086] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:41:14.916140] INFO: Event type: PostToolUse
+[2025-11-14T05:41:14.916175] INFO: Tool used: unknown
+[2025-11-14T05:41:14.916254] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:41:14.916309] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:41:23.387558] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:41:23.387672] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:41:23.387714] INFO: Event type: PostToolUse
+[2025-11-14T05:41:23.387746] INFO: Tool used: unknown
+[2025-11-14T05:41:23.387824] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:41:23.387884] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:41:23.393886] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:41:23.393972] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:41:23.394039] INFO: Event type: PostToolUse
+[2025-11-14T05:41:23.394077] INFO: Tool used: unknown
+[2025-11-14T05:41:23.394161] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:41:23.394216] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:41:37.124621] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:41:37.124741] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:41:37.124786] INFO: Event type: PostToolUse
+[2025-11-14T05:41:37.124822] INFO: Tool used: unknown
+[2025-11-14T05:41:37.124906] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:41:37.124968] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:41:37.132202] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:41:37.132298] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:41:37.132342] INFO: Event type: PostToolUse
+[2025-11-14T05:41:37.132378] INFO: Tool used: unknown
+[2025-11-14T05:41:37.132459] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:41:37.132517] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:41:42.731886] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:41:42.732028] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:41:42.732076] INFO: Event type: PostToolUse
+[2025-11-14T05:41:42.732112] INFO: Tool used: unknown
+[2025-11-14T05:41:42.732201] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:41:42.732254] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:41:42.737692] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:41:42.737789] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:41:42.737833] INFO: Event type: PostToolUse
+[2025-11-14T05:41:42.737869] INFO: Tool used: unknown
+[2025-11-14T05:41:42.737949] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:41:42.738023] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:41:49.423497] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:41:49.423591] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:41:49.423636] INFO: Event type: PostToolUse
+[2025-11-14T05:41:49.423673] INFO: Tool used: unknown
+[2025-11-14T05:41:49.423758] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:41:49.423810] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:41:49.431474] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:41:49.431566] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:41:49.431611] INFO: Event type: PostToolUse
+[2025-11-14T05:41:49.431656] INFO: Tool used: unknown
+[2025-11-14T05:41:49.431740] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:41:49.431798] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:41:57.662877] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:41:57.662976] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:41:57.663039] INFO: Event type: PostToolUse
+[2025-11-14T05:41:57.663076] INFO: Tool used: unknown
+[2025-11-14T05:41:57.663157] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:41:57.663217] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:41:57.669384] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:41:57.669470] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:41:57.669512] INFO: Event type: PostToolUse
+[2025-11-14T05:41:57.669545] INFO: Tool used: unknown
+[2025-11-14T05:41:57.669624] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:41:57.669680] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:42:07.088259] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:42:07.088377] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:42:07.088420] INFO: Event type: PostToolUse
+[2025-11-14T05:42:07.088453] INFO: Tool used: unknown
+[2025-11-14T05:42:07.088532] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:42:07.088592] INFO: post_tool_use hook completed successfully
+[2025-11-14T05:42:07.092702] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-11-14T05:42:07.092795] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response']
+[2025-11-14T05:42:07.092836] INFO: Event type: PostToolUse
+[2025-11-14T05:42:07.092870] INFO: Tool used: unknown
+[2025-11-14T05:42:07.092949] INFO: Returning empty output (allows default behavior)
+[2025-11-14T05:42:07.093021] INFO: post_tool_use hook completed successfully
