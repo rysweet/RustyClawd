@@ -16,6 +16,7 @@ pub fn get_all_tool_definitions() -> Vec<ToolDefinition> {
         grep_tool_definition(),
         ask_user_question_tool_definition(),
         skill_tool_definition(),
+        slash_command_tool_definition(),
         task_tool_definition(),
         todowrite_tool_definition(),
     ]
@@ -271,6 +272,24 @@ fn skill_tool_definition() -> ToolDefinition {
                 }
             },
             "required": ["skill"]
+        }),
+    }
+}
+
+/// SlashCommand tool definition
+fn slash_command_tool_definition() -> ToolDefinition {
+    ToolDefinition {
+        name: "SlashCommand".to_string(),
+        description: "Execute slash commands within the main conversation".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string",
+                    "description": "The slash command to execute with its arguments (e.g., '/review-pr 123')"
+                }
+            },
+            "required": ["command"]
         }),
     }
 }
@@ -568,6 +587,13 @@ mod tests {
         let tools = get_all_tool_definitions();
         let has_skill = tools.iter().any(|t| t.name == "Skill");
         assert!(has_skill, "get_all_tool_definitions() must include Skill tool");
+    }
+
+    #[test]
+    fn test_all_tools_include_slashcommand() {
+        let tools = get_all_tool_definitions();
+        let has_slashcommand = tools.iter().any(|t| t.name == "SlashCommand");
+        assert!(has_slashcommand, "get_all_tool_definitions() must include SlashCommand tool");
     }
 
     #[test]
