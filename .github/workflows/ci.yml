@@ -38,9 +38,7 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      # Temporarily allow warnings while we clean up pre-existing code
-      # TODO: Re-enable -D warnings after fixing all clippy warnings
-      - run: cargo clippy --all-targets --all-features
+      - run: cargo clippy --all-targets --all-features -- -D warnings
 
   build:
     name: Build
