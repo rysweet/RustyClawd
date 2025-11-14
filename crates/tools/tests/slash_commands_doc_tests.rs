@@ -20,7 +20,10 @@
 //! 9. Character Budget Limits
 //! 10. Error Handling and Edge Cases
 
-#![cfg_attr(not(feature = "slash-command-full-impl"), allow(dead_code, unused_variables, unused_imports))]
+#![cfg_attr(
+    not(feature = "slash-command-full-impl"),
+    allow(dead_code, unused_variables, unused_imports)
+)]
 
 use std::path::PathBuf;
 use tokio::fs;
