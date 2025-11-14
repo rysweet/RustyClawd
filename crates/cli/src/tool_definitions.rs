@@ -14,7 +14,11 @@ pub fn get_all_tool_definitions() -> Vec<ToolDefinition> {
         edit_tool_definition(),
         glob_tool_definition(),
         grep_tool_definition(),
+<<<<<<< HEAD
         todowrite_tool_definition(),
+=======
+        task_tool_definition(),
+>>>>>>> origin/master
     ]
 }
 
@@ -196,6 +200,7 @@ fn grep_tool_definition() -> ToolDefinition {
     }
 }
 
+<<<<<<< HEAD
 /// TodoWrite tool definition
 fn todowrite_tool_definition() -> ToolDefinition {
     ToolDefinition {
@@ -229,6 +234,38 @@ fn todowrite_tool_definition() -> ToolDefinition {
                 }
             },
             "required": ["todos"]
+=======
+/// Task tool definition (Agent orchestration)
+fn task_tool_definition() -> ToolDefinition {
+    ToolDefinition {
+        name: "Task".to_string(),
+        description: "Invoke specialized sub-agents for complex tasks with context isolation".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "subagent_type": {
+                    "type": "string",
+                    "description": "Name of the agent (loads from .claude/agents/{subagent_type}.md)"
+                },
+                "prompt": {
+                    "type": "string",
+                    "description": "Full prompt/task for the agent to execute"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Brief 3-5 word description of the task"
+                },
+                "model": {
+                    "type": "string",
+                    "description": "Optional model override (haiku, sonnet, opus)"
+                },
+                "resume": {
+                    "type": "string",
+                    "description": "Optional agent ID to resume a previous execution"
+                }
+            },
+            "required": ["subagent_type", "prompt", "description"]
+>>>>>>> origin/master
         }),
     }
 }
@@ -337,6 +374,128 @@ mod tests {
         assert!(
             required.contains(&serde_json::json!("pattern")),
             "Grep tool must require 'pattern' parameter"
+        );
+    }
+
+    #[test]
+    fn test_task_tool_requires_all_parameters() {
+        let task = task_tool_definition();
+        let required = task.input_schema["required"].as_array().unwrap();
+        assert!(
+            required.contains(&serde_json::json!("subagent_type")),
+            "Task tool must require 'subagent_type' parameter"
+        );
+        assert!(
+            required.contains(&serde_json::json!("prompt")),
+            "Task tool must require 'prompt' parameter"
+        );
+        assert!(
+            required.contains(&serde_json::json!("description")),
+            "Task tool must require 'description' parameter"
+        );
+    }
+
+    #[test]
+    fn test_task_tool_has_correct_name() {
+        let task = task_tool_definition();
+        assert_eq!(task.name, "Task", "Task tool must be named 'Task'");
+    }
+
+    #[test]
+    fn test_task_tool_has_description() {
+        let task = task_tool_definition();
+        assert!(!task.description.is_empty(), "Task tool must have a description");
+        assert!(task.description.contains("agent"), "Task tool description should mention agents");
+    }
+
+    #[test]
+    fn test_task_tool_has_optional_model() {
+        let task = task_tool_definition();
+        let properties = task.input_schema["properties"].as_object().unwrap();
+        assert!(
+            properties.contains_key("model"),
+            "Task tool should have optional 'model' parameter"
+        );
+        let required = task.input_schema["required"].as_array().unwrap();
+        assert!(
+            !required.contains(&serde_json::json!("model")),
+            "Task tool 'model' parameter should be optional"
+        );
+    }
+
+    #[test]
+    fn test_task_tool_has_optional_resume() {
+        let task = task_tool_definition();
+        let properties = task.input_schema["properties"].as_object().unwrap();
+        assert!(
+            properties.contains_key("resume"),
+            "Task tool should have optional 'resume' parameter"
+        );
+        let required = task.input_schema["required"].as_array().unwrap();
+        assert!(
+            !required.contains(&serde_json::json!("resume")),
+            "Task tool 'resume' parameter should be optional"
+        );
+    }
+
+    #[test]
+    fn test_task_tool_properties_have_descriptions() {
+        let task = task_tool_definition();
+        let properties = task.input_schema["properties"].as_object().unwrap();
+
+        for (key, value) in properties {
+            let description = value.get("description");
+            assert!(
+                description.is_some() && description.unwrap().is_string(),
+                "Task tool property '{}' must have a string description",
+                key
+            );
+        }
+    }
+
+    #[test]
+    fn test_task_tool_schema_structure() {
+        let task = task_tool_definition();
+
+        // Check top-level schema structure
+        assert_eq!(task.input_schema["type"], "object", "Task tool schema must be an object");
+        assert!(task.input_schema.get("properties").is_some(), "Task tool must have properties");
+        assert!(task.input_schema.get("required").is_some(), "Task tool must have required array");
+    }
+
+    #[test]
+    fn test_all_tools_include_task() {
+        let tools = get_all_tool_definitions();
+        let has_task = tools.iter().any(|t| t.name == "Task");
+        assert!(has_task, "get_all_tool_definitions() must include Task tool");
+    }
+
+    #[test]
+    fn test_task_tool_count_in_all_tools() {
+        let tools = get_all_tool_definitions();
+        let task_count = tools.iter().filter(|t| t.name == "Task").count();
+        assert_eq!(task_count, 1, "Task tool should appear exactly once in all tool definitions");
+    }
+
+    #[test]
+    fn test_task_tool_subagent_type_is_string() {
+        let task = task_tool_definition();
+        let properties = task.input_schema["properties"].as_object().unwrap();
+        let subagent_type = properties.get("subagent_type").unwrap();
+        assert_eq!(
+            subagent_type["type"], "string",
+            "Task tool subagent_type must be a string"
+        );
+    }
+
+    #[test]
+    fn test_task_tool_prompt_is_string() {
+        let task = task_tool_definition();
+        let properties = task.input_schema["properties"].as_object().unwrap();
+        let prompt = properties.get("prompt").unwrap();
+        assert_eq!(
+            prompt["type"], "string",
+            "Task tool prompt must be a string"
         );
     }
 
