@@ -7,6 +7,11 @@
 //! - No fake responses in code
 //! - Message conversion works correctly
 
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(clippy::len_zero)]
+#![allow(clippy::useless_vec)]
+
 use serde_json::json;
 
 // Note: These tests use manual mocking since wiremock is not in dependencies yet.

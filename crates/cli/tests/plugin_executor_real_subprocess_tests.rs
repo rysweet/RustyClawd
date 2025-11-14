@@ -8,6 +8,9 @@
 //! - Error handling
 //! - No fake success responses
 
+#![allow(clippy::manual_abs_diff)]
+#![allow(clippy::useless_vec)]
+
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
