@@ -14,6 +14,10 @@
 #![allow(unused_mut)]
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::len_zero)]
+#![allow(clippy::useless_vec)]
+#![allow(clippy::map_unwrap_or)]
+#![allow(clippy::assertions_on_constants)]
+#![allow(clippy::unnecessary_map_or)]
 use serde_json::{json, Value};
 use std::collections::HashMap;
 

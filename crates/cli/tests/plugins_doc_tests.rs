@@ -15,6 +15,12 @@
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::len_zero)]
 #![allow(clippy::useless_vec)]
+#![allow(clippy::assertions_on_constants)]
+#![allow(unused_assignments)]
+#![allow(clippy::needless_borrow)]
+#![allow(clippy::impossible_comparisons)]
+#![allow(clippy::needless_borrows_for_generic_args)]
+#![allow(clippy::const_is_empty)]
 //! - MCP Servers (Model Context Protocol integration)
 //! - Loading and discovery
 //! - Permission system

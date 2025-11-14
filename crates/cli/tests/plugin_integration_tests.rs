@@ -11,6 +11,8 @@
 //! - Hooks integration
 //! - Plugin manager orchestration
 
+#![allow(clippy::useless_vec)]
+
 use claude_code_cli::hooks::registry::HookRegistry;
 use claude_code_cli::plugins::*;
 use std::collections::HashMap;

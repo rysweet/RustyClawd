@@ -9,6 +9,7 @@
 #![allow(clippy::len_zero)]
 #![allow(clippy::derivable_impls)]
 #![allow(clippy::type_complexity)]
+#![allow(clippy::manual_strip)]
 //!
 //! Test Coverage:
 //! - 60% Unit Tests: Individual components (input parsing, command handling)

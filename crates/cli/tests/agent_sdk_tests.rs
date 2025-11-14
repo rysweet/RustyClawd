@@ -15,6 +15,10 @@
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::useless_vec)]
 #![allow(clippy::let_unit_value)]
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::len_zero)]
+#![allow(clippy::derivable_impls)]
 //!
 //! Following Testing Pyramid:
 //! - 60% Unit tests: Agent configuration, context state, permission logic
