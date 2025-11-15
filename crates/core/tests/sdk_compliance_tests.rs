@@ -751,6 +751,9 @@ fn test_stream_event_content_block_delta() {
                 rustyclawd_core::client::types::ContentDelta::TextDelta { text } => {
                     assert_eq!(text, "Hello");
                 }
+                rustyclawd_core::client::types::ContentDelta::InputJsonDelta { .. } => {
+                    panic!("Expected TextDelta, got InputJsonDelta");
+                }
             }
         }
         _ => panic!("Expected ContentBlockDelta event"),

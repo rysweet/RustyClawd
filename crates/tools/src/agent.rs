@@ -262,15 +262,16 @@ impl crate::Tool for AgentTool {
                                     };
                                 }
 
-                                let rustyclawd_core::client::types::ContentDelta::TextDelta { text } = delta;
-                                response_text.push_str(&text);
+                                if let rustyclawd_core::client::types::ContentDelta::TextDelta { text } = delta {
+                                    response_text.push_str(&text);
 
-                                // Stream progress updates periodically
-                                if response_text.len() % 500 < text.len() {
-                                    yield ToolEvent::Progress {
-                                        step: format!("Receiving response ({} chars)...", response_text.len()),
-                                        percentage: Some(80.0),
-                                    };
+                                    // Stream progress updates periodically
+                                    if response_text.len() % 500 < text.len() {
+                                        yield ToolEvent::Progress {
+                                            step: format!("Receiving response ({} chars)...", response_text.len()),
+                                            percentage: Some(80.0),
+                                        };
+                                    }
                                 }
                             }
                             rustyclawd_core::client::types::StreamEvent::MessageDelta { usage, .. } => {

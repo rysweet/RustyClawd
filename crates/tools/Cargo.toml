@@ -32,6 +32,8 @@ url = "2.5"
 urlencoding = "2.1"
 serde_yaml = "0.9"
 rand = "0.8"
+moka = { version = "0.12", features = ["future"] }
+bytes = "1.5"
 
 # Process isolation (Unix-specific)
 [target.'cfg(unix)'.dependencies]

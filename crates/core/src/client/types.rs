@@ -37,6 +37,42 @@ pub struct ToolDefinition {
     pub input_schema: serde_json::Value,
 }
 
+/// Server-side tool schema for extra tools like web_search
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtraToolSchema {
+    /// Tool type (e.g., "web_search_20250305")
+    #[serde(rename = "type")]
+    pub type_field: String,
+    /// Tool name (e.g., "web_search")
+    pub name: String,
+    /// Optional: Allowed domains for web search
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allowed_domains: Option<Vec<String>>,
+    /// Optional: Blocked domains for web search
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blocked_domains: Option<Vec<String>>,
+    /// Optional: Maximum number of uses
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_uses: Option<u32>,
+}
+
+impl ExtraToolSchema {
+    /// Create a web search tool schema
+    pub fn web_search(
+        allowed_domains: Option<Vec<String>>,
+        blocked_domains: Option<Vec<String>>,
+        max_uses: Option<u32>,
+    ) -> Self {
+        Self {
+            type_field: "web_search_20250305".to_string(),
+            name: "web_search".to_string(),
+            allowed_domains,
+            blocked_domains,
+            max_uses,
+        }
+    }
+}
+
 /// Tool choice configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -100,6 +136,9 @@ pub struct CreateMessageRequest {
     /// Tool choice configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<ToolChoice>,
+    /// Server-side tools (e.g., web_search)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extra_tool_schemas: Option<Vec<ExtraToolSchema>>,
 }
 
 /// Request metadata
@@ -198,6 +237,7 @@ pub struct MessageStart {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlockStart {
     Text { text: String },
+    ToolUse { id: String, name: String },
 }
 
 /// Content delta (incremental update)
@@ -205,6 +245,7 @@ pub enum ContentBlockStart {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentDelta {
     TextDelta { text: String },
+    InputJsonDelta { partial_json: String },
 }
 
 /// Message delta (final updates)
@@ -238,6 +279,7 @@ impl CreateMessageRequest {
             stream: false,
             tools: None,
             tool_choice: None,
+            extra_tool_schemas: None,
         }
     }
 
@@ -286,6 +328,12 @@ impl CreateMessageRequest {
     /// Builder: Set tool choice
     pub fn with_tool_choice(mut self, tool_choice: ToolChoice) -> Self {
         self.tool_choice = Some(tool_choice);
+        self
+    }
+
+    /// Builder: Set extra tool schemas (server-side tools)
+    pub fn with_extra_tool_schemas(mut self, schemas: Vec<ExtraToolSchema>) -> Self {
+        self.extra_tool_schemas = Some(schemas);
         self
     }
 }

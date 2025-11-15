@@ -201,8 +201,9 @@ where
         let event = result?;
         match event {
             StreamEvent::ContentBlockDelta { delta, .. } => {
-                let super::types::ContentDelta::TextDelta { text } = delta;
-                chunks.push(text);
+                if let super::types::ContentDelta::TextDelta { text } = delta {
+                    chunks.push(text);
+                }
             }
             StreamEvent::Error { error } => {
                 return Err(ClientError::Api(error.message));
