@@ -47,7 +47,7 @@ lazy_static::lazy_static! {
 /// # Example
 ///
 /// ```no_run
-/// use claude_code_cli::terminal_guard::{set_execution_context, ExecutionContext};
+/// use rustyclawd::terminal_guard::{set_execution_context, ExecutionContext};
 ///
 /// // At application startup in TUI mode
 /// set_execution_context(ExecutionContext::Tui);
@@ -80,7 +80,7 @@ pub fn get_execution_context() -> ExecutionContext {
 /// # Example
 ///
 /// ```no_run
-/// use claude_code_cli::terminal_guard::TerminalGuard;
+/// use rustyclawd::terminal_guard::TerminalGuard;
 ///
 /// # async fn execute_tool() -> anyhow::Result<()> {
 /// // Create guard - terminal state is suspended

@@ -1,4 +1,4 @@
-use claude_code_cli::commands::SlashCommands;
+use rustyclawd::commands::SlashCommands;
 
 #[tokio::test]
 async fn test_slash_commands_discovery() {

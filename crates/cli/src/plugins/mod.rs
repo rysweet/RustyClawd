@@ -11,7 +11,7 @@
 //!
 //! # Example
 //! ```ignore
-//! use claude_code_cli::plugins::*;
+//! use rustyclawd::plugins::*;
 //!
 //! // Discover plugins
 //! let discovery = discovery::PluginDiscovery::new("./plugins");

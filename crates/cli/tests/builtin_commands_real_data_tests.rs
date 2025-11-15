@@ -12,8 +12,8 @@
 #![allow(dead_code)]
 #![allow(clippy::manual_range_contains)]
 
-use claude_code_cli::commands::builtins::BuiltinCommands;
-use claude_code_cli::commands::parser::{Command, CommandParser};
+use rustyclawd::commands::builtins::BuiltinCommands;
+use rustyclawd::commands::parser::{Command, CommandParser};
 
 // Import the session state types from our tests
 // In real implementation, these would come from the main crate
