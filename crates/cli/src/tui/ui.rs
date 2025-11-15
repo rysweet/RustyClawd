@@ -661,9 +661,10 @@ pub async fn run_tui() -> Result<()> {
             if !input.is_empty() {
                 tui.add_message(ChatMessage::user(input.to_string()));
 
-                // TODO: Integrate with Claude API
-                tui.add_message(ChatMessage::assistant(
-                    "I'm here! (API integration coming soon)".to_string(),
+                // TUI mode requires API integration - not yet implemented
+                // Use non-interactive CLI mode for Claude API access
+                tui.add_message(ChatMessage::system(
+                    "Error: TUI interactive mode requires Claude API integration.\nPlease use the CLI mode instead: rusty \"your prompt here\"".to_string(),
                 ));
             }
         }
