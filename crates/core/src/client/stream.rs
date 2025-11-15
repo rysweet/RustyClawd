@@ -200,10 +200,11 @@ where
     while let Some(result) = stream.next().await {
         let event = result?;
         match event {
-            StreamEvent::ContentBlockDelta { delta, .. } => {
-                if let super::types::ContentDelta::TextDelta { text } = delta {
-                    chunks.push(text);
-                }
+            StreamEvent::ContentBlockDelta {
+                delta: super::types::ContentDelta::TextDelta { text },
+                ..
+            } => {
+                chunks.push(text);
             }
             StreamEvent::Error { error } => {
                 return Err(ClientError::Api(error.message));

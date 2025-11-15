@@ -286,7 +286,10 @@ impl App {
             // Load the original session
             let original_session = loader
                 .resume_session(fork_session_id, checkpoint_limit)
-                .context(format!("Failed to load session to fork: {}", fork_session_id))?;
+                .context(format!(
+                    "Failed to load session to fork: {}",
+                    fork_session_id
+                ))?;
 
             // Create a new session with a unique ID but preserve state
             let forked_session_id = format!("session-{}-fork", chrono::Utc::now().timestamp());
@@ -373,7 +376,8 @@ impl App {
                 .context("Failed to initialize session loader")?;
 
             // Get the checkpoint ID for the specified number
-            let checkpoint_ids = loader.list_checkpoints(&session.id)
+            let checkpoint_ids = loader
+                .list_checkpoints(&session.id)
                 .context("Failed to list checkpoints")?;
 
             if checkpoint_num >= checkpoint_ids.len() {
@@ -385,11 +389,13 @@ impl App {
             }
 
             let checkpoint_id = &checkpoint_ids[checkpoint_num];
-            loader.restore_checkpoint(
-                &mut session,
-                checkpoint_id,
-                checkpoint::types::RestoreScope::Both,
-            ).context("Failed to restore checkpoint")?;
+            loader
+                .restore_checkpoint(
+                    &mut session,
+                    checkpoint_id,
+                    checkpoint::types::RestoreScope::Both,
+                )
+                .context("Failed to restore checkpoint")?;
 
             tracing::info!("Successfully restored checkpoint {}", checkpoint_num);
         }
@@ -591,12 +597,17 @@ impl App {
             .to_string();
 
         // Fallback model configuration (if specified)
-        let fallback_model = self.cli.fallback_model.as_ref().map(|m| match m.as_str() {
-            "sonnet" => "claude-sonnet-4-5-20250929",
-            "opus" => "claude-opus-20240229",
-            "haiku" => "claude-3-5-haiku-20241022",
-            custom => custom,
-        }).map(|s| s.to_string());
+        let fallback_model = self
+            .cli
+            .fallback_model
+            .as_ref()
+            .map(|m| match m.as_str() {
+                "sonnet" => "claude-sonnet-4-5-20250929",
+                "opus" => "claude-opus-20240229",
+                "haiku" => "claude-3-5-haiku-20241022",
+                custom => custom,
+            })
+            .map(|s| s.to_string());
 
         let max_tokens = 4096u32; // Default max tokens (not configurable in official spec)
 
@@ -658,7 +669,7 @@ impl App {
                 let mut fallback_request = CreateMessageRequest::new(
                     fallback,
                     vec![ApiMessage::user(prompt.to_string())],
-                    max_tokens
+                    max_tokens,
                 );
 
                 // Copy system prompt if present
@@ -667,7 +678,8 @@ impl App {
                 }
 
                 // Add tools
-                fallback_request = fallback_request.with_tools(tool_definitions::get_all_tool_definitions());
+                fallback_request =
+                    fallback_request.with_tools(tool_definitions::get_all_tool_definitions());
 
                 client
                     .execute_with_tools(fallback_request, |tool_name, tool_input| async move {

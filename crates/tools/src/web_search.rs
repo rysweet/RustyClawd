@@ -11,10 +11,8 @@ use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
 use async_stream::stream;
 use async_trait::async_trait;
 use futures::StreamExt;
-use rustyclawd_core::client::{
-    Client, CreateMessageRequest, ExtraToolSchema, Message,
-};
 use rustyclawd_core::client::types::{ContentBlockStart, ContentDelta, StreamEvent};
+use rustyclawd_core::client::{Client, CreateMessageRequest, ExtraToolSchema, Message};
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 use validator::Validate;
@@ -134,9 +132,9 @@ impl crate::Tool for WebSearchTool {
             crate::ToolError::Validation(format!("Parameter validation failed: {}", e))
         })?;
 
-        params.validate_domain_exclusivity().map_err(|e| {
-            crate::ToolError::Validation(e)
-        })?;
+        params
+            .validate_domain_exclusivity()
+            .map_err(crate::ToolError::Validation)?;
 
         let query = params.query.clone();
         let allowed = params.allowed_domains.clone();
@@ -466,12 +464,10 @@ mod tests {
         assert!(events.len() > 1);
 
         // Find the result event
-        let result = events
-            .iter()
-            .find_map(|e| match e {
-                ToolEvent::Result(output) => Some(output),
-                _ => None,
-            });
+        let result = events.iter().find_map(|e| match e {
+            ToolEvent::Result(output) => Some(output),
+            _ => None,
+        });
 
         if let Some(output) = result {
             assert_eq!(output.query, "Rust programming language");
@@ -503,12 +499,10 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events
-            .iter()
-            .find_map(|e| match e {
-                ToolEvent::Result(output) => Some(output),
-                _ => None,
-            });
+        let result = events.iter().find_map(|e| match e {
+            ToolEvent::Result(output) => Some(output),
+            _ => None,
+        });
 
         if let Some(output) = result {
             // Verify all results are from allowed domain
@@ -534,12 +528,10 @@ mod tests {
         let stream = tool.execute(params, &ctx).await.unwrap();
         let events: Vec<_> = stream.collect().await;
 
-        let result = events
-            .iter()
-            .find_map(|e| match e {
-                ToolEvent::Result(output) => Some(output),
-                _ => None,
-            });
+        let result = events.iter().find_map(|e| match e {
+            ToolEvent::Result(output) => Some(output),
+            _ => None,
+        });
 
         if let Some(output) = result {
             // Verify no results are from blocked domain

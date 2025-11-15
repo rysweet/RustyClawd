@@ -32,14 +32,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 StreamEvent::MessageStart { message } => {
                     println!("[Message started: {}]", message.id);
                 }
-                StreamEvent::ContentBlockDelta { delta, .. } => {
-                    if let rustyclawd_core::client::types::ContentDelta::TextDelta { text } = delta {
-                        // Print in real-time
-                        print!("{}", text);
-                        use std::io::Write;
-                        std::io::stdout().flush()?;
-                        text_buffer.push_str(&text);
-                    }
+                StreamEvent::ContentBlockDelta {
+                    delta: rustyclawd_core::client::types::ContentDelta::TextDelta { text },
+                    ..
+                } => {
+                    // Print in real-time
+                    print!("{}", text);
+                    use std::io::Write;
+                    std::io::stdout().flush()?;
+                    text_buffer.push_str(&text);
                 }
                 StreamEvent::MessageDelta { usage, .. } => {
                     println!("\n\n[Finished - {} output tokens]", usage.output_tokens);

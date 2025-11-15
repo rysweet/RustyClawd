@@ -114,7 +114,8 @@ async fn test_streaming(client: &Client) -> Result<(), Box<dyn std::error::Error
                     }
                     StreamEvent::ContentBlockDelta { delta, .. } => {
                         if let rustyclawd_core::client::types::ContentDelta::TextDelta { text } =
-                            delta {
+                            delta
+                        {
                             // Print in real-time without newline
                             print!("{}", text);
                             use std::io::Write;

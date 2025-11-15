@@ -170,11 +170,11 @@ impl Client {
 
                 while let Some(result) = stream.next().await {
                     match result {
-                        Ok(StreamEvent::ContentBlockDelta { delta, .. }) => {
-                            if let types::ContentDelta::TextDelta { text } = delta {
-                                return Some((Ok(text), stream));
-                            }
-                            // Continue for non-text deltas
+                        Ok(StreamEvent::ContentBlockDelta {
+                            delta: types::ContentDelta::TextDelta { text },
+                            ..
+                        }) => {
+                            return Some((Ok(text), stream));
                         }
                         Ok(StreamEvent::Error { error }) => {
                             return Some((Err(ClientError::Api(error.message)), stream));

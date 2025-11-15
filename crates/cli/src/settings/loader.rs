@@ -28,11 +28,15 @@ impl SettingsLoader {
         // Parse the settings file path
         let path = PathBuf::from(settings_path);
         if !path.exists() {
-            return Err(anyhow::anyhow!("Settings file not found: {}", settings_path));
+            return Err(anyhow::anyhow!(
+                "Settings file not found: {}",
+                settings_path
+            ));
         }
 
         // Use the parent directory as project root
-        let project_root = path.parent()
+        let project_root = path
+            .parent()
             .ok_or_else(|| anyhow::anyhow!("Invalid settings path: {}", settings_path))?
             .to_path_buf();
 

@@ -168,17 +168,17 @@ pub struct WebFetchOutput {
 
 /// Cached response data
 #[derive(Debug, Clone)]
-struct CachedResponse {
+pub(crate) struct CachedResponse {
     /// Markdown content
-    content: String,
+    pub(crate) content: String,
     /// Original bytes count
-    bytes: usize,
+    pub(crate) bytes: usize,
     /// Status code
-    status_code: u16,
+    pub(crate) status_code: u16,
     /// Status text
-    status_text: String,
+    pub(crate) status_text: String,
     /// Final URL
-    final_url: String,
+    pub(crate) final_url: String,
 }
 
 /// Cache for web fetch responses with 15-minute TTL
@@ -198,12 +198,12 @@ impl WebFetchCache {
     }
 
     /// Get cached response
-    pub async fn get(&self, key: &str) -> Option<CachedResponse> {
+    pub(crate) async fn get(&self, key: &str) -> Option<CachedResponse> {
         self.cache.get(key).await
     }
 
     /// Store response in cache
-    pub async fn insert(&self, key: String, response: CachedResponse) {
+    pub(crate) async fn insert(&self, key: String, response: CachedResponse) {
         self.cache.insert(key, response).await;
     }
 }
@@ -231,7 +231,7 @@ impl WebFetchToolPhase2 {
     fn is_domain_approved(url: &str) -> bool {
         if let Ok(parsed) = Url::parse(url) {
             if let Some(host) = parsed.host_str() {
-                return PRE_APPROVED_DOMAINS.iter().any(|&domain| host == domain);
+                return PRE_APPROVED_DOMAINS.contains(&host);
             }
         }
         false
@@ -378,7 +378,10 @@ impl WebFetchToolPhase2 {
 
         // Truncate to max length
         let truncated = if markdown.len() > MAX_MARKDOWN_LENGTH {
-            let mut truncated = markdown.chars().take(MAX_MARKDOWN_LENGTH).collect::<String>();
+            let mut truncated = markdown
+                .chars()
+                .take(MAX_MARKDOWN_LENGTH)
+                .collect::<String>();
             truncated.push_str("\n\n[Content truncated at 100,000 characters]");
             truncated
         } else {
@@ -431,7 +434,8 @@ impl crate::Tool for WebFetchToolPhase2 {
     fn metadata(&self) -> ToolMetadata {
         ToolMetadata {
             name: "WebFetch",
-            description: "Fetches web content with caching, converts to markdown, and processes with AI",
+            description:
+                "Fetches web content with caching, converts to markdown, and processes with AI",
         }
     }
 
@@ -673,9 +677,15 @@ mod tests {
         assert!(WebFetchToolPhase2::is_domain_approved(
             "https://docs.anthropic.com/"
         ));
-        assert!(WebFetchToolPhase2::is_domain_approved("https://docs.python.org/3/"));
-        assert!(WebFetchToolPhase2::is_domain_approved("https://doc.rust-lang.org/"));
-        assert!(!WebFetchToolPhase2::is_domain_approved("https://random-site.com/"));
+        assert!(WebFetchToolPhase2::is_domain_approved(
+            "https://docs.python.org/3/"
+        ));
+        assert!(WebFetchToolPhase2::is_domain_approved(
+            "https://doc.rust-lang.org/"
+        ));
+        assert!(!WebFetchToolPhase2::is_domain_approved(
+            "https://random-site.com/"
+        ));
     }
 
     #[test]
@@ -792,9 +802,7 @@ mod tests {
 
         if let Some(output) = result {
             // Should have upgraded to HTTPS
-            assert!(
-                output.url.starts_with("https://") || output.url.starts_with("http://")
-            );
+            assert!(output.url.starts_with("https://") || output.url.starts_with("http://"));
         }
     }
 
