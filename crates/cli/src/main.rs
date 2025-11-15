@@ -660,34 +660,36 @@ impl App {
             .await
         {
             Ok(resp) => resp,
-            Err(_e) if fallback_model.is_some() => {
-                // Try fallback model if primary fails
-                let fallback = fallback_model.unwrap();
-                tracing::warn!("Primary model failed, trying fallback: {}", fallback);
+            Err(e) => {
+                if let Some(fallback) = fallback_model {
+                    // Try fallback model if primary fails
+                    tracing::warn!("Primary model failed, trying fallback: {}", fallback);
 
-                // Create new request with fallback model
-                let mut fallback_request = CreateMessageRequest::new(
-                    fallback,
-                    vec![ApiMessage::user(prompt.to_string())],
-                    max_tokens,
-                );
+                    // Create new request with fallback model
+                    let mut fallback_request = CreateMessageRequest::new(
+                        fallback,
+                        vec![ApiMessage::user(prompt.to_string())],
+                        max_tokens,
+                    );
 
-                // Copy system prompt if present
-                if let Some(ref sys_prompt) = system_prompt {
-                    fallback_request = fallback_request.with_system(sys_prompt.clone());
+                    // Copy system prompt if present
+                    if let Some(ref sys_prompt) = system_prompt {
+                        fallback_request = fallback_request.with_system(sys_prompt.clone());
+                    }
+
+                    // Add tools
+                    fallback_request =
+                        fallback_request.with_tools(tool_definitions::get_all_tool_definitions());
+
+                    client
+                        .execute_with_tools(fallback_request, |tool_name, tool_input| async move {
+                            tool_executor::execute_tool(tool_name, tool_input).await
+                        })
+                        .await?
+                } else {
+                    return Err(e.into());
                 }
-
-                // Add tools
-                fallback_request =
-                    fallback_request.with_tools(tool_definitions::get_all_tool_definitions());
-
-                client
-                    .execute_with_tools(fallback_request, |tool_name, tool_input| async move {
-                        tool_executor::execute_tool(tool_name, tool_input).await
-                    })
-                    .await?
             }
-            Err(e) => return Err(e.into()),
         };
 
         // Extract text from response
