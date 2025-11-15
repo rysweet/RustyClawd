@@ -1,7 +1,7 @@
 //! TUI (Terminal User Interface) for RustyClawd
 //!
 //! A beautiful terminal interface using ratatui with:
-//! - Pirate ship banner
+//! - Orange crab banner (Unicode block art)
 //! - Scrollable message display area
 //! - Input area with prompt
 //! - Status bar
@@ -87,7 +87,7 @@ pub struct TuiState {
     scroll_offset: usize,
     /// Status message
     status: String,
-    /// Whether to show the pirate banner
+    /// Whether to show the orange crab banner
     show_banner: bool,
     /// Autocomplete suggestions (command_name, optional_hint)
     suggestions: Vec<(String, Option<String>)>,
@@ -406,9 +406,9 @@ impl TuiState {
     ) {
         let mut lines = Vec::new();
 
-        // Add pirate ship banner if enabled
+        // Add orange crab banner if enabled
         if show_banner && messages.is_empty() {
-            lines.extend(Self::render_pirate_ship());
+            lines.extend(Self::render_orange_crab());
             lines.push(Line::from(""));
             lines.push(Line::from(vec![
                 Span::styled(
@@ -457,49 +457,101 @@ impl TuiState {
         f.render_widget(messages_widget, area);
     }
 
-    /// Render pirate ship ASCII art
-    fn render_pirate_ship() -> Vec<Line<'static>> {
+    /// Render orange crab banner with Unicode block art
+    fn render_orange_crab() -> Vec<Line<'static>> {
+        // Beautiful orange crab made with Unicode block characters and emojis
         vec![
             Line::from(vec![Span::styled(
-                "                    |>",
+                "                      ╔═════════╗",
                 Style::default().fg(RUST_ORANGE),
             )]),
             Line::from(vec![Span::styled(
-                "                    |",
-                Style::default().fg(RUST_DARK),
+                "                      ║  🦀     ║",
+                Style::default().fg(RUST_ORANGE),
             )]),
             Line::from(vec![Span::styled(
-                "                   /|\\",
-                Style::default().fg(RUST_DARK),
+                "                      ║ RUSTY   ║",
+                Style::default().fg(RUST_LIGHT),
             )]),
             Line::from(vec![Span::styled(
-                "                  / | \\",
-                Style::default().fg(RUST_DARK),
+                "                      ║ CRAB    ║",
+                Style::default().fg(RUST_LIGHT),
             )]),
             Line::from(vec![Span::styled(
-                "                 /  |  \\",
-                Style::default().fg(RUST_DARK),
+                "                      ╠═════════╣",
+                Style::default().fg(RUST_ORANGE),
             )]),
             Line::from(vec![
-                Span::styled("                /   ", Style::default().fg(RUST_DARK)),
-                Span::styled("🦀", Style::default().fg(RUST_ORANGE)),
-                Span::styled("   \\", Style::default().fg(RUST_DARK)),
-            ]),
-            Line::from(vec![Span::styled(
-                "               /         \\",
-                Style::default().fg(RUST_DARK),
-            )]),
-            Line::from(vec![
-                Span::styled("        ", Style::default()),
-                Span::styled("🌊", Style::default().fg(Color::Cyan)),
-                Span::styled(" ~~~~~~~~~~~~~ ", Style::default().fg(Color::Blue)),
-                Span::styled("🌊", Style::default().fg(Color::Cyan)),
+                Span::styled("                    ", Style::default()),
+                Span::styled("███", Style::default().fg(RUST_ORANGE)),
+                Span::styled("     ", Style::default()),
+                Span::styled("███", Style::default().fg(RUST_ORANGE)),
             ]),
             Line::from(vec![
-                Span::styled("      ", Style::default()),
-                Span::styled("🌊🌊", Style::default().fg(Color::Cyan)),
-                Span::styled(" ~~~~~~~~~~~~~~~ ", Style::default().fg(Color::Blue)),
-                Span::styled("🌊🌊", Style::default().fg(Color::Cyan)),
+                Span::styled("                    ", Style::default()),
+                Span::styled("█", Style::default().fg(RUST_ORANGE)),
+                Span::styled(" ", Style::default()),
+                Span::styled("█", Style::default().fg(RUST_ORANGE)),
+                Span::styled("   ", Style::default()),
+                Span::styled("█", Style::default().fg(RUST_ORANGE)),
+                Span::styled(" ", Style::default()),
+                Span::styled("█", Style::default().fg(RUST_ORANGE)),
+            ]),
+            Line::from(vec![
+                Span::styled("                      ", Style::default()),
+                Span::styled("███", Style::default().fg(RUST_ORANGE)),
+            ]),
+            Line::from(vec![
+                Span::styled("                   ", Style::default()),
+                Span::styled("█████████", Style::default().fg(RUST_ORANGE)),
+            ]),
+            Line::from(vec![
+                Span::styled("                   ", Style::default()),
+                Span::styled("█", Style::default().fg(RUST_DARK)),
+                Span::styled("       ", Style::default()),
+                Span::styled("█", Style::default().fg(RUST_DARK)),
+            ]),
+            Line::from(vec![
+                Span::styled("                    ", Style::default()),
+                Span::styled("███████", Style::default().fg(RUST_DARK)),
+            ]),
+            Line::from(vec![
+                Span::styled("              ", Style::default()),
+                Span::styled("█", Style::default().fg(RUST_ORANGE)),
+                Span::styled(" ", Style::default()),
+                Span::styled("███", Style::default().fg(RUST_DARK)),
+                Span::styled("     ", Style::default()),
+                Span::styled("███", Style::default().fg(RUST_DARK)),
+                Span::styled(" ", Style::default()),
+                Span::styled("█", Style::default().fg(RUST_ORANGE)),
+            ]),
+            Line::from(vec![
+                Span::styled("              ", Style::default()),
+                Span::styled("█", Style::default().fg(RUST_ORANGE)),
+                Span::styled(" ", Style::default()),
+                Span::styled("█", Style::default().fg(RUST_DARK)),
+                Span::styled("   ", Style::default()),
+                Span::styled("█", Style::default().fg(RUST_DARK)),
+                Span::styled("   ", Style::default()),
+                Span::styled("█", Style::default().fg(RUST_DARK)),
+                Span::styled(" ", Style::default()),
+                Span::styled("█", Style::default().fg(RUST_ORANGE)),
+            ]),
+            Line::from(vec![
+                Span::styled("              ", Style::default()),
+                Span::styled("███████████", Style::default().fg(RUST_DARK)),
+            ]),
+            Line::from(vec![
+                Span::styled("             ", Style::default()),
+                Span::styled("█", Style::default().fg(RUST_ORANGE)),
+                Span::styled("  ", Style::default()),
+                Span::styled("█████████", Style::default().fg(RUST_DARK)),
+                Span::styled("  ", Style::default()),
+                Span::styled("█", Style::default().fg(RUST_ORANGE)),
+            ]),
+            Line::from(vec![
+                Span::styled("               ", Style::default()),
+                Span::styled("▀▀▀▀▀▀▀", Style::default().fg(RUST_DARK)),
             ]),
         ]
     }
