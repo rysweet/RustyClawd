@@ -16,8 +16,7 @@
 //! and doesn't error out. Full functional testing would require an API key
 //! and real sessions, so we focus on flag acceptance and basic parsing.
 
-use assert_cmd::Command;
-use predicates::prelude::*;
+use assert_cmd::cargo::cargo_bin_cmd;
 use std::fs;
 use tempfile::TempDir;
 
