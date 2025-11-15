@@ -1,4 +1,4 @@
-use claude_code_cli::tool_executor::execute_tool;
+use rustyclawd::tool_executor::execute_tool;
 use serde_json::json;
 
 #[tokio::test]

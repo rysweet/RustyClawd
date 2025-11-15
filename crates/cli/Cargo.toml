@@ -6,7 +6,7 @@ license.workspace = true
 authors.workspace = true
 
 [lib]
-name = "claude_code_cli"
+name = "rustyclawd"
 path = "src/lib.rs"
 
 [[bin]]

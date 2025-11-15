@@ -21,7 +21,7 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use claude_code_cli::checkpoint::{Session, SessionSaver, SessionLoader, RestoreScope};
+//! use rustyclawd::checkpoint::{Session, SessionSaver, SessionLoader, RestoreScope};
 //!
 //! // Create a session
 //! let mut session = Session::new("my-session", 50);

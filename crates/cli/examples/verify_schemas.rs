@@ -1,7 +1,7 @@
 //! Standalone example to verify tool schemas have required fields
 
 // Examples need to reference the crate differently
-use claude_code_cli::tool_definitions::get_all_tool_definitions;
+use rustyclawd::tool_definitions::get_all_tool_definitions;
 use rustyclawd_core::client::ToolDefinition;
 
 fn main() {
