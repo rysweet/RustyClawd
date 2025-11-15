@@ -1,0 +1,8 @@
+{"timestamp": "2025-11-15T20:57:19.931734", "metric": "prompt_length", "value": 0, "hook": "session_start"}
+{"timestamp": "2025-11-15T20:57:19.931884", "metric": "neo4j_enabled", "value": false, "hook": "session_start"}
+{"timestamp": "2025-11-15T20:57:19.933431", "metric": "prompt_length", "value": 0, "hook": "session_start"}
+{"timestamp": "2025-11-15T20:57:19.933561", "metric": "neo4j_enabled", "value": false, "hook": "session_start"}
+{"timestamp": "2025-11-15T20:57:24.986007", "metric": "prompt_length", "value": 0, "hook": "session_start"}
+{"timestamp": "2025-11-15T20:57:24.986126", "metric": "neo4j_enabled", "value": false, "hook": "session_start"}
+{"timestamp": "2025-11-15T20:57:24.991084", "metric": "prompt_length", "value": 0, "hook": "session_start"}
+{"timestamp": "2025-11-15T20:57:24.991206", "metric": "neo4j_enabled", "value": false, "hook": "session_start"}

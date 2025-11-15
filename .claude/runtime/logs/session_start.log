@@ -1,0 +1,44 @@
+[2025-11-15T20:57:19.931483] INFO: session_start hook starting (Python 3.11.14)
+[2025-11-15T20:57:19.931598] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'hook_event_name', 'source']
+[2025-11-15T20:57:19.931641] INFO: Event type: SessionStart
+[2025-11-15T20:57:19.931695] INFO: Prompt length: 0
+[2025-11-15T20:57:19.931843] INFO: Neo4j not enabled (use --enable-neo4j-memory to enable)
+[2025-11-15T20:57:19.932178] INFO: Successfully read preferences from: /home/azureuser/.cache/uv/archive-v0/rXapLXIZM7hivCLve_slN/lib/python3.11/site-packages/amplihack/.claude/context/USER_PREFERENCES.md
+[2025-11-15T20:57:19.932213] INFO: Injected full USER_PREFERENCES.md content into session
+[2025-11-15T20:57:19.932424] INFO: Session initialized - Original request: ❌
+[2025-11-15T20:57:19.932460] INFO: Injected 8647 characters of context
+[2025-11-15T20:57:19.932494] INFO: Returning output with keys: ['hookSpecificOutput']
+[2025-11-15T20:57:19.932586] INFO: session_start hook completed successfully
+[2025-11-15T20:57:19.933229] INFO: session_start hook starting (Python 3.11.14)
+[2025-11-15T20:57:19.933324] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'hook_event_name', 'source']
+[2025-11-15T20:57:19.933364] INFO: Event type: SessionStart
+[2025-11-15T20:57:19.933396] INFO: Prompt length: 0
+[2025-11-15T20:57:19.933508] INFO: Neo4j not enabled (use --enable-neo4j-memory to enable)
+[2025-11-15T20:57:19.933880] INFO: Successfully read preferences from: /home/azureuser/.cache/uv/archive-v0/rXapLXIZM7hivCLve_slN/lib/python3.11/site-packages/amplihack/.claude/context/USER_PREFERENCES.md
+[2025-11-15T20:57:19.933919] INFO: Injected full USER_PREFERENCES.md content into session
+[2025-11-15T20:57:19.934133] INFO: Session initialized - Original request: ❌
+[2025-11-15T20:57:19.934170] INFO: Injected 8647 characters of context
+[2025-11-15T20:57:19.934205] INFO: Returning output with keys: ['hookSpecificOutput']
+[2025-11-15T20:57:19.934298] INFO: session_start hook completed successfully
+[2025-11-15T20:57:24.985790] INFO: session_start hook starting (Python 3.11.14)
+[2025-11-15T20:57:24.985897] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'hook_event_name', 'source']
+[2025-11-15T20:57:24.985940] INFO: Event type: SessionStart
+[2025-11-15T20:57:24.985972] INFO: Prompt length: 0
+[2025-11-15T20:57:24.986087] INFO: Neo4j not enabled (use --enable-neo4j-memory to enable)
+[2025-11-15T20:57:24.986428] INFO: Successfully read preferences from: /home/azureuser/.cache/uv/archive-v0/rXapLXIZM7hivCLve_slN/lib/python3.11/site-packages/amplihack/.claude/context/USER_PREFERENCES.md
+[2025-11-15T20:57:24.986463] INFO: Injected full USER_PREFERENCES.md content into session
+[2025-11-15T20:57:24.986705] INFO: Session initialized - Original request: ❌
+[2025-11-15T20:57:24.986748] INFO: Injected 8647 characters of context
+[2025-11-15T20:57:24.986783] INFO: Returning output with keys: ['hookSpecificOutput']
+[2025-11-15T20:57:24.986890] INFO: session_start hook completed successfully
+[2025-11-15T20:57:24.990879] INFO: session_start hook starting (Python 3.11.14)
+[2025-11-15T20:57:24.990971] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'hook_event_name', 'source']
+[2025-11-15T20:57:24.991016] INFO: Event type: SessionStart
+[2025-11-15T20:57:24.991049] INFO: Prompt length: 0
+[2025-11-15T20:57:24.991164] INFO: Neo4j not enabled (use --enable-neo4j-memory to enable)
+[2025-11-15T20:57:24.991514] INFO: Successfully read preferences from: /home/azureuser/.cache/uv/archive-v0/rXapLXIZM7hivCLve_slN/lib/python3.11/site-packages/amplihack/.claude/context/USER_PREFERENCES.md
+[2025-11-15T20:57:24.991551] INFO: Injected full USER_PREFERENCES.md content into session
+[2025-11-15T20:57:24.991803] INFO: Session initialized - Original request: ❌
+[2025-11-15T20:57:24.991847] INFO: Injected 8647 characters of context
+[2025-11-15T20:57:24.991883] INFO: Returning output with keys: ['hookSpecificOutput']
+[2025-11-15T20:57:24.991989] INFO: session_start hook completed successfully
