@@ -21,6 +21,7 @@ pub mod slash_command;
 pub mod todo_write;
 pub mod types;
 pub mod web_fetch;
+pub mod web_fetch_phase2;
 pub mod web_search;
 pub mod write;
 
@@ -42,6 +43,7 @@ pub use slash_command::SlashCommandTool;
 pub use todo_write::TodoWriteTool;
 pub use types::{ExecutionContext, ToolContext, ToolEvent, ToolMetadata, ToolStream};
 pub use web_fetch::WebFetchTool;
+pub use web_fetch_phase2::WebFetchToolPhase2;
 pub use web_search::WebSearchTool;
 pub use write::WriteTool;
 

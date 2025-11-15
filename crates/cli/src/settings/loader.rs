@@ -23,6 +23,28 @@ impl SettingsLoader {
         }
     }
 
+    /// Create loader with custom settings file path
+    pub fn with_custom_path(settings_path: &str) -> Result<Self, anyhow::Error> {
+        // Parse the settings file path
+        let path = PathBuf::from(settings_path);
+        if !path.exists() {
+            return Err(anyhow::anyhow!(
+                "Settings file not found: {}",
+                settings_path
+            ));
+        }
+
+        // Use the parent directory as project root
+        let project_root = path
+            .parent()
+            .ok_or_else(|| anyhow::anyhow!("Invalid settings path: {}", settings_path))?
+            .to_path_buf();
+
+        Ok(Self {
+            project_root: Some(project_root),
+        })
+    }
+
     /// Set the project root
     pub fn set_project_root(&mut self, root: PathBuf) {
         self.project_root = Some(root);

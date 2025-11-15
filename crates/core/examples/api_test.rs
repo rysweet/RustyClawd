@@ -113,13 +113,15 @@ async fn test_streaming(client: &Client) -> Result<(), Box<dyn std::error::Error
                         println!("[Content block {} started]", index);
                     }
                     StreamEvent::ContentBlockDelta { delta, .. } => {
-                        let rustyclawd_core::client::types::ContentDelta::TextDelta { text } =
-                            delta;
-                        // Print in real-time without newline
-                        print!("{}", text);
-                        use std::io::Write;
-                        std::io::stdout().flush()?;
-                        collected_text.push_str(&text);
+                        if let rustyclawd_core::client::types::ContentDelta::TextDelta { text } =
+                            delta
+                        {
+                            // Print in real-time without newline
+                            print!("{}", text);
+                            use std::io::Write;
+                            std::io::stdout().flush()?;
+                            collected_text.push_str(&text);
+                        }
                     }
                     StreamEvent::ContentBlockStop { .. } => {
                         println!("\n[Content block stopped]");

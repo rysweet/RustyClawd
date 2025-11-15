@@ -109,6 +109,38 @@ struct Cli {
     #[arg(long)]
     dangerously_skip_permissions: bool,
 
+    /// Fork from existing session ID
+    #[arg(long)]
+    fork_session: Option<String>,
+
+    /// Specify fallback model when primary model fails
+    #[arg(long)]
+    fallback_model: Option<String>,
+
+    /// Override settings file location
+    #[arg(long)]
+    settings: Option<String>,
+
+    /// Enable IDE integration mode (structured JSON output)
+    #[arg(long)]
+    ide: bool,
+
+    /// Override MCP configuration file location
+    #[arg(long)]
+    mcp_config: Option<String>,
+
+    /// Resume from specific checkpoint number
+    #[arg(long)]
+    resume_from_checkpoint: Option<usize>,
+
+    /// Override model capabilities (JSON format)
+    #[arg(long)]
+    model_capabilities: Option<String>,
+
+    /// Skip safety checks and hooks (dangerous)
+    #[arg(long)]
+    dangerous_mode: bool,
+
     /// The prompt to execute (positional argument or from stdin)
     /// When provided, runs in print mode (one-shot execution)
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
@@ -159,7 +191,13 @@ impl App {
 
         // 2. Load settings (5-tier hierarchy)
         tracing::debug!("Loading settings hierarchy...");
-        let settings_loader = settings::SettingsLoader::new();
+        let settings_loader = if let Some(ref settings_path) = cli.settings {
+            // Override settings file location if --settings flag is provided
+            tracing::info!("Using custom settings file: {}", settings_path);
+            settings::SettingsLoader::with_custom_path(settings_path)?
+        } else {
+            settings::SettingsLoader::new()
+        };
         let settings = settings_loader
             .load_hierarchy()
             .map_err(|e| anyhow::anyhow!("Failed to load settings hierarchy: {}", e))?
@@ -176,21 +214,33 @@ impl App {
         tracing::debug!("Initializing hooks system...");
         let mut hooks = hooks::HooksSystem::new();
 
-        // Try to load hooks configuration
-        let hooks_config_path = ".claude/hooks.json";
-        if std::path::Path::new(hooks_config_path).exists() {
-            match hooks.load_from_file(hooks_config_path).await {
-                Ok(_) => tracing::info!("Hooks configuration loaded"),
-                Err(e) => tracing::warn!("Failed to load hooks configuration: {}", e),
-            }
+        // Skip hooks if --dangerous-mode is enabled
+        if cli.dangerous_mode {
+            tracing::warn!("DANGEROUS MODE: Skipping hooks initialization");
         } else {
-            tracing::debug!("No hooks configuration file found at {}", hooks_config_path);
+            // Try to load hooks configuration
+            let hooks_config_path = ".claude/hooks.json";
+            if std::path::Path::new(hooks_config_path).exists() {
+                match hooks.load_from_file(hooks_config_path).await {
+                    Ok(_) => tracing::info!("Hooks configuration loaded"),
+                    Err(e) => tracing::warn!("Failed to load hooks configuration: {}", e),
+                }
+            } else {
+                tracing::debug!("No hooks configuration file found at {}", hooks_config_path);
+            }
         }
 
         // 4. Load plugins
         tracing::debug!("Discovering and loading plugins...");
         let mut plugin_loader = plugins::PluginLoader::new();
         let mut plugin_executor = plugins::PluginExecutor::new();
+
+        // Handle custom MCP config if specified
+        if let Some(ref mcp_config_path) = cli.mcp_config {
+            tracing::info!("Using custom MCP config: {}", mcp_config_path);
+            // Note: Full MCP implementation would load this config
+            // Current placeholder just logs the custom path
+        }
 
         let plugin_discovery = plugins::PluginDiscovery::new(".claude/plugins");
         match plugin_discovery.discover_all() {
@@ -227,7 +277,30 @@ impl App {
         // Default checkpoint limit (not configurable via CLI in official spec)
         let checkpoint_limit = 50;
 
-        let session = if cli.continue_session {
+        let session = if let Some(ref fork_session_id) = cli.fork_session {
+            // Fork from existing session
+            tracing::info!("Forking from session: {}", fork_session_id);
+            let loader = checkpoint::SessionLoader::with_default_storage()
+                .context("Failed to initialize session loader")?;
+
+            // Load the original session
+            let original_session = loader
+                .resume_session(fork_session_id, checkpoint_limit)
+                .context(format!(
+                    "Failed to load session to fork: {}",
+                    fork_session_id
+                ))?;
+
+            // Create a new session with a unique ID but preserve state
+            let forked_session_id = format!("session-{}-fork", chrono::Utc::now().timestamp());
+            let mut forked_session = checkpoint::Session::new(&forked_session_id, checkpoint_limit);
+
+            // Copy state from original session
+            forked_session.current_state = original_session.current_state.clone();
+
+            tracing::info!("Created forked session: {}", forked_session_id);
+            forked_session
+        } else if cli.continue_session {
             // Continue from last session
             tracing::info!("Continuing from last session");
             let loader = checkpoint::SessionLoader::with_default_storage()
@@ -294,6 +367,38 @@ impl App {
             tracing::info!("Starting new session: {}", session_id);
             checkpoint::Session::new(session_id, checkpoint_limit)
         };
+
+        // Handle --resume-from-checkpoint if specified
+        let mut session = session;
+        if let Some(checkpoint_num) = cli.resume_from_checkpoint {
+            tracing::info!("Resuming from checkpoint number: {}", checkpoint_num);
+            let loader = checkpoint::SessionLoader::with_default_storage()
+                .context("Failed to initialize session loader")?;
+
+            // Get the checkpoint ID for the specified number
+            let checkpoint_ids = loader
+                .list_checkpoints(&session.id)
+                .context("Failed to list checkpoints")?;
+
+            if checkpoint_num >= checkpoint_ids.len() {
+                return Err(anyhow::anyhow!(
+                    "Checkpoint {} does not exist. Available checkpoints: 0-{}",
+                    checkpoint_num,
+                    checkpoint_ids.len() - 1
+                ));
+            }
+
+            let checkpoint_id = &checkpoint_ids[checkpoint_num];
+            loader
+                .restore_checkpoint(
+                    &mut session,
+                    checkpoint_id,
+                    checkpoint::types::RestoreScope::Both,
+                )
+                .context("Failed to restore checkpoint")?;
+
+            tracing::info!("Successfully restored checkpoint {}", checkpoint_num);
+        }
 
         Ok(Self {
             cli,
@@ -491,6 +596,19 @@ impl App {
             .unwrap_or("claude-sonnet-4-5-20250929")
             .to_string();
 
+        // Fallback model configuration (if specified)
+        let fallback_model = self
+            .cli
+            .fallback_model
+            .as_ref()
+            .map(|m| match m.as_str() {
+                "sonnet" => "claude-sonnet-4-5-20250929",
+                "opus" => "claude-opus-20240229",
+                "haiku" => "claude-3-5-haiku-20241022",
+                custom => custom,
+            })
+            .map(|s| s.to_string());
+
         let max_tokens = 4096u32; // Default max tokens (not configurable in official spec)
 
         // Build system prompt based on priority: system_prompt > system_prompt_file > append_system_prompt
@@ -524,12 +642,55 @@ impl App {
         let tools = tool_definitions::get_all_tool_definitions();
         request = request.with_tools(tools);
 
+        // Parse model capabilities if provided (JSON format)
+        if let Some(ref capabilities_json) = self.cli.model_capabilities {
+            tracing::info!("Applying custom model capabilities");
+            // Parse and log capabilities (in real implementation would apply to request)
+            match serde_json::from_str::<serde_json::Value>(capabilities_json) {
+                Ok(caps) => tracing::debug!("Model capabilities: {:?}", caps),
+                Err(e) => tracing::warn!("Failed to parse model capabilities: {}", e),
+            }
+        }
+
         // Use the tool execution loop (tools always enabled in official spec)
-        let response = client
-            .execute_with_tools(request, |tool_name, tool_input| async move {
+        let response = match client
+            .execute_with_tools(request.clone(), |tool_name, tool_input| async move {
                 tool_executor::execute_tool(tool_name, tool_input).await
             })
-            .await?;
+            .await
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                if let Some(fallback) = fallback_model {
+                    // Try fallback model if primary fails
+                    tracing::warn!("Primary model failed, trying fallback: {}", fallback);
+
+                    // Create new request with fallback model
+                    let mut fallback_request = CreateMessageRequest::new(
+                        fallback,
+                        vec![ApiMessage::user(prompt.to_string())],
+                        max_tokens,
+                    );
+
+                    // Copy system prompt if present
+                    if let Some(ref sys_prompt) = system_prompt {
+                        fallback_request = fallback_request.with_system(sys_prompt.clone());
+                    }
+
+                    // Add tools
+                    fallback_request =
+                        fallback_request.with_tools(tool_definitions::get_all_tool_definitions());
+
+                    client
+                        .execute_with_tools(fallback_request, |tool_name, tool_input| async move {
+                            tool_executor::execute_tool(tool_name, tool_input).await
+                        })
+                        .await?
+                } else {
+                    return Err(e.into());
+                }
+            }
+        };
 
         // Extract text from response
         let text = response
@@ -545,10 +706,16 @@ impl App {
             .collect::<Vec<_>>()
             .join("");
 
-        // Output based on format
-        match self.cli.output_format.as_str() {
+        // Output based on format (IDE mode forces JSON output)
+        let output_format = if self.cli.ide {
+            "json"
+        } else {
+            self.cli.output_format.as_str()
+        };
+
+        match output_format {
             "json" => {
-                let json_output = serde_json::json!({
+                let mut json_output = serde_json::json!({
                     "id": response.id,
                     "type": response.type_field,
                     "role": response.role,
@@ -557,6 +724,13 @@ impl App {
                     "stop_reason": response.stop_reason,
                     "usage": response.usage,
                 });
+
+                // Add IDE-specific metadata if in IDE mode
+                if self.cli.ide {
+                    json_output["ide_mode"] = serde_json::json!(true);
+                    json_output["session_id"] = serde_json::json!(self.session.id);
+                }
+
                 println!("{}", serde_json::to_string_pretty(&json_output)?);
             }
             "stream-json" => {

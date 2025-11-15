@@ -49,8 +49,8 @@ pub use config::{ApiKey, Config};
 pub use error::{ClientError, ClientResult};
 pub use stream::{EventStream, SseEvent, SseStream};
 pub use types::{
-    ContentBlock, CreateMessageRequest, Message, MessageResponse, Role, StreamEvent, ToolChoice,
-    ToolDefinition, Usage,
+    ContentBlock, CreateMessageRequest, ExtraToolSchema, Message, MessageResponse, Role,
+    StreamEvent, ToolChoice, ToolDefinition, Usage,
 };
 
 /// Anthropic API client
@@ -170,8 +170,10 @@ impl Client {
 
                 while let Some(result) = stream.next().await {
                     match result {
-                        Ok(StreamEvent::ContentBlockDelta { delta, .. }) => {
-                            let types::ContentDelta::TextDelta { text } = delta;
+                        Ok(StreamEvent::ContentBlockDelta {
+                            delta: types::ContentDelta::TextDelta { text },
+                            ..
+                        }) => {
                             return Some((Ok(text), stream));
                         }
                         Ok(StreamEvent::Error { error }) => {
