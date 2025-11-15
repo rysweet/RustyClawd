@@ -35,7 +35,10 @@ fn test_fork_session_flag_accepted() {
     let stdout = String::from_utf8(output.stdout).unwrap();
 
     // Verify --fork-session is in help output
-    assert!(stdout.contains("--fork-session"), "Flag --fork-session should be in help");
+    assert!(
+        stdout.contains("--fork-session"),
+        "Flag --fork-session should be in help"
+    );
 }
 
 #[test]
@@ -46,7 +49,10 @@ fn test_fallback_model_flag_accepted() {
     let output = cmd.output().unwrap();
     let stdout = String::from_utf8(output.stdout).unwrap();
 
-    assert!(stdout.contains("--fallback-model"), "Flag --fallback-model should be in help");
+    assert!(
+        stdout.contains("--fallback-model"),
+        "Flag --fallback-model should be in help"
+    );
 }
 
 #[test]
@@ -57,7 +63,10 @@ fn test_settings_flag_accepted() {
     let output = cmd.output().unwrap();
     let stdout = String::from_utf8(output.stdout).unwrap();
 
-    assert!(stdout.contains("--settings"), "Flag --settings should be in help");
+    assert!(
+        stdout.contains("--settings"),
+        "Flag --settings should be in help"
+    );
 }
 
 #[test]
@@ -79,7 +88,10 @@ fn test_mcp_config_flag_accepted() {
     let output = cmd.output().unwrap();
     let stdout = String::from_utf8(output.stdout).unwrap();
 
-    assert!(stdout.contains("--mcp-config"), "Flag --mcp-config should be in help");
+    assert!(
+        stdout.contains("--mcp-config"),
+        "Flag --mcp-config should be in help"
+    );
 }
 
 #[test]
@@ -90,7 +102,10 @@ fn test_resume_from_checkpoint_flag_accepted() {
     let output = cmd.output().unwrap();
     let stdout = String::from_utf8(output.stdout).unwrap();
 
-    assert!(stdout.contains("--resume-from-checkpoint"), "Flag --resume-from-checkpoint should be in help");
+    assert!(
+        stdout.contains("--resume-from-checkpoint"),
+        "Flag --resume-from-checkpoint should be in help"
+    );
 }
 
 #[test]
@@ -101,7 +116,10 @@ fn test_model_capabilities_flag_accepted() {
     let output = cmd.output().unwrap();
     let stdout = String::from_utf8(output.stdout).unwrap();
 
-    assert!(stdout.contains("--model-capabilities"), "Flag --model-capabilities should be in help");
+    assert!(
+        stdout.contains("--model-capabilities"),
+        "Flag --model-capabilities should be in help"
+    );
 }
 
 #[test]
@@ -112,7 +130,10 @@ fn test_dangerous_mode_flag_accepted() {
     let output = cmd.output().unwrap();
     let stdout = String::from_utf8(output.stdout).unwrap();
 
-    assert!(stdout.contains("--dangerous-mode"), "Flag --dangerous-mode should be in help");
+    assert!(
+        stdout.contains("--dangerous-mode"),
+        "Flag --dangerous-mode should be in help"
+    );
 }
 
 // ============================================================================
@@ -185,8 +206,7 @@ fn test_all_phase2_flags_combined() {
 #[test]
 fn test_resume_from_checkpoint_rejects_negative() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("--resume-from-checkpoint")
-        .arg("-1");
+    cmd.arg("--resume-from-checkpoint").arg("-1");
 
     // Should fail with invalid value
     cmd.assert().failure();
@@ -195,8 +215,7 @@ fn test_resume_from_checkpoint_rejects_negative() {
 #[test]
 fn test_resume_from_checkpoint_rejects_non_numeric() {
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("--resume-from-checkpoint")
-        .arg("abc");
+    cmd.arg("--resume-from-checkpoint").arg("abc");
 
     // Should fail with invalid value
     cmd.assert().failure();
@@ -237,8 +256,7 @@ fn test_model_capabilities_accepts_valid_json() {
 fn test_ide_flag_boolean() {
     // Test that --ide doesn't require a value (boolean flag)
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("--ide")
-        .arg("--help");
+    cmd.arg("--ide").arg("--help");
 
     cmd.assert().success();
 }
@@ -247,8 +265,7 @@ fn test_ide_flag_boolean() {
 fn test_dangerous_mode_boolean() {
     // Test that --dangerous-mode doesn't require a value (boolean flag)
     let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("--dangerous-mode")
-        .arg("--help");
+    cmd.arg("--dangerous-mode").arg("--help");
 
     cmd.assert().success();
 }
