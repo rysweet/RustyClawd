@@ -5,6 +5,9 @@
 # Cargo lock (included for binary projects)
 # Cargo.lock
 
+# Git worktrees (created by git worktree add)
+/worktrees/
+
 # Backup files
 *.bak
 *~
