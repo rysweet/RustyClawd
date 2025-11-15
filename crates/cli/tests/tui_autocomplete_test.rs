@@ -61,7 +61,7 @@ fn test_slash_prefix_detection() {
 #[test]
 fn test_partial_command_matching() {
     // Test that partial prefixes work correctly
-    let commands = vec![
+    let commands = [
         ("analyze", "Analyze code"),
         ("debug", "Debug mode"),
         ("deploy", "Deploy app"),
@@ -121,7 +121,7 @@ fn test_empty_prefix_returns_all() {
 #[test]
 fn test_case_sensitive_matching() {
     // Verify that matching is case-sensitive
-    let commands = vec!["help", "Help", "HELP"];
+    let commands = ["help", "Help", "HELP"];
 
     let prefix = "he";
     let matches: Vec<_> = commands
@@ -156,7 +156,7 @@ fn test_suggestion_index_wrapping() {
 #[test]
 fn test_suggestion_popup_sizing() {
     // Test popup size calculations
-    let suggestions = vec![
+    let suggestions = [
         ("short".to_string(), None),
         (
             "very-long-command-name".to_string(),

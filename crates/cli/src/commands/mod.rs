@@ -200,9 +200,8 @@ mod tests {
         // We just verify the structure is correct
         for (_cmd, hint) in &completions {
             // hint is Option<String>, verify it can be None or Some
-            match hint {
-                Some(h) => assert!(!h.is_empty()),
-                None => {} // OK to have no hint
+            if let Some(h) = hint {
+                assert!(!h.is_empty())
             }
         }
     }
