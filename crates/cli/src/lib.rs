@@ -15,4 +15,5 @@ pub mod settings;
 pub mod terminal_guard;
 pub mod tool_definitions;
 pub mod tool_executor;
+pub mod tool_formatter;
 pub mod tui;

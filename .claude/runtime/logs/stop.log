@@ -334,3 +334,31 @@
 [2025-11-14T06:02:47.842505] INFO: === STOP HOOK ENDED (decision: approve - no reflection) ===
 [2025-11-14T06:02:47.842540] INFO: Returning output with keys: ['decision']
 [2025-11-14T06:02:47.842608] INFO: stop hook completed successfully
+[2025-11-16T19:24:32.477511] INFO: stop hook starting (Python 3.11.14)
+[2025-11-16T19:24:32.477621] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-16T19:24:32.477681] INFO: Event type: Stop
+[2025-11-16T19:24:32.477722] INFO: === STOP HOOK STARTED ===
+[2025-11-16T19:24:32.477767] INFO: Input keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-16T19:24:32.482123] INFO: stop hook starting (Python 3.11.14)
+[2025-11-16T19:24:32.482229] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-16T19:24:32.482272] INFO: Event type: Stop
+[2025-11-16T19:24:32.482305] INFO: === STOP HOOK STARTED ===
+[2025-11-16T19:24:32.482337] INFO: Input keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-16T19:24:32.691023] INFO: Neo4j cleanup handler started (auto_mode=False)
+[2025-11-16T19:24:32.702849] INFO: Neo4j cleanup handler started (auto_mode=False)
+[2025-11-16T19:24:32.769608] INFO: Neo4j cleanup handler completed
+[2025-11-16T19:24:32.769938] INFO: Neo4j cleanup handler completed
+[2025-11-16T19:24:33.727621] INFO: Running power-steering analysis...
+[2025-11-16T19:24:33.728106] INFO: Power-steering approved stop: ['error_failopen']
+[2025-11-16T19:24:33.728282] DEBUG: Reflection is disabled - skipping
+[2025-11-16T19:24:33.728321] INFO: Reflection not enabled or skipped - allowing stop
+[2025-11-16T19:24:33.728353] INFO: === STOP HOOK ENDED (decision: approve - no reflection) ===
+[2025-11-16T19:24:33.728393] INFO: Returning output with keys: ['decision']
+[2025-11-16T19:24:33.728464] INFO: stop hook completed successfully
+[2025-11-16T19:24:33.729964] INFO: Running power-steering analysis...
+[2025-11-16T19:24:33.730450] INFO: Power-steering approved stop: ['error_failopen']
+[2025-11-16T19:24:33.730598] DEBUG: Reflection is disabled - skipping
+[2025-11-16T19:24:33.730636] INFO: Reflection not enabled or skipped - allowing stop
+[2025-11-16T19:24:33.730690] INFO: === STOP HOOK ENDED (decision: approve - no reflection) ===
+[2025-11-16T19:24:33.730734] INFO: Returning output with keys: ['decision']
+[2025-11-16T19:24:33.730803] INFO: stop hook completed successfully

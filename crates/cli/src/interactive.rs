@@ -9,6 +9,7 @@
 
 use crate::commands::SlashCommands;
 use crate::terminal_guard;
+use crate::tool_formatter;
 use crate::tui::{ChatMessage, MessageRole as TuiMessageRole, TuiState};
 use anyhow::Result;
 use futures::StreamExt;
@@ -573,23 +574,32 @@ impl InteractiveSession {
         let mut tool_result_blocks = Vec::new();
 
         for (id, name, input) in tool_use_blocks {
-            // Show tool execution status
-            self.tui.set_status(format!("Executing tool: {}", name));
+            // Show formatted tool call with icon
+            let tool_call_msg = tool_formatter::format_tool_call(&name, &input);
+            self.tui.set_status(format!("Executing: {}", name));
             self.tui.add_message(ChatMessage {
                 role: TuiMessageRole::System,
-                content: format!("[Tool: {}]", name),
+                content: tool_call_msg,
             });
+
+            // Show formatted parameters if interesting
+            let params_msg = tool_formatter::format_tool_params(&name, &input);
+            if !params_msg.is_empty() && params_msg != "Processing..." {
+                self.tui.add_message(ChatMessage {
+                    role: TuiMessageRole::System,
+                    content: format!("  {}", params_msg),
+                });
+            }
 
             // Execute the tool
             match crate::tool_executor::execute_tool(name.clone(), input.clone()).await {
                 Ok(result) => {
-                    // Show result in TUI
-                    if let Ok(pretty_result) = serde_json::to_string_pretty(&result) {
-                        self.tui.add_message(ChatMessage {
-                            role: TuiMessageRole::System,
-                            content: format!("[Tool Result: {}]\n{}", name, pretty_result),
-                        });
-                    }
+                    // Show formatted success message
+                    let success_msg = tool_formatter::format_tool_success(&name, &result);
+                    self.tui.add_message(ChatMessage {
+                        role: TuiMessageRole::System,
+                        content: format!("  {}", success_msg),
+                    });
 
                     tool_result_blocks.push(
                         rustyclawd_core::client::types::ContentBlock::ToolResult {
@@ -600,10 +610,11 @@ impl InteractiveSession {
                     );
                 }
                 Err(e) => {
-                    // Show error in TUI
+                    // Show formatted error message
+                    let error_msg = tool_formatter::format_tool_error(&name, &e.to_string());
                     self.tui.add_message(ChatMessage {
                         role: TuiMessageRole::System,
-                        content: format!("[Tool Error: {}]\nError: {}", name, e),
+                        content: format!("  {}", error_msg),
                     });
 
                     tool_result_blocks.push(

@@ -15,6 +15,7 @@ mod settings;
 mod terminal_guard;
 mod tool_definitions;
 mod tool_executor;
+mod tool_formatter;
 mod tui;
 
 use anyhow::{Context as AnyhowContext, Result};

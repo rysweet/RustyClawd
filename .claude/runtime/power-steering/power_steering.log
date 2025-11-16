@@ -1,0 +1,6 @@
+[2025-11-16T19:24:33.716744] INFO: Loaded 21 considerations from YAML
+[2025-11-16T19:24:33.718594] INFO: Loaded 21 considerations from YAML
+[2025-11-16T19:24:33.727469] INFO: Loaded 21 considerations from YAML
+[2025-11-16T19:24:33.728057] ERROR: Power-steering error (fail-open): Transcript path /home/azureuser/.claude/projects/-home-azureuser-src-RustyClawd/0efd2f3c-fe8f-4553-9572-cf138e089621.jsonl is outside project root /home/azureuser/src/RustyClawd
+[2025-11-16T19:24:33.729803] INFO: Loaded 21 considerations from YAML
+[2025-11-16T19:24:33.730404] ERROR: Power-steering error (fail-open): Transcript path /home/azureuser/.claude/projects/-home-azureuser-src-RustyClawd/0efd2f3c-fe8f-4553-9572-cf138e089621.jsonl is outside project root /home/azureuser/src/RustyClawd
