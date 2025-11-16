@@ -19,6 +19,7 @@ use rustyclawd_core::{
 use rustyclawd_tools::{
     bash::BashParams, BashTool, ExecutionContext, Tool, ToolContext, ToolEvent,
 };
+use std::sync::Arc;
 
 /// Default model for interactive sessions
 const DEFAULT_MODEL: &str = "claude-sonnet-4-5-20250929";
@@ -37,7 +38,7 @@ pub struct InteractiveSession {
     /// Model to use
     model: String,
     /// Slash command system
-    slash_commands: SlashCommands,
+    slash_commands: Arc<SlashCommands>,
 }
 
 impl InteractiveSession {
@@ -51,10 +52,16 @@ impl InteractiveSession {
         let client = Client::new(config);
 
         // Initialize TUI
-        let tui = TuiState::new()?;
+        let mut tui = TuiState::new()?;
 
         // Initialize slash command system
-        let slash_commands = SlashCommands::new().await?;
+        let slash_commands = Arc::new(SlashCommands::new().await?);
+
+        // Wire up autocomplete callback
+        let commands_for_completion = Arc::clone(&slash_commands);
+        tui.set_completion_callback(Box::new(move |prefix| {
+            commands_for_completion.get_completions(prefix)
+        }));
 
         Ok(Self {
             client,
