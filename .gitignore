@@ -41,3 +41,6 @@ api_keys.txt
 # NPM
 node_modules/
 package-lock.json
+
+# Claude runtime files
+.claude/runtime
