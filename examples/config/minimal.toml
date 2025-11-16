@@ -1,0 +1,5 @@
+# Minimal Configuration Example
+# This file demonstrates the absolute minimum configuration
+
+# Just specify the model you want to use
+model = "claude-3-5-sonnet-20241022"
