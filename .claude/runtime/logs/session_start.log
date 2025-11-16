@@ -1,0 +1,22 @@
+[2025-11-16T18:43:32.555224] INFO: session_start hook starting (Python 3.11.14)
+[2025-11-16T18:43:32.555336] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'hook_event_name', 'source']
+[2025-11-16T18:43:32.555378] INFO: Event type: SessionStart
+[2025-11-16T18:43:32.555410] INFO: Prompt length: 0
+[2025-11-16T18:43:32.555548] INFO: Neo4j not enabled (use --enable-neo4j-memory to enable)
+[2025-11-16T18:43:32.555909] INFO: Successfully read preferences from: /home/azureuser/.cache/uv/archive-v0/Ea5m1WFWCIdnGzW6_ZRq_/lib/python3.11/site-packages/amplihack/.claude/context/USER_PREFERENCES.md
+[2025-11-16T18:43:32.555948] INFO: Injected full USER_PREFERENCES.md content into session
+[2025-11-16T18:43:32.556163] INFO: Session initialized - Original request: ❌
+[2025-11-16T18:43:32.556200] INFO: Injected 8794 characters of context
+[2025-11-16T18:43:32.556233] INFO: Returning output with keys: ['hookSpecificOutput']
+[2025-11-16T18:43:32.556327] INFO: session_start hook completed successfully
+[2025-11-16T18:43:32.556691] INFO: session_start hook starting (Python 3.11.14)
+[2025-11-16T18:43:32.556774] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'hook_event_name', 'source']
+[2025-11-16T18:43:32.556814] INFO: Event type: SessionStart
+[2025-11-16T18:43:32.556846] INFO: Prompt length: 0
+[2025-11-16T18:43:32.556954] INFO: Neo4j not enabled (use --enable-neo4j-memory to enable)
+[2025-11-16T18:43:32.557292] INFO: Successfully read preferences from: /home/azureuser/.cache/uv/archive-v0/Ea5m1WFWCIdnGzW6_ZRq_/lib/python3.11/site-packages/amplihack/.claude/context/USER_PREFERENCES.md
+[2025-11-16T18:43:32.557328] INFO: Injected full USER_PREFERENCES.md content into session
+[2025-11-16T18:43:32.557539] INFO: Session initialized - Original request: ❌
+[2025-11-16T18:43:32.557576] INFO: Injected 8794 characters of context
+[2025-11-16T18:43:32.557611] INFO: Returning output with keys: ['hookSpecificOutput']
+[2025-11-16T18:43:32.557720] INFO: session_start hook completed successfully

@@ -80,7 +80,7 @@ impl InteractiveSession {
             // Draw UI
             self.tui.draw()?;
 
-            // Handle input
+            // Handle input (Ctrl+C is handled by TuiState::handle_key_event)
             if let Some(input) = self.tui.handle_input()? {
                 let input = input.trim();
 
@@ -331,7 +331,7 @@ impl InteractiveSession {
         Ok(())
     }
 
-    /// Process a user message and execute with tool support
+    /// Process a user message with streaming and tool support
     async fn process_user_message(&mut self, user_input: &str) -> Result<()> {
         // Add user message to TUI and context
         self.tui.add_message(ChatMessage {
@@ -341,57 +341,283 @@ impl InteractiveSession {
         self.context
             .add_message(Message::user(user_input.to_string()));
 
-        // Update status
-        self.tui.set_status("Claude is thinking...".to_string());
+        // Stream response with tool use loop
+        self.stream_with_tools().await?;
 
-        // Convert context messages to API format
-        let api_messages = self.convert_messages_to_api_format();
+        Ok(())
+    }
 
+    /// Manages the tool use loop with streaming
+    async fn stream_with_tools(&mut self) -> Result<()> {
+        // High limit for complex agentic workflows
+        const MAX_ITERATIONS: usize = 10_000;
+        let mut iteration = 0;
+
+        // Track API-level messages for tool use loop (separate from context)
+        let mut api_messages = self.convert_messages_to_api_format();
+
+        loop {
+            iteration += 1;
+            if iteration > MAX_ITERATIONS {
+                return Err(anyhow::anyhow!(
+                    "Tool execution exceeded maximum iterations"
+                ));
+            }
+
+            // Update status
+            self.tui.set_status("Streaming...".to_string());
+
+            // Stream a single turn
+            let response = self.stream_single_turn_with_messages(&api_messages).await?;
+
+            // Check if response contains tool use
+            let mut tool_use_blocks = Vec::new();
+            for block in &response.content {
+                if let rustyclawd_core::client::types::ContentBlock::ToolUse { id, name, input } =
+                    block
+                {
+                    tool_use_blocks.push((id.clone(), name.clone(), input.clone()));
+                }
+            }
+
+            // If no tool use, we're done
+            if tool_use_blocks.is_empty() {
+                self.tui.set_status("Ready".to_string());
+
+                // Add final text response to context
+                let response_text = response
+                    .content
+                    .iter()
+                    .filter_map(|block| {
+                        if let rustyclawd_core::client::types::ContentBlock::Text { text } = block {
+                            Some(text.as_str())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("");
+
+                if !response_text.is_empty() {
+                    self.context.add_message(Message::assistant(response_text));
+                }
+
+                return Ok(());
+            }
+
+            // Execute tools and get results
+            let tool_result_blocks = self.execute_tools(tool_use_blocks).await?;
+
+            // Add assistant's response with tool_use blocks to API messages
+            api_messages.push(ApiMessage::with_blocks(
+                rustyclawd_core::client::Role::Assistant,
+                response.content,
+            ));
+
+            // Add tool results as user message to API messages
+            api_messages.push(ApiMessage::with_blocks(
+                rustyclawd_core::client::Role::User,
+                tool_result_blocks,
+            ));
+        }
+    }
+
+    /// Streams a single turn and returns the complete response
+    async fn stream_single_turn_with_messages(
+        &mut self,
+        api_messages: &[ApiMessage],
+    ) -> Result<rustyclawd_core::client::MessageResponse> {
         // Get tool definitions
         let tools = crate::tool_definitions::get_all_tool_definitions();
 
-        // Create API request with tools
-        let request = CreateMessageRequest::new(self.model.clone(), api_messages, MAX_TOKENS)
-            .with_tools(tools)
-            .with_temperature(1.0); // Default temperature for Claude
+        // Create API request with tools and streaming enabled
+        let request =
+            CreateMessageRequest::new(self.model.clone(), api_messages.to_vec(), MAX_TOKENS)
+                .with_tools(tools)
+                .with_temperature(1.0)
+                .with_stream(true);
 
-        // Execute with tools - this handles the tool use loop automatically
-        self.tui.set_status("Processing with tools...".to_string());
+        // Create the stream
+        let mut stream = self.client.create_message_stream(request).await?;
 
-        let response = self
-            .client
-            .execute_with_tools(request, |tool_name, tool_input| async move {
-                crate::tool_executor::execute_tool(tool_name, tool_input).await
-            })
-            .await?;
+        // Begin streaming message in TUI
+        let message_index = self.tui.begin_streaming_message();
 
-        // Extract text from response
-        let response_text = response
-            .content
-            .iter()
-            .filter_map(|block| {
-                if let rustyclawd_core::client::types::ContentBlock::Text { text } = block {
-                    Some(text.as_str())
-                } else {
-                    None
+        // Track response data
+        let mut message_id = String::new();
+        let mut response_content = Vec::new();
+        let mut current_text = String::new();
+        let mut current_tool_use: Option<(String, String, String)> = None; // (id, name, json)
+        let mut usage = rustyclawd_core::client::Usage {
+            input_tokens: 0,
+            output_tokens: 0,
+        };
+        let mut stop_reason = None;
+
+        // Process stream events
+        while let Some(result) = stream.next().await {
+            match result {
+                Ok(event) => match event {
+                    StreamEvent::MessageStart { message } => {
+                        message_id = message.id;
+                        usage = message.usage;
+                    }
+                    StreamEvent::ContentBlockStart {
+                        content_block:
+                            rustyclawd_core::client::types::ContentBlockStart::Text { .. },
+                        ..
+                    } => {
+                        // Starting a text block
+                    }
+                    StreamEvent::ContentBlockStart {
+                        content_block:
+                            rustyclawd_core::client::types::ContentBlockStart::ToolUse { id, name },
+                        ..
+                    } => {
+                        // Starting a tool use block
+                        current_tool_use = Some((id, name, String::new()));
+                    }
+                    StreamEvent::ContentBlockDelta {
+                        delta: rustyclawd_core::client::types::ContentDelta::TextDelta { text },
+                        ..
+                    } => {
+                        // Append text to TUI in real-time
+                        self.tui.append_to_message(message_index, &text);
+                        current_text.push_str(&text);
+
+                        // Draw UI to show updates
+                        self.tui.draw()?;
+                    }
+                    StreamEvent::ContentBlockDelta {
+                        delta:
+                            rustyclawd_core::client::types::ContentDelta::InputJsonDelta {
+                                partial_json,
+                            },
+                        ..
+                    } => {
+                        // Accumulate tool input JSON
+                        if let Some((_, _, ref mut json)) = current_tool_use {
+                            json.push_str(&partial_json);
+                        }
+                    }
+                    StreamEvent::ContentBlockStop { .. } => {
+                        // Finalize current block
+                        if !current_text.is_empty() {
+                            response_content.push(
+                                rustyclawd_core::client::types::ContentBlock::Text {
+                                    text: current_text.clone(),
+                                },
+                            );
+                            current_text.clear();
+                        }
+
+                        if let Some((id, name, json)) = current_tool_use.take() {
+                            // Parse tool input
+                            let input: serde_json::Value = serde_json::from_str(&json)?;
+                            response_content.push(
+                                rustyclawd_core::client::types::ContentBlock::ToolUse {
+                                    id,
+                                    name,
+                                    input,
+                                },
+                            );
+                        }
+                    }
+                    StreamEvent::MessageDelta {
+                        delta,
+                        usage: usage_delta,
+                    } => {
+                        stop_reason = delta.stop_reason;
+                        usage = usage_delta;
+                    }
+                    StreamEvent::MessageStop => {
+                        // Stream complete
+                        break;
+                    }
+                    StreamEvent::Ping => {
+                        // Keep-alive, ignore
+                    }
+                    StreamEvent::Error { error } => {
+                        return Err(anyhow::anyhow!("Stream error: {}", error.message));
+                    }
+                },
+                Err(e) => {
+                    return Err(anyhow::anyhow!("Stream error: {}", e));
                 }
-            })
-            .collect::<Vec<_>>()
-            .join("");
-
-        // Add complete assistant response to TUI and context
-        if !response_text.is_empty() {
-            self.tui.add_message(ChatMessage {
-                role: TuiMessageRole::Assistant,
-                content: response_text.clone(),
-            });
-            self.context.add_message(Message::assistant(response_text));
+            }
         }
 
-        // Update status
-        self.tui.set_status("Ready".to_string());
+        // Finalize streaming message in TUI
+        self.tui.finalize_streaming_message(message_index);
 
-        Ok(())
+        // Build complete response
+        let response = rustyclawd_core::client::MessageResponse {
+            id: message_id,
+            type_field: "message".to_string(),
+            role: rustyclawd_core::client::Role::Assistant,
+            content: response_content,
+            model: self.model.clone(),
+            stop_reason,
+            stop_sequence: None,
+            usage,
+        };
+
+        Ok(response)
+    }
+
+    /// Execute tools and return result blocks
+    async fn execute_tools(
+        &mut self,
+        tool_use_blocks: Vec<(String, String, serde_json::Value)>,
+    ) -> Result<Vec<rustyclawd_core::client::types::ContentBlock>> {
+        let mut tool_result_blocks = Vec::new();
+
+        for (id, name, input) in tool_use_blocks {
+            // Show tool execution status
+            self.tui.set_status(format!("Executing tool: {}", name));
+            self.tui.add_message(ChatMessage {
+                role: TuiMessageRole::System,
+                content: format!("[Tool: {}]", name),
+            });
+
+            // Execute the tool
+            match crate::tool_executor::execute_tool(name.clone(), input.clone()).await {
+                Ok(result) => {
+                    // Show result in TUI
+                    if let Ok(pretty_result) = serde_json::to_string_pretty(&result) {
+                        self.tui.add_message(ChatMessage {
+                            role: TuiMessageRole::System,
+                            content: format!("[Tool Result: {}]\n{}", name, pretty_result),
+                        });
+                    }
+
+                    tool_result_blocks.push(
+                        rustyclawd_core::client::types::ContentBlock::ToolResult {
+                            tool_use_id: id,
+                            content: result.to_string(),
+                            is_error: None,
+                        },
+                    );
+                }
+                Err(e) => {
+                    // Show error in TUI
+                    self.tui.add_message(ChatMessage {
+                        role: TuiMessageRole::System,
+                        content: format!("[Tool Error: {}]\nError: {}", name, e),
+                    });
+
+                    tool_result_blocks.push(
+                        rustyclawd_core::client::types::ContentBlock::ToolResult {
+                            tool_use_id: id,
+                            content: format!("Tool execution error: {}", e),
+                            is_error: Some(true),
+                        },
+                    );
+                }
+            }
+        }
+
+        Ok(tool_result_blocks)
     }
 
     /// Convert context messages to API message format
