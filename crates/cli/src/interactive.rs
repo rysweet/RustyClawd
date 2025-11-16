@@ -5,9 +5,13 @@
 //! - Real-time streaming responses from Claude
 //! - Multi-turn conversation context
 //! - Graceful exit handling (Ctrl+D, /exit)
+//! - Session persistence with auto-save/resume
 //! - Rust-colored theme
 
 use crate::commands::SlashCommands;
+use crate::mcp_commands;
+use crate::plugins::mcp_proxy::McpProxy;
+use crate::session_persistence::{SessionInfo, SessionPersistence};
 use crate::terminal_guard;
 use crate::tool_formatter;
 use crate::tui::{ChatMessage, MessageRole as TuiMessageRole, TuiState};
@@ -20,7 +24,9 @@ use rustyclawd_core::{
 use rustyclawd_tools::{
     bash::BashParams, BashTool, ExecutionContext, Tool, ToolContext, ToolEvent,
 };
+use std::io::{self, Write};
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 /// Default model for interactive sessions
 const DEFAULT_MODEL: &str = "claude-sonnet-4-5-20250929";
@@ -40,6 +46,10 @@ pub struct InteractiveSession {
     model: String,
     /// Slash command system
     slash_commands: Arc<SlashCommands>,
+    /// Session persistence manager
+    persistence: Option<SessionPersistence>,
+    /// MCP proxy for managing MCP servers
+    mcp_proxy: Arc<Mutex<McpProxy>>,
 }
 
 impl InteractiveSession {
@@ -64,18 +74,82 @@ impl InteractiveSession {
             commands_for_completion.get_completions(prefix)
         }));
 
+        // Initialize session persistence
+        let persistence = SessionPersistence::with_default_id().ok();
+
+        // Initialize MCP proxy (empty for now, will be populated by App)
+        let mcp_proxy = Arc::new(Mutex::new(McpProxy::new()));
+
         Ok(Self {
             client,
             context: Context::new(),
             tui,
             model: DEFAULT_MODEL.to_string(),
             slash_commands,
+            persistence,
+            mcp_proxy,
         })
     }
 
     /// Run the REPL loop
     pub async fn run(&mut self) -> Result<()> {
         // TUI shows welcome banner automatically
+
+        // Check for resumable session and prompt user
+        let session_info = if let Some(ref persistence) = self.persistence {
+            persistence.check_resumable_session().ok().flatten()
+        } else {
+            None
+        };
+
+        if let Some(session_info) = session_info {
+            // Temporarily cleanup TUI to show prompt
+            self.tui.cleanup()?;
+
+            if self.prompt_resume_session(&session_info)? {
+                // Resume session
+                if let Some(ref mut persistence) = self.persistence {
+                    match persistence.resume_session() {
+                        Ok(messages) => {
+                            // Restore messages to context
+                            for msg in messages {
+                                self.context.add_message(msg.clone());
+
+                                // Add to TUI display (will be added after TUI reinit)
+                                let role = match msg.role {
+                                    MessageRole::User => TuiMessageRole::User,
+                                    MessageRole::Assistant => TuiMessageRole::Assistant,
+                                    MessageRole::System => TuiMessageRole::System,
+                                };
+                                self.tui.add_message(ChatMessage {
+                                    role,
+                                    content: msg.content,
+                                });
+                            }
+
+                            self.tui.add_message(ChatMessage {
+                                role: TuiMessageRole::System,
+                                content: format!(
+                                    "Session resumed ({} messages, {})",
+                                    session_info.message_count,
+                                    session_info.format_age()
+                                ),
+                            });
+                        }
+                        Err(e) => {
+                            eprintln!("Warning: Failed to resume session: {}", e);
+                        }
+                    }
+                }
+            }
+
+            // Reinitialize TUI after prompt
+            self.tui = TuiState::new()?;
+            let commands_for_completion = Arc::clone(&self.slash_commands);
+            self.tui.set_completion_callback(Box::new(move |prefix| {
+                commands_for_completion.get_completions(prefix)
+            }));
+        }
 
         loop {
             // Draw UI
@@ -127,6 +201,9 @@ impl InteractiveSession {
 
         match input {
             "/exit" | "/quit" => {
+                // Auto-save before exit
+                self.auto_save_session();
+
                 self.tui.cleanup()?;
                 println!("\nGoodbye, matey! Fair winds and following seas! ⛵");
                 std::process::exit(0);
@@ -143,7 +220,7 @@ impl InteractiveSession {
             "/help" => {
                 // Show all commands - built-in and custom
                 let custom_commands = self.slash_commands.list_commands();
-                let mut help_text = "Built-in Commands:\n  /exit, /quit - Exit the session\n  /clear - Clear conversation history\n  /help - Show this help\n  /stats - Show session statistics\n  !<command> - Execute shell command directly\n".to_string();
+                let mut help_text = "Built-in Commands:\n  /exit, /quit - Exit the session\n  /clear - Clear conversation history\n  /help - Show this help\n  /stats - Show session statistics\n  /save [description] - Save checkpoint\n  /load <checkpoint_id> - Load checkpoint\n  /sessions - List available sessions\n  !<command> - Execute shell command directly\n\nMCP Commands:\n  /mcp-list - List all MCP servers\n  /mcp-start <server-id> - Start an MCP server\n  /mcp-stop <server-id> - Stop an MCP server\n  /mcp-tools <server-id> - List tools from server\n  /mcp-status <server-id> - Show server status\n".to_string();
 
                 if !custom_commands.is_empty() {
                     help_text.push_str("\nCustom Commands:\n");
@@ -172,6 +249,45 @@ impl InteractiveSession {
                     content: stats,
                 });
                 return Ok(true);
+            }
+            _ if input.starts_with("/save") => {
+                self.handle_save_command(input)?;
+                return Ok(true);
+            }
+            _ if input.starts_with("/load") => {
+                self.handle_load_command(input)?;
+                return Ok(true);
+            }
+            "/sessions" => {
+                self.handle_sessions_command()?;
+                return Ok(true);
+            }
+            _ if input.starts_with("/mcp-") => {
+                // Handle MCP commands
+                if let Some((command, args)) = mcp_commands::parse_slash_command(input) {
+                    self.tui
+                        .set_status(format!("Executing MCP command: {}", input));
+
+                    match mcp_commands::handle_tui_command(self.mcp_proxy.clone(), &command, args)
+                        .await
+                    {
+                        Ok(output) => {
+                            self.tui.add_message(ChatMessage {
+                                role: TuiMessageRole::System,
+                                content: output,
+                            });
+                            self.tui.set_status("Ready".to_string());
+                        }
+                        Err(e) => {
+                            self.tui.add_message(ChatMessage {
+                                role: TuiMessageRole::System,
+                                content: format!("Error: {}", e),
+                            });
+                            self.tui.set_status(format!("Error: {}", e));
+                        }
+                    }
+                    return Ok(true);
+                }
             }
             _ if input.starts_with('/') => {
                 // Try custom slash command
@@ -645,6 +761,179 @@ impl InteractiveSession {
                 }
             })
             .collect()
+    }
+
+    /// Prompt user to resume session (outside of TUI)
+    fn prompt_resume_session(&self, info: &SessionInfo) -> Result<bool> {
+        println!("\nPrevious session found:");
+        println!("  Messages: {}", info.message_count);
+        println!("  Last saved: {}", info.format_age());
+        print!("\nResume session? [Y/n]: ");
+        io::stdout().flush()?;
+
+        let mut response = String::new();
+        io::stdin().read_line(&mut response)?;
+
+        let response = response.trim().to_lowercase();
+        Ok(response.is_empty() || response == "y" || response == "yes")
+    }
+
+    /// Auto-save session on exit
+    fn auto_save_session(&mut self) {
+        if let Some(ref mut persistence) = self.persistence {
+            let messages: Vec<Message> = self.context.messages().to_vec();
+            if let Err(e) = persistence.auto_save(&messages) {
+                eprintln!("Warning: Failed to auto-save session: {}", e);
+            }
+        }
+    }
+
+    /// Handle /save command
+    fn handle_save_command(&mut self, input: &str) -> Result<()> {
+        if let Some(ref mut persistence) = self.persistence {
+            // Extract description from command
+            let description = input.strip_prefix("/save").unwrap_or("").trim().to_string();
+
+            let description = if description.is_empty() {
+                "Manual save".to_string()
+            } else {
+                description
+            };
+
+            let messages: Vec<Message> = self.context.messages().to_vec();
+
+            match persistence.save_checkpoint(&messages, description.clone()) {
+                Ok(checkpoint_id) => {
+                    self.tui.add_message(ChatMessage {
+                        role: TuiMessageRole::System,
+                        content: format!("Checkpoint saved: {} ({})", checkpoint_id, description),
+                    });
+                }
+                Err(e) => {
+                    self.tui.add_message(ChatMessage {
+                        role: TuiMessageRole::System,
+                        content: format!("Failed to save checkpoint: {}", e),
+                    });
+                }
+            }
+        } else {
+            self.tui.add_message(ChatMessage {
+                role: TuiMessageRole::System,
+                content: "Session persistence not available".to_string(),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Handle /load command
+    fn handle_load_command(&mut self, input: &str) -> Result<()> {
+        if let Some(ref mut persistence) = self.persistence {
+            // Extract checkpoint ID from command
+            let checkpoint_id = input.strip_prefix("/load").unwrap_or("").trim();
+
+            if checkpoint_id.is_empty() {
+                self.tui.add_message(ChatMessage {
+                    role: TuiMessageRole::System,
+                    content:
+                        "Usage: /load <checkpoint_id>\nUse /sessions to list available checkpoints"
+                            .to_string(),
+                });
+                return Ok(());
+            }
+
+            match persistence.load_checkpoint(checkpoint_id) {
+                Ok(messages) => {
+                    // Clear current context and TUI
+                    self.context = Context::new();
+
+                    // Restore messages
+                    for msg in &messages {
+                        self.context.add_message(msg.clone());
+
+                        let role = match msg.role {
+                            MessageRole::User => TuiMessageRole::User,
+                            MessageRole::Assistant => TuiMessageRole::Assistant,
+                            MessageRole::System => TuiMessageRole::System,
+                        };
+
+                        self.tui.add_message(ChatMessage {
+                            role,
+                            content: msg.content.clone(),
+                        });
+                    }
+
+                    self.tui.add_message(ChatMessage {
+                        role: TuiMessageRole::System,
+                        content: format!(
+                            "Checkpoint loaded: {} ({} messages)",
+                            checkpoint_id,
+                            messages.len()
+                        ),
+                    });
+                }
+                Err(e) => {
+                    self.tui.add_message(ChatMessage {
+                        role: TuiMessageRole::System,
+                        content: format!("Failed to load checkpoint: {}", e),
+                    });
+                }
+            }
+        } else {
+            self.tui.add_message(ChatMessage {
+                role: TuiMessageRole::System,
+                content: "Session persistence not available".to_string(),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Handle /sessions command
+    fn handle_sessions_command(&mut self) -> Result<()> {
+        if let Some(ref persistence) = self.persistence {
+            match persistence.list_checkpoints() {
+                Ok(checkpoints) => {
+                    if checkpoints.is_empty() {
+                        self.tui.add_message(ChatMessage {
+                            role: TuiMessageRole::System,
+                            content: "No checkpoints found for current session".to_string(),
+                        });
+                    } else {
+                        let mut output =
+                            format!("Available checkpoints ({}):\n", checkpoints.len());
+                        for (idx, (description, info)) in checkpoints.iter().enumerate() {
+                            output.push_str(&format!(
+                                "  {}. {} - {} messages, {}\n",
+                                idx + 1,
+                                description,
+                                info.message_count,
+                                info.format_age()
+                            ));
+                        }
+                        output.push_str("\nUse /load <checkpoint_id> to restore a checkpoint");
+
+                        self.tui.add_message(ChatMessage {
+                            role: TuiMessageRole::System,
+                            content: output,
+                        });
+                    }
+                }
+                Err(e) => {
+                    self.tui.add_message(ChatMessage {
+                        role: TuiMessageRole::System,
+                        content: format!("Failed to list checkpoints: {}", e),
+                    });
+                }
+            }
+        } else {
+            self.tui.add_message(ChatMessage {
+                role: TuiMessageRole::System,
+                content: "Session persistence not available".to_string(),
+            });
+        }
+
+        Ok(())
     }
 }
 

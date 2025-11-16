@@ -10,7 +10,9 @@ mod checkpoint;
 mod commands;
 mod hooks;
 mod interactive;
+mod mcp_commands;
 mod plugins;
+mod session_persistence;
 mod settings;
 mod terminal_guard;
 mod tool_definitions;
@@ -152,8 +154,12 @@ struct Cli {
 enum Commands {
     /// Update to latest version
     Update,
-    /// Configure Model Context Protocol (MCP) servers
-    Mcp,
+    /// Manage Model Context Protocol (MCP) servers
+    Mcp {
+        /// MCP subcommand and arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
 }
 
 /// Unified CLI application state
@@ -174,6 +180,8 @@ struct App {
     session: checkpoint::Session,
     /// Session saver
     session_saver: checkpoint::SessionSaver,
+    /// MCP proxy for managing MCP servers
+    mcp_proxy: std::sync::Arc<tokio::sync::Mutex<plugins::mcp_proxy::McpProxy>>,
 }
 
 impl App {
@@ -231,10 +239,11 @@ impl App {
             }
         }
 
-        // 4. Load plugins
+        // 4. Load plugins and initialize MCP proxy
         tracing::debug!("Discovering and loading plugins...");
         let mut plugin_loader = plugins::PluginLoader::new();
         let mut plugin_executor = plugins::PluginExecutor::new();
+        let mut mcp_proxy = plugins::mcp_proxy::McpProxy::new();
 
         // Handle custom MCP config if specified
         if let Some(ref mcp_config_path) = cli.mcp_config {
@@ -250,13 +259,21 @@ impl App {
                 for plugin in plugins {
                     tracing::debug!("Registering plugin: {}", plugin.id);
                     plugin_executor.register(plugin.clone());
-                    plugin_loader.register(plugin);
+                    plugin_loader.register(plugin.clone());
+
+                    // Register MCP servers from plugin manifest
+                    for mcp_server in &plugin.manifest.mcp_servers {
+                        tracing::info!("Registering MCP server: {}", mcp_server.id);
+                        mcp_proxy.register_server(mcp_server.clone());
+                    }
                 }
             }
             Err(e) => {
                 tracing::warn!("Failed to discover plugins: {}", e);
             }
         }
+
+        let mcp_proxy = std::sync::Arc::new(tokio::sync::Mutex::new(mcp_proxy));
 
         // 5. Initialize slash command system
         tracing::debug!("Initializing slash command system...");
@@ -410,6 +427,7 @@ impl App {
             slash_commands,
             session,
             session_saver,
+            mcp_proxy,
         })
     }
 
@@ -443,10 +461,18 @@ impl App {
                 println!("This would check for and install the latest version of Claude Code.");
                 Ok(())
             }
-            Commands::Mcp => {
-                println!("MCP (Model Context Protocol) configuration not yet implemented.");
-                println!("This would allow you to configure MCP servers.");
-                Ok(())
+            Commands::Mcp { args } => {
+                // Handle MCP commands
+                match mcp_commands::handle_cli_command(self.mcp_proxy.clone(), args).await {
+                    Ok(output) => {
+                        println!("{}", output);
+                        Ok(())
+                    }
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
+                        std::process::exit(1);
+                    }
+                }
             }
         }
     }

@@ -362,3 +362,51 @@
 [2025-11-16T19:24:33.730690] INFO: === STOP HOOK ENDED (decision: approve - no reflection) ===
 [2025-11-16T19:24:33.730734] INFO: Returning output with keys: ['decision']
 [2025-11-16T19:24:33.730803] INFO: stop hook completed successfully
+[2025-11-16T21:10:08.491311] INFO: stop hook starting (Python 3.11.14)
+[2025-11-16T21:10:08.491411] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-16T21:10:08.491455] INFO: Event type: Stop
+[2025-11-16T21:10:08.491488] INFO: === STOP HOOK STARTED ===
+[2025-11-16T21:10:08.491521] INFO: Input keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-16T21:10:08.499532] INFO: stop hook starting (Python 3.11.14)
+[2025-11-16T21:10:08.499619] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-16T21:10:08.499681] INFO: Event type: Stop
+[2025-11-16T21:10:08.499722] INFO: === STOP HOOK STARTED ===
+[2025-11-16T21:10:08.499756] INFO: Input keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-16T21:10:08.704528] INFO: Neo4j cleanup handler started (auto_mode=False)
+[2025-11-16T21:10:08.718327] INFO: Neo4j cleanup handler started (auto_mode=False)
+[2025-11-16T21:10:08.726409] INFO: Neo4j cleanup handler completed
+[2025-11-16T21:10:08.737120] INFO: Neo4j cleanup handler completed
+[2025-11-16T21:10:09.093528] INFO: Running power-steering analysis...
+[2025-11-16T21:10:09.094030] INFO: Power-steering approved stop: ['error_failopen']
+[2025-11-16T21:10:09.094186] DEBUG: Reflection is disabled - skipping
+[2025-11-16T21:10:09.094221] INFO: Reflection not enabled or skipped - allowing stop
+[2025-11-16T21:10:09.094250] INFO: === STOP HOOK ENDED (decision: approve - no reflection) ===
+[2025-11-16T21:10:09.094286] INFO: Returning output with keys: ['decision']
+[2025-11-16T21:10:09.094350] INFO: stop hook completed successfully
+[2025-11-16T21:10:09.098590] INFO: Running power-steering analysis...
+[2025-11-16T21:10:09.099089] INFO: Power-steering approved stop: ['error_failopen']
+[2025-11-16T21:10:09.099238] DEBUG: Reflection is disabled - skipping
+[2025-11-16T21:10:09.099274] INFO: Reflection not enabled or skipped - allowing stop
+[2025-11-16T21:10:09.099304] INFO: === STOP HOOK ENDED (decision: approve - no reflection) ===
+[2025-11-16T21:10:09.099340] INFO: Returning output with keys: ['decision']
+[2025-11-16T21:10:09.099405] INFO: stop hook completed successfully
+[2025-11-16T22:02:13.093021] INFO: stop hook starting (Python 3.11.14)
+[2025-11-16T22:02:13.093122] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-16T22:02:13.093166] INFO: Event type: Stop
+[2025-11-16T22:02:13.093199] INFO: === STOP HOOK STARTED ===
+[2025-11-16T22:02:13.093232] INFO: Input keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-16T22:02:13.093274] INFO: Lock is active - blocking stop to continue working
+[2025-11-16T22:02:13.093371] INFO: No custom continuation prompt file - using default
+[2025-11-16T22:02:13.093410] INFO: === STOP HOOK ENDED (decision: block - lock active) ===
+[2025-11-16T22:02:13.093445] INFO: Returning output with keys: ['decision', 'reason']
+[2025-11-16T22:02:13.093517] INFO: stop hook completed successfully
+[2025-11-16T22:02:13.099889] INFO: stop hook starting (Python 3.11.14)
+[2025-11-16T22:02:13.099981] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-16T22:02:13.100025] INFO: Event type: Stop
+[2025-11-16T22:02:13.100059] INFO: === STOP HOOK STARTED ===
+[2025-11-16T22:02:13.100091] INFO: Input keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-11-16T22:02:13.100132] INFO: Lock is active - blocking stop to continue working
+[2025-11-16T22:02:13.100220] INFO: No custom continuation prompt file - using default
+[2025-11-16T22:02:13.100257] INFO: === STOP HOOK ENDED (decision: block - lock active) ===
+[2025-11-16T22:02:13.100291] INFO: Returning output with keys: ['decision', 'reason']
+[2025-11-16T22:02:13.100352] INFO: stop hook completed successfully
