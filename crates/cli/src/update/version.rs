@@ -1,14 +1,21 @@
 //! Version detection and comparison module
 
 use crate::update::error::UpdateError;
+use serde::{Serialize, Deserialize};
 use std::cmp::Ordering;
 
 /// Represents a semantic version (major.minor.patch)
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Version {
     pub major: u32,
     pub minor: u32,
     pub patch: u32,
+}
+
+impl std::fmt::Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
+    }
 }
 
 impl Version {

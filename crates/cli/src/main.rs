@@ -152,8 +152,20 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Update to latest version
-    Update,
+    /// Manage application updates
+    Update {
+        /// Check for available updates without installing
+        #[arg(long)]
+        check: bool,
+
+        /// Force update check even if interval hasn't elapsed
+        #[arg(long)]
+        force: bool,
+
+        /// Rollback to the previous version
+        #[arg(long)]
+        rollback: bool,
+    },
     /// Manage Model Context Protocol (MCP) servers
     Mcp {
         /// MCP subcommand and arguments
@@ -438,6 +450,9 @@ impl App {
             return self.run_subcommand(command).await;
         }
 
+        // Perform scheduled update check (if applicable)
+        self.check_for_updates_on_startup().await;
+
         // Call SessionStart hook
         self.execute_session_start_hook().await?;
 
@@ -453,14 +468,63 @@ impl App {
         result
     }
 
+    /// Check for updates on startup (background, non-blocking)
+    async fn check_for_updates_on_startup(&self) {
+        use rustyclawd::update::UpdateScheduler;
+        use rustyclawd::update::Version;
+        use rustyclawd::update::GitHubClient;
+
+        tracing::debug!("Checking if scheduled update check is needed");
+
+        // Try to create scheduler and check if update check is needed
+        match UpdateScheduler::new() {
+            Ok(scheduler) => {
+                if !scheduler.should_check_on_startup() {
+                    tracing::debug!("Update check not needed at this time");
+                    return;
+                }
+
+                tracing::info!("Performing scheduled background update check");
+
+                // Spawn background task to perform check
+                let current_version = Version::current();
+                let client = GitHubClient::new("rysweet", "RustyClawd");
+
+                // We'll do a simple non-blocking check here
+                tokio::spawn(async move {
+                    match client.get_update_info(&current_version).await {
+                        Ok(Some(update_info)) => {
+                            tracing::info!(
+                                "Update available: {} -> {}",
+                                current_version,
+                                update_info.latest_version
+                            );
+                            // Note: In a full implementation, we might show a notification
+                            // For now, we just log it
+                        }
+                        Ok(None) => {
+                            tracing::debug!("Already at latest version");
+                        }
+                        Err(e) => {
+                            tracing::warn!("Background update check failed: {}", e);
+                        }
+                    }
+                });
+            }
+            Err(e) => {
+                tracing::warn!("Failed to initialize update scheduler: {}", e);
+            }
+        }
+    }
+
     /// Run subcommands (update, mcp)
     async fn run_subcommand(&self, command: &Commands) -> Result<()> {
         match command {
-            Commands::Update => {
-                println!("Update functionality not yet implemented.");
-                println!("This would check for and install the latest version of Claude Code.");
-                Ok(())
-            }
+            Commands::Update {
+                check,
+                force,
+                rollback,
+            } => self.handle_update_command(*check, *force, *rollback).await,
             Commands::Mcp { args } => {
                 // Handle MCP commands
                 match mcp_commands::handle_cli_command(self.mcp_proxy.clone(), args).await {
@@ -472,6 +536,59 @@ impl App {
                         eprintln!("Error: {}", e);
                         std::process::exit(1);
                     }
+                }
+            }
+        }
+    }
+
+    /// Handle update command with all subcommands
+    async fn handle_update_command(
+        &self,
+        check: bool,
+        force: bool,
+        rollback: bool,
+    ) -> Result<()> {
+        use rustyclawd::update::{
+            format_update_message, handle_check_updates, handle_install_update, handle_rollback,
+        };
+
+        tracing::info!("Processing update command: check={}, force={}, rollback={}", check, force, rollback);
+
+        // Determine which operation to perform
+        if rollback {
+            // Rollback to previous version
+            match handle_rollback().await {
+                Ok(result) => {
+                    println!("{}", format_update_message(&result));
+                    return Ok(());
+                }
+                Err(e) => {
+                    eprintln!("Update error: {}", e);
+                    return Err(e.into());
+                }
+            }
+        } else if check {
+            // Check for updates
+            match handle_check_updates(force).await {
+                Ok(result) => {
+                    println!("{}", format_update_message(&result));
+                    return Ok(());
+                }
+                Err(e) => {
+                    eprintln!("Update error: {}", e);
+                    return Err(e.into());
+                }
+            }
+        } else {
+            // Install update
+            match handle_install_update().await {
+                Ok(result) => {
+                    println!("{}", format_update_message(&result));
+                    return Ok(());
+                }
+                Err(e) => {
+                    eprintln!("Update error: {}", e);
+                    return Err(e.into());
                 }
             }
         }

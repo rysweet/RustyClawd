@@ -130,7 +130,7 @@ impl GitHubClient {
 }
 
 /// Information about an available update
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct UpdateInfo {
     pub current_version: Version,
     pub latest_version: Version,

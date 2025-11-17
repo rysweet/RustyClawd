@@ -22,7 +22,9 @@ pub mod config;
 pub mod downloader;
 pub mod error;
 pub mod github_client;
+pub mod handler;
 pub mod installer;
+pub mod scheduler;
 pub mod state;
 pub mod version;
 
@@ -32,7 +34,12 @@ pub use config::UpdateConfig;
 pub use downloader::{BinaryDownload, BinaryDownloader, DownloadConfig};
 pub use error::UpdateError;
 pub use github_client::{GitHubClient, Release, ReleaseAsset, UpdateInfo};
+pub use handler::{
+    format_update_message, handle_check_updates, handle_install_update, handle_rollback,
+    UpdateOperationResult,
+};
 pub use installer::{BinaryInstaller, InstallResult, InstallerConfig};
+pub use scheduler::{ScheduledCheckResult, UpdateScheduler};
 pub use state::{UpdateRecord, UpdateStateManager, UpdateStatus};
 pub use version::Version;
 
