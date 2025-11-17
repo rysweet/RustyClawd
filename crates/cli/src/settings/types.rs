@@ -44,6 +44,13 @@ impl ToolPermission {
     }
 }
 
+/// Sandbox configuration settings
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SandboxSettings {
+    /// Whether sandbox is enabled
+    pub enabled: bool,
+}
+
 /// Core configuration settings
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Settings {
@@ -63,6 +70,8 @@ pub struct Settings {
     pub disable_bypass_permissions: bool,
     /// Plugin enable/disable settings
     pub enabled_plugins: HashMap<String, bool>,
+    /// Sandbox settings
+    pub sandbox: Option<SandboxSettings>,
 }
 
 impl Default for Settings {
@@ -76,6 +85,7 @@ impl Default for Settings {
             env_vars: HashMap::new(),
             disable_bypass_permissions: false,
             enabled_plugins: HashMap::new(),
+            sandbox: None,
         }
     }
 }
@@ -174,6 +184,7 @@ impl Settings {
             && self.env_vars.is_empty()
             && !self.disable_bypass_permissions
             && self.enabled_plugins.is_empty()
+            && self.sandbox.is_none()
     }
 }
 

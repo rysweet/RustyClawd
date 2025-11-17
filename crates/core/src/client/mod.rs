@@ -318,6 +318,26 @@ impl Client {
                 .push(Message::with_blocks(Role::User, tool_result_blocks));
         }
     }
+
+    /// Get the API URL for custom request handling
+    pub fn api_url(&self) -> &str {
+        &self.config.api_url
+    }
+
+    /// Get the API version for custom request handling
+    pub fn api_version(&self) -> &str {
+        &self.config.api_version
+    }
+
+    /// Get the HTTP client for custom request handling
+    pub fn http_client(&self) -> &HttpClient {
+        &self.http_client
+    }
+
+    /// Get a reference to the config
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
 }
 
 /// Sanitize error text to remove any API keys

@@ -31,6 +31,115 @@ pub struct SessionStats {
     pub duration_seconds: u64,
     /// Current model being used
     pub model: String,
+    /// Rate limit data from API headers
+    pub rate_limits: RateLimitData,
+}
+
+/// Rate limit data extracted from Anthropic API response headers
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RateLimitData {
+    /// Requests limit per minute
+    pub requests_limit: Option<u32>,
+    /// Remaining requests in current window
+    pub requests_remaining: Option<u32>,
+    /// Requests reset time (Unix timestamp)
+    pub requests_reset: Option<u64>,
+    /// Tokens limit per day
+    pub tokens_limit: Option<u64>,
+    /// Remaining tokens in current window
+    pub tokens_remaining: Option<u64>,
+    /// Tokens reset time (Unix timestamp)
+    pub tokens_reset: Option<u64>,
+    /// Last update timestamp
+    pub last_updated: Option<DateTime<Utc>>,
+}
+
+impl RateLimitData {
+    /// Create new empty rate limit data
+    pub fn new() -> Self {
+        Self {
+            requests_limit: None,
+            requests_remaining: None,
+            requests_reset: None,
+            tokens_limit: None,
+            tokens_remaining: None,
+            tokens_reset: None,
+            last_updated: None,
+        }
+    }
+
+    /// Update from HTTP response headers
+    /// Headers follow format: anthropic-ratelimit-{resource}-{attribute}
+    ///
+    /// Generic over HeaderMap types to handle version mismatches
+    pub fn update_from_headers<T>(&mut self, headers: &T)
+    where
+        T: HeaderMapLike,
+    {
+        // Requests
+        if let Some(val) = headers.get_str("anthropic-ratelimit-requests-limit") {
+            self.requests_limit = val.parse().ok();
+        }
+        if let Some(val) = headers.get_str("anthropic-ratelimit-requests-remaining") {
+            self.requests_remaining = val.parse().ok();
+        }
+        if let Some(val) = headers.get_str("anthropic-ratelimit-requests-reset") {
+            self.requests_reset = val.parse().ok();
+        }
+
+        // Tokens
+        if let Some(val) = headers.get_str("anthropic-ratelimit-tokens-limit") {
+            self.tokens_limit = val.parse().ok();
+        }
+        if let Some(val) = headers.get_str("anthropic-ratelimit-tokens-remaining") {
+            self.tokens_remaining = val.parse().ok();
+        }
+        if let Some(val) = headers.get_str("anthropic-ratelimit-tokens-reset") {
+            self.tokens_reset = val.parse().ok();
+        }
+
+        self.last_updated = Some(Utc::now());
+    }
+
+    /// Calculate percentage of requests used
+    pub fn requests_percentage(&self) -> Option<u32> {
+        match (self.requests_limit, self.requests_remaining) {
+            (Some(limit), Some(remaining)) if limit > 0 => {
+                let used = limit.saturating_sub(remaining);
+                Some((used as f64 / limit as f64 * 100.0) as u32)
+            }
+            _ => None,
+        }
+    }
+
+    /// Calculate percentage of tokens used
+    pub fn tokens_percentage(&self) -> Option<u32> {
+        match (self.tokens_limit, self.tokens_remaining) {
+            (Some(limit), Some(remaining)) if limit > 0 => {
+                let used = limit.saturating_sub(remaining);
+                Some((used as f64 / limit as f64 * 100.0) as u32)
+            }
+            _ => None,
+        }
+    }
+}
+
+impl Default for RateLimitData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Trait for abstracting over different HeaderMap versions
+pub trait HeaderMapLike {
+    fn get_str(&self, key: &str) -> Option<String>;
+}
+
+/// Implementation for http::HeaderMap (used by reqwest)
+impl HeaderMapLike for http::HeaderMap {
+    fn get_str(&self, key: &str) -> Option<String> {
+        self.get(key)?.to_str().ok().map(|s| s.to_string())
+    }
 }
 
 impl SessionStats {
@@ -48,6 +157,7 @@ impl SessionStats {
             session_start: Utc::now(),
             duration_seconds: 0,
             model: model.into(),
+            rate_limits: RateLimitData::new(),
         }
     }
 

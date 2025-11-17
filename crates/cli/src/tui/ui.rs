@@ -199,6 +199,30 @@ impl TuiState {
         self.scroll_to_bottom();
     }
 
+    /// Start a new streaming message from assistant
+    /// Returns index to use for appending
+    pub fn begin_streaming_message(&mut self) -> usize {
+        let index = self.messages.len();
+        self.messages.push(ChatMessage {
+            role: MessageRole::Assistant,
+            content: String::new(),
+        });
+        index
+    }
+
+    /// Append text to message at index
+    pub fn append_to_message(&mut self, index: usize, text: &str) {
+        if let Some(message) = self.messages.get_mut(index) {
+            message.content.push_str(text);
+            self.scroll_to_bottom();
+        }
+    }
+
+    /// Finalize streaming message
+    pub fn finalize_streaming_message(&mut self, _index: usize) {
+        self.scroll_to_bottom();
+    }
+
     /// Set status message
     pub fn set_status(&mut self, status: String) {
         self.status = status;

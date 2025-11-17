@@ -1,0 +1,26 @@
+# Basic Configuration Example
+# This file demonstrates a simple configuration for RustyClawd
+
+# Model configuration
+model = "claude-3-5-sonnet-20241022"
+
+# API settings
+api_url = "https://api.anthropic.com/v1/messages"
+timeout_secs = 120
+
+# Cleanup settings
+cleanup_period_days = 30
+
+# Environment variables
+[env_vars]
+PROJECT_NAME = "my-project"
+RUST_LOG = "info"
+
+# Tool permissions
+[permissions.bash]
+mode = "ask"
+patterns = ["ls", "cat", "echo"]
+
+[permissions.edit]
+mode = "allow"
+patterns = []

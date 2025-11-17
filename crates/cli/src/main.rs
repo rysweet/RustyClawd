@@ -10,11 +10,15 @@ mod checkpoint;
 mod commands;
 mod hooks;
 mod interactive;
+mod mcp_commands;
 mod plugins;
+mod session;
+mod session_persistence;
 mod settings;
 mod terminal_guard;
 mod tool_definitions;
 mod tool_executor;
+mod tool_formatter;
 mod tui;
 
 use anyhow::{Context as AnyhowContext, Result};
@@ -149,10 +153,26 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Update to latest version
-    Update,
-    /// Configure Model Context Protocol (MCP) servers
-    Mcp,
+    /// Manage application updates
+    Update {
+        /// Check for available updates without installing
+        #[arg(long)]
+        check: bool,
+
+        /// Force update check even if interval hasn't elapsed
+        #[arg(long)]
+        force: bool,
+
+        /// Rollback to the previous version
+        #[arg(long)]
+        rollback: bool,
+    },
+    /// Manage Model Context Protocol (MCP) servers
+    Mcp {
+        /// MCP subcommand and arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
 }
 
 /// Unified CLI application state
@@ -173,6 +193,8 @@ struct App {
     session: checkpoint::Session,
     /// Session saver
     session_saver: checkpoint::SessionSaver,
+    /// MCP proxy for managing MCP servers
+    mcp_proxy: std::sync::Arc<tokio::sync::Mutex<plugins::mcp_proxy::McpProxy>>,
 }
 
 impl App {
@@ -230,10 +252,11 @@ impl App {
             }
         }
 
-        // 4. Load plugins
+        // 4. Load plugins and initialize MCP proxy
         tracing::debug!("Discovering and loading plugins...");
         let mut plugin_loader = plugins::PluginLoader::new();
         let mut plugin_executor = plugins::PluginExecutor::new();
+        let mut mcp_proxy = plugins::mcp_proxy::McpProxy::new();
 
         // Handle custom MCP config if specified
         if let Some(ref mcp_config_path) = cli.mcp_config {
@@ -249,13 +272,21 @@ impl App {
                 for plugin in plugins {
                     tracing::debug!("Registering plugin: {}", plugin.id);
                     plugin_executor.register(plugin.clone());
-                    plugin_loader.register(plugin);
+                    plugin_loader.register(plugin.clone());
+
+                    // Register MCP servers from plugin manifest
+                    for mcp_server in &plugin.manifest.mcp_servers {
+                        tracing::info!("Registering MCP server: {}", mcp_server.id);
+                        mcp_proxy.register_server(mcp_server.clone());
+                    }
                 }
             }
             Err(e) => {
                 tracing::warn!("Failed to discover plugins: {}", e);
             }
         }
+
+        let mcp_proxy = std::sync::Arc::new(tokio::sync::Mutex::new(mcp_proxy));
 
         // 5. Initialize slash command system
         tracing::debug!("Initializing slash command system...");
@@ -409,6 +440,7 @@ impl App {
             slash_commands,
             session,
             session_saver,
+            mcp_proxy,
         })
     }
 
@@ -418,6 +450,9 @@ impl App {
         if let Some(command) = &self.cli.command {
             return self.run_subcommand(command).await;
         }
+
+        // Perform scheduled update check (if applicable)
+        self.check_for_updates_on_startup().await;
 
         // Call SessionStart hook
         self.execute_session_start_hook().await?;
@@ -434,18 +469,128 @@ impl App {
         result
     }
 
+    /// Check for updates on startup (background, non-blocking)
+    async fn check_for_updates_on_startup(&self) {
+        use rustyclawd::update::GitHubClient;
+        use rustyclawd::update::UpdateScheduler;
+        use rustyclawd::update::Version;
+
+        tracing::debug!("Checking if scheduled update check is needed");
+
+        // Try to create scheduler and check if update check is needed
+        match UpdateScheduler::new() {
+            Ok(scheduler) => {
+                if !scheduler.should_check_on_startup() {
+                    tracing::debug!("Update check not needed at this time");
+                    return;
+                }
+
+                tracing::info!("Performing scheduled background update check");
+
+                // Spawn background task to perform check
+                let current_version = Version::current();
+                let client = GitHubClient::new("rysweet", "RustyClawd");
+
+                // We'll do a simple non-blocking check here
+                tokio::spawn(async move {
+                    match client.get_update_info(&current_version).await {
+                        Ok(Some(update_info)) => {
+                            tracing::info!(
+                                "Update available: {} -> {}",
+                                current_version,
+                                update_info.latest_version
+                            );
+                            // Note: In a full implementation, we might show a notification
+                            // For now, we just log it
+                        }
+                        Ok(None) => {
+                            tracing::debug!("Already at latest version");
+                        }
+                        Err(e) => {
+                            tracing::warn!("Background update check failed: {}", e);
+                        }
+                    }
+                });
+            }
+            Err(e) => {
+                tracing::warn!("Failed to initialize update scheduler: {}", e);
+            }
+        }
+    }
+
     /// Run subcommands (update, mcp)
     async fn run_subcommand(&self, command: &Commands) -> Result<()> {
         match command {
-            Commands::Update => {
-                println!("Update functionality not yet implemented.");
-                println!("This would check for and install the latest version of Claude Code.");
-                Ok(())
+            Commands::Update {
+                check,
+                force,
+                rollback,
+            } => self.handle_update_command(*check, *force, *rollback).await,
+            Commands::Mcp { args } => {
+                // Handle MCP commands
+                match mcp_commands::handle_cli_command(self.mcp_proxy.clone(), args).await {
+                    Ok(output) => {
+                        println!("{}", output);
+                        Ok(())
+                    }
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
+                        std::process::exit(1);
+                    }
+                }
             }
-            Commands::Mcp => {
-                println!("MCP (Model Context Protocol) configuration not yet implemented.");
-                println!("This would allow you to configure MCP servers.");
-                Ok(())
+        }
+    }
+
+    /// Handle update command with all subcommands
+    async fn handle_update_command(&self, check: bool, force: bool, rollback: bool) -> Result<()> {
+        use rustyclawd::update::{
+            format_update_message, handle_check_updates, handle_install_update, handle_rollback,
+        };
+
+        tracing::info!(
+            "Processing update command: check={}, force={}, rollback={}",
+            check,
+            force,
+            rollback
+        );
+
+        // Determine which operation to perform
+        if rollback {
+            // Rollback to previous version
+            match handle_rollback().await {
+                Ok(result) => {
+                    println!("{}", format_update_message(&result));
+                    Ok(())
+                }
+                Err(e) => {
+                    eprintln!("Update error: {}", e);
+                    Err(e.into())
+                }
+            }
+        } else if check {
+            // Check for updates
+            match handle_check_updates(force).await {
+                Ok(result) => {
+                    println!("{}", format_update_message(&result));
+                    Ok(())
+                }
+                Err(e) => {
+                    eprintln!("Update error: {}", e);
+                    Err(e.into())
+                }
+            }
+        } else {
+            // Install update
+            match handle_install_update().await {
+                Ok(result) => {
+                    println!("{}", format_update_message(&result));
+                    Ok(())
+                }
+                Err(e) => {
+                    eprintln!("Update error: {}", e);
+                    Err(e.into())
+                }
             }
         }
     }

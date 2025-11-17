@@ -27,6 +27,11 @@ tracing-subscriber = { workspace = true }
 serde_json = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }
+reqwest = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+secrecy = "0.8"
+http = "1.3"
 
 # Interactive mode
 rustyline = "13.0"
@@ -36,14 +41,15 @@ unicode-segmentation = "1.12"
 
 # Slash command support
 serde_yaml = "0.9"
-thiserror = { workspace = true }
+toml = "0.8"
 dirs = "5.0"
-
-# Time handling
-chrono = { workspace = true }
 
 # Terminal state management
 lazy_static = "1.4"
+
+# Update mechanism - Phase 2
+sha2 = "0.10"
+tempfile = "3.8"
 
 [dev-dependencies]
 # CLI testing

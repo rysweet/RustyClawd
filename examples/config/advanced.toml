@@ -1,0 +1,69 @@
+# Advanced Configuration Example
+# This file demonstrates all available Settings fields in RustyClawd
+
+# LLM Model Configuration
+model = "claude-3-5-sonnet-20241022"
+
+# API Configuration
+api_url = "https://api.anthropic.com/v1/messages"
+timeout_secs = 300
+
+# Cleanup Configuration
+# Number of days before temporary files are cleaned up
+cleanup_period_days = 60
+
+# Security Configuration
+# If true, users cannot bypass permission checks even with command-line flags
+disable_bypass_permissions = true
+
+# Environment Variables
+# These variables will be set in the environment when running commands
+[env_vars]
+PROJECT_NAME = "advanced-project"
+RUST_LOG = "debug"
+CUSTOM_VAR = "custom-value"
+DATABASE_URL = "postgresql://localhost/mydb"
+
+# Tool Permissions
+# Configure which tools can be used and how
+
+# Bash tool - ask before running any command
+[permissions.bash]
+mode = "ask"
+patterns = ["ls", "cat", "echo", "git", "cargo"]
+
+# Edit tool - allow editing specific file patterns
+[permissions.edit]
+mode = "allow"
+patterns = ["*.rs", "*.toml", "*.md"]
+
+# Write tool - deny writing to certain locations
+[permissions.write]
+mode = "deny"
+patterns = ["/etc/*", "/sys/*"]
+
+# Read tool - always allow reading
+[permissions.read]
+mode = "allow"
+patterns = []
+
+# Grep tool - allow searching
+[permissions.grep]
+mode = "allow"
+patterns = []
+
+# Glob tool - allow file pattern matching
+[permissions.glob]
+mode = "allow"
+patterns = []
+
+# Plugin Configuration
+# Enable or disable specific plugins
+[enabled_plugins]
+github = true
+gitlab = false
+jira = true
+slack = false
+custom_analyzer = true
+code_formatter = true
+test_runner = true
