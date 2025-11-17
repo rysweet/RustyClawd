@@ -1,0 +1,31 @@
+# Cargo configuration for RustyClawd
+# Optimizes build sizes and prevents disk space issues
+
+[profile.dev]
+# Reduce debug symbols to save space (line numbers only)
+debug = 1  # Default is 2 (full debug info)
+# This saves 30-40% in debug build size
+
+[profile.test]
+# Minimize test artifacts
+debug = 1
+opt-level = 0
+
+[profile.release]
+# Strip symbols from release builds
+strip = true
+# Thin LTO for faster builds with good optimization
+lto = "thin"
+# Optimize for size
+opt-level = "z"
+# Reduce codegen units for smaller binaries
+codegen-units = 1
+
+[build]
+# Enable incremental compilation for faster rebuilds
+incremental = true
+# Limit parallel jobs to reduce peak disk usage
+jobs = 4
+
+# Uncomment to use shared target directory (advanced users)
+# target-dir = "/home/azureuser/.cargo-cache/target"
