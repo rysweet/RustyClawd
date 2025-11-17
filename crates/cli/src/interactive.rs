@@ -1170,7 +1170,10 @@ impl InteractiveSession {
 
             // Last updated timestamp
             if let Some(updated) = rl.last_updated {
-                output.push_str(&format!("\nLast updated: {}\n", updated.format("%Y-%m-%d %H:%M:%S UTC")));
+                output.push_str(&format!(
+                    "\nLast updated: {}\n",
+                    updated.format("%Y-%m-%d %H:%M:%S UTC")
+                ));
             }
         }
 
@@ -1208,9 +1211,7 @@ impl InteractiveSession {
             match registry.get_status(shell_id).await {
                 Ok(status) => {
                     let status_str = match status {
-                        rustyclawd_tools::process_registry::ProcessStatus::Running => {
-                            "Running"
-                        }
+                        rustyclawd_tools::process_registry::ProcessStatus::Running => "Running",
                         rustyclawd_tools::process_registry::ProcessStatus::Completed(code) => {
                             if code == 0 {
                                 "Completed (success)"

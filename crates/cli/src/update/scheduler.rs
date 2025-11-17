@@ -142,13 +142,11 @@ impl UpdateScheduler {
 
     /// Load configuration from file
     fn load_config(path: &Path) -> Result<UpdateConfig, UpdateError> {
-        let content = std::fs::read_to_string(path).map_err(|e| {
-            UpdateError::ConfigError(format!("Failed to read config file: {}", e))
-        })?;
+        let content = std::fs::read_to_string(path)
+            .map_err(|e| UpdateError::ConfigError(format!("Failed to read config file: {}", e)))?;
 
-        serde_json::from_str(&content).map_err(|e| {
-            UpdateError::ConfigError(format!("Failed to parse config: {}", e))
-        })
+        serde_json::from_str(&content)
+            .map_err(|e| UpdateError::ConfigError(format!("Failed to parse config: {}", e)))
     }
 
     /// Save configuration to file
@@ -160,13 +158,11 @@ impl UpdateScheduler {
             })?;
         }
 
-        let json = serde_json::to_string_pretty(&self.config).map_err(|e| {
-            UpdateError::ConfigError(format!("Failed to serialize config: {}", e))
-        })?;
+        let json = serde_json::to_string_pretty(&self.config)
+            .map_err(|e| UpdateError::ConfigError(format!("Failed to serialize config: {}", e)))?;
 
-        std::fs::write(&self.config_path, json).map_err(|e| {
-            UpdateError::ConfigError(format!("Failed to write config file: {}", e))
-        })?;
+        std::fs::write(&self.config_path, json)
+            .map_err(|e| UpdateError::ConfigError(format!("Failed to write config file: {}", e)))?;
 
         debug!("Config saved to: {:?}", self.config_path);
         Ok(())
@@ -294,8 +290,8 @@ mod tests {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let config_path = temp_dir.path().join("config.json");
 
-        let mut scheduler = UpdateScheduler::with_config_path(config_path)
-            .expect("Failed to create scheduler");
+        let mut scheduler =
+            UpdateScheduler::with_config_path(config_path).expect("Failed to create scheduler");
 
         assert!(scheduler.set_auto_check(false).is_ok());
         assert!(!scheduler.config.auto_check);
@@ -306,8 +302,8 @@ mod tests {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let config_path = temp_dir.path().join("config.json");
 
-        let mut scheduler = UpdateScheduler::with_config_path(config_path)
-            .expect("Failed to create scheduler");
+        let mut scheduler =
+            UpdateScheduler::with_config_path(config_path).expect("Failed to create scheduler");
 
         assert!(scheduler.set_check_interval(48).is_ok());
         assert_eq!(scheduler.config.check_interval_hours, 48);
@@ -318,8 +314,8 @@ mod tests {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let config_path = temp_dir.path().join("config.json");
 
-        let mut scheduler = UpdateScheduler::with_config_path(config_path)
-            .expect("Failed to create scheduler");
+        let mut scheduler =
+            UpdateScheduler::with_config_path(config_path).expect("Failed to create scheduler");
 
         // First check: time until check should be 0 (should check immediately)
         assert_eq!(scheduler.time_until_next_check(), 0);

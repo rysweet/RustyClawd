@@ -122,9 +122,7 @@ pub async fn handle_install_update() -> Result<UpdateOperationResult, UpdateErro
     // Get the download URL for the platform
     let download_url = update_info
         .get_asset_for_platform()
-        .ok_or({
-            UpdateError::AssetNotFound
-        })?;
+        .ok_or(UpdateError::AssetNotFound)?;
 
     // Get binary path
     let binary_path = env::current_exe()
@@ -135,9 +133,7 @@ pub async fn handle_install_update() -> Result<UpdateOperationResult, UpdateErro
     // Download the new binary
     info!("Downloading update...");
     let downloader = BinaryDownloader::new()?;
-    let download_path = downloader
-        .download_to_temp(&download_url, None)
-        .await?;
+    let download_path = downloader.download_to_temp(&download_url, None).await?;
 
     info!("Downloaded to: {:?}", download_path);
 
@@ -169,8 +165,7 @@ pub async fn handle_install_update() -> Result<UpdateOperationResult, UpdateErro
                     "Successfully updated to version {}\n\
                     Backup saved at: {:?}\n\
                     Please restart the application to use the new version.",
-                    update_info.latest_version,
-                    result.backup_path
+                    update_info.latest_version, result.backup_path
                 ),
                 version: Some(update_info.latest_version.to_string()),
                 restart_required: true,
@@ -215,10 +210,7 @@ pub async fn handle_rollback() -> Result<UpdateOperationResult, UpdateError> {
         .map_err(|e| UpdateError::IoError(format!("Failed to get current binary path: {}", e)))?;
 
     // Rollback using installer
-    let installer = BinaryInstaller::with_backup_dir(
-        InstallerConfig::default(),
-        &backup_dir,
-    )?;
+    let installer = BinaryInstaller::with_backup_dir(InstallerConfig::default(), &backup_dir)?;
 
     match installer.rollback_to_backup(&latest_backup.backup_path, &binary_path) {
         Ok(_) => {
@@ -227,7 +219,8 @@ pub async fn handle_rollback() -> Result<UpdateOperationResult, UpdateError> {
             Ok(UpdateOperationResult {
                 success: true,
                 message: "Successfully rolled back to previous version.\n\
-                    Please restart the application to complete the rollback.".to_string(),
+                    Please restart the application to complete the rollback."
+                    .to_string(),
                 version: Some(Version::current().to_string()),
                 restart_required: true,
             })

@@ -341,10 +341,15 @@ impl BuiltinCommands {
                         dir
                     )
                 } else {
-                    format!("Error: Directory does not exist or is not a directory: {}", dir)
+                    format!(
+                        "Error: Directory does not exist or is not a directory: {}",
+                        dir
+                    )
                 }
             }
-            None => "Usage: /add-dir <directory>\n\nExample:\n  /add-dir /path/to/project".to_string(),
+            None => {
+                "Usage: /add-dir <directory>\n\nExample:\n  /add-dir /path/to/project".to_string()
+            }
         }
     }
 
@@ -484,36 +489,30 @@ impl BuiltinCommands {
             Some(style) => {
                 let style_lower = style.to_lowercase();
                 match style_lower.as_str() {
-                    "concise" => {
-                        "Output style set to: concise\n\n\
+                    "concise" => "Output style set to: concise\n\n\
                          Concise Mode:\n\
                          - Shorter responses\n\
                          - Less explanation\n\
                          - Focus on essential information\n\
                          - Ideal for experienced users\n\n\
                          Note: This setting will be applied to future responses."
-                            .to_string()
-                    }
-                    "balanced" => {
-                        "Output style set to: balanced\n\n\
+                        .to_string(),
+                    "balanced" => "Output style set to: balanced\n\n\
                          Balanced Mode:\n\
                          - Moderate detail level\n\
                          - Balance of explanation and brevity\n\
                          - Suitable for most use cases\n\
                          - Default setting\n\n\
                          Note: This setting will be applied to future responses."
-                            .to_string()
-                    }
-                    "detailed" => {
-                        "Output style set to: detailed\n\n\
+                        .to_string(),
+                    "detailed" => "Output style set to: detailed\n\n\
                          Detailed Mode:\n\
                          - Comprehensive responses\n\
                          - Extended explanations\n\
                          - Step-by-step reasoning\n\
                          - Ideal for learning and complex tasks\n\n\
                          Note: This setting will be applied to future responses."
-                            .to_string()
-                    }
+                        .to_string(),
                     _ => {
                         format!(
                             "Error: Invalid output style '{}'\n\n\
@@ -618,8 +617,7 @@ impl BuiltinCommands {
             Some(subcmd) => {
                 let parts: Vec<&str> = subcmd.split_whitespace().collect();
                 match parts.as_slice() {
-                    ["telemetry", "on"] => {
-                        "Telemetry enabled.\n\n\
+                    ["telemetry", "on"] => "Telemetry enabled.\n\n\
                          Anonymous usage data will be collected to help improve the CLI.\n\
                          This includes:\n\
                          - Command usage statistics\n\
@@ -627,16 +625,12 @@ impl BuiltinCommands {
                          - Performance metrics\n\n\
                          No conversation content or personal data is collected.\n\n\
                          Note: Privacy settings will be persisted in future updates."
-                            .to_string()
-                    }
-                    ["telemetry", "off"] => {
-                        "Telemetry disabled.\n\n\
+                        .to_string(),
+                    ["telemetry", "off"] => "Telemetry disabled.\n\n\
                          No usage data will be collected.\n\n\
                          Note: Privacy settings will be persisted in future updates."
-                            .to_string()
-                    }
-                    ["crash-reports", "on"] => {
-                        "Crash reports enabled.\n\n\
+                        .to_string(),
+                    ["crash-reports", "on"] => "Crash reports enabled.\n\n\
                          Crash reports help identify and fix bugs.\n\
                          Reports include:\n\
                          - Stack traces\n\
@@ -644,22 +638,17 @@ impl BuiltinCommands {
                          - Error context\n\n\
                          No conversation content is included.\n\n\
                          Note: Privacy settings will be persisted in future updates."
-                            .to_string()
-                    }
-                    ["crash-reports", "off"] => {
-                        "Crash reports disabled.\n\n\
+                        .to_string(),
+                    ["crash-reports", "off"] => "Crash reports disabled.\n\n\
                          Note: Privacy settings will be persisted in future updates."
-                            .to_string()
-                    }
-                    _ => {
-                        "Invalid privacy setting command.\n\n\
+                        .to_string(),
+                    _ => "Invalid privacy setting command.\n\n\
                          Usage:\n\
                          - /privacy-settings                    - Show current settings\n\
                          - /privacy-settings telemetry on|off   - Toggle telemetry\n\
                          - /privacy-settings crash-reports on|off - Toggle crash reports\n\n\
                          Example: /privacy-settings telemetry off"
-                            .to_string()
-                    }
+                        .to_string(),
                 }
             }
             None => {
@@ -682,9 +671,17 @@ impl BuiltinCommands {
                      - /privacy-settings crash-reports on|off\n\n\
                      Note: All conversation data remains local unless explicitly exported.\n\
                      Privacy settings will be persisted in future updates.",
-                    if TELEMETRY_ENABLED { "enabled" } else { "disabled" },
+                    if TELEMETRY_ENABLED {
+                        "enabled"
+                    } else {
+                        "disabled"
+                    },
                     if CRASH_REPORTS { "enabled" } else { "disabled" },
-                    if USAGE_ANALYTICS { "enabled" } else { "disabled" },
+                    if USAGE_ANALYTICS {
+                        "enabled"
+                    } else {
+                        "disabled"
+                    },
                     CONVERSATION_STORAGE,
                 )
             }
@@ -709,8 +706,7 @@ impl BuiltinCommands {
             Some(subcmd) => {
                 let parts: Vec<&str> = subcmd.split_whitespace().collect();
                 match parts.as_slice() {
-                    ["enable"] => {
-                        "Status line enabled.\n\n\
+                    ["enable"] => "Status line enabled.\n\n\
                          The status line will display:\n\
                          - Current model name\n\
                          - Token usage\n\
@@ -719,29 +715,21 @@ impl BuiltinCommands {
                          - Connection status\n\n\
                          Use /statusline customize to configure display items.\n\n\
                          Note: Status line integration will be implemented in future updates."
-                            .to_string()
-                    }
-                    ["disable"] => {
-                        "Status line disabled.\n\n\
+                        .to_string(),
+                    ["disable"] => "Status line disabled.\n\n\
                          The status line will not be displayed.\n\n\
                          Use /statusline enable to re-enable.\n\n\
                          Note: Status line integration will be implemented in future updates."
-                            .to_string()
-                    }
-                    ["position", "top"] => {
-                        "Status line position set to: top\n\n\
+                        .to_string(),
+                    ["position", "top"] => "Status line position set to: top\n\n\
                          The status line will appear at the top of the terminal.\n\n\
                          Note: Status line integration will be implemented in future updates."
-                            .to_string()
-                    }
-                    ["position", "bottom"] => {
-                        "Status line position set to: bottom\n\n\
+                        .to_string(),
+                    ["position", "bottom"] => "Status line position set to: bottom\n\n\
                          The status line will appear at the bottom of the terminal.\n\n\
                          Note: Status line integration will be implemented in future updates."
-                            .to_string()
-                    }
-                    ["customize"] => {
-                        "Status Line Customization:\n\n\
+                        .to_string(),
+                    ["customize"] => "Status Line Customization:\n\n\
                          Available items:\n\
                          - model       - Display current model name\n\
                          - tokens      - Show token usage\n\
@@ -754,8 +742,7 @@ impl BuiltinCommands {
                          - /statusline add <item>    - Add item to status line\n\
                          - /statusline remove <item> - Remove item from status line\n\n\
                          Note: Status line customization will be implemented in future updates."
-                            .to_string()
-                    }
+                        .to_string(),
                     ["add", item] => {
                         format!(
                             "Added '{}' to status line.\n\n\
@@ -770,8 +757,7 @@ impl BuiltinCommands {
                             item
                         )
                     }
-                    _ => {
-                        "Invalid statusline command.\n\n\
+                    _ => "Invalid statusline command.\n\n\
                          Usage:\n\
                          - /statusline                    - Show current configuration\n\
                          - /statusline enable             - Enable status line\n\
@@ -780,8 +766,7 @@ impl BuiltinCommands {
                          - /statusline customize          - View customization options\n\
                          - /statusline add <item>         - Add item to status line\n\
                          - /statusline remove <item>      - Remove item from status line"
-                            .to_string()
-                    }
+                        .to_string(),
                 }
             }
             None => {
@@ -801,7 +786,11 @@ impl BuiltinCommands {
                      - /statusline position <pos>   - Set position (top/bottom)\n\
                      - /statusline customize        - View customization options\n\n\
                      Note: Status line integration will be implemented in future updates.",
-                    if STATUS_ENABLED { "enabled" } else { "disabled" },
+                    if STATUS_ENABLED {
+                        "enabled"
+                    } else {
+                        "disabled"
+                    },
                     STATUS_POSITION,
                     STATUS_ITEMS.join(", "),
                 )
@@ -1018,8 +1007,7 @@ impl BuiltinCommands {
                              Note: GitHub API integration will be implemented in future updates."
                         )
                     }
-                    _ => {
-                        "Invalid PR reference format.\n\n\
+                    _ => "Invalid PR reference format.\n\n\
                          Usage:\n\
                          - /pr_comments <number>                 - Show all comments\n\
                          - /pr_comments <number> --author <user> - Filter by author\n\
@@ -1030,12 +1018,10 @@ impl BuiltinCommands {
                          - /pr_comments 123 --author username\n\
                          - /pr_comments 123 --unresolved\n\
                          - /pr_comments 123 --since 2025-01-01"
-                            .to_string()
-                    }
+                        .to_string(),
                 }
             }
-            None => {
-                "Pull Request Comments:\n\n\
+            None => "Pull Request Comments:\n\n\
                  View and manage comments on GitHub pull requests.\n\n\
                  Usage:\n\
                  - /pr_comments <pr-number>                  - Show all comments for PR\n\
@@ -1063,8 +1049,7 @@ impl BuiltinCommands {
                  - Filter by date to see latest feedback\n\n\
                  Note: Full GitHub API integration will be implemented in future updates.\n\
                  Consider using 'gh pr view <number>' for detailed PR information."
-                    .to_string()
-            }
+                .to_string(),
         }
     }
 }
@@ -1224,7 +1209,10 @@ mod tests {
 
     #[test]
     fn test_execute_add_dir_with_invalid_dir() {
-        let cmd = Command::new("add-dir".to_string(), Some("/nonexistent/path/xyz".to_string()));
+        let cmd = Command::new(
+            "add-dir".to_string(),
+            Some("/nonexistent/path/xyz".to_string()),
+        );
         let result = BuiltinCommands::execute(&cmd);
 
         assert!(result.is_some());
@@ -1276,7 +1264,11 @@ mod tests {
         assert!(result.is_some());
         let output = result.unwrap();
         assert!(output.contains("Todo"));
-        assert!(output.contains("pending") || output.contains("in_progress") || output.contains("completed"));
+        assert!(
+            output.contains("pending")
+                || output.contains("in_progress")
+                || output.contains("completed")
+        );
     }
 
     // P1 Priority Commands Tests
@@ -1393,7 +1385,11 @@ mod tests {
 
         assert!(result.is_some());
         let output = result.unwrap();
-        assert!(output.contains("Account") || output.contains("login") || output.contains("authenticate"));
+        assert!(
+            output.contains("Account")
+                || output.contains("login")
+                || output.contains("authenticate")
+        );
     }
 
     #[test]
@@ -1403,7 +1399,11 @@ mod tests {
 
         assert!(result.is_some());
         let output = result.unwrap();
-        assert!(output.contains("Logging out") || output.contains("logout") || output.contains("logged in"));
+        assert!(
+            output.contains("Logging out")
+                || output.contains("logout")
+                || output.contains("logged in")
+        );
     }
 
     #[test]
@@ -1419,7 +1419,10 @@ mod tests {
 
     #[test]
     fn test_execute_privacy_settings_telemetry_on() {
-        let cmd = Command::new("privacy-settings".to_string(), Some("telemetry on".to_string()));
+        let cmd = Command::new(
+            "privacy-settings".to_string(),
+            Some("telemetry on".to_string()),
+        );
         let result = BuiltinCommands::execute(&cmd);
 
         assert!(result.is_some());
@@ -1430,7 +1433,10 @@ mod tests {
 
     #[test]
     fn test_execute_privacy_settings_telemetry_off() {
-        let cmd = Command::new("privacy-settings".to_string(), Some("telemetry off".to_string()));
+        let cmd = Command::new(
+            "privacy-settings".to_string(),
+            Some("telemetry off".to_string()),
+        );
         let result = BuiltinCommands::execute(&cmd);
 
         assert!(result.is_some());
@@ -1441,7 +1447,10 @@ mod tests {
 
     #[test]
     fn test_execute_privacy_settings_crash_reports_on() {
-        let cmd = Command::new("privacy-settings".to_string(), Some("crash-reports on".to_string()));
+        let cmd = Command::new(
+            "privacy-settings".to_string(),
+            Some("crash-reports on".to_string()),
+        );
         let result = BuiltinCommands::execute(&cmd);
 
         assert!(result.is_some());
@@ -1452,7 +1461,10 @@ mod tests {
 
     #[test]
     fn test_execute_privacy_settings_crash_reports_off() {
-        let cmd = Command::new("privacy-settings".to_string(), Some("crash-reports off".to_string()));
+        let cmd = Command::new(
+            "privacy-settings".to_string(),
+            Some("crash-reports off".to_string()),
+        );
         let result = BuiltinCommands::execute(&cmd);
 
         assert!(result.is_some());
@@ -1463,7 +1475,10 @@ mod tests {
 
     #[test]
     fn test_execute_privacy_settings_invalid() {
-        let cmd = Command::new("privacy-settings".to_string(), Some("invalid setting".to_string()));
+        let cmd = Command::new(
+            "privacy-settings".to_string(),
+            Some("invalid setting".to_string()),
+        );
         let result = BuiltinCommands::execute(&cmd);
 
         assert!(result.is_some());
@@ -1545,7 +1560,10 @@ mod tests {
 
     #[test]
     fn test_execute_statusline_position_bottom() {
-        let cmd = Command::new("statusline".to_string(), Some("position bottom".to_string()));
+        let cmd = Command::new(
+            "statusline".to_string(),
+            Some("position bottom".to_string()),
+        );
         let result = BuiltinCommands::execute(&cmd);
 
         assert!(result.is_some());
@@ -1587,7 +1605,10 @@ mod tests {
 
     #[test]
     fn test_execute_statusline_invalid() {
-        let cmd = Command::new("statusline".to_string(), Some("invalid command".to_string()));
+        let cmd = Command::new(
+            "statusline".to_string(),
+            Some("invalid command".to_string()),
+        );
         let result = BuiltinCommands::execute(&cmd);
 
         assert!(result.is_some());
@@ -1656,7 +1677,10 @@ mod tests {
 
     #[test]
     fn test_execute_pr_comments_with_author_filter() {
-        let cmd = Command::new("pr_comments".to_string(), Some("123 --author reviewer".to_string()));
+        let cmd = Command::new(
+            "pr_comments".to_string(),
+            Some("123 --author reviewer".to_string()),
+        );
         let result = BuiltinCommands::execute(&cmd);
 
         assert!(result.is_some());
@@ -1667,7 +1691,10 @@ mod tests {
 
     #[test]
     fn test_execute_pr_comments_unresolved_only() {
-        let cmd = Command::new("pr_comments".to_string(), Some("123 --unresolved".to_string()));
+        let cmd = Command::new(
+            "pr_comments".to_string(),
+            Some("123 --unresolved".to_string()),
+        );
         let result = BuiltinCommands::execute(&cmd);
 
         assert!(result.is_some());
@@ -1678,7 +1705,10 @@ mod tests {
 
     #[test]
     fn test_execute_pr_comments_with_date_filter() {
-        let cmd = Command::new("pr_comments".to_string(), Some("123 --since 2025-01-01".to_string()));
+        let cmd = Command::new(
+            "pr_comments".to_string(),
+            Some("123 --since 2025-01-01".to_string()),
+        );
         let result = BuiltinCommands::execute(&cmd);
 
         assert!(result.is_some());
@@ -1689,7 +1719,10 @@ mod tests {
 
     #[test]
     fn test_execute_pr_comments_invalid_format() {
-        let cmd = Command::new("pr_comments".to_string(), Some("invalid format".to_string()));
+        let cmd = Command::new(
+            "pr_comments".to_string(),
+            Some("invalid format".to_string()),
+        );
         let result = BuiltinCommands::execute(&cmd);
 
         assert!(result.is_some());

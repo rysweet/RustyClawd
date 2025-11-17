@@ -431,7 +431,6 @@ impl App {
             tracing::info!("Successfully restored checkpoint {}", checkpoint_num);
         }
 
-
         Ok(Self {
             cli,
             settings,
@@ -472,9 +471,9 @@ impl App {
 
     /// Check for updates on startup (background, non-blocking)
     async fn check_for_updates_on_startup(&self) {
+        use rustyclawd::update::GitHubClient;
         use rustyclawd::update::UpdateScheduler;
         use rustyclawd::update::Version;
-        use rustyclawd::update::GitHubClient;
 
         tracing::debug!("Checking if scheduled update check is needed");
 
@@ -544,17 +543,17 @@ impl App {
     }
 
     /// Handle update command with all subcommands
-    async fn handle_update_command(
-        &self,
-        check: bool,
-        force: bool,
-        rollback: bool,
-    ) -> Result<()> {
+    async fn handle_update_command(&self, check: bool, force: bool, rollback: bool) -> Result<()> {
         use rustyclawd::update::{
             format_update_message, handle_check_updates, handle_install_update, handle_rollback,
         };
 
-        tracing::info!("Processing update command: check={}, force={}, rollback={}", check, force, rollback);
+        tracing::info!(
+            "Processing update command: check={}, force={}, rollback={}",
+            check,
+            force,
+            rollback
+        );
 
         // Determine which operation to perform
         if rollback {

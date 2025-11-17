@@ -102,7 +102,10 @@ impl UpdateRecord {
 
     /// Check if the update is complete
     pub fn is_complete(&self) -> bool {
-        matches!(self.status, UpdateStatus::Installed | UpdateStatus::Failed | UpdateStatus::RolledBack)
+        matches!(
+            self.status,
+            UpdateStatus::Installed | UpdateStatus::Failed | UpdateStatus::RolledBack
+        )
     }
 
     /// Check if the update is in a retryable state
@@ -133,8 +136,12 @@ impl UpdateStateManager {
         // Create the parent directory if it doesn't exist
         if let Some(parent) = state_file.parent() {
             if !parent.exists() {
-                fs::create_dir_all(parent)
-                    .map_err(|e| UpdateError::StatePersistenceFailed(format!("Failed to create state directory: {}", e)))?;
+                fs::create_dir_all(parent).map_err(|e| {
+                    UpdateError::StatePersistenceFailed(format!(
+                        "Failed to create state directory: {}",
+                        e
+                    ))
+                })?;
             }
         }
 
@@ -144,8 +151,9 @@ impl UpdateStateManager {
 
     /// Get the default state file location (~/.rusty/update_state.json)
     fn get_default_state_file() -> Result<PathBuf, UpdateError> {
-        let home_dir = dirs::home_dir()
-            .ok_or_else(|| UpdateError::StatePersistenceFailed("Failed to determine home directory".to_string()))?;
+        let home_dir = dirs::home_dir().ok_or_else(|| {
+            UpdateError::StatePersistenceFailed("Failed to determine home directory".to_string())
+        })?;
 
         Ok(home_dir.join(".rusty").join("update_state.json"))
     }
@@ -153,29 +161,39 @@ impl UpdateStateManager {
     /// Load update state from the state file
     ///
     /// Returns empty map if the file doesn't exist
-    pub fn load_state(&self) -> Result<std::collections::HashMap<String, UpdateRecord>, UpdateError> {
+    pub fn load_state(
+        &self,
+    ) -> Result<std::collections::HashMap<String, UpdateRecord>, UpdateError> {
         if !self.state_file.exists() {
             debug!("State file does not exist, returning empty state");
             return Ok(std::collections::HashMap::new());
         }
 
-        let json = fs::read_to_string(&self.state_file)
-            .map_err(|e| UpdateError::StatePersistenceFailed(format!("Failed to read state file: {}", e)))?;
+        let json = fs::read_to_string(&self.state_file).map_err(|e| {
+            UpdateError::StatePersistenceFailed(format!("Failed to read state file: {}", e))
+        })?;
 
         let state: std::collections::HashMap<String, UpdateRecord> = serde_json::from_str(&json)
-            .map_err(|e| UpdateError::InvalidStateData(format!("Failed to parse state data: {}", e)))?;
+            .map_err(|e| {
+                UpdateError::InvalidStateData(format!("Failed to parse state data: {}", e))
+            })?;
 
         debug!("Loaded state with {} records", state.len());
         Ok(state)
     }
 
     /// Save update state to the state file
-    pub fn save_state(&self, state: &std::collections::HashMap<String, UpdateRecord>) -> Result<(), UpdateError> {
-        let json =
-            serde_json::to_string_pretty(state).map_err(|e| UpdateError::InvalidStateData(format!("Failed to serialize state: {}", e)))?;
+    pub fn save_state(
+        &self,
+        state: &std::collections::HashMap<String, UpdateRecord>,
+    ) -> Result<(), UpdateError> {
+        let json = serde_json::to_string_pretty(state).map_err(|e| {
+            UpdateError::InvalidStateData(format!("Failed to serialize state: {}", e))
+        })?;
 
-        fs::write(&self.state_file, json)
-            .map_err(|e| UpdateError::StatePersistenceFailed(format!("Failed to write state file: {}", e)))?;
+        fs::write(&self.state_file, json).map_err(|e| {
+            UpdateError::StatePersistenceFailed(format!("Failed to write state file: {}", e))
+        })?;
 
         debug!("Saved state with {} records", state.len());
         Ok(())
@@ -227,7 +245,10 @@ impl UpdateStateManager {
     /// Get failed update records
     pub fn get_failed_records(&self) -> Result<Vec<UpdateRecord>, UpdateError> {
         let records = self.get_all_records()?;
-        Ok(records.into_iter().filter(|r| r.status == UpdateStatus::Failed).collect())
+        Ok(records
+            .into_iter()
+            .filter(|r| r.status == UpdateStatus::Failed)
+            .collect())
     }
 
     /// Get retryable update records
@@ -242,8 +263,10 @@ impl UpdateStateManager {
         let original_count = state.len();
 
         // Group records by status
-        let mut records_by_status: std::collections::HashMap<UpdateStatus, Vec<(String, UpdateRecord)>> =
-            std::collections::HashMap::new();
+        let mut records_by_status: std::collections::HashMap<
+            UpdateStatus,
+            Vec<(String, UpdateRecord)>,
+        > = std::collections::HashMap::new();
 
         for (version, record) in state.iter() {
             records_by_status
@@ -364,10 +387,15 @@ mod tests {
     #[test]
     fn test_update_state_manager_creates_directory() {
         let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
-        let state_file = temp_dir.path().join("nested").join("dir").join("state.json");
+        let state_file = temp_dir
+            .path()
+            .join("nested")
+            .join("dir")
+            .join("state.json");
 
         assert!(!state_file.parent().unwrap().exists());
-        let _manager = UpdateStateManager::with_file(&state_file).expect("Failed to create manager");
+        let _manager =
+            UpdateStateManager::with_file(&state_file).expect("Failed to create manager");
         assert!(state_file.parent().unwrap().exists());
     }
 
@@ -408,7 +436,9 @@ mod tests {
         let manager = UpdateStateManager::with_file(&state_file).expect("Failed to create manager");
 
         let record = UpdateRecord::new("1.2.0".to_string());
-        manager.upsert_record("1.2.0", record).expect("Failed to upsert record");
+        manager
+            .upsert_record("1.2.0", record)
+            .expect("Failed to upsert record");
 
         let loaded = manager.get_record("1.2.0").expect("Failed to get record");
         assert!(loaded.is_some());
@@ -423,9 +453,13 @@ mod tests {
         let manager = UpdateStateManager::with_file(&state_file).expect("Failed to create manager");
 
         let record = UpdateRecord::new("1.2.0".to_string());
-        manager.upsert_record("1.2.0", record).expect("Failed to upsert record");
+        manager
+            .upsert_record("1.2.0", record)
+            .expect("Failed to upsert record");
 
-        manager.delete_record("1.2.0").expect("Failed to delete record");
+        manager
+            .delete_record("1.2.0")
+            .expect("Failed to delete record");
 
         let loaded = manager.get_record("1.2.0").expect("Failed to get record");
         assert!(loaded.is_none());
@@ -440,7 +474,9 @@ mod tests {
 
         for i in 0..3 {
             let record = UpdateRecord::new(format!("1.{}.0", i));
-            manager.upsert_record(&format!("1.{}.0", i), record).expect("Failed to upsert record");
+            manager
+                .upsert_record(&format!("1.{}.0", i), record)
+                .expect("Failed to upsert record");
         }
 
         let records = manager.get_all_records().expect("Failed to get records");
@@ -456,13 +492,19 @@ mod tests {
 
         let mut record1 = UpdateRecord::new("1.0.0".to_string());
         record1.status = UpdateStatus::Pending;
-        manager.upsert_record("1.0.0", record1).expect("Failed to upsert record");
+        manager
+            .upsert_record("1.0.0", record1)
+            .expect("Failed to upsert record");
 
         let mut record2 = UpdateRecord::new("1.1.0".to_string());
         record2.status = UpdateStatus::Installed;
-        manager.upsert_record("1.1.0", record2).expect("Failed to upsert record");
+        manager
+            .upsert_record("1.1.0", record2)
+            .expect("Failed to upsert record");
 
-        let incomplete = manager.get_incomplete_records().expect("Failed to get incomplete");
+        let incomplete = manager
+            .get_incomplete_records()
+            .expect("Failed to get incomplete");
         assert_eq!(incomplete.len(), 1);
         assert_eq!(incomplete[0].target_version, "1.0.0");
     }
@@ -476,7 +518,9 @@ mod tests {
 
         for i in 0..5 {
             let record = UpdateRecord::new(format!("1.{}.0", i));
-            manager.upsert_record(&format!("1.{}.0", i), record).expect("Failed to upsert record");
+            manager
+                .upsert_record(&format!("1.{}.0", i), record)
+                .expect("Failed to upsert record");
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
 

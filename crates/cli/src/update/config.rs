@@ -107,10 +107,14 @@ impl UpdateConfig {
     /// Set the check interval in hours
     pub fn set_check_interval(&mut self, hours: u32) -> Result<(), UpdateError> {
         if hours == 0 {
-            return Err(UpdateError::ConfigError("Check interval must be at least 1 hour".to_string()));
+            return Err(UpdateError::ConfigError(
+                "Check interval must be at least 1 hour".to_string(),
+            ));
         }
         if hours > 8760 {
-            return Err(UpdateError::ConfigError("Check interval cannot exceed 1 year (8760 hours)".to_string()));
+            return Err(UpdateError::ConfigError(
+                "Check interval cannot exceed 1 year (8760 hours)".to_string(),
+            ));
         }
         self.check_interval_hours = hours;
         Ok(())
@@ -178,11 +182,26 @@ mod tests {
 
     #[test]
     fn test_interval_description() {
-        assert_eq!(UpdateConfig::with_settings(true, 1).interval_description(), "hourly");
-        assert_eq!(UpdateConfig::with_settings(true, 24).interval_description(), "daily");
-        assert_eq!(UpdateConfig::with_settings(true, 168).interval_description(), "weekly");
-        assert_eq!(UpdateConfig::with_settings(true, 720).interval_description(), "monthly");
-        assert_eq!(UpdateConfig::with_settings(true, 12).interval_description(), "every 12 hours");
+        assert_eq!(
+            UpdateConfig::with_settings(true, 1).interval_description(),
+            "hourly"
+        );
+        assert_eq!(
+            UpdateConfig::with_settings(true, 24).interval_description(),
+            "daily"
+        );
+        assert_eq!(
+            UpdateConfig::with_settings(true, 168).interval_description(),
+            "weekly"
+        );
+        assert_eq!(
+            UpdateConfig::with_settings(true, 720).interval_description(),
+            "monthly"
+        );
+        assert_eq!(
+            UpdateConfig::with_settings(true, 12).interval_description(),
+            "every 12 hours"
+        );
     }
 
     #[test]

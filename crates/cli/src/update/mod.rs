@@ -135,7 +135,10 @@ mod integration_tests {
             PathBuf::from("/tmp/binary"),
         );
 
-        assert_eq!(download.url, "https://github.com/example/releases/download/v1.0.0/binary");
+        assert_eq!(
+            download.url,
+            "https://github.com/example/releases/download/v1.0.0/binary"
+        );
         assert_eq!(download.expected_sha256, "abc123def456");
         assert!(!download.verified);
     }
@@ -191,7 +194,8 @@ mod integration_tests {
         .expect("Failed to create installer");
 
         // Step 2: Install new version
-        let install_result = installer.install_update(&new_binary, &binary_path)
+        let install_result = installer
+            .install_update(&new_binary, &binary_path)
             .expect("Failed to install update");
 
         assert!(install_result.success);
@@ -211,11 +215,13 @@ mod integration_tests {
         fs::write(&binary_path, b"corrupted").expect("Failed to corrupt binary");
 
         // Step 5: Rollback to previous version
-        installer.rollback_to_backup(&backup_path, &binary_path)
+        installer
+            .rollback_to_backup(&backup_path, &binary_path)
             .expect("Failed to rollback");
 
         // Verify rollback restored original version
-        let rolled_back_content = fs::read(&binary_path).expect("Failed to read rolled back binary");
+        let rolled_back_content =
+            fs::read(&binary_path).expect("Failed to read rolled back binary");
         assert_eq!(rolled_back_content, b"version 1.0.0 binary");
     }
 
@@ -228,32 +234,38 @@ mod integration_tests {
         fs::write(&binary_path, b"v1.0.0").expect("Failed to write binary");
 
         let state_file = temp_dir.path().join("update_state.json");
-        let state_manager = UpdateStateManager::with_file(&state_file)
-            .expect("Failed to create state manager");
+        let state_manager =
+            UpdateStateManager::with_file(&state_file).expect("Failed to create state manager");
 
         // Step 1: Create and persist update record
         let mut record = UpdateRecord::new("1.1.0".to_string());
         record.download_url = Some("https://example.com/rusty-1.1.0".to_string());
         record.set_status(UpdateStatus::Downloaded);
 
-        state_manager.upsert_record("1.1.0", record.clone())
+        state_manager
+            .upsert_record("1.1.0", record.clone())
             .expect("Failed to upsert record");
 
         // Step 2: Simulate installation process with status updates
-        let mut record = state_manager.get_record("1.1.0")
+        let mut record = state_manager
+            .get_record("1.1.0")
             .expect("Failed to get record")
             .unwrap();
 
         record.set_status(UpdateStatus::BackedUp);
-        let backup_entry = BackupManager::new().unwrap().backup_binary(&binary_path)
+        let backup_entry = BackupManager::new()
+            .unwrap()
+            .backup_binary(&binary_path)
             .expect("Failed to create backup");
         record.backup_path = Some(backup_entry.backup_path.clone());
 
-        state_manager.upsert_record("1.1.0", record.clone())
+        state_manager
+            .upsert_record("1.1.0", record.clone())
             .expect("Failed to upsert updated record");
 
         // Step 3: Verify state persists
-        let persisted = state_manager.get_record("1.1.0")
+        let persisted = state_manager
+            .get_record("1.1.0")
             .expect("Failed to get record")
             .unwrap();
 
@@ -263,11 +275,13 @@ mod integration_tests {
         // Step 4: Complete the update
         let mut record = persisted;
         record.set_status(UpdateStatus::Installed);
-        state_manager.upsert_record("1.1.0", record)
+        state_manager
+            .upsert_record("1.1.0", record)
             .expect("Failed to upsert final record");
 
         // Verify final state
-        let final_record = state_manager.get_record("1.1.0")
+        let final_record = state_manager
+            .get_record("1.1.0")
             .expect("Failed to get final record")
             .unwrap();
         assert!(final_record.is_complete());
@@ -280,48 +294,55 @@ mod integration_tests {
         let binary_path = temp_dir.path().join("rusty");
         let backup_dir = temp_dir.path().join("backups");
 
-        let backup_manager = BackupManager::with_directory(&backup_dir)
-            .expect("Failed to create backup manager");
+        let backup_manager =
+            BackupManager::with_directory(&backup_dir).expect("Failed to create backup manager");
 
         // Create initial binary
         fs::write(&binary_path, b"v1.0.0").expect("Failed to write binary");
 
         // Create multiple backups
-        let _backup1 = backup_manager.backup_binary(&binary_path)
+        let _backup1 = backup_manager
+            .backup_binary(&binary_path)
             .expect("Failed to create backup 1");
 
         std::thread::sleep(std::time::Duration::from_millis(1100));
 
         fs::write(&binary_path, b"v1.1.0").expect("Failed to update binary");
-        let backup2 = backup_manager.backup_binary(&binary_path)
+        let backup2 = backup_manager
+            .backup_binary(&binary_path)
             .expect("Failed to create backup 2");
 
         std::thread::sleep(std::time::Duration::from_millis(1100));
 
         fs::write(&binary_path, b"v1.2.0").expect("Failed to update binary");
-        let _backup3 = backup_manager.backup_binary(&binary_path)
+        let _backup3 = backup_manager
+            .backup_binary(&binary_path)
             .expect("Failed to create backup 3");
 
         // List all backups
-        let backups = backup_manager.list_backups()
+        let backups = backup_manager
+            .list_backups()
             .expect("Failed to list backups");
         assert_eq!(backups.len(), 3);
 
         // Rollback to second backup (v1.1.0)
         let restore_path = temp_dir.path().join("restored");
-        backup_manager.restore_backup(&backup2, &restore_path)
+        backup_manager
+            .restore_backup(&backup2, &restore_path)
             .expect("Failed to restore backup 2");
 
         let restored_content = fs::read(&restore_path).expect("Failed to read restored");
         assert_eq!(restored_content, b"v1.1.0");
 
         // Cleanup old backups, keep only latest 2
-        let deleted = backup_manager.cleanup_old_backups(2)
+        let deleted = backup_manager
+            .cleanup_old_backups(2)
             .expect("Failed to cleanup");
         assert_eq!(deleted, 1);
 
         // Verify only 2 backups remain
-        let remaining = backup_manager.list_backups()
+        let remaining = backup_manager
+            .list_backups()
             .expect("Failed to list remaining backups");
         assert_eq!(remaining.len(), 2);
     }
@@ -354,18 +375,19 @@ mod integration_tests {
         let installer = BinaryInstaller::with_backup_dir(
             InstallerConfig {
                 verify_before_install: false,
-                create_backup: false,  // No backup
+                create_backup: false, // No backup
                 keep_backup: false,
             },
             &backup_dir,
         )
         .expect("Failed to create installer");
 
-        let result = installer.install_update(&new_binary, &binary_path)
+        let result = installer
+            .install_update(&new_binary, &binary_path)
             .expect("Failed to install");
 
         assert!(result.success);
-        assert!(result.backup_path.is_none());  // No backup should be created
+        assert!(result.backup_path.is_none()); // No backup should be created
 
         let content = fs::read(&binary_path).expect("Failed to read binary");
         assert_eq!(content, b"v1.1.0");
@@ -397,8 +419,8 @@ mod integration_tests {
 
         // Setup state tracking
         let state_file = temp_dir.path().join("state.json");
-        let state_manager = UpdateStateManager::with_file(&state_file)
-            .expect("Failed to create state manager");
+        let state_manager =
+            UpdateStateManager::with_file(&state_file).expect("Failed to create state manager");
 
         let mut record = UpdateRecord::new("1.1.0".to_string());
 
@@ -407,17 +429,20 @@ mod integration_tests {
         let installer = BinaryInstaller::with_backup_dir(InstallerConfig::default(), &backup_dir)
             .expect("Failed to create installer");
 
-        let backup_entry = installer.backup_manager()
+        let backup_entry = installer
+            .backup_manager()
             .backup_binary(&binary_path)
             .expect("Failed to backup");
 
         record.set_status(UpdateStatus::BackedUp);
         record.backup_path = Some(backup_entry.backup_path.clone());
-        state_manager.upsert_record("1.1.0", record.clone())
+        state_manager
+            .upsert_record("1.1.0", record.clone())
             .expect("Failed to upsert record");
 
         // Perform installation
-        let install_result = installer.install_update(&new_binary, &binary_path)
+        let install_result = installer
+            .install_update(&new_binary, &binary_path)
             .expect("Failed to install");
 
         assert!(install_result.success);
@@ -425,11 +450,13 @@ mod integration_tests {
         // Update state with installation result
         record.set_status(UpdateStatus::Installed);
         record.binary_path = Some(install_result.installed_path);
-        state_manager.upsert_record("1.1.0", record)
+        state_manager
+            .upsert_record("1.1.0", record)
             .expect("Failed to upsert final record");
 
         // Verify final state
-        let final_record = state_manager.get_record("1.1.0")
+        let final_record = state_manager
+            .get_record("1.1.0")
             .expect("Failed to get record")
             .unwrap();
         assert_eq!(final_record.status, UpdateStatus::Installed);
@@ -504,7 +531,11 @@ mod integration_tests {
 
         // Should find an asset for supported platforms
         if platform.os == "linux" || platform.os == "macos" || platform.os == "windows" {
-            assert!(asset.is_some(), "Should find asset for supported platform: {}", platform.os);
+            assert!(
+                asset.is_some(),
+                "Should find asset for supported platform: {}",
+                platform.os
+            );
 
             let url = asset.unwrap();
 
@@ -564,7 +595,10 @@ mod integration_tests {
         .expect("Failed to create installer");
 
         let result = installer.install_update(&new_binary, &binary_path);
-        assert!(result.is_ok(), "Atomic replacement should succeed on all platforms");
+        assert!(
+            result.is_ok(),
+            "Atomic replacement should succeed on all platforms"
+        );
 
         let install_result = result.unwrap();
         assert!(install_result.success);

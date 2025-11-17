@@ -8,8 +8,8 @@
 //! - Update notifications and messages
 
 use rustyclawd::update::{
-    UpdateConfig, UpdateScheduler, Version, UpdateStateManager, UpdateRecord, UpdateStatus,
-    BinaryInstaller, InstallerConfig, BackupManager,
+    BackupManager, BinaryInstaller, InstallerConfig, UpdateConfig, UpdateRecord, UpdateScheduler,
+    UpdateStateManager, UpdateStatus, Version,
 };
 use std::fs;
 use std::time::Duration;
@@ -20,8 +20,8 @@ fn test_scheduler_initialization() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let config_path = temp_dir.path().join("update_config.json");
 
-    let scheduler = UpdateScheduler::with_config_path(config_path.clone())
-        .expect("Failed to create scheduler");
+    let scheduler =
+        UpdateScheduler::with_config_path(config_path.clone()).expect("Failed to create scheduler");
 
     // Verify scheduler was created with default config
     assert!(scheduler.config().auto_check);
@@ -33,8 +33,8 @@ fn test_scheduler_should_check_on_first_startup() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let config_path = temp_dir.path().join("update_config.json");
 
-    let scheduler = UpdateScheduler::with_config_path(config_path)
-        .expect("Failed to create scheduler");
+    let scheduler =
+        UpdateScheduler::with_config_path(config_path).expect("Failed to create scheduler");
 
     // First time - should check
     assert!(scheduler.should_check_on_startup());
@@ -56,8 +56,8 @@ fn test_scheduler_config_persistence_across_restarts() {
 
     // Second instance: verify last check was persisted
     {
-        let scheduler = UpdateScheduler::with_config_path(config_path)
-            .expect("Failed to create scheduler");
+        let scheduler =
+            UpdateScheduler::with_config_path(config_path).expect("Failed to create scheduler");
 
         assert!(scheduler.config().last_check_timestamp > 0);
     }
@@ -68,8 +68,8 @@ fn test_scheduler_respects_24_hour_interval() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let config_path = temp_dir.path().join("update_config.json");
 
-    let mut scheduler = UpdateScheduler::with_config_path(config_path)
-        .expect("Failed to create scheduler");
+    let mut scheduler =
+        UpdateScheduler::with_config_path(config_path).expect("Failed to create scheduler");
 
     // First check
     assert!(scheduler.should_check_on_startup());
@@ -89,8 +89,8 @@ fn test_scheduler_auto_check_can_be_disabled() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let config_path = temp_dir.path().join("update_config.json");
 
-    let mut scheduler = UpdateScheduler::with_config_path(config_path)
-        .expect("Failed to create scheduler");
+    let mut scheduler =
+        UpdateScheduler::with_config_path(config_path).expect("Failed to create scheduler");
 
     // Disable auto-check
     scheduler
@@ -106,8 +106,8 @@ fn test_scheduler_can_customize_interval() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let config_path = temp_dir.path().join("update_config.json");
 
-    let mut scheduler = UpdateScheduler::with_config_path(config_path)
-        .expect("Failed to create scheduler");
+    let mut scheduler =
+        UpdateScheduler::with_config_path(config_path).expect("Failed to create scheduler");
 
     // Change interval to 12 hours
     scheduler
@@ -122,8 +122,8 @@ fn test_scheduler_time_until_next_check_calculation() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let config_path = temp_dir.path().join("update_config.json");
 
-    let mut scheduler = UpdateScheduler::with_config_path(config_path)
-        .expect("Failed to create scheduler");
+    let mut scheduler =
+        UpdateScheduler::with_config_path(config_path).expect("Failed to create scheduler");
 
     // First check - time until should be 0
     let time_until = scheduler.time_until_next_check();
@@ -144,8 +144,8 @@ fn test_update_state_tracking_through_phases() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let state_file = temp_dir.path().join("update_state.json");
 
-    let state_manager = UpdateStateManager::with_file(&state_file)
-        .expect("Failed to create state manager");
+    let state_manager =
+        UpdateStateManager::with_file(&state_file).expect("Failed to create state manager");
 
     // Create initial record
     let mut record = UpdateRecord::new("1.1.0".to_string());
@@ -183,8 +183,8 @@ fn test_complete_backup_restore_cycle() {
     }
 
     // Create backup manager
-    let backup_manager = BackupManager::with_directory(&backup_dir)
-        .expect("Failed to create backup manager");
+    let backup_manager =
+        BackupManager::with_directory(&backup_dir).expect("Failed to create backup manager");
 
     // Create backup
     let backup_entry = backup_manager
@@ -307,8 +307,8 @@ fn test_multiple_update_records_management() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let state_file = temp_dir.path().join("update_state.json");
 
-    let state_manager = UpdateStateManager::with_file(&state_file)
-        .expect("Failed to create state manager");
+    let state_manager =
+        UpdateStateManager::with_file(&state_file).expect("Failed to create state manager");
 
     // Create multiple records
     for version in &["1.1.0", "1.2.0", "1.3.0"] {
@@ -332,8 +332,8 @@ fn test_cleanup_old_backups_keeps_recent() {
     let binary_path = temp_dir.path().join("rusty");
     let backup_dir = temp_dir.path().join("backups");
 
-    let backup_manager = BackupManager::with_directory(&backup_dir)
-        .expect("Failed to create backup manager");
+    let backup_manager =
+        BackupManager::with_directory(&backup_dir).expect("Failed to create backup manager");
 
     // Create initial binary and multiple backups
     fs::write(&binary_path, b"v1.0.0").expect("Failed to write binary");
@@ -391,11 +391,13 @@ fn test_version_comparison_and_update_detection() {
 fn test_update_config_serialization() {
     let config = UpdateConfig::with_settings(true, 48);
     let json = serde_json::to_string(&config).expect("Failed to serialize");
-    let deserialized: UpdateConfig =
-        serde_json::from_str(&json).expect("Failed to deserialize");
+    let deserialized: UpdateConfig = serde_json::from_str(&json).expect("Failed to deserialize");
 
     assert_eq!(config.auto_check, deserialized.auto_check);
-    assert_eq!(config.check_interval_hours, deserialized.check_interval_hours);
+    assert_eq!(
+        config.check_interval_hours,
+        deserialized.check_interval_hours
+    );
 }
 
 #[test]

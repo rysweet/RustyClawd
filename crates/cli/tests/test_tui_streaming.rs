@@ -45,7 +45,8 @@ fn test_streaming_single_chunk() {
 #[test]
 fn test_streaming_multiple_chunks() {
     // Test that multiple chunks are accumulated correctly
-    let messages = [ChatMessage {
+    let messages = [
+        ChatMessage {
             role: MessageRole::Assistant,
             content: "This is ".to_string(),
         },
@@ -56,7 +57,8 @@ fn test_streaming_multiple_chunks() {
         ChatMessage {
             role: MessageRole::Assistant,
             content: "message.".to_string(),
-        }];
+        },
+    ];
 
     // Verify chunks can be combined
     let combined: String = messages.iter().map(|m| m.content.as_str()).collect();
@@ -143,7 +145,8 @@ fn test_streaming_long_content() {
 #[test]
 fn test_streaming_message_roles() {
     // Test that different message roles are handled during streaming
-    let messages = [ChatMessage {
+    let messages = [
+        ChatMessage {
             role: MessageRole::User,
             content: "User message".to_string(),
         },
@@ -154,7 +157,8 @@ fn test_streaming_message_roles() {
         ChatMessage {
             role: MessageRole::System,
             content: "System message".to_string(),
-        }];
+        },
+    ];
 
     assert_eq!(messages.len(), 3);
     assert!(matches!(messages[0].role, MessageRole::User));

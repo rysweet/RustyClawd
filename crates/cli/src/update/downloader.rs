@@ -20,7 +20,7 @@ pub struct DownloadConfig {
 impl Default for DownloadConfig {
     fn default() -> Self {
         Self {
-            timeout_secs: 300,    // 5 minutes
+            timeout_secs: 300, // 5 minutes
             report_progress: true,
         }
     }
@@ -75,7 +75,9 @@ impl BinaryDownloader {
             .timeout(std::time::Duration::from_secs(config.timeout_secs))
             .user_agent("RustyClawd-Binary-Downloader/1.0")
             .build()
-            .map_err(|e| UpdateError::DownloadFailed(format!("Failed to create HTTP client: {}", e)))?;
+            .map_err(|e| {
+                UpdateError::DownloadFailed(format!("Failed to create HTTP client: {}", e))
+            })?;
 
         Ok(Self { client, config })
     }
@@ -95,12 +97,10 @@ impl BinaryDownloader {
     ) -> Result<PathBuf, UpdateError> {
         info!("Starting binary download from: {}", url);
 
-        let response = self
-            .client
-            .get(url)
-            .send()
-            .await
-            .map_err(|e| UpdateError::DownloadFailed(format!("Failed to send request: {}", e)))?;
+        let response =
+            self.client.get(url).send().await.map_err(|e| {
+                UpdateError::DownloadFailed(format!("Failed to send request: {}", e))
+            })?;
 
         if !response.status().is_success() {
             return Err(UpdateError::DownloadFailed(format!(
@@ -110,26 +110,28 @@ impl BinaryDownloader {
             )));
         }
 
-        let total_size = response
-            .content_length()
-            .ok_or_else(|| UpdateError::DownloadFailed("Server did not provide content length".to_string()))?;
+        let total_size = response.content_length().ok_or_else(|| {
+            UpdateError::DownloadFailed("Server did not provide content length".to_string())
+        })?;
 
         debug!("Downloading {} bytes", total_size);
 
         // Create a temporary file for the download
-        let mut temp_file = NamedTempFile::new()
-            .map_err(|e| UpdateError::DownloadFailed(format!("Failed to create temp file: {}", e)))?;
+        let mut temp_file = NamedTempFile::new().map_err(|e| {
+            UpdateError::DownloadFailed(format!("Failed to create temp file: {}", e))
+        })?;
 
         let mut bytes_downloaded = 0u64;
         let mut stream = response.bytes_stream();
 
         use futures::StreamExt;
         while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|e| UpdateError::DownloadFailed(format!("Download interrupted: {}", e)))?;
+            let chunk = chunk
+                .map_err(|e| UpdateError::DownloadFailed(format!("Download interrupted: {}", e)))?;
 
-            temp_file
-                .write_all(&chunk)
-                .map_err(|e| UpdateError::DownloadFailed(format!("Failed to write to temp file: {}", e)))?;
+            temp_file.write_all(&chunk).map_err(|e| {
+                UpdateError::DownloadFailed(format!("Failed to write to temp file: {}", e))
+            })?;
 
             bytes_downloaded += chunk.len() as u64;
 
@@ -166,8 +168,9 @@ impl BinaryDownloader {
         progress_callback: Option<Box<dyn Fn(u64) + Send>>,
     ) -> Result<String, UpdateError> {
         let file_path = file_path.as_ref();
-        let mut file = std::fs::File::open(file_path)
-            .map_err(|e| UpdateError::IoError(format!("Failed to open file for checksum: {}", e)))?;
+        let mut file = std::fs::File::open(file_path).map_err(|e| {
+            UpdateError::IoError(format!("Failed to open file for checksum: {}", e))
+        })?;
 
         let file_size = file
             .metadata()
@@ -244,8 +247,9 @@ impl BinaryDownloader {
         // Move temp file to output path (create parent directories if needed)
         if let Some(parent) = output_path.parent() {
             if !parent.exists() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|e| UpdateError::IoError(format!("Failed to create output directory: {}", e)))?;
+                std::fs::create_dir_all(parent).map_err(|e| {
+                    UpdateError::IoError(format!("Failed to create output directory: {}", e))
+                })?;
             }
         }
 
@@ -314,10 +318,11 @@ mod tests {
 
         std::fs::write(&temp_path, content).expect("Failed to write test file");
 
-        let checksum = BinaryDownloader::compute_checksum(&temp_path, None).expect("Failed to compute checksum");
+        let checksum = BinaryDownloader::compute_checksum(&temp_path, None)
+            .expect("Failed to compute checksum");
 
         // Verify the checksum is a valid hex string
-        assert!(checksum.len() > 0);
+        assert!(!checksum.is_empty());
         assert!(checksum.chars().all(|c| c.is_ascii_hexdigit()));
 
         // Clean up
@@ -329,10 +334,14 @@ mod tests {
         let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
         let temp_path = temp_file.path().to_path_buf();
 
-        let checksum = BinaryDownloader::compute_checksum(&temp_path, None).expect("Failed to compute checksum");
+        let checksum = BinaryDownloader::compute_checksum(&temp_path, None)
+            .expect("Failed to compute checksum");
 
         // SHA256 of empty file is well-known
-        assert_eq!(checksum, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+        assert_eq!(
+            checksum,
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
 
         // Clean up
         let _ = std::fs::remove_file(&temp_path);
@@ -363,7 +372,9 @@ mod tests {
     #[tokio::test]
     async fn test_download_to_temp_invalid_url() {
         let downloader = BinaryDownloader::new().expect("Failed to create downloader");
-        let result = downloader.download_to_temp("https://invalid.example.com/nonexistent", None).await;
+        let result = downloader
+            .download_to_temp("https://invalid.example.com/nonexistent", None)
+            .await;
 
         // Should fail with download error
         assert!(result.is_err());

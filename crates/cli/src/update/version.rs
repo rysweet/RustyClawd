@@ -1,7 +1,7 @@
 //! Version detection and comparison module
 
 use crate::update::error::UpdateError;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
 /// Represents a semantic version (major.minor.patch)
@@ -21,7 +21,11 @@ impl std::fmt::Display for Version {
 impl Version {
     /// Create a new version from components
     pub fn new(major: u32, minor: u32, patch: u32) -> Self {
-        Self { major, minor, patch }
+        Self {
+            major,
+            minor,
+            patch,
+        }
     }
 
     /// Get the current binary version from compile-time environment
@@ -41,28 +45,33 @@ impl Version {
         let parts: Vec<&str> = version_str.split('.').collect();
 
         if parts.len() < 3 {
-            return Err(UpdateError::VersionParseFailed(
-                format!("Expected 'major.minor.patch', got '{}'", version_str),
-            ));
+            return Err(UpdateError::VersionParseFailed(format!(
+                "Expected 'major.minor.patch', got '{}'",
+                version_str
+            )));
         }
 
-        let major = parts[0]
-            .parse::<u32>()
-            .map_err(|_| UpdateError::VersionParseFailed(format!("Invalid major version: {}", parts[0])))?;
+        let major = parts[0].parse::<u32>().map_err(|_| {
+            UpdateError::VersionParseFailed(format!("Invalid major version: {}", parts[0]))
+        })?;
 
-        let minor = parts[1]
-            .parse::<u32>()
-            .map_err(|_| UpdateError::VersionParseFailed(format!("Invalid minor version: {}", parts[1])))?;
+        let minor = parts[1].parse::<u32>().map_err(|_| {
+            UpdateError::VersionParseFailed(format!("Invalid minor version: {}", parts[1]))
+        })?;
 
         // Handle patch version that might include pre-release or build metadata
         let patch_str = parts[2].split('-').next().unwrap_or(parts[2]);
         let patch_str = patch_str.split('+').next().unwrap_or(patch_str);
 
-        let patch = patch_str
-            .parse::<u32>()
-            .map_err(|_| UpdateError::VersionParseFailed(format!("Invalid patch version: {}", patch_str)))?;
+        let patch = patch_str.parse::<u32>().map_err(|_| {
+            UpdateError::VersionParseFailed(format!("Invalid patch version: {}", patch_str))
+        })?;
 
-        Ok(Version { major, minor, patch })
+        Ok(Version {
+            major,
+            minor,
+            patch,
+        })
     }
 
     // Note: to_string() provided by Display trait implementation
@@ -177,6 +186,6 @@ mod tests {
     fn test_current_version() {
         let current = Version::current();
         // Current version should exist (parsed from env!("CARGO_PKG_VERSION"))
-        assert!(current.to_string().len() > 0);
+        assert!(!current.to_string().is_empty());
     }
 }

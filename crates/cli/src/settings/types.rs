@@ -45,13 +45,11 @@ impl ToolPermission {
 }
 
 /// Sandbox configuration settings
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SandboxSettings {
     /// Whether sandbox is enabled
     pub enabled: bool,
 }
-
 
 /// Core configuration settings
 #[derive(Debug, Clone, PartialEq, Eq)]

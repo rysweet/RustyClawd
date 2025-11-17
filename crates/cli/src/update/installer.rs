@@ -68,7 +68,10 @@ impl BinaryInstaller {
     }
 
     /// Create a new installer with a custom backup directory
-    pub fn with_backup_dir<P: AsRef<Path>>(config: InstallerConfig, backup_dir: P) -> Result<Self, UpdateError> {
+    pub fn with_backup_dir<P: AsRef<Path>>(
+        config: InstallerConfig,
+        backup_dir: P,
+    ) -> Result<Self, UpdateError> {
         let backup_manager = BackupManager::with_directory(&backup_dir)?;
         Ok(Self {
             config,
@@ -142,7 +145,10 @@ impl BinaryInstaller {
         // Perform atomic replacement using platform-specific operations
         match self.atomic_replace(new_binary_path, current_binary_path) {
             Ok(_) => {
-                info!("Binary successfully installed at: {:?}", current_binary_path);
+                info!(
+                    "Binary successfully installed at: {:?}",
+                    current_binary_path
+                );
 
                 // Verify the new binary after installation
                 #[cfg(unix)]
@@ -162,7 +168,8 @@ impl BinaryInstaller {
                 // If replacement failed and we have a backup, attempt rollback
                 if let Some(ref backup) = backup_path {
                     warn!("Attempting rollback due to installation failure");
-                    if let Err(rollback_err) = self.rollback_to_backup(backup, current_binary_path) {
+                    if let Err(rollback_err) = self.rollback_to_backup(backup, current_binary_path)
+                    {
                         error!("Rollback also failed: {}", rollback_err);
                         return Err(UpdateError::IoError(format!(
                             "Installation failed and rollback failed: {}",
@@ -191,7 +198,8 @@ impl BinaryInstaller {
 
         let temp_name = format!(
             ".{}.tmp.{}",
-            current_binary.file_name()
+            current_binary
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("binary"),
             std::process::id()
@@ -252,14 +260,18 @@ impl BinaryInstaller {
 
         let backup_name = format!(
             ".{}.bak.{}",
-            current_binary.file_name()
+            current_binary
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("binary"),
             std::process::id()
         );
         let temp_backup = parent.join(&backup_name);
 
-        debug!("Windows atomic replacement using temp backup: {:?}", temp_backup);
+        debug!(
+            "Windows atomic replacement using temp backup: {:?}",
+            temp_backup
+        );
 
         // Move current binary to temp backup location
         fs::rename(current_binary, &temp_backup).map_err(|e| {
@@ -289,9 +301,8 @@ impl BinaryInstaller {
     fn atomic_replace(&self, new_binary: &Path, current_binary: &Path) -> Result<(), UpdateError> {
         // Fallback: simple copy and replace
         // This is not atomic but better than nothing
-        fs::copy(new_binary, current_binary).map_err(|e| {
-            UpdateError::IoError(format!("Failed to copy new binary: {}", e))
-        })?;
+        fs::copy(new_binary, current_binary)
+            .map_err(|e| UpdateError::IoError(format!("Failed to copy new binary: {}", e)))?;
 
         Ok(())
     }
@@ -301,18 +312,15 @@ impl BinaryInstaller {
     fn verify_executable(binary_path: &Path) -> Result<(), UpdateError> {
         use std::os::unix::fs::PermissionsExt;
 
-        let metadata = fs::metadata(binary_path).map_err(|e| {
-            UpdateError::IoError(format!("Failed to read binary metadata: {}", e))
-        })?;
+        let metadata = fs::metadata(binary_path)
+            .map_err(|e| UpdateError::IoError(format!("Failed to read binary metadata: {}", e)))?;
 
         let permissions = metadata.permissions();
         let mode = permissions.mode();
 
         // Check if any execute bit is set
         if (mode & 0o111) == 0 {
-            return Err(UpdateError::IoError(
-                "Binary is not executable".to_string(),
-            ));
+            return Err(UpdateError::IoError("Binary is not executable".to_string()));
         }
 
         Ok(())
@@ -333,7 +341,10 @@ impl BinaryInstaller {
     fn remove_quarantine_attribute(binary_path: &Path) -> Result<(), UpdateError> {
         use std::process::Command;
 
-        debug!("Attempting to remove quarantine attribute from: {:?}", binary_path);
+        debug!(
+            "Attempting to remove quarantine attribute from: {:?}",
+            binary_path
+        );
 
         // Use xattr to remove the quarantine attribute
         let output = Command::new("xattr")
@@ -341,9 +352,7 @@ impl BinaryInstaller {
             .arg("com.apple.quarantine")
             .arg(binary_path)
             .output()
-            .map_err(|e| {
-                UpdateError::IoError(format!("Failed to execute xattr command: {}", e))
-            })?;
+            .map_err(|e| UpdateError::IoError(format!("Failed to execute xattr command: {}", e)))?;
 
         if !output.status.success() {
             // If the attribute doesn't exist, xattr returns an error, but that's fine
@@ -389,7 +398,11 @@ impl BinaryInstaller {
     ///
     /// # Returns
     /// Ok(()) on successful rollback
-    pub fn rollback_to_backup(&self, backup_path: &Path, target_path: &Path) -> Result<(), UpdateError> {
+    pub fn rollback_to_backup(
+        &self,
+        backup_path: &Path,
+        target_path: &Path,
+    ) -> Result<(), UpdateError> {
         info!("Initiating rollback from backup");
         debug!("Backup: {:?}, Target: {:?}", backup_path, target_path);
 
@@ -407,7 +420,8 @@ impl BinaryInstaller {
 
         let temp_name = format!(
             ".{}.rollback.{}",
-            target_path.file_name()
+            target_path
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("binary"),
             std::process::id()
@@ -425,7 +439,10 @@ impl BinaryInstaller {
             use std::os::unix::fs::PermissionsExt;
             let permissions = fs::Permissions::from_mode(0o755);
             fs::set_permissions(&temp_restored, permissions).map_err(|e| {
-                UpdateError::BackupFailed(format!("Failed to set rollback binary permissions: {}", e))
+                UpdateError::BackupFailed(format!(
+                    "Failed to set rollback binary permissions: {}",
+                    e
+                ))
             })?;
         }
 
@@ -481,7 +498,9 @@ mod tests {
     fn test_install_result_structure() {
         let result = InstallResult {
             installed_path: PathBuf::from("/usr/local/bin/rusty"),
-            backup_path: Some(PathBuf::from("/home/user/.rusty/backups/rusty.20240115-143022")),
+            backup_path: Some(PathBuf::from(
+                "/home/user/.rusty/backups/rusty.20240115-143022",
+            )),
             old_binary_path: Some(PathBuf::from("/usr/local/bin/rusty")),
             success: true,
             timestamp: chrono::Local::now(),
@@ -525,10 +544,8 @@ mod tests {
         fs::write(&new_binary, b"new binary content").expect("Failed to write new binary");
 
         let installer = BinaryInstaller::new().expect("Failed to create installer");
-        let result = installer.install_update(
-            &new_binary,
-            Path::new("/nonexistent/current_binary"),
-        );
+        let result =
+            installer.install_update(&new_binary, Path::new("/nonexistent/current_binary"));
         assert!(result.is_err());
     }
 
@@ -538,7 +555,8 @@ mod tests {
 
         // Create a current binary
         let current_binary = temp_dir.path().join("rusty");
-        fs::write(&current_binary, b"current binary content").expect("Failed to write current binary");
+        fs::write(&current_binary, b"current binary content")
+            .expect("Failed to write current binary");
 
         // Set executable permissions
         #[cfg(unix)]
@@ -589,7 +607,8 @@ mod tests {
 
         // Create a current binary
         let current_binary = temp_dir.path().join("rusty");
-        fs::write(&current_binary, b"current binary content").expect("Failed to write current binary");
+        fs::write(&current_binary, b"current binary content")
+            .expect("Failed to write current binary");
 
         // Create backup directory and backup file
         let backup_dir = temp_dir.path().join("backups");
@@ -630,10 +649,8 @@ mod tests {
         let installer = BinaryInstaller::with_backup_dir(InstallerConfig::default(), &backup_dir)
             .expect("Failed to create installer");
 
-        let result = installer.rollback_to_backup(
-            Path::new("/nonexistent/backup"),
-            &current_binary,
-        );
+        let result =
+            installer.rollback_to_backup(Path::new("/nonexistent/backup"), &current_binary);
         assert!(result.is_err());
     }
 

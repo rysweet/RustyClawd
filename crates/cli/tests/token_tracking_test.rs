@@ -16,12 +16,21 @@ fn test_session_stats_tracks_tokens() {
     stats.add_assistant_message(1000, 500);
 
     // Verify token tracking
-    assert_eq!(stats.input_tokens, 1100, "Input tokens should be cumulative");
+    assert_eq!(
+        stats.input_tokens, 1100,
+        "Input tokens should be cumulative"
+    );
     assert_eq!(stats.output_tokens, 500, "Output tokens tracked");
-    assert_eq!(stats.total_tokens, 1600, "Total should be sum of input+output");
+    assert_eq!(
+        stats.total_tokens, 1600,
+        "Total should be sum of input+output"
+    );
     assert_eq!(stats.message_count, 2, "Should track 2 messages");
     assert_eq!(stats.user_message_count, 1, "Should track 1 user message");
-    assert_eq!(stats.assistant_message_count, 1, "Should track 1 assistant message");
+    assert_eq!(
+        stats.assistant_message_count, 1,
+        "Should track 1 assistant message"
+    );
 }
 
 #[test]
@@ -46,13 +55,22 @@ fn test_cost_calculation() {
     assert_eq!(stats.output_tokens, 13_000);
 
     // Input: 25,000 tokens @ $3/M = $0.075
-    assert!((input_cost - 0.075).abs() < 0.001, "Input cost should be ~$0.075");
+    assert!(
+        (input_cost - 0.075).abs() < 0.001,
+        "Input cost should be ~$0.075"
+    );
 
     // Output: 13,000 tokens @ $15/M = $0.195
-    assert!((output_cost - 0.195).abs() < 0.001, "Output cost should be ~$0.195");
+    assert!(
+        (output_cost - 0.195).abs() < 0.001,
+        "Output cost should be ~$0.195"
+    );
 
     // Total: $0.270
-    assert!((total_cost - 0.270).abs() < 0.001, "Total cost should be ~$0.270");
+    assert!(
+        (total_cost - 0.270).abs() < 0.001,
+        "Total cost should be ~$0.270"
+    );
 }
 
 #[test]

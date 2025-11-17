@@ -11,8 +11,8 @@ mod helpers;
 mod mocks;
 mod tui_test_harness;
 
-use mocks::{MockApiClient, MockResponse, MockStreamEvent};
 use mocks::mock_tool_executor::{MockToolExecutor, MockToolResult};
+use mocks::{MockApiClient, MockResponse, MockStreamEvent};
 use tui_test_harness::TuiTestHarness;
 
 #[test]
@@ -97,7 +97,7 @@ fn test_tool_result_formatting() {
 #[test]
 fn test_multiple_tool_calls_display() {
     // Test display of multiple tool calls
-    let tool_calls = vec![
+    let tool_calls = [
         ("bash", r#"{"command":"echo 1"}"#),
         ("read", r#"{"path":"/tmp/file"}"#),
         ("bash", r#"{"command":"echo 2"}"#),

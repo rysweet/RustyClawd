@@ -39,7 +39,9 @@ impl Release {
 
     /// Find an asset by name pattern (for matching binary names)
     pub fn find_asset(&self, pattern: &str) -> Option<&ReleaseAsset> {
-        self.assets.iter().find(|asset| asset.name.contains(pattern))
+        self.assets
+            .iter()
+            .find(|asset| asset.name.contains(pattern))
     }
 
     /// Get all asset names
@@ -109,7 +111,10 @@ impl GitHubClient {
     }
 
     /// Get the latest release with update information
-    pub async fn get_update_info(&self, current_version: &Version) -> Result<Option<UpdateInfo>, UpdateError> {
+    pub async fn get_update_info(
+        &self,
+        current_version: &Version,
+    ) -> Result<Option<UpdateInfo>, UpdateError> {
         let latest = self.get_latest_release().await?;
         let latest_version = latest.version()?;
 
@@ -146,8 +151,7 @@ impl UpdateInfo {
     pub fn summary(&self) -> String {
         format!(
             "Update available: {} -> {}",
-            self.current_version,
-            self.latest_version
+            self.current_version, self.latest_version
         )
     }
 
@@ -166,8 +170,8 @@ impl UpdateInfo {
         self.assets
             .iter()
             .find(|asset| {
-                let contains_target = asset.name.contains(&target) ||
-                                     asset.name.contains("x86_64-unknown-linux");
+                let contains_target =
+                    asset.name.contains(&target) || asset.name.contains("x86_64-unknown-linux");
                 contains_target && has_exe_extension(&asset.name)
             })
             .map(|asset| asset.browser_download_url.clone())
@@ -369,7 +373,10 @@ mod tests {
     #[test]
     fn test_platform_target() {
         let target = get_platform_target();
-        assert!(!target.contains("unknown-platform") || cfg!(not(any(target_arch = "x86_64", target_arch = "aarch64"))));
+        assert!(
+            !target.contains("unknown-platform")
+                || cfg!(not(any(target_arch = "x86_64", target_arch = "aarch64")))
+        );
     }
 
     #[test]

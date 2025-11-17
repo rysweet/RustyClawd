@@ -14,9 +14,11 @@ use rustyclawd::tui::{ChatMessage, MessageRole};
 #[test]
 fn test_message_history_storage() {
     // Test that message history can be stored
-    let messages = [ChatMessage::user("Hello".to_string()),
+    let messages = [
+        ChatMessage::user("Hello".to_string()),
         ChatMessage::assistant("Hi there!".to_string()),
-        ChatMessage::user("How are you?".to_string())];
+        ChatMessage::user("How are you?".to_string()),
+    ];
 
     assert_eq!(messages.len(), 3);
 
@@ -59,9 +61,11 @@ fn test_large_history() {
 #[test]
 fn test_message_order_preservation() {
     // Test that message order is preserved
-    let messages = [ChatMessage::user("First".to_string()),
+    let messages = [
+        ChatMessage::user("First".to_string()),
         ChatMessage::assistant("Second".to_string()),
-        ChatMessage::user("Third".to_string())];
+        ChatMessage::user("Third".to_string()),
+    ];
 
     assert_eq!(messages[0].content, "First");
     assert_eq!(messages[1].content, "Second");
@@ -145,10 +149,12 @@ fn test_long_message_content() {
 #[test]
 fn test_mixed_role_history() {
     // Test history with mixed message roles
-    let messages = [ChatMessage::user("User 1".to_string()),
+    let messages = [
+        ChatMessage::user("User 1".to_string()),
         ChatMessage::assistant("Assistant 1".to_string()),
         ChatMessage::system("System 1".to_string()),
-        ChatMessage::user("User 2".to_string())];
+        ChatMessage::user("User 2".to_string()),
+    ];
 
     assert_eq!(messages.len(), 4);
 

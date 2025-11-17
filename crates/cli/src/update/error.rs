@@ -112,6 +112,9 @@ mod tests {
         let json_str = r#"{"invalid json"#;
         let json_err = serde_json::from_str::<serde_json::Value>(json_str).unwrap_err();
         let update_err: UpdateError = json_err.into();
-        assert!(matches!(update_err, UpdateError::GitHubResponseParseFailed(_)));
+        assert!(matches!(
+            update_err,
+            UpdateError::GitHubResponseParseFailed(_)
+        ));
     }
 }

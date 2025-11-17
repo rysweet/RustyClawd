@@ -55,18 +55,23 @@ impl BackupManager {
 
         // Create the backup directory if it doesn't exist
         if !backup_dir.exists() {
-            fs::create_dir_all(&backup_dir)
-                .map_err(|e| UpdateError::BackupFailed(format!("Failed to create backup directory: {}", e)))?;
+            fs::create_dir_all(&backup_dir).map_err(|e| {
+                UpdateError::BackupFailed(format!("Failed to create backup directory: {}", e))
+            })?;
         }
 
-        debug!("Backup manager initialized with directory: {:?}", backup_dir);
+        debug!(
+            "Backup manager initialized with directory: {:?}",
+            backup_dir
+        );
         Ok(Self { backup_dir })
     }
 
     /// Get the default backup directory (~/.rusty/backups/)
     fn get_default_backup_dir() -> Result<PathBuf, UpdateError> {
-        let home_dir = dirs::home_dir()
-            .ok_or_else(|| UpdateError::BackupFailed("Failed to determine home directory".to_string()))?;
+        let home_dir = dirs::home_dir().ok_or_else(|| {
+            UpdateError::BackupFailed("Failed to determine home directory".to_string())
+        })?;
 
         Ok(home_dir.join(".rusty").join("backups"))
     }
@@ -78,7 +83,10 @@ impl BackupManager {
     ///
     /// # Returns
     /// BackupEntry containing information about the created backup
-    pub fn backup_binary<P: AsRef<Path>>(&self, binary_path: P) -> Result<BackupEntry, UpdateError> {
+    pub fn backup_binary<P: AsRef<Path>>(
+        &self,
+        binary_path: P,
+    ) -> Result<BackupEntry, UpdateError> {
         let binary_path = binary_path.as_ref();
 
         if !binary_path.exists() {
@@ -89,7 +97,9 @@ impl BackupManager {
         }
 
         let file_size = fs::metadata(binary_path)
-            .map_err(|e| UpdateError::BackupFailed(format!("Failed to read binary metadata: {}", e)))?
+            .map_err(|e| {
+                UpdateError::BackupFailed(format!("Failed to read binary metadata: {}", e))
+            })?
             .len();
 
         let now = Local::now();
@@ -98,16 +108,18 @@ impl BackupManager {
 
         info!("Creating backup of {:?} to {:?}", binary_path, backup_path);
 
-        fs::copy(binary_path, &backup_path)
-            .map_err(|e| UpdateError::BackupFailed(format!("Failed to copy binary to backup: {}", e)))?;
+        fs::copy(binary_path, &backup_path).map_err(|e| {
+            UpdateError::BackupFailed(format!("Failed to copy binary to backup: {}", e))
+        })?;
 
         // Set executable permissions on the backup (Unix-like systems)
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             let permissions = fs::Permissions::from_mode(0o755);
-            fs::set_permissions(&backup_path, permissions)
-                .map_err(|e| UpdateError::BackupFailed(format!("Failed to set backup permissions: {}", e)))?;
+            fs::set_permissions(&backup_path, permissions).map_err(|e| {
+                UpdateError::BackupFailed(format!("Failed to set backup permissions: {}", e))
+            })?;
         }
 
         debug!("Backup created successfully: {:?}", backup_path);
@@ -124,14 +136,22 @@ impl BackupManager {
     pub fn list_backups(&self) -> Result<Vec<BackupEntry>, UpdateError> {
         let mut backups = Vec::new();
 
-        let entries = fs::read_dir(&self.backup_dir)
-            .map_err(|e| UpdateError::BackupFailed(format!("Failed to read backup directory: {}", e)))?;
+        let entries = fs::read_dir(&self.backup_dir).map_err(|e| {
+            UpdateError::BackupFailed(format!("Failed to read backup directory: {}", e))
+        })?;
 
         for entry in entries {
-            let entry = entry.map_err(|e| UpdateError::BackupFailed(format!("Failed to read backup entry: {}", e)))?;
+            let entry = entry.map_err(|e| {
+                UpdateError::BackupFailed(format!("Failed to read backup entry: {}", e))
+            })?;
 
             let path = entry.path();
-            if path.is_file() && path.file_name().and_then(|n| n.to_str()).map(|n| n.starts_with("rusty.")) == Some(true)
+            if path.is_file()
+                && path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|n| n.starts_with("rusty."))
+                    == Some(true)
             {
                 if let Ok(metadata) = fs::metadata(&path) {
                     let file_size = metadata.len();
@@ -167,14 +187,19 @@ impl BackupManager {
         let backup_path = self.backup_dir.join(filename);
 
         if !backup_path.exists() {
-            return Err(UpdateError::BackupFailed(format!("Backup not found: {}", filename)));
+            return Err(UpdateError::BackupFailed(format!(
+                "Backup not found: {}",
+                filename
+            )));
         }
 
-        let metadata = fs::metadata(&backup_path)
-            .map_err(|e| UpdateError::BackupFailed(format!("Failed to read backup metadata: {}", e)))?;
+        let metadata = fs::metadata(&backup_path).map_err(|e| {
+            UpdateError::BackupFailed(format!("Failed to read backup metadata: {}", e))
+        })?;
 
-        let timestamp = Self::parse_backup_filename(filename)
-            .ok_or_else(|| UpdateError::BackupFailed(format!("Invalid backup filename format: {}", filename)))?;
+        let timestamp = Self::parse_backup_filename(filename).ok_or_else(|| {
+            UpdateError::BackupFailed(format!("Invalid backup filename format: {}", filename))
+        })?;
 
         Ok(BackupEntry {
             original_path: PathBuf::new(),
@@ -214,8 +239,12 @@ impl BackupManager {
         {
             use std::os::unix::fs::PermissionsExt;
             let permissions = fs::Permissions::from_mode(0o755);
-            fs::set_permissions(target_path, permissions)
-                .map_err(|e| UpdateError::BackupFailed(format!("Failed to set restored binary permissions: {}", e)))?;
+            fs::set_permissions(target_path, permissions).map_err(|e| {
+                UpdateError::BackupFailed(format!(
+                    "Failed to set restored binary permissions: {}",
+                    e
+                ))
+            })?;
         }
 
         debug!("Backup restored successfully");
@@ -309,7 +338,7 @@ mod tests {
         };
 
         let ts_str = entry.timestamp_str();
-        assert!(ts_str.len() > 0);
+        assert!(!ts_str.is_empty());
         assert!(ts_str.contains(":"));
     }
 
@@ -344,7 +373,8 @@ mod tests {
         let backup_dir = temp_dir.path().join("backups").join("nested");
 
         assert!(!backup_dir.exists());
-        let _manager = BackupManager::with_directory(&backup_dir).expect("Failed to create manager");
+        let _manager =
+            BackupManager::with_directory(&backup_dir).expect("Failed to create manager");
         assert!(backup_dir.exists());
     }
 
@@ -375,7 +405,9 @@ mod tests {
         let backup_dir = temp_dir.path().join("backups");
         let manager = BackupManager::with_directory(&backup_dir).expect("Failed to create manager");
 
-        let backup_entry = manager.backup_binary(&binary_path).expect("Failed to create backup");
+        let backup_entry = manager
+            .backup_binary(&binary_path)
+            .expect("Failed to create backup");
 
         assert!(backup_entry.backup_path.exists());
         assert_eq!(backup_entry.file_size, 12);
@@ -401,9 +433,13 @@ mod tests {
         let manager = BackupManager::with_directory(&backup_dir).expect("Failed to create manager");
 
         // Create a few backups
-        manager.backup_binary(&binary_path).expect("Failed to create backup 1");
+        manager
+            .backup_binary(&binary_path)
+            .expect("Failed to create backup 1");
         std::thread::sleep(std::time::Duration::from_millis(1100)); // Sleep 1.1 seconds to ensure different timestamps
-        manager.backup_binary(&binary_path).expect("Failed to create backup 2");
+        manager
+            .backup_binary(&binary_path)
+            .expect("Failed to create backup 2");
 
         let backups = manager.list_backups().expect("Failed to list backups");
         assert_eq!(backups.len(), 2);
@@ -418,14 +454,18 @@ mod tests {
         let backup_dir = temp_dir.path().join("backups");
         let manager = BackupManager::with_directory(&backup_dir).expect("Failed to create manager");
 
-        let backup_entry = manager.backup_binary(&binary_path).expect("Failed to create backup");
+        let backup_entry = manager
+            .backup_binary(&binary_path)
+            .expect("Failed to create backup");
 
         // Modify the original
         fs::write(&binary_path, b"modified content").expect("Failed to modify original");
 
         // Restore the backup
         let restore_path = temp_dir.path().join("restored");
-        manager.restore_backup(&backup_entry, &restore_path).expect("Failed to restore backup");
+        manager
+            .restore_backup(&backup_entry, &restore_path)
+            .expect("Failed to restore backup");
 
         let restored_content = fs::read(&restore_path).expect("Failed to read restored file");
         assert_eq!(restored_content, b"original content");
@@ -442,7 +482,9 @@ mod tests {
 
         // Create 5 backups with enough delay between them to ensure unique timestamps
         for _ in 0..5 {
-            manager.backup_binary(&binary_path).expect("Failed to create backup");
+            manager
+                .backup_binary(&binary_path)
+                .expect("Failed to create backup");
             std::thread::sleep(std::time::Duration::from_millis(1100)); // Sleep 1.1 seconds
         }
 
