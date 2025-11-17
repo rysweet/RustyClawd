@@ -98,6 +98,7 @@ impl TuiTestHarness {
     }
 
     /// Get cursor position
+    #[allow(dead_code)]
     pub fn cursor_position(&self) -> Option<(u16, u16)> {
         // Note: TestBackend doesn't track cursor, so we need to parse from buffer
         // For now, return None - tests should verify cursor through rendering
