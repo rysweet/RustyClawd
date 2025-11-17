@@ -44,6 +44,26 @@ pub enum UpdateError {
     /// Timeout occurred
     #[error("Operation timed out")]
     Timeout,
+
+    /// SHA256 verification failed
+    #[error("SHA256 verification failed: expected {expected}, got {actual}")]
+    ChecksumMismatch { expected: String, actual: String },
+
+    /// Download failed
+    #[error("Download failed: {0}")]
+    DownloadFailed(String),
+
+    /// Backup operation failed
+    #[error("Backup operation failed: {0}")]
+    BackupFailed(String),
+
+    /// State persistence failed
+    #[error("Failed to persist update state: {0}")]
+    StatePersistenceFailed(String),
+
+    /// Invalid state data
+    #[error("Invalid state data: {0}")]
+    InvalidStateData(String),
 }
 
 impl From<std::io::Error> for UpdateError {
