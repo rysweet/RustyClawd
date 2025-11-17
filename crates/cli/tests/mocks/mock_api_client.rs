@@ -88,6 +88,7 @@ impl MockResponse {
     }
 
     /// Set delay between events
+    #[allow(dead_code)]
     pub fn with_delay(mut self, delay_ms: u64) -> Self {
         self.delay_ms = delay_ms;
         self
@@ -127,6 +128,7 @@ impl MockApiClient {
     }
 
     /// Clear call history
+    #[allow(dead_code)]
     pub fn clear_history(&self) {
         self.call_history.lock().unwrap().clear();
     }
@@ -151,7 +153,7 @@ impl MockApiClient {
         let events = response.events.clone();
         let delay_ms = response.delay_ms;
 
-        Box::pin(stream::iter(events.into_iter().inspect(move |event| {
+        Box::pin(stream::iter(events.into_iter().inspect(move |_event| {
             if delay_ms > 0 {
                 std::thread::sleep(std::time::Duration::from_millis(delay_ms));
             }
@@ -159,6 +161,7 @@ impl MockApiClient {
     }
 
     /// Send message with specific response (convenience method)
+    #[allow(dead_code)]
     pub async fn send_with_response(
         &self,
         prompt: String,
