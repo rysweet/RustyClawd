@@ -54,6 +54,7 @@ pub struct ToolExecution {
     /// Tool parameters (JSON string)
     pub parameters: String,
     /// Timestamp
+    #[allow(dead_code)]
     pub timestamp: std::time::Instant,
 }
 
