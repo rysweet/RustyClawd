@@ -37,3 +37,4 @@ pin-project = "1.1"
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
 tokio = { workspace = true }
+serial_test = "3.0"

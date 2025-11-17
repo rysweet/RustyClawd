@@ -111,6 +111,23 @@ impl ApiKey {
         if let Ok(cwd) = std::env::current_dir() {
             let dotenv_path = cwd.join(".env");
             if dotenv_path.exists() {
+                // Validate file permissions (Unix-like systems)
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    if let Ok(metadata) = fs::metadata(&dotenv_path).await {
+                        let mode = metadata.permissions().mode();
+                        // Check if file is readable by others (should be 600 or similar)
+                        if mode & 0o077 != 0 {
+                            tracing::warn!(
+                                ".env file {} has permissive permissions: {:o}. Consider: chmod 600 .env",
+                                dotenv_path.display(),
+                                mode & 0o777
+                            );
+                        }
+                    }
+                }
+
                 // Read .env file and parse ANTHROPIC_API_KEY
                 if let Ok(content) = fs::read_to_string(&dotenv_path).await {
                     for line in content.lines() {
@@ -250,6 +267,7 @@ impl fmt::Debug for Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
     fn test_api_key_format_validation() {
@@ -280,6 +298,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_api_key_from_env() {
         // Clear any existing env var first to avoid test interference
         std::env::remove_var("ANTHROPIC_API_KEY");
@@ -299,6 +318,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_api_key_from_env_empty_string_ignored() {
         // Clear any existing env var first
         std::env::remove_var("ANTHROPIC_API_KEY");
@@ -312,6 +332,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_api_key_from_env_invalid_format() {
         // Clear any existing env var first
         std::env::remove_var("ANTHROPIC_API_KEY");
@@ -333,5 +354,40 @@ mod tests {
         assert!(message.contains(".env"));
         assert!(message.contains("~/.claude-msec-k"));
         assert!(message.contains("https://console.anthropic.com/settings/keys"));
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_api_key_priority_chain_integration() {
+        use std::env;
+        use std::fs;
+
+        // Clean up first
+        env::remove_var("ANTHROPIC_API_KEY");
+        let _ = fs::remove_file(".env");
+
+        // Create .env file
+        fs::write(".env", "ANTHROPIC_API_KEY=\"sk-ant-from-dotenv\"\n").unwrap();
+
+        // Test 1: Environment variable should win
+        env::set_var("ANTHROPIC_API_KEY", "sk-ant-from-env");
+        let key1 = ApiKey::from_default_location().await.unwrap();
+        assert_eq!(
+            key1.expose(),
+            "sk-ant-from-env",
+            "Env var should have highest priority"
+        );
+
+        // Test 2: .env should win after env var removed
+        env::remove_var("ANTHROPIC_API_KEY");
+        let key2 = ApiKey::from_default_location().await.unwrap();
+        assert_eq!(
+            key2.expose(),
+            "sk-ant-from-dotenv",
+            ".env should be second priority"
+        );
+
+        // Cleanup
+        fs::remove_file(".env").unwrap();
     }
 }
