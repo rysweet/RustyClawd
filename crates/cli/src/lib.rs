@@ -19,3 +19,4 @@ pub mod tool_definitions;
 pub mod tool_executor;
 pub mod tool_formatter;
 pub mod tui;
+pub mod update;
