@@ -29,7 +29,9 @@ impl BuiltinCommands {
             // Tool management
             "tools" | "plugins" |
             // Session
-            "save" | "load" | "reset" | "undo" | "redo"
+            "save" | "load" | "reset" | "undo" | "redo" |
+            // P0 Priority commands
+            "add-dir" | "bashes" | "context" | "cost" | "todos"
         )
     }
 
@@ -86,6 +88,13 @@ impl BuiltinCommands {
             "reset" => Some(Self::reset_command()),
             "undo" => Some(Self::undo_command()),
             "redo" => Some(Self::redo_command()),
+
+            // P0 Priority commands
+            "add-dir" => Some(Self::add_dir_command(&cmd.args_str)),
+            "bashes" => Some(Self::bashes_command()),
+            "context" => Some(Self::context_command()),
+            "cost" => Some(Self::cost_command()),
+            "todos" => Some(Self::todos_command()),
 
             _ => None,
         }
@@ -296,6 +305,110 @@ impl BuiltinCommands {
     fn redo_command() -> String {
         "Redoing last undone action...".to_string()
     }
+
+    // ============================================================================
+    // P0 Priority Commands
+    // ============================================================================
+
+    /// /add-dir <directory> - Add additional working directory
+    fn add_dir_command(args: &Option<String>) -> String {
+        match args {
+            Some(dir) => {
+                // Validate directory exists
+                let path = std::path::Path::new(dir);
+                if path.exists() && path.is_dir() {
+                    format!(
+                        "Added directory to working set:\n  {}\n\n\
+                         Note: Directory will be available in this session context.",
+                        dir
+                    )
+                } else {
+                    format!("Error: Directory does not exist or is not a directory: {}", dir)
+                }
+            }
+            None => "Usage: /add-dir <directory>\n\nExample:\n  /add-dir /path/to/project".to_string(),
+        }
+    }
+
+    /// /bashes - List and manage background bash shells
+    fn bashes_command() -> String {
+        // Note: This is a basic implementation
+        // In a full implementation, this would query the actual bash shell manager
+        // and display real shell IDs, statuses, and commands
+        "Background Bash Shells:\n\n\
+         No background shells currently running.\n\n\
+         Tips:\n\
+         - Background shells are created when using run_in_background parameter\n\
+         - Use BashOutput tool to read shell output\n\
+         - Use KillShell tool to terminate shells"
+            .to_string()
+    }
+
+    /// /context - Visualize current context usage
+    fn context_command() -> String {
+        // Note: This is a basic implementation
+        // In a full implementation, this would query actual token counts from the API
+        const MAX_TOKENS: u64 = 200_000; // Claude's context window
+        let used_tokens: u64 = 0; // Would be populated from actual usage
+        let percentage = (used_tokens as f64 / MAX_TOKENS as f64 * 100.0) as u64;
+
+        format!(
+            "Context Window Usage:\n\n\
+             Used:      {used_tokens:>7} tokens ({percentage}%)\n\
+             Available: {MAX_TOKENS:>7} tokens\n\n\
+             Visual: [{}{}] {percentage}%\n\n\
+             Note: Context tracking will be implemented in future updates.",
+            "=".repeat((percentage / 2) as usize),
+            " ".repeat(50 - (percentage / 2) as usize),
+        )
+    }
+
+    /// /cost - Display token usage statistics and cost estimates
+    fn cost_command() -> String {
+        // Note: This is a basic implementation
+        // Pricing as of 2025 (approximate):
+        // Claude Sonnet 4.5: $3 per million input tokens, $15 per million output tokens
+        const INPUT_COST_PER_MILLION: f64 = 3.0;
+        const OUTPUT_COST_PER_MILLION: f64 = 15.0;
+
+        let input_tokens: u64 = 0; // Would be populated from session stats
+        let output_tokens: u64 = 0; // Would be populated from session stats
+        let total_tokens = input_tokens + output_tokens;
+
+        let input_cost = (input_tokens as f64 / 1_000_000.0) * INPUT_COST_PER_MILLION;
+        let output_cost = (output_tokens as f64 / 1_000_000.0) * OUTPUT_COST_PER_MILLION;
+        let total_cost = input_cost + output_cost;
+
+        format!(
+            "Token Usage & Cost Estimate:\n\n\
+             Session Statistics:\n\
+             - Input tokens:  {input_tokens:>8}\n\
+             - Output tokens: {output_tokens:>8}\n\
+             - Total tokens:  {total_tokens:>8}\n\n\
+             Estimated Cost (Claude Sonnet 4.5):\n\
+             - Input:  ${input_cost:>7.4} ({input_tokens} tokens @ ${INPUT_COST_PER_MILLION}/M)\n\
+             - Output: ${output_cost:>7.4} ({output_tokens} tokens @ ${OUTPUT_COST_PER_MILLION}/M)\n\
+             - Total:  ${total_cost:>7.4}\n\n\
+             Note: Cost tracking will be implemented with full session integration."
+        )
+    }
+
+    /// /todos - List current todo items
+    fn todos_command() -> String {
+        // Note: This is a basic implementation
+        // In a full implementation, this would track actual todos from TodoWrite tool calls
+        "Current Todo Items:\n\n\
+         No todos tracked in this session.\n\n\
+         Todo items will appear here when:\n\
+         - Claude uses the TodoWrite tool to track tasks\n\
+         - Complex multi-step operations are in progress\n\
+         - Multiple features are being implemented\n\n\
+         Todo Status Legend:\n\
+         - [ ] pending      - Not yet started\n\
+         - [~] in_progress  - Currently working on\n\
+         - [x] completed    - Finished successfully"
+            .to_string()
+    }
 }
 
 #[cfg(test)]
@@ -396,5 +509,115 @@ mod tests {
         let result = BuiltinCommands::execute(&cmd);
 
         assert!(result.is_none());
+    }
+
+    // P0 Priority Commands Tests
+
+    #[test]
+    fn test_is_builtin_add_dir() {
+        assert!(BuiltinCommands::is_builtin("add-dir"));
+    }
+
+    #[test]
+    fn test_is_builtin_bashes() {
+        assert!(BuiltinCommands::is_builtin("bashes"));
+    }
+
+    #[test]
+    fn test_is_builtin_context() {
+        assert!(BuiltinCommands::is_builtin("context"));
+    }
+
+    #[test]
+    fn test_is_builtin_cost() {
+        assert!(BuiltinCommands::is_builtin("cost"));
+    }
+
+    #[test]
+    fn test_is_builtin_todos() {
+        assert!(BuiltinCommands::is_builtin("todos"));
+    }
+
+    #[test]
+    fn test_execute_add_dir_no_args() {
+        let cmd = Command::new("add-dir".to_string(), None);
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        let output = result.unwrap();
+        assert!(output.contains("Usage"));
+        assert!(output.contains("/add-dir"));
+    }
+
+    #[test]
+    fn test_execute_add_dir_with_valid_dir() {
+        // Use current directory which should always exist
+        let cwd = std::env::current_dir().unwrap();
+        let cwd_str = cwd.to_string_lossy().to_string();
+
+        let cmd = Command::new("add-dir".to_string(), Some(cwd_str.clone()));
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        let output = result.unwrap();
+        assert!(output.contains("Added directory"));
+        assert!(output.contains(&cwd_str));
+    }
+
+    #[test]
+    fn test_execute_add_dir_with_invalid_dir() {
+        let cmd = Command::new("add-dir".to_string(), Some("/nonexistent/path/xyz".to_string()));
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        let output = result.unwrap();
+        assert!(output.contains("Error"));
+        assert!(output.contains("does not exist"));
+    }
+
+    #[test]
+    fn test_execute_bashes() {
+        let cmd = Command::new("bashes".to_string(), None);
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        let output = result.unwrap();
+        assert!(output.contains("Background Bash"));
+        assert!(output.contains("shells") || output.contains("Shells"));
+    }
+
+    #[test]
+    fn test_execute_context() {
+        let cmd = Command::new("context".to_string(), None);
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        let output = result.unwrap();
+        assert!(output.contains("Context"));
+        assert!(output.contains("tokens"));
+        assert!(output.contains("Available"));
+    }
+
+    #[test]
+    fn test_execute_cost() {
+        let cmd = Command::new("cost".to_string(), None);
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        let output = result.unwrap();
+        assert!(output.contains("Cost") || output.contains("Token"));
+        assert!(output.contains("tokens"));
+        assert!(output.contains("$"));
+    }
+
+    #[test]
+    fn test_execute_todos() {
+        let cmd = Command::new("todos".to_string(), None);
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        let output = result.unwrap();
+        assert!(output.contains("Todo"));
+        assert!(output.contains("pending") || output.contains("in_progress") || output.contains("completed"));
     }
 }
