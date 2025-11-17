@@ -430,6 +430,7 @@ impl App {
             tracing::info!("Successfully restored checkpoint {}", checkpoint_num);
         }
 
+
         Ok(Self {
             cli,
             settings,

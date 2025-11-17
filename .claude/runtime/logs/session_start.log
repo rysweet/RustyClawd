@@ -20,3 +20,55 @@
 [2025-11-16T18:43:32.557576] INFO: Injected 8794 characters of context
 [2025-11-16T18:43:32.557611] INFO: Returning output with keys: ['hookSpecificOutput']
 [2025-11-16T18:43:32.557720] INFO: session_start hook completed successfully
+[2025-11-17T03:31:01.087171] INFO: session_start hook starting (Python 3.11.14)
+[2025-11-17T03:31:01.087269] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'hook_event_name', 'source']
+[2025-11-17T03:31:01.087312] INFO: Event type: SessionStart
+[2025-11-17T03:31:01.088702] INFO: session_start hook starting (Python 3.11.14)
+[2025-11-17T03:31:01.088798] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'hook_event_name', 'source']
+[2025-11-17T03:31:01.088841] INFO: Event type: SessionStart
+[2025-11-17T03:31:01.098849] WARNING: ⚠️ Version mismatch detected: package=4bd7d98, project=None
+[2025-11-17T03:31:01.099488] INFO: User declined update (choice: )
+[2025-11-17T03:31:01.099564] INFO: Prompt length: 0
+[2025-11-17T03:31:01.099759] INFO: Neo4j not enabled (use --enable-neo4j-memory to enable)
+[2025-11-17T03:31:01.099804] WARNING: ⚠️ Version mismatch detected: package=4bd7d98, project=None
+[2025-11-17T03:31:01.100114] INFO: Successfully read preferences from: /home/azureuser/.cache/uv/archive-v0/fO6OZa_5l57PuMJ9JWpOz/lib/python3.11/site-packages/amplihack/.claude/context/USER_PREFERENCES.md
+[2025-11-17T03:31:01.100153] INFO: Injected full USER_PREFERENCES.md content into session
+[2025-11-17T03:31:01.100257] INFO: User declined update (choice: )
+[2025-11-17T03:31:01.100311] INFO: Prompt length: 0
+[2025-11-17T03:31:01.100383] INFO: Session initialized - Original request: ❌
+[2025-11-17T03:31:01.100421] INFO: Injected 9381 characters of context
+[2025-11-17T03:31:01.100450] INFO: Neo4j not enabled (use --enable-neo4j-memory to enable)
+[2025-11-17T03:31:01.100462] INFO: Returning output with keys: ['hookSpecificOutput']
+[2025-11-17T03:31:01.100570] INFO: session_start hook completed successfully
+[2025-11-17T03:31:01.100805] INFO: Successfully read preferences from: /home/azureuser/.cache/uv/archive-v0/fO6OZa_5l57PuMJ9JWpOz/lib/python3.11/site-packages/amplihack/.claude/context/USER_PREFERENCES.md
+[2025-11-17T03:31:01.100846] INFO: Injected full USER_PREFERENCES.md content into session
+[2025-11-17T03:31:01.101077] INFO: Session initialized - Original request: ❌
+[2025-11-17T03:31:01.101114] INFO: Injected 9381 characters of context
+[2025-11-17T03:31:01.101149] INFO: Returning output with keys: ['hookSpecificOutput']
+[2025-11-17T03:31:01.101252] INFO: session_start hook completed successfully
+[2025-11-17T03:33:42.817352] INFO: session_start hook starting (Python 3.11.14)
+[2025-11-17T03:33:42.817454] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'hook_event_name', 'source']
+[2025-11-17T03:33:42.817497] INFO: Event type: SessionStart
+[2025-11-17T03:33:42.823159] INFO: session_start hook starting (Python 3.11.14)
+[2025-11-17T03:33:42.823249] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'hook_event_name', 'source']
+[2025-11-17T03:33:42.823297] INFO: Event type: SessionStart
+[2025-11-17T03:33:42.826831] WARNING: ⚠️ Version mismatch detected: package=4bd7d98, project=None
+[2025-11-17T03:33:42.827201] INFO: User declined update (choice: )
+[2025-11-17T03:33:42.827253] INFO: Prompt length: 0
+[2025-11-17T03:33:42.827371] INFO: Neo4j not enabled (use --enable-neo4j-memory to enable)
+[2025-11-17T03:33:42.827721] INFO: Successfully read preferences from: /home/azureuser/.cache/uv/archive-v0/fO6OZa_5l57PuMJ9JWpOz/lib/python3.11/site-packages/amplihack/.claude/context/USER_PREFERENCES.md
+[2025-11-17T03:33:42.827768] INFO: Injected full USER_PREFERENCES.md content into session
+[2025-11-17T03:33:42.827995] INFO: Session initialized - Original request: ❌
+[2025-11-17T03:33:42.828034] INFO: Injected 9381 characters of context
+[2025-11-17T03:33:42.828070] INFO: Returning output with keys: ['hookSpecificOutput']
+[2025-11-17T03:33:42.828179] INFO: session_start hook completed successfully
+[2025-11-17T03:33:42.832838] WARNING: ⚠️ Version mismatch detected: package=4bd7d98, project=None
+[2025-11-17T03:33:42.833211] INFO: User declined update (choice: )
+[2025-11-17T03:33:42.833266] INFO: Prompt length: 0
+[2025-11-17T03:33:42.833384] INFO: Neo4j not enabled (use --enable-neo4j-memory to enable)
+[2025-11-17T03:33:42.833738] INFO: Successfully read preferences from: /home/azureuser/.cache/uv/archive-v0/fO6OZa_5l57PuMJ9JWpOz/lib/python3.11/site-packages/amplihack/.claude/context/USER_PREFERENCES.md
+[2025-11-17T03:33:42.833778] INFO: Injected full USER_PREFERENCES.md content into session
+[2025-11-17T03:33:42.834020] INFO: Session initialized - Original request: ❌
+[2025-11-17T03:33:42.834060] INFO: Injected 9381 characters of context
+[2025-11-17T03:33:42.834096] INFO: Returning output with keys: ['hookSpecificOutput']
+[2025-11-17T03:33:42.834204] INFO: session_start hook completed successfully
