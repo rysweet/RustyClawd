@@ -248,7 +248,7 @@ impl UpdateStateManager {
         for (version, record) in state.iter() {
             records_by_status
                 .entry(record.status.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push((version.clone(), record.clone()));
         }
 

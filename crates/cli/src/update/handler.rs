@@ -122,7 +122,7 @@ pub async fn handle_install_update() -> Result<UpdateOperationResult, UpdateErro
     // Get the download URL for the platform
     let download_url = update_info
         .get_asset_for_platform()
-        .ok_or_else(|| {
+        .ok_or({
             UpdateError::AssetNotFound
         })?;
 
@@ -226,10 +226,8 @@ pub async fn handle_rollback() -> Result<UpdateOperationResult, UpdateError> {
 
             Ok(UpdateOperationResult {
                 success: true,
-                message: format!(
-                    "Successfully rolled back to previous version.\n\
-                    Please restart the application to complete the rollback."
-                ),
+                message: "Successfully rolled back to previous version.\n\
+                    Please restart the application to complete the rollback.".to_string(),
                 version: Some(Version::current().to_string()),
                 restart_required: true,
             })

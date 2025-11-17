@@ -146,8 +146,8 @@ impl UpdateInfo {
     pub fn summary(&self) -> String {
         format!(
             "Update available: {} -> {}",
-            self.current_version.to_string(),
-            self.latest_version.to_string()
+            self.current_version,
+            self.latest_version
         )
     }
 

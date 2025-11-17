@@ -65,10 +65,7 @@ impl Version {
         Ok(Version { major, minor, patch })
     }
 
-    /// Convert version to string representation
-    pub fn to_string(&self) -> String {
-        format!("{}.{}.{}", self.major, self.minor, self.patch)
-    }
+    // Note: to_string() provided by Display trait implementation
 
     /// Compare two versions, returning true if self is greater than other
     pub fn is_greater_than(&self, other: &Version) -> bool {

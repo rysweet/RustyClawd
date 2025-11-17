@@ -562,11 +562,11 @@ impl App {
             match handle_rollback().await {
                 Ok(result) => {
                     println!("{}", format_update_message(&result));
-                    return Ok(());
+                    Ok(())
                 }
                 Err(e) => {
                     eprintln!("Update error: {}", e);
-                    return Err(e.into());
+                    Err(e.into())
                 }
             }
         } else if check {
@@ -574,11 +574,11 @@ impl App {
             match handle_check_updates(force).await {
                 Ok(result) => {
                     println!("{}", format_update_message(&result));
-                    return Ok(());
+                    Ok(())
                 }
                 Err(e) => {
                     eprintln!("Update error: {}", e);
-                    return Err(e.into());
+                    Err(e.into())
                 }
             }
         } else {
@@ -586,11 +586,11 @@ impl App {
             match handle_install_update().await {
                 Ok(result) => {
                     println!("{}", format_update_message(&result));
-                    return Ok(());
+                    Ok(())
                 }
                 Err(e) => {
                     eprintln!("Update error: {}", e);
-                    return Err(e.into());
+                    Err(e.into())
                 }
             }
         }

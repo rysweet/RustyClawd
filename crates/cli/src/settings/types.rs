@@ -46,16 +46,12 @@ impl ToolPermission {
 
 /// Sandbox configuration settings
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default)]
 pub struct SandboxSettings {
     /// Whether sandbox is enabled
     pub enabled: bool,
 }
 
-impl Default for SandboxSettings {
-    fn default() -> Self {
-        Self { enabled: false }
-    }
-}
 
 /// Core configuration settings
 #[derive(Debug, Clone, PartialEq, Eq)]
