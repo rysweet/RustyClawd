@@ -30,6 +30,8 @@ serde = { workspace = true }
 reqwest = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
+secrecy = "0.8"
+http = "1.3"
 
 # Interactive mode
 rustyline = "13.0"

@@ -214,6 +214,15 @@ impl BinaryInstaller {
             })?;
         }
 
+        // macOS-specific: Remove quarantine attribute if present
+        #[cfg(target_os = "macos")]
+        {
+            debug!("Removing quarantine attribute on macOS");
+            if let Err(e) = Self::remove_quarantine_attribute(&temp_binary) {
+                warn!("Failed to remove quarantine attribute (non-fatal): {}", e);
+            }
+        }
+
         // Atomic rename - this is the critical operation
         fs::rename(&temp_binary, current_binary).map_err(|e| {
             // Clean up temp file on error
@@ -228,6 +237,13 @@ impl BinaryInstaller {
     /// Perform atomic replacement on Windows
     #[cfg(windows)]
     fn atomic_replace(&self, new_binary: &Path, current_binary: &Path) -> Result<(), UpdateError> {
+        // Check if the current binary is locked (in use)
+        if Self::is_binary_locked(current_binary) {
+            return Err(UpdateError::IoError(
+                "Cannot replace binary: file is currently in use. Please close the application and try again.".to_string()
+            ));
+        }
+
         // On Windows, rename() doesn't overwrite existing files, so we need a different approach
         // Move current binary to a backup location first, then move new binary to target location
         let parent = current_binary
@@ -307,6 +323,62 @@ impl BinaryInstaller {
     fn verify_executable(_binary_path: &Path) -> Result<(), UpdateError> {
         // On non-Unix platforms, we can't easily verify executability
         Ok(())
+    }
+
+    /// Remove macOS quarantine attribute from a binary
+    ///
+    /// macOS Gatekeeper adds a quarantine attribute to downloaded files.
+    /// This needs to be removed for self-updated binaries to execute without warning.
+    #[cfg(target_os = "macos")]
+    fn remove_quarantine_attribute(binary_path: &Path) -> Result<(), UpdateError> {
+        use std::process::Command;
+
+        debug!("Attempting to remove quarantine attribute from: {:?}", binary_path);
+
+        // Use xattr to remove the quarantine attribute
+        let output = Command::new("xattr")
+            .arg("-d")
+            .arg("com.apple.quarantine")
+            .arg(binary_path)
+            .output()
+            .map_err(|e| {
+                UpdateError::IoError(format!("Failed to execute xattr command: {}", e))
+            })?;
+
+        if !output.status.success() {
+            // If the attribute doesn't exist, xattr returns an error, but that's fine
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            if !stderr.contains("No such xattr") {
+                warn!("xattr command failed: {}", stderr);
+            }
+        } else {
+            info!("Successfully removed quarantine attribute");
+        }
+
+        Ok(())
+    }
+
+    /// Check if a binary is locked (in use) on Windows
+    ///
+    /// On Windows, attempting to replace a running binary will fail.
+    /// This checks if the file is locked before attempting replacement.
+    #[cfg(target_os = "windows")]
+    fn is_binary_locked(binary_path: &Path) -> bool {
+        use std::fs::OpenOptions;
+
+        // Try to open the file with write access
+        match OpenOptions::new().write(true).open(binary_path) {
+            Ok(_) => false, // File is not locked
+            Err(e) => {
+                // Check if the error is due to the file being in use
+                if e.kind() == std::io::ErrorKind::PermissionDenied {
+                    debug!("Binary appears to be locked (in use): {:?}", binary_path);
+                    true
+                } else {
+                    false
+                }
+            }
+        }
     }
 
     /// Rollback to a previous binary from backup

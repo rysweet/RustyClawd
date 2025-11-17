@@ -12,6 +12,7 @@ mod hooks;
 mod interactive;
 mod mcp_commands;
 mod plugins;
+mod session;
 mod session_persistence;
 mod settings;
 mod terminal_guard;

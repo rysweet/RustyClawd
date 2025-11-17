@@ -33,7 +33,7 @@ pub use backup::{BackupEntry, BackupManager};
 pub use config::UpdateConfig;
 pub use downloader::{BinaryDownload, BinaryDownloader, DownloadConfig};
 pub use error::UpdateError;
-pub use github_client::{GitHubClient, Release, ReleaseAsset, UpdateInfo};
+pub use github_client::{GitHubClient, PlatformInfo, Release, ReleaseAsset, UpdateInfo};
 pub use handler::{
     format_update_message, handle_check_updates, handle_install_update, handle_rollback,
     UpdateOperationResult,
@@ -69,6 +69,40 @@ mod integration_tests {
 
         assert_eq!(version.major, 1);
         assert!(config.auto_check);
+    }
+
+    #[test]
+    fn test_cross_platform_detection() {
+        let platform = PlatformInfo::current();
+
+        // Should always get valid platform info
+        assert!(!platform.target_triple.is_empty());
+        assert!(!platform.os.is_empty());
+        assert!(!platform.arch.is_empty());
+
+        // Verify OS detection
+        #[cfg(target_os = "linux")]
+        assert_eq!(platform.os, "linux");
+
+        #[cfg(target_os = "macos")]
+        assert_eq!(platform.os, "macos");
+
+        #[cfg(target_os = "windows")]
+        assert_eq!(platform.os, "windows");
+
+        // Verify architecture detection
+        #[cfg(target_arch = "x86_64")]
+        assert_eq!(platform.arch, "x86_64");
+
+        #[cfg(target_arch = "aarch64")]
+        assert_eq!(platform.arch, "aarch64");
+
+        // Verify binary extension
+        #[cfg(target_os = "windows")]
+        assert_eq!(platform.binary_extension, Some(".exe".to_string()));
+
+        #[cfg(not(target_os = "windows"))]
+        assert_eq!(platform.binary_extension, None);
     }
 
     #[test]
@@ -399,5 +433,144 @@ mod integration_tests {
             .expect("Failed to get record")
             .unwrap();
         assert_eq!(final_record.status, UpdateStatus::Installed);
+    }
+
+    // Cross-platform integration tests
+
+    #[test]
+    fn test_cross_platform_binary_naming() {
+        let platform = PlatformInfo::current();
+
+        // Simulate binary names for different platforms
+        let base_name = "rusty";
+
+        let expected_binary = if platform.binary_extension.is_some() {
+            format!("{}{}", base_name, platform.binary_extension.unwrap())
+        } else {
+            base_name.to_string()
+        };
+
+        // On Windows, should be rusty.exe
+        #[cfg(target_os = "windows")]
+        assert_eq!(expected_binary, "rusty.exe");
+
+        // On Unix-like systems, should be rusty
+        #[cfg(not(target_os = "windows"))]
+        assert_eq!(expected_binary, "rusty");
+    }
+
+    #[test]
+    fn test_platform_specific_asset_selection() {
+        let assets = vec![
+            ReleaseAsset {
+                name: "rusty-x86_64-unknown-linux-gnu".to_string(),
+                browser_download_url: "https://example.com/linux".to_string(),
+                size: 1024,
+            },
+            ReleaseAsset {
+                name: "rusty-x86_64-apple-darwin".to_string(),
+                browser_download_url: "https://example.com/macos".to_string(),
+                size: 1024,
+            },
+            ReleaseAsset {
+                name: "rusty-x86_64-pc-windows-msvc.exe".to_string(),
+                browser_download_url: "https://example.com/windows.exe".to_string(),
+                size: 1024,
+            },
+            ReleaseAsset {
+                name: "rusty-aarch64-apple-darwin".to_string(),
+                browser_download_url: "https://example.com/macos-arm".to_string(),
+                size: 1024,
+            },
+            ReleaseAsset {
+                name: "rusty-aarch64-unknown-linux-gnu".to_string(),
+                browser_download_url: "https://example.com/linux-arm".to_string(),
+                size: 1024,
+            },
+        ];
+
+        let info = UpdateInfo {
+            current_version: Version::new(1, 0, 0),
+            latest_version: Version::new(1, 1, 0),
+            release_tag: "v1.1.0".to_string(),
+            release_name: None,
+            release_notes: None,
+            assets,
+            published_at: None,
+        };
+
+        let platform = PlatformInfo::current();
+        let asset = info.get_asset_for_platform();
+
+        // Should find an asset for supported platforms
+        if platform.os == "linux" || platform.os == "macos" || platform.os == "windows" {
+            assert!(asset.is_some(), "Should find asset for supported platform: {}", platform.os);
+
+            let url = asset.unwrap();
+
+            // Verify URL matches platform
+            if platform.os == "linux" {
+                assert!(url.contains("linux"));
+            } else if platform.os == "macos" {
+                assert!(url.contains("macos"));
+            } else if platform.os == "windows" {
+                assert!(url.contains("windows"));
+                assert!(url.contains(".exe"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_cross_platform_atomic_replacement_succeeds() {
+        let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
+
+        // Use platform-appropriate binary name
+        let platform = PlatformInfo::current();
+        let binary_name = if let Some(ext) = &platform.binary_extension {
+            format!("rusty{}", ext)
+        } else {
+            "rusty".to_string()
+        };
+
+        let binary_path = temp_dir.path().join(&binary_name);
+        fs::write(&binary_path, b"old version").expect("Failed to write binary");
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let permissions = fs::Permissions::from_mode(0o755);
+            fs::set_permissions(&binary_path, permissions).expect("Failed to set permissions");
+        }
+
+        let new_binary = temp_dir.path().join(format!("new_{}", binary_name));
+        fs::write(&new_binary, b"new version").expect("Failed to write new binary");
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let permissions = fs::Permissions::from_mode(0o755);
+            fs::set_permissions(&new_binary, permissions).expect("Failed to set permissions");
+        }
+
+        let backup_dir = temp_dir.path().join("backups");
+        let installer = BinaryInstaller::with_backup_dir(
+            InstallerConfig {
+                verify_before_install: false,
+                create_backup: true,
+                keep_backup: true,
+            },
+            &backup_dir,
+        )
+        .expect("Failed to create installer");
+
+        let result = installer.install_update(&new_binary, &binary_path);
+        assert!(result.is_ok(), "Atomic replacement should succeed on all platforms");
+
+        let install_result = result.unwrap();
+        assert!(install_result.success);
+
+        // Verify content was replaced
+        let content = fs::read(&binary_path).expect("Failed to read updated binary");
+        assert_eq!(content, b"new version");
     }
 }

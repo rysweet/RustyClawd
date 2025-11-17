@@ -12,6 +12,7 @@ pub mod hooks;
 pub mod interactive;
 pub mod mcp_commands;
 pub mod plugins;
+pub mod session;
 pub mod session_persistence;
 pub mod settings;
 pub mod terminal_guard;

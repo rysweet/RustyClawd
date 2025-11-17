@@ -11,6 +11,7 @@
 use crate::commands::SlashCommands;
 use crate::mcp_commands;
 use crate::plugins::mcp_proxy::McpProxy;
+use crate::session::SessionStats;
 use crate::session_persistence::{SessionInfo, SessionPersistence};
 use crate::terminal_guard;
 use crate::tool_formatter;
@@ -24,6 +25,7 @@ use rustyclawd_core::{
 use rustyclawd_tools::{
     bash::BashParams, BashTool, ExecutionContext, Tool, ToolContext, ToolEvent,
 };
+use secrecy::ExposeSecret;
 use std::io::{self, Write};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -50,6 +52,8 @@ pub struct InteractiveSession {
     persistence: Option<SessionPersistence>,
     /// MCP proxy for managing MCP servers
     mcp_proxy: Arc<Mutex<McpProxy>>,
+    /// Session statistics tracking
+    stats: SessionStats,
 }
 
 impl InteractiveSession {
@@ -88,6 +92,7 @@ impl InteractiveSession {
             slash_commands,
             persistence,
             mcp_proxy,
+            stats: SessionStats::new(DEFAULT_MODEL),
         })
     }
 
@@ -238,16 +243,48 @@ impl InteractiveSession {
                 return Ok(true);
             }
             "/stats" => {
+                // Update duration before displaying
+                self.stats.update_duration();
+
                 let stats = format!(
-                    "Messages: {}\nMemory usage: {} bytes\nModel: {}",
-                    self.context.message_count(),
-                    self.context.memory_usage(),
-                    self.model
+                    "Session Statistics:\n\
+                     Messages: {} ({} user, {} assistant)\n\
+                     Input tokens: {}\n\
+                     Output tokens: {}\n\
+                     Total tokens: {}\n\
+                     Tool calls: {}\n\
+                     Model: {}\n\
+                     Duration: {}s",
+                    self.stats.message_count,
+                    self.stats.user_message_count,
+                    self.stats.assistant_message_count,
+                    self.stats.input_tokens,
+                    self.stats.output_tokens,
+                    self.stats.total_tokens,
+                    self.stats.tool_calls,
+                    self.model,
+                    self.stats.duration_seconds
                 );
                 self.tui.add_message(ChatMessage {
                     role: TuiMessageRole::System,
                     content: stats,
                 });
+                return Ok(true);
+            }
+            "/cost" => {
+                self.handle_cost_command();
+                return Ok(true);
+            }
+            "/context" => {
+                self.handle_context_command();
+                return Ok(true);
+            }
+            "/usage" => {
+                self.handle_usage_command();
+                return Ok(true);
+            }
+            "/bashes" => {
+                self.handle_bashes_command().await?;
                 return Ok(true);
             }
             _ if input.starts_with("/save") => {
@@ -554,8 +591,41 @@ impl InteractiveSession {
                 .with_temperature(1.0)
                 .with_stream(true);
 
-        // Create the stream
-        let mut stream = self.client.create_message_stream(request).await?;
+        // Make HTTP request directly to capture rate limit headers
+        let url = format!("{}/v1/messages", self.client.api_url());
+        let http_response = self
+            .client
+            .http_client()
+            .post(&url)
+            .header(
+                "x-api-key",
+                self.client.config().api_key.expose_secret().expose(),
+            )
+            .header("anthropic-version", self.client.api_version())
+            .header("content-type", "application/json")
+            .header("accept", "text/event-stream")
+            .json(&request)
+            .send()
+            .await?;
+
+        // Extract rate limit headers before consuming response
+        let headers = http_response.headers();
+        self.stats.rate_limits.update_from_headers(headers);
+
+        // Check for HTTP errors
+        if !http_response.status().is_success() {
+            let status = http_response.status();
+            let error_text = http_response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(anyhow::anyhow!("HTTP {}: {}", status, error_text));
+        }
+
+        // Convert response body into event stream
+        use rustyclawd_core::client::EventStream;
+        let byte_stream = http_response.bytes_stream();
+        let mut stream = EventStream::new(byte_stream);
 
         // Begin streaming message in TUI
         let message_index = self.tui.begin_streaming_message();
@@ -679,6 +749,12 @@ impl InteractiveSession {
             usage,
         };
 
+        // Track token usage in session stats
+        self.stats.add_assistant_message(
+            response.usage.input_tokens as u64,
+            response.usage.output_tokens as u64,
+        );
+
         Ok(response)
     }
 
@@ -706,6 +782,9 @@ impl InteractiveSession {
                     content: format!("  {}", params_msg),
                 });
             }
+
+            // Track tool call
+            self.stats.add_tool_call();
 
             // Execute the tool
             match crate::tool_executor::execute_tool(name.clone(), input.clone()).await {
@@ -889,6 +968,88 @@ impl InteractiveSession {
         Ok(())
     }
 
+    /// Handle /cost command
+    fn handle_cost_command(&mut self) {
+        // Pricing as of 2025 (Claude Sonnet 4.5)
+        const INPUT_COST_PER_MILLION: f64 = 3.0;
+        const OUTPUT_COST_PER_MILLION: f64 = 15.0;
+
+        let input_tokens = self.stats.input_tokens;
+        let output_tokens = self.stats.output_tokens;
+        let total_tokens = self.stats.total_tokens;
+
+        let input_cost = (input_tokens as f64 / 1_000_000.0) * INPUT_COST_PER_MILLION;
+        let output_cost = (output_tokens as f64 / 1_000_000.0) * OUTPUT_COST_PER_MILLION;
+        let total_cost = input_cost + output_cost;
+
+        let cost_display = format!(
+            "Token Usage & Cost Estimate:\n\n\
+             Session Statistics:\n\
+             - Input tokens:  {:>8}\n\
+             - Output tokens: {:>8}\n\
+             - Total tokens:  {:>8}\n\n\
+             Estimated Cost (Claude Sonnet 4.5):\n\
+             - Input:  ${:>7.4} ({} tokens @ ${}/M)\n\
+             - Output: ${:>7.4} ({} tokens @ ${}/M)\n\
+             - Total:  ${:>7.4}\n\n\
+             Note: Costs are estimates based on current Anthropic pricing.",
+            input_tokens,
+            output_tokens,
+            total_tokens,
+            input_cost,
+            input_tokens,
+            INPUT_COST_PER_MILLION,
+            output_cost,
+            output_tokens,
+            OUTPUT_COST_PER_MILLION,
+            total_cost
+        );
+
+        self.tui.add_message(ChatMessage {
+            role: TuiMessageRole::System,
+            content: cost_display,
+        });
+    }
+
+    /// Handle /context command
+    fn handle_context_command(&mut self) {
+        const MAX_TOKENS: u64 = 200_000; // Claude Sonnet 4.5 context window
+
+        let used_tokens = self.stats.total_tokens;
+        let percentage = ((used_tokens as f64 / MAX_TOKENS as f64) * 100.0) as u64;
+        let percentage = percentage.min(100); // Cap at 100%
+
+        // Visual bar (50 chars wide)
+        let filled = (percentage / 2) as usize;
+        let empty = 50 - filled;
+
+        let context_display = format!(
+            "Context Window Usage:\n\n\
+             Used:      {:>7} tokens ({}%)\n\
+             Available: {:>7} tokens\n\
+             Maximum:   {:>7} tokens\n\n\
+             Visual: [{}{}] {}%\n\n\
+             Messages: {} ({} user, {} assistant)\n\
+             Model: {}",
+            used_tokens,
+            percentage,
+            MAX_TOKENS - used_tokens,
+            MAX_TOKENS,
+            "=".repeat(filled),
+            " ".repeat(empty),
+            percentage,
+            self.stats.message_count,
+            self.stats.user_message_count,
+            self.stats.assistant_message_count,
+            self.model
+        );
+
+        self.tui.add_message(ChatMessage {
+            role: TuiMessageRole::System,
+            content: context_display,
+        });
+    }
+
     /// Handle /sessions command
     fn handle_sessions_command(&mut self) -> Result<()> {
         if let Some(ref persistence) = self.persistence {
@@ -932,6 +1093,153 @@ impl InteractiveSession {
                 content: "Session persistence not available".to_string(),
             });
         }
+
+        Ok(())
+    }
+
+    /// Handle /usage command - Display real rate limit data
+    fn handle_usage_command(&mut self) {
+        let rl = &self.stats.rate_limits;
+
+        let mut output = String::from("API Usage & Rate Limits:\n\n");
+
+        // Check if we have any rate limit data
+        if rl.last_updated.is_none() {
+            output.push_str(
+                "No rate limit data available yet.\n\
+                 Rate limits are captured from API responses during conversation.\n\n\
+                 Tip: Send a message to Claude to populate rate limit information.",
+            );
+        } else {
+            // Requests per minute
+            output.push_str("Rate Limits (Per Minute):\n");
+            match (rl.requests_limit, rl.requests_remaining) {
+                (Some(limit), Some(remaining)) => {
+                    let used = limit.saturating_sub(remaining);
+                    let percent = rl.requests_percentage().unwrap_or(0);
+                    output.push_str(&format!(
+                        "- Requests:  {:>6} / {:<6} used ({}%)\n",
+                        used, limit, percent
+                    ));
+                    output.push_str(&format!("- Remaining: {:>6} requests\n", remaining));
+                }
+                _ => {
+                    output.push_str("- Requests:  No data\n");
+                }
+            }
+
+            // Tokens per day
+            output.push_str("\nToken Limits (Per Day):\n");
+            match (rl.tokens_limit, rl.tokens_remaining) {
+                (Some(limit), Some(remaining)) => {
+                    let used = limit.saturating_sub(remaining);
+                    let percent = rl.tokens_percentage().unwrap_or(0);
+                    output.push_str(&format!(
+                        "- Tokens:    {:>10} / {:<10} used ({}%)\n",
+                        used, limit, percent
+                    ));
+                    output.push_str(&format!("- Remaining: {:>10} tokens\n", remaining));
+                }
+                _ => {
+                    output.push_str("- Tokens:    No data\n");
+                }
+            }
+
+            // Visual progress bars
+            output.push_str("\nVisual Progress:\n");
+            if let Some(req_pct) = rl.requests_percentage() {
+                let filled = (req_pct / 2) as usize;
+                let empty = 50usize.saturating_sub(filled);
+                output.push_str(&format!(
+                    "Requests: [{}{}] {}%\n",
+                    "=".repeat(filled),
+                    " ".repeat(empty),
+                    req_pct
+                ));
+            }
+            if let Some(tok_pct) = rl.tokens_percentage() {
+                let filled = (tok_pct / 2) as usize;
+                let empty = 50usize.saturating_sub(filled);
+                output.push_str(&format!(
+                    "Tokens:   [{}{}] {}%\n",
+                    "=".repeat(filled),
+                    " ".repeat(empty),
+                    tok_pct
+                ));
+            }
+
+            // Last updated timestamp
+            if let Some(updated) = rl.last_updated {
+                output.push_str(&format!("\nLast updated: {}\n", updated.format("%Y-%m-%d %H:%M:%S UTC")));
+            }
+        }
+
+        self.tui.add_message(ChatMessage {
+            role: TuiMessageRole::System,
+            content: output,
+        });
+    }
+
+    /// Handle /bashes command - Display background shell information
+    async fn handle_bashes_command(&mut self) -> Result<()> {
+        use rustyclawd_tools::process_registry::global_registry;
+
+        let registry = global_registry();
+        let shell_ids = registry.list_ids().await;
+
+        if shell_ids.is_empty() {
+            self.tui.add_message(ChatMessage {
+                role: TuiMessageRole::System,
+                content: "Background Bash Shells:\n\n\
+                          No background shells currently running.\n\n\
+                          Tips:\n\
+                          - Background shells are created using Bash tool with run_in_background: true\n\
+                          - Use BashOutput tool to read shell output\n\
+                          - Use KillShell tool to terminate shells"
+                    .to_string(),
+            });
+            return Ok(());
+        }
+
+        let mut output = format!("Background Bash Shells ({}):\n\n", shell_ids.len());
+
+        for shell_id in &shell_ids {
+            // Get status for each shell
+            match registry.get_status(shell_id).await {
+                Ok(status) => {
+                    let status_str = match status {
+                        rustyclawd_tools::process_registry::ProcessStatus::Running => {
+                            "Running"
+                        }
+                        rustyclawd_tools::process_registry::ProcessStatus::Completed(code) => {
+                            if code == 0 {
+                                "Completed (success)"
+                            } else {
+                                "Completed (error)"
+                            }
+                        }
+                        rustyclawd_tools::process_registry::ProcessStatus::Failed(_) => "Failed",
+                    };
+
+                    output.push_str(&format!("  {} - {}\n", shell_id, status_str));
+                }
+                Err(_) => {
+                    output.push_str(&format!("  {} - Status unknown\n", shell_id));
+                }
+            }
+        }
+
+        output.push_str(
+            "\nCommands:\n\
+             - Use BashOutput tool with bash_id to read output\n\
+             - Use KillShell tool with shell_id to terminate\n\n\
+             Example: Ask Claude to check output from a specific shell ID",
+        );
+
+        self.tui.add_message(ChatMessage {
+            role: TuiMessageRole::System,
+            content: output,
+        });
 
         Ok(())
     }
