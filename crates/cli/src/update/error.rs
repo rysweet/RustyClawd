@@ -64,6 +64,10 @@ pub enum UpdateError {
     /// Invalid state data
     #[error("Invalid state data: {0}")]
     InvalidStateData(String),
+
+    /// Private repository access error (401/403/404)
+    #[error("Private repository access denied (HTTP {status})")]
+    PrivateRepositoryAccess { status: u16 },
 }
 
 impl From<std::io::Error> for UpdateError {
@@ -116,5 +120,29 @@ mod tests {
             update_err,
             UpdateError::GitHubResponseParseFailed(_)
         ));
+    }
+
+    #[test]
+    fn test_private_repository_access_error() {
+        let err = UpdateError::PrivateRepositoryAccess { status: 403 };
+        let msg = err.to_string();
+        assert!(msg.contains("Private repository access denied"));
+        assert!(msg.contains("403"));
+    }
+
+    #[test]
+    fn test_private_repository_access_error_401() {
+        let err = UpdateError::PrivateRepositoryAccess { status: 401 };
+        assert!(matches!(
+            err,
+            UpdateError::PrivateRepositoryAccess { status: 401 }
+        ));
+    }
+
+    #[test]
+    fn test_private_repository_access_error_404() {
+        let err = UpdateError::PrivateRepositoryAccess { status: 404 };
+        let msg = err.to_string();
+        assert!(msg.contains("404"));
     }
 }
