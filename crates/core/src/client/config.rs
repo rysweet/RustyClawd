@@ -8,6 +8,7 @@
 use secrecy::{CloneableSecret, DebugSecret, Secret, Zeroize};
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use tokio::fs;
 
 use super::error::{ClientError, ClientResult};
@@ -68,13 +69,111 @@ impl ApiKey {
         Self::new(key)
     }
 
-    /// Load from default location (~/.claude-msec-k)
+    /// Load from default location with priority chain
+    ///
+    /// Priority:
+    /// 1. ANTHROPIC_API_KEY environment variable
+    /// 2. .env file in current working directory
+    /// 3. ~/.claude-msec-k (legacy, with deprecation warning)
     pub async fn from_default_location() -> ClientResult<Self> {
-        let home = std::env::var("HOME").map_err(|_| {
-            ClientError::ApiKeyRead("HOME environment variable not set".to_string())
-        })?;
-        let path = PathBuf::from(home).join(".claude-msec-k");
-        Self::from_file(path).await
+        // Try 1: Environment variable
+        if let Some(key) = Self::try_from_env()? {
+            return Ok(key);
+        }
+
+        // Try 2: .env file in current directory
+        if let Some(key) = Self::try_from_dotenv().await? {
+            return Ok(key);
+        }
+
+        // Try 3: Legacy file (with warning)
+        if let Some(key) = Self::try_from_legacy_file().await? {
+            Self::warn_legacy_usage();
+            return Ok(key);
+        }
+
+        // None found
+        Err(ClientError::ApiKeyNotFound)
+    }
+
+    /// Try loading from ANTHROPIC_API_KEY environment variable
+    fn try_from_env() -> ClientResult<Option<Self>> {
+        if let Ok(key) = std::env::var("ANTHROPIC_API_KEY") {
+            if !key.is_empty() {
+                return Ok(Some(Self::new(key)?));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Try loading from .env file in current directory
+    async fn try_from_dotenv() -> ClientResult<Option<Self>> {
+        if let Ok(cwd) = std::env::current_dir() {
+            let dotenv_path = cwd.join(".env");
+            if dotenv_path.exists() {
+                // Validate file permissions (Unix-like systems)
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    if let Ok(metadata) = fs::metadata(&dotenv_path).await {
+                        let mode = metadata.permissions().mode();
+                        // Check if file is readable by others (should be 600 or similar)
+                        if mode & 0o077 != 0 {
+                            tracing::warn!(
+                                ".env file {} has permissive permissions: {:o}. Consider: chmod 600 .env",
+                                dotenv_path.display(),
+                                mode & 0o777
+                            );
+                        }
+                    }
+                }
+
+                // Read .env file and parse ANTHROPIC_API_KEY
+                if let Ok(content) = fs::read_to_string(&dotenv_path).await {
+                    for line in content.lines() {
+                        let line = line.trim();
+                        // Skip comments and empty lines
+                        if line.is_empty() || line.starts_with('#') {
+                            continue;
+                        }
+                        // Parse KEY=value or KEY="value" format
+                        if let Some((key, value)) = line.split_once('=') {
+                            if key.trim() == "ANTHROPIC_API_KEY" {
+                                let value = value.trim().trim_matches('"').trim_matches('\'');
+                                if !value.is_empty() {
+                                    return Ok(Some(Self::new(value.to_string())?));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// Try loading from legacy file location
+    async fn try_from_legacy_file() -> ClientResult<Option<Self>> {
+        if let Ok(home) = std::env::var("HOME") {
+            let legacy_path = PathBuf::from(home).join(".claude-msec-k");
+            if legacy_path.exists() {
+                return Ok(Some(Self::from_file(&legacy_path).await?));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Show deprecation warning once per process
+    fn warn_legacy_usage() {
+        static LEGACY_WARNING_SHOWN: OnceLock<()> = OnceLock::new();
+
+        if LEGACY_WARNING_SHOWN.get().is_none() {
+            tracing::warn!(
+                "Using legacy API key location ~/.claude-msec-k. \
+                 Consider setting ANTHROPIC_API_KEY environment variable instead."
+            );
+            let _ = LEGACY_WARNING_SHOWN.set(());
+        }
     }
 }
 
@@ -168,6 +267,7 @@ impl fmt::Debug for Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
     fn test_api_key_format_validation() {
@@ -195,5 +295,99 @@ mod tests {
         let debug_str = format!("{:?}", config);
         assert!(!debug_str.contains("secret123"));
         assert!(debug_str.contains("REDACTED"));
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_api_key_from_env() {
+        // Clear any existing env var first to avoid test interference
+        std::env::remove_var("ANTHROPIC_API_KEY");
+
+        // Set env var and verify it's loaded
+        let test_key = "sk-ant-test123456789";
+        std::env::set_var("ANTHROPIC_API_KEY", test_key);
+
+        let result = ApiKey::from_default_location().await;
+
+        // Clean up
+        std::env::remove_var("ANTHROPIC_API_KEY");
+
+        assert!(result.is_ok(), "Expected Ok, got: {:?}", result);
+        let key = result.unwrap();
+        assert_eq!(key.expose(), test_key);
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_api_key_from_env_empty_string_ignored() {
+        // Clear any existing env var first
+        std::env::remove_var("ANTHROPIC_API_KEY");
+
+        // Empty env var should be ignored
+        std::env::set_var("ANTHROPIC_API_KEY", "");
+        let result = ApiKey::try_from_env();
+        std::env::remove_var("ANTHROPIC_API_KEY");
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_api_key_from_env_invalid_format() {
+        // Clear any existing env var first
+        std::env::remove_var("ANTHROPIC_API_KEY");
+
+        // Invalid format should return error
+        std::env::set_var("ANTHROPIC_API_KEY", "invalid-key");
+        let result = ApiKey::from_default_location().await;
+        std::env::remove_var("ANTHROPIC_API_KEY");
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), ClientError::InvalidApiKey));
+    }
+
+    #[test]
+    fn test_api_key_not_found_error_message() {
+        // Verify helpful error message includes all 3 options
+        let error = ClientError::ApiKeyNotFound;
+        let message = error.to_string();
+        assert!(message.contains("ANTHROPIC_API_KEY"));
+        assert!(message.contains(".env"));
+        assert!(message.contains("~/.claude-msec-k"));
+        assert!(message.contains("https://console.anthropic.com/settings/keys"));
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_api_key_priority_chain_integration() {
+        use std::env;
+        use std::fs;
+
+        // Clean up first
+        env::remove_var("ANTHROPIC_API_KEY");
+        let _ = fs::remove_file(".env");
+
+        // Create .env file
+        fs::write(".env", "ANTHROPIC_API_KEY=\"sk-ant-from-dotenv\"\n").unwrap();
+
+        // Test 1: Environment variable should win
+        env::set_var("ANTHROPIC_API_KEY", "sk-ant-from-env");
+        let key1 = ApiKey::from_default_location().await.unwrap();
+        assert_eq!(
+            key1.expose(),
+            "sk-ant-from-env",
+            "Env var should have highest priority"
+        );
+
+        // Test 2: .env should win after env var removed
+        env::remove_var("ANTHROPIC_API_KEY");
+        let key2 = ApiKey::from_default_location().await.unwrap();
+        assert_eq!(
+            key2.expose(),
+            "sk-ant-from-dotenv",
+            ".env should be second priority"
+        );
+
+        // Cleanup
+        fs::remove_file(".env").unwrap();
     }
 }
