@@ -192,11 +192,11 @@ build_rustyclawd() {
     cd "$PROJECT_ROOT"
 
     if cargo build --release 2>&1 | tee /tmp/cargo_build.log; then
-        if [ -f "$PROJECT_ROOT/target/release/rustyclawd" ] || grep -q "Finished release" /tmp/cargo_build.log; then
+        if [ -f "$PROJECT_ROOT/target/release/rusty" ] || grep -q "Finished release" /tmp/cargo_build.log; then
             echo -e "${GREEN}[Bootstrap] ✓ Build successful${NC}"
             return 0
         else
-            echo -e "${RED}[Bootstrap] ✗ Build succeeded but binary not found${NC}"
+            echo -e "${RED}[Bootstrap] ✗ Build succeeded but binary 'rusty' not found${NC}"
             return 1
         fi
     else
