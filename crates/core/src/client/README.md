@@ -133,6 +133,166 @@ StreamEvent (enum)
   └── MessageStop
 ```
 
+## Cancelling Streams
+
+Streams are automatically cancelled when dropped using Rust's RAII pattern. The underlying HTTP connection and tokio task are cleaned up immediately.
+
+### Automatic Cancellation via Drop
+
+The simplest approach - just let the stream go out of scope:
+
+```rust
+use futures::StreamExt;
+
+{
+    let mut stream = client.create_message_stream(request).await?;
+
+    while let Some(result) = stream.next().await {
+        match result? {
+            StreamEvent::ContentBlockDelta { delta, .. } => {
+                let ContentDelta::TextDelta { text } = delta;
+                print!("{}", text);
+            }
+            _ => {}
+        }
+    }
+    // Stream automatically cancelled when dropped here
+}
+```
+
+### Cancellation via Early Break
+
+Stop consuming events at any point - the stream cleans up on drop:
+
+```rust
+use futures::StreamExt;
+
+let mut stream = client.create_message_stream(request).await?;
+let mut count = 0;
+
+while let Some(result) = stream.next().await {
+    match result? {
+        StreamEvent::ContentBlockDelta { .. } => {
+            count += 1;
+            if count >= 10 {
+                break;  // Stream cancelled when dropped after break
+            }
+        }
+        _ => {}
+    }
+}
+```
+
+### Cancellation via Task Abort
+
+For background streams spawned with `tokio::spawn`, use `JoinHandle::abort()`:
+
+```rust
+use futures::StreamExt;
+use tokio::task::JoinHandle;
+
+let handle: JoinHandle<Result<(), Box<dyn std::error::Error>>> =
+    tokio::spawn(async move {
+        let mut stream = client.create_message_stream(request).await?;
+
+        while let Some(result) = stream.next().await {
+            match result? {
+                StreamEvent::ContentBlockDelta { delta, .. } => {
+                    let ContentDelta::TextDelta { text } = delta;
+                    print!("{}", text);
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    });
+
+// Cancel the stream by aborting the task
+handle.abort();
+
+// Optionally wait for abort to complete
+match handle.await {
+    Ok(_) => println!("Stream completed normally"),
+    Err(e) if e.is_cancelled() => println!("Stream was cancelled"),
+    Err(e) => eprintln!("Error: {}", e),
+}
+```
+
+### Cancellation via Timeout
+
+Use `tokio::time::timeout` for time-limited operations:
+
+```rust
+use futures::StreamExt;
+use tokio::time::{timeout, Duration};
+
+let result = timeout(Duration::from_secs(30), async {
+    let mut stream = client.create_message_stream(request).await?;
+
+    while let Some(event) = stream.next().await {
+        match event? {
+            StreamEvent::ContentBlockDelta { delta, .. } => {
+                let ContentDelta::TextDelta { text } = delta;
+                print!("{}", text);
+            }
+            _ => {}
+        }
+    }
+    Ok::<(), Box<dyn std::error::Error>>(())
+}).await;
+
+match result {
+    Ok(Ok(())) => println!("Stream completed within timeout"),
+    Ok(Err(e)) => eprintln!("Error: {}", e),
+    Err(_) => {
+        println!("Stream cancelled: timeout exceeded");
+        // Stream is automatically cancelled here
+    }
+}
+```
+
+### Cancellation via Select
+
+Use `tokio::select!` to cancel based on other conditions:
+
+```rust
+use futures::StreamExt;
+use tokio::sync::mpsc;
+
+let (tx, mut rx) = mpsc::channel(1);
+
+tokio::select! {
+    _ = async {
+        let mut stream = client.create_message_stream(request).await?;
+
+        while let Some(event) = stream.next().await {
+            match event? {
+                StreamEvent::ContentBlockDelta { delta, .. } => {
+                    let ContentDelta::TextDelta { text } = delta;
+                    print!("{}", text);
+                }
+                _ => {}
+            }
+        }
+        Ok::<(), Box<dyn std::error::Error>>(())
+    } => {},
+
+    Some(signal) = rx.recv() => {
+        println!("Received cancellation signal: {:?}", signal);
+        // Stream automatically cancelled when scope exits
+    }
+}
+```
+
+## Best Practices for Stream Cancellation
+
+1. **Prefer automatic cancellation**: Dropping the stream is the simplest and most idiomatic approach
+2. **Use drop for local streams**: When you own the stream in a function, just let it go out of scope
+3. **Use `abort()` for spawned tasks**: For background streams started with `tokio::spawn`, use `JoinHandle::abort()`
+4. **Use `timeout()` for time limits**: When operations need to complete within a time budget
+5. **Use `select!` for complex logic**: When cancellation depends on multiple conditions
+6. **No explicit cancel needed**: The framework handles cleanup automatically - you don't need to explicitly close or cancel anything
+
 ## Examples
 
 See the `examples/` directory for complete, runnable examples:
