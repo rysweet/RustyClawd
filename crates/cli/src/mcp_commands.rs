@@ -112,10 +112,12 @@ impl McpCommandHandler {
 
         output.push_str(&format!("{:-<60}\n", ""));
         output.push_str("\nCommands:\n");
-        output.push_str("  mcp start <server-id>  - Start a server\n");
-        output.push_str("  mcp stop <server-id>   - Stop a server\n");
-        output.push_str("  mcp tools <server-id>  - List available tools\n");
-        output.push_str("  mcp status <server-id> - Show detailed status\n");
+        output.push_str("  mcp start <server-id>                          - Start a server\n");
+        output.push_str("  mcp stop <server-id>                           - Stop a server\n");
+        output.push_str("  mcp tools <server-id>                          - List available tools\n");
+        output.push_str("  mcp prompts <server-id>                        - List available prompts\n");
+        output.push_str("  mcp get-prompt <server-id> <name> [args-json] - Get a specific prompt\n");
+        output.push_str("  mcp status <server-id>                         - Show detailed status\n");
 
         Ok(output)
     }
@@ -229,6 +231,120 @@ impl McpCommandHandler {
         proxy.stop_all().await?;
         Ok("All MCP servers stopped".to_string())
     }
+
+    /// List prompts from a server
+    pub async fn prompts(&self, server_id: &str) -> McpCommandResult {
+        let proxy = self.proxy.lock().await;
+
+        // Check if server exists
+        if !proxy.list_servers().contains(&server_id.to_string()) {
+            return Err(format!(
+                "Server '{}' not found. Use 'mcp list' to see available servers.",
+                server_id
+            ));
+        }
+
+        // Check if running
+        if !proxy.is_server_running(server_id) {
+            return Err(format!(
+                "Server '{}' is not running. Start it with: mcp start {}",
+                server_id, server_id
+            ));
+        }
+
+        // Get prompts
+        let prompts = proxy.list_prompts(server_id)?;
+
+        if prompts.is_empty() {
+            return Ok(format!("Server '{}' has no prompts available", server_id));
+        }
+
+        let prompt_count = prompts.len();
+        let mut output = format!("Prompts from server '{}':\n", server_id);
+        output.push_str(&format!("{:-<60}\n", ""));
+
+        for prompt in prompts {
+            output.push_str(&format!("\n  {}\n", prompt.name));
+            if let Some(desc) = &prompt.description {
+                output.push_str(&format!("    {}\n", desc));
+            }
+
+            // Show arguments if any
+            if !prompt.arguments.is_empty() {
+                output.push_str("    Arguments:\n");
+                for arg in &prompt.arguments {
+                    let required = if arg.required { " (required)" } else { "" };
+                    output.push_str(&format!("      - {}{}\n", arg.name, required));
+                    if let Some(desc) = &arg.description {
+                        output.push_str(&format!("        {}\n", desc));
+                    }
+                }
+            }
+        }
+
+        output.push_str(&format!("\n{:-<60}\n", ""));
+        output.push_str(&format!("\nTotal: {} prompt(s)\n", prompt_count));
+
+        Ok(output)
+    }
+
+    /// Get a specific prompt from a server
+    pub async fn get_prompt(&self, server_id: &str, prompt_name: &str, args_json: Option<&str>) -> McpCommandResult {
+        let mut proxy = self.proxy.lock().await;
+
+        // Check if server exists
+        if !proxy.list_servers().contains(&server_id.to_string()) {
+            return Err(format!(
+                "Server '{}' not found. Use 'mcp list' to see available servers.",
+                server_id
+            ));
+        }
+
+        // Check if running
+        if !proxy.is_server_running(server_id) {
+            return Err(format!(
+                "Server '{}' is not running. Start it with: mcp start {}",
+                server_id, server_id
+            ));
+        }
+
+        // Parse arguments if provided
+        let arguments = if let Some(json_str) = args_json {
+            Some(serde_json::from_str(json_str).map_err(|e| format!("Invalid JSON arguments: {}", e))?)
+        } else {
+            None
+        };
+
+        // Get the prompt
+        let result = proxy.get_prompt(server_id, prompt_name, arguments).await?;
+
+        let mut output = format!("Prompt: {}\n", prompt_name);
+        output.push_str(&format!("{:-<60}\n", ""));
+
+        if let Some(desc) = &result.description {
+            output.push_str(&format!("Description: {}\n\n", desc));
+        }
+
+        output.push_str("Messages:\n");
+        for (i, msg) in result.messages.iter().enumerate() {
+            output.push_str(&format!("\n  Message {} [{}]:\n", i + 1, msg.role));
+            match &msg.content {
+                crate::plugins::mcp_proxy::PromptContent::Text { text } => {
+                    output.push_str(&format!("    {}\n", text));
+                }
+                crate::plugins::mcp_proxy::PromptContent::Resource { resource } => {
+                    output.push_str(&format!("    Resource: {}\n", resource.uri));
+                    if let Some(mime) = &resource.mime_type {
+                        output.push_str(&format!("    MIME Type: {}\n", mime));
+                    }
+                }
+            }
+        }
+
+        output.push_str(&format!("\n{:-<60}\n", ""));
+
+        Ok(output)
+    }
 }
 
 /// CLI entry point for MCP subcommands
@@ -263,6 +379,19 @@ pub async fn handle_cli_command(proxy: Arc<Mutex<McpProxy>>, args: &[String]) ->
             }
             handler.tools(&args[1]).await
         }
+        "prompts" => {
+            if args.len() < 2 {
+                return Err("Missing server ID. Usage: mcp prompts <server-id>".to_string());
+            }
+            handler.prompts(&args[1]).await
+        }
+        "get-prompt" => {
+            if args.len() < 3 {
+                return Err("Missing arguments. Usage: mcp get-prompt <server-id> <prompt-name> [args-json]".to_string());
+            }
+            let args_json = if args.len() > 3 { Some(args[3].as_str()) } else { None };
+            handler.get_prompt(&args[1], &args[2], args_json).await
+        }
         "status" => {
             if args.len() < 2 {
                 return Err("Missing server ID. Usage: mcp status <server-id>".to_string());
@@ -271,7 +400,7 @@ pub async fn handle_cli_command(proxy: Arc<Mutex<McpProxy>>, args: &[String]) ->
         }
         "stop-all" => handler.stop_all().await,
         _ => Err(format!(
-            "Unknown subcommand: '{}'. Available: start, stop, list, tools, status",
+            "Unknown subcommand: '{}'. Available: start, stop, list, tools, prompts, get-prompt, status, stop-all",
             subcommand
         )),
     }
@@ -328,6 +457,19 @@ pub async fn handle_tui_command(
             }
             handler.tools(&args[0]).await
         }
+        "prompts" => {
+            if args.is_empty() {
+                return Err("Missing server ID. Usage: /mcp-prompts <server-id>".to_string());
+            }
+            handler.prompts(&args[0]).await
+        }
+        "get-prompt" => {
+            if args.len() < 2 {
+                return Err("Missing arguments. Usage: /mcp-get-prompt <server-id> <prompt-name> [args-json]".to_string());
+            }
+            let args_json = if args.len() > 2 { Some(args[2].as_str()) } else { None };
+            handler.get_prompt(&args[0], &args[1], args_json).await
+        }
         "status" => {
             if args.is_empty() {
                 return Err("Missing server ID. Usage: /mcp-status <server-id>".to_string());
@@ -335,7 +477,7 @@ pub async fn handle_tui_command(
             handler.status(&args[0]).await
         }
         _ => Err(format!(
-            "Unknown MCP command: '{}'. Available: start, stop, list, tools, status",
+            "Unknown MCP command: '{}'. Available: start, stop, list, tools, prompts, get-prompt, status",
             command
         )),
     }

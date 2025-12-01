@@ -19,7 +19,7 @@ use crate::tui::{ChatMessage, MessageRole as TuiMessageRole, TuiState};
 use anyhow::Result;
 use futures::StreamExt;
 use rustyclawd_core::{
-    client::{Client, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent},
+    client::{Client, ClientError, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent},
     Context, Message, MessageRole,
 };
 use rustyclawd_tools::{
@@ -593,7 +593,7 @@ impl InteractiveSession {
 
         // Make HTTP request directly to capture rate limit headers
         let url = format!("{}/v1/messages", self.client.api_url());
-        let http_response = self
+        let http_response = match self
             .client
             .http_client()
             .post(&url)
@@ -606,7 +606,15 @@ impl InteractiveSession {
             .header("accept", "text/event-stream")
             .json(&request)
             .send()
-            .await?;
+            .await
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                // Convert reqwest error to ClientError for user-friendly messages
+                let client_error = ClientError::from(e);
+                return Err(anyhow::anyhow!("{}", self.format_network_error(&client_error)));
+            }
+        };
 
         // Extract rate limit headers before consuming response
         let headers = http_response.headers();
@@ -1181,6 +1189,45 @@ impl InteractiveSession {
             role: TuiMessageRole::System,
             content: output,
         });
+    }
+
+    /// Format network errors with user-friendly messages and troubleshooting hints
+    fn format_network_error(&self, error: &ClientError) -> String {
+        match error {
+            ClientError::Timeout(msg) => {
+                format!(
+                    "⏱️  Request timed out\n\
+                    Details: {}\n\
+                    Tip: Check your internet connection or try again later.",
+                    msg
+                )
+            }
+            ClientError::ConnectionError(msg) => {
+                format!(
+                    "🔌 Connection failed\n\
+                    Details: {}\n\
+                    Tip: Verify you can reach api.anthropic.com",
+                    msg
+                )
+            }
+            ClientError::DnsError(msg) => {
+                format!(
+                    "🌐 DNS resolution failed\n\
+                    Details: {}\n\
+                    Tip: Check your DNS settings or try a different network.",
+                    msg
+                )
+            }
+            ClientError::NetworkError(msg) => {
+                format!(
+                    "📡 Network error\n\
+                    Details: {}\n\
+                    Tip: Check your internet connection.",
+                    msg
+                )
+            }
+            _ => error.to_string(),
+        }
     }
 
     /// Handle /bashes command - Display background shell information
