@@ -173,6 +173,19 @@ enum Commands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// Invoke a specialized agent with a prompt
+    Agent {
+        /// Type of agent to invoke (loads from .claude/agents/<type>.md)
+        agent_type: String,
+
+        /// Path to file containing the prompt
+        #[arg(long)]
+        prompt: String,
+
+        /// Optional model override (haiku, sonnet, opus)
+        #[arg(long)]
+        model: Option<String>,
+    },
 }
 
 /// Unified CLI application state
@@ -518,7 +531,7 @@ impl App {
         }
     }
 
-    /// Run subcommands (update, mcp)
+    /// Run subcommands (update, mcp, agent)
     async fn run_subcommand(&self, command: &Commands) -> Result<()> {
         match command {
             Commands::Update {
@@ -539,6 +552,11 @@ impl App {
                     }
                 }
             }
+            Commands::Agent {
+                agent_type,
+                prompt,
+                model,
+            } => self.handle_agent_command(agent_type, prompt, model.as_deref()).await,
         }
     }
 
@@ -593,6 +611,89 @@ impl App {
                 }
             }
         }
+    }
+
+    /// Handle agent command - invoke specialized agent with prompt from file
+    async fn handle_agent_command(
+        &self,
+        agent_type: &str,
+        prompt_file: &str,
+        model: Option<&str>,
+    ) -> Result<()> {
+        use rustyclawd_tools::{AgentTool, Tool, ToolContext, ToolEvent};
+
+        tracing::info!(
+            "Invoking agent: type={}, prompt_file={}, model={:?}",
+            agent_type,
+            prompt_file,
+            model
+        );
+
+        // Read prompt from file
+        let prompt_content = std::fs::read_to_string(prompt_file)
+            .with_context(|| format!("Failed to read prompt file: {}", prompt_file))?;
+
+        // Create tool context
+        let ctx = ToolContext {
+            cwd: std::env::current_dir().unwrap_or_default(),
+            debug: self.cli.verbose,
+            metadata: serde_json::Value::Null,
+            execution_context: rustyclawd_tools::ExecutionContext::NonInteractive,
+        };
+
+        // Create agent parameters
+        let params = rustyclawd_tools::agent::AgentParams {
+            description: format!("Agent invocation: {}", agent_type),
+            prompt: prompt_content,
+            subagent_type: agent_type.to_string(),
+            model: model.map(|m| m.to_string()),
+            resume: None,
+        };
+
+        // Execute agent tool
+        let tool = AgentTool;
+        let mut stream = tool
+            .execute(params, &ctx)
+            .await
+            .with_context(|| format!("Failed to execute agent: {}", agent_type))?;
+
+        // Process stream events
+        use futures::StreamExt;
+        while let Some(event) = stream.next().await {
+            match event {
+                ToolEvent::Result(output) => {
+                    // Output the agent response
+                    println!("\n=== Agent Response ===\n");
+                    println!("{}", output.response);
+                    println!("\n=== Metadata ===");
+                    println!("Agent ID: {}", output.agent_id);
+                    println!("Agent Name: {}", output.agent_name);
+                    println!("Model: {}", output.model);
+                    println!(
+                        "Tokens: {} input, {} output, {} total",
+                        output.tokens_used.input_tokens,
+                        output.tokens_used.output_tokens,
+                        output.tokens_used.total_tokens
+                    );
+                    return Ok(());
+                }
+                ToolEvent::Error { message } => {
+                    eprintln!("Agent error: {}", message);
+                    return Err(anyhow::anyhow!("Agent execution failed: {}", message));
+                }
+                ToolEvent::Progress { step, percentage } => {
+                    if self.cli.verbose {
+                        if let Some(pct) = percentage {
+                            eprintln!("[{:.0}%] {}", pct, step);
+                        } else {
+                            eprintln!("{}", step);
+                        }
+                    }
+                }
+            }
+        }
+
+        Err(anyhow::anyhow!("Agent execution completed without result"))
     }
 
     /// Determine which mode to run based on CLI arguments and stdin
