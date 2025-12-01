@@ -223,6 +223,56 @@ impl McpCommandHandler {
         Ok(output)
     }
 
+    /// List prompts from a server
+    pub async fn prompts(&self, server_id: &str) -> McpCommandResult {
+        let proxy = self.proxy.lock().await;
+
+        // Check if server exists
+        if !proxy.list_servers().contains(&server_id.to_string()) {
+            return Err(format!(
+                "Server '{}' not found. Use 'mcp list' to see available servers.",
+                server_id
+            ));
+        }
+
+        // Check if running
+        if !proxy.is_server_running(server_id) {
+            return Err(format!(
+                "Server '{}' is not running. Start it with: mcp start {}",
+                server_id, server_id
+            ));
+        }
+
+        // Get prompts
+        let prompts = proxy.list_prompts(server_id)?;
+
+        if prompts.is_empty() {
+            return Ok(format!("Server '{}' has no prompts available", server_id));
+        }
+
+        let prompt_count = prompts.len();
+        let mut output = format!("Prompts from server '{}':\n", server_id);
+        output.push_str(&format!("{:-<60}\n", ""));
+
+        for prompt in prompts {
+            output.push_str(&format!("\n  {}\n", prompt.name));
+            output.push_str(&format!("    {}\n", prompt.description));
+
+            if !prompt.arguments.is_empty() {
+                output.push_str("    Arguments:\n");
+                for arg in prompt.arguments {
+                    let required = if arg.required { "required" } else { "optional" };
+                    output.push_str(&format!("      - {} ({})\n", arg.name, required));
+                }
+            }
+        }
+
+        output.push_str(&format!("\n{:-<60}\n", ""));
+        output.push_str(&format!("\nTotal: {} prompt(s)\n", prompt_count));
+
+        Ok(output)
+    }
+
     /// Stop all running servers
     pub async fn stop_all(&self) -> McpCommandResult {
         let mut proxy = self.proxy.lock().await;
@@ -237,7 +287,8 @@ pub async fn handle_cli_command(proxy: Arc<Mutex<McpProxy>>, args: &[String]) ->
 
     if args.is_empty() {
         return Err(
-            "Missing subcommand. Usage: mcp <start|stop|list|tools|status> [args]".to_string(),
+            "Missing subcommand. Usage: mcp <start|stop|list|tools|prompts|status> [args]"
+                .to_string(),
         );
     }
 
@@ -263,6 +314,12 @@ pub async fn handle_cli_command(proxy: Arc<Mutex<McpProxy>>, args: &[String]) ->
             }
             handler.tools(&args[1]).await
         }
+        "prompts" => {
+            if args.len() < 2 {
+                return Err("Missing server ID. Usage: mcp prompts <server-id>".to_string());
+            }
+            handler.prompts(&args[1]).await
+        }
         "status" => {
             if args.len() < 2 {
                 return Err("Missing server ID. Usage: mcp status <server-id>".to_string());
@@ -271,7 +328,7 @@ pub async fn handle_cli_command(proxy: Arc<Mutex<McpProxy>>, args: &[String]) ->
         }
         "stop-all" => handler.stop_all().await,
         _ => Err(format!(
-            "Unknown subcommand: '{}'. Available: start, stop, list, tools, status",
+            "Unknown subcommand: '{}'. Available: start, stop, list, tools, prompts, status",
             subcommand
         )),
     }
@@ -328,6 +385,12 @@ pub async fn handle_tui_command(
             }
             handler.tools(&args[0]).await
         }
+        "prompts" => {
+            if args.is_empty() {
+                return Err("Missing server ID. Usage: /mcp-prompts <server-id>".to_string());
+            }
+            handler.prompts(&args[0]).await
+        }
         "status" => {
             if args.is_empty() {
                 return Err("Missing server ID. Usage: /mcp-status <server-id>".to_string());
@@ -335,7 +398,7 @@ pub async fn handle_tui_command(
             handler.status(&args[0]).await
         }
         _ => Err(format!(
-            "Unknown MCP command: '{}'. Available: start, stop, list, tools, status",
+            "Unknown MCP command: '{}'. Available: start, stop, list, tools, prompts, status",
             command
         )),
     }
@@ -369,6 +432,15 @@ mod tests {
         assert!(result.is_some());
         let (cmd, args) = result.unwrap();
         assert_eq!(cmd, "tools");
+        assert_eq!(args, vec!["filesystem"]);
+    }
+
+    #[test]
+    fn test_parse_slash_command_prompts() {
+        let result = parse_slash_command("/mcp-prompts filesystem");
+        assert!(result.is_some());
+        let (cmd, args) = result.unwrap();
+        assert_eq!(cmd, "prompts");
         assert_eq!(args, vec!["filesystem"]);
     }
 

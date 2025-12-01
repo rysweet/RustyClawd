@@ -21,6 +21,8 @@ pub struct McpServerInstance {
     pub capabilities: Option<McpCapabilities>,
     /// Available tools from this server
     pub tools: Vec<McpToolDefinition>,
+    /// Available prompts from this server
+    pub prompts: Vec<McpPromptDefinition>,
 }
 
 /// MCP server capabilities
@@ -47,6 +49,48 @@ pub struct McpToolDefinition {
     /// JSON Schema for input
     #[serde(rename = "inputSchema")]
     pub input_schema: serde_json::Value,
+}
+
+/// MCP prompt definition from server
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpPromptDefinition {
+    /// Prompt name (unique identifier)
+    pub name: String,
+    /// Human-readable description
+    pub description: String,
+    /// Optional list of arguments
+    #[serde(default)]
+    pub arguments: Vec<McpPromptArgument>,
+}
+
+/// Argument for MCP prompt
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpPromptArgument {
+    /// Argument name
+    pub name: String,
+    /// Argument description
+    pub description: String,
+    /// Whether this argument is required
+    pub required: bool,
+}
+
+/// Message in a prompt response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpPromptMessage {
+    /// Message role (user, assistant, system)
+    pub role: String,
+    /// Message content (structured JSON)
+    pub content: serde_json::Value,
+}
+
+/// Result from prompts/get
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpPromptResult {
+    /// Prompt description
+    #[serde(default)]
+    pub description: Option<String>,
+    /// List of messages
+    pub messages: Vec<McpPromptMessage>,
 }
 
 /// MCP request message
@@ -103,6 +147,7 @@ impl McpProxy {
                 process: None,
                 capabilities: None,
                 tools: Vec::new(),
+                prompts: Vec::new(),
             },
         );
     }
@@ -193,9 +238,13 @@ impl McpProxy {
         // List tools
         let tools = self.list_tools_internal(server_id, &mut child).await?;
 
+        // List prompts
+        let prompts = self.list_prompts_internal(server_id, &mut child).await?;
+
         // Store state
         let server = self.servers.get_mut(server_id).unwrap();
         server.tools = tools;
+        server.prompts = prompts;
         server.process = Some(child);
 
         Ok(())
@@ -217,6 +266,7 @@ impl McpProxy {
 
         server.capabilities = None;
         server.tools.clear();
+        server.prompts.clear();
 
         Ok(())
     }
@@ -363,6 +413,154 @@ impl McpProxy {
         Err("No response from MCP server".to_string())
     }
 
+    /// List prompts from a server (internal helper)
+    async fn list_prompts_internal(
+        &mut self,
+        _server_id: &str,
+        child: &mut TokioChild,
+    ) -> Result<Vec<McpPromptDefinition>, String> {
+        let list_request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: self.next_request_id,
+            method: "prompts/list".to_string(),
+            params: serde_json::json!({}),
+        };
+        self.next_request_id += 1;
+
+        // Send request
+        if let Some(stdin) = child.stdin.as_mut() {
+            let request_str = serde_json::to_string(&list_request)
+                .map_err(|e| format!("Failed to serialize request: {}", e))?;
+            stdin
+                .write_all(request_str.as_bytes())
+                .await
+                .map_err(|e| format!("Failed to write to MCP server: {}", e))?;
+            stdin
+                .write_all(b"\n")
+                .await
+                .map_err(|e| format!("Failed to write newline: {}", e))?;
+            stdin
+                .flush()
+                .await
+                .map_err(|e| format!("Failed to flush: {}", e))?;
+        }
+
+        // Read response
+        if let Some(stdout) = child.stdout.as_mut() {
+            let mut reader = BufReader::new(stdout);
+            let mut line = String::new();
+            reader
+                .read_line(&mut line)
+                .await
+                .map_err(|e| format!("Failed to read prompts list: {}", e))?;
+
+            let response: McpResponse = serde_json::from_str(&line)
+                .map_err(|e| format!("Failed to parse prompts list response: {}", e))?;
+
+            if let Some(error) = response.error {
+                return Err(format!(
+                    "MCP server error listing prompts: {}",
+                    error.message
+                ));
+            }
+
+            if let Some(result) = response.result {
+                let prompts: Vec<McpPromptDefinition> =
+                    serde_json::from_value(result["prompts"].clone())
+                        .map_err(|e| format!("Failed to parse prompts: {}", e))?;
+                return Ok(prompts);
+            }
+        }
+
+        Ok(Vec::new())
+    }
+
+    /// List all available prompts from a server
+    pub fn list_prompts(&self, server_id: &str) -> Result<Vec<McpPromptDefinition>, String> {
+        let server = self
+            .servers
+            .get(server_id)
+            .ok_or_else(|| format!("Server not found: {}", server_id))?;
+
+        if server.process.is_none() {
+            return Err(format!("Server not started: {}", server_id));
+        }
+
+        Ok(server.prompts.clone())
+    }
+
+    /// Get a prompt with arguments
+    pub async fn get_prompt(
+        &mut self,
+        server_id: &str,
+        prompt_name: &str,
+        arguments: serde_json::Value,
+    ) -> Result<McpPromptResult, String> {
+        let server = self
+            .servers
+            .get_mut(server_id)
+            .ok_or_else(|| format!("Server not found: {}", server_id))?;
+
+        let process = server
+            .process
+            .as_mut()
+            .ok_or_else(|| format!("Server not started: {}", server_id))?;
+
+        let get_request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: self.next_request_id,
+            method: "prompts/get".to_string(),
+            params: serde_json::json!({
+                "name": prompt_name,
+                "arguments": arguments,
+            }),
+        };
+        self.next_request_id += 1;
+
+        // Send request
+        if let Some(stdin) = process.stdin.as_mut() {
+            let request_str = serde_json::to_string(&get_request)
+                .map_err(|e| format!("Failed to serialize request: {}", e))?;
+            stdin
+                .write_all(request_str.as_bytes())
+                .await
+                .map_err(|e| format!("Failed to write to MCP server: {}", e))?;
+            stdin
+                .write_all(b"\n")
+                .await
+                .map_err(|e| format!("Failed to write newline: {}", e))?;
+            stdin
+                .flush()
+                .await
+                .map_err(|e| format!("Failed to flush: {}", e))?;
+        }
+
+        // Read response
+        if let Some(stdout) = process.stdout.as_mut() {
+            let mut reader = BufReader::new(stdout);
+            let mut line = String::new();
+            reader
+                .read_line(&mut line)
+                .await
+                .map_err(|e| format!("Failed to read prompt response: {}", e))?;
+
+            let response: McpResponse = serde_json::from_str(&line)
+                .map_err(|e| format!("Failed to parse prompt response: {}", e))?;
+
+            if let Some(error) = response.error {
+                return Err(format!("MCP prompt error: {}", error.message));
+            }
+
+            if let Some(result) = response.result {
+                let prompt_result: McpPromptResult = serde_json::from_value(result)
+                    .map_err(|e| format!("Failed to parse prompt result: {}", e))?;
+                return Ok(prompt_result);
+            }
+        }
+
+        Err("No response from MCP server".to_string())
+    }
+
     /// Get all registered servers
     pub fn list_servers(&self) -> Vec<String> {
         self.servers.keys().cloned().collect()
@@ -446,5 +644,72 @@ mod tests {
 
         proxy.register_server(definition);
         assert!(!proxy.is_server_running("test-server"));
+    }
+
+    // ===== Prompts Tests =====
+
+    #[test]
+    fn test_server_instance_prompts_initialization() {
+        let mut proxy = McpProxy::new();
+        let definition = McpServerDefinition {
+            id: "test-server".to_string(),
+            name: "Test Server".to_string(),
+            command: "node".to_string(),
+            args: vec![],
+            env: HashMap::new(),
+            description: None,
+        };
+
+        proxy.register_server(definition);
+        let server = proxy.servers.get("test-server").unwrap();
+
+        // Prompts should be initialized as empty vec
+        assert_eq!(server.prompts.len(), 0);
+        assert!(server.prompts.is_empty());
+    }
+
+    #[test]
+    fn test_list_prompts_server_not_found() {
+        let proxy = McpProxy::new();
+        let result = proxy.list_prompts("nonexistent");
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("Server not found"));
+        assert!(err.contains("nonexistent"));
+    }
+
+    #[test]
+    fn test_list_prompts_server_not_running() {
+        let mut proxy = McpProxy::new();
+        let definition = McpServerDefinition {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            command: "node".to_string(),
+            args: vec![],
+            env: HashMap::new(),
+            description: None,
+        };
+
+        proxy.register_server(definition);
+        let result = proxy.list_prompts("test");
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not started"));
+    }
+
+    #[test]
+    fn test_prompt_definition_json() {
+        let prompt = McpPromptDefinition {
+            name: "test".to_string(),
+            description: "Test prompt".to_string(),
+            arguments: vec![],
+        };
+
+        let json = serde_json::to_string(&prompt).unwrap();
+        let deserialized: McpPromptDefinition = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.name, prompt.name);
+        assert_eq!(deserialized.description, prompt.description);
     }
 }
