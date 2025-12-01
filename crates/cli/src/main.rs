@@ -38,7 +38,8 @@ struct Cli {
     command: Option<Commands>,
 
     /// Print mode - execute prompt and exit
-    #[arg(short = 'p', long = "print")]
+    /// (alias: --prompt)
+    #[arg(short = 'p', long = "print", alias = "prompt")]
     print_mode: bool,
 
     /// Continue from last session
