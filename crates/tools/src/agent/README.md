@@ -16,15 +16,17 @@ The Agent tool is the **MOST CRITICAL** tool in the system, enabling sophisticat
 ## Architecture
 
 ```
-Main Agent
+Main Agent (with context A, B, C)
     ↓
-Agent Tool (Fork Context)
+Agent Tool (receives ToolContext copy, loads agent system prompt)
     ↓
-Claude API (with agent system prompt)
+Claude API (system=agent_prompt, user=provided_prompt)
     ↓
-Sub-Agent Response
+Sub-Agent Response (generates output independently)
     ↓
-Return to Main Agent
+Return AgentOutput (response text only, no context changes)
+    ↓
+Main Agent (context unchanged: A, B, C)
 ```
 
 ## Parameters
@@ -47,6 +49,296 @@ pub struct AgentParams {
     pub resume: Option<String>,
 }
 ```
+
+## Context Management (Context Isolation & Forking)
+
+### How Agent Contexts Work
+
+When you invoke an agent using the Task tool, the **ToolContext is cloned** but the agent operates in **complete isolation**. This is NOT traditional context forking - it's more accurately described as **context isolation**.
+
+### Context Flow
+
+```
+Step 1: Parent Context
+┌─────────────────────────────────────┐
+│ cwd: /project                       │
+│ debug: false                        │
+│ metadata: {request_id: "123"}       │
+│ execution_context: NonInteractive   │
+└─────────────────────────────────────┘
+         ↓
+Step 2: Clone for Agent Execution
+┌─────────────────────────────────────┐
+│ cwd: /project (copied)              │  ← Same values
+│ debug: false (copied)               │  ← Same values
+│ metadata: {request_id: "123"} (cpy) │  ← Same values
+│ execution_context: NonInteractive   │  ← Same values
+└─────────────────────────────────────┘
+         ↓
+Step 3: Agent Execution
+┌─────────────────────────────────────┐
+│ Agent System Prompt:                │
+│ (Loaded from .claude/agents/X.md)   │
+│                                     │
+│ User Prompt: (params.prompt)        │
+│                                     │
+│ API Call → Claude → Response        │
+└─────────────────────────────────────┘
+         ↓
+Step 4: Return to Parent
+┌─────────────────────────────────────┐
+│ Parent Context: UNCHANGED           │
+│ (Still has original values A, B, C) │
+│                                     │
+│ Agent Output:                       │
+│ - agent_id                          │
+│ - response (text only)              │
+│ - model_id                          │
+│ - tokens_used                       │
+└─────────────────────────────────────┘
+```
+
+### Key Characteristics
+
+#### 1. Context is NOT Truly "Forked"
+
+**Context forking** (as known in process management) means child processes inherit and can modify parent state. **Agent contexts are NOT like this.**
+
+Instead:
+- ToolContext is **cloned** (shallow copy of struct fields)
+- Agent receives the **clone**, not shared references
+- Changes by the agent **cannot affect** parent context
+- Parent context is **read-only** to the agent (via cloned fields)
+
+#### 2. What the Agent Actually Receives
+
+The agent tool passes:
+
+```rust
+// From parent ToolContext (cloned values):
+pub struct ToolContext {
+    pub cwd: std::path::PathBuf,        // File system path
+    pub debug: bool,                    // Debug flag
+    pub metadata: serde_json::Value,    // JSON metadata
+    pub execution_context: ExecutionContext,  // TUI or NonInteractive
+}
+
+// NOT passed to agent:
+// - Conversation history
+// - Previous message exchanges
+// - Parent execution state
+// - Sibling agent outputs
+```
+
+#### 3. What the Agent Executes
+
+```rust
+// The agent makes a single API call:
+let request = CreateMessageRequest::new(
+    model_id,
+    vec![Message::user(params.prompt)],  // ← User prompt only
+    4096,
+)
+.with_system(agent_system_prompt)        // ← Agent role definition
+.with_temperature(0.7);
+
+// The agent responds based ONLY on:
+// 1. Its system prompt (role/capabilities)
+// 2. The provided user prompt
+// 3. Its training knowledge
+```
+
+#### 4. What Returns to Parent
+
+```rust
+pub struct AgentOutput {
+    pub agent_id: String,              // Unique ID for resumption
+    pub agent_name: String,            // Agent type name
+    pub response: String,              // Text response (only!)
+    pub model: String,                 // Model used
+    pub tokens_used: TokenUsage,       // Statistics
+}
+
+// NOTE: Only the response text is transferred back
+// No modified context, no shared state changes
+```
+
+### When Agents Are Isolated (Good)
+
+Use parallel agents when they need **independent perspectives** on the same problem:
+
+```rust
+// Agent 1: Analyze code quality
+let result1 = invoke_agent("reviewer", "Review this function").await?;
+
+// Agent 2: Analyze performance (independent, sees original context)
+let result2 = invoke_agent("optimizer", "Optimize this function").await?;
+
+// Agent 3: Analyze security (independent, sees original context)
+let result3 = invoke_agent("security", "Check security of this function").await?;
+
+// All agents started with identical contexts
+// All operate independently
+// Results combine at parent level
+```
+
+### When Agents Cannot Share (Limitation)
+
+Agents **cannot** see each other's work in a pipeline:
+
+```rust
+// ❌ This doesn't work as you might expect:
+
+// Agent 1 produces output
+let output1 = invoke_agent("analyzer", "Analyze file").await?;
+
+// Agent 2 wants to see Agent 1's analysis
+// But can't - isolated context!
+let output2 = invoke_agent("refactorer",
+    "Refactor based on analysis").await?;  // Doesn't see output1
+
+// ✓ Solution: Pass output1's response as part of user prompt:
+let output2 = invoke_agent("refactorer",
+    format!("Refactor based on this analysis:\n{}", output1.response)
+).await?;
+```
+
+### Context Variables and Behavior
+
+| Variable | Source | Passed to Agent? | Can Agent Modify? |
+|----------|--------|-----------------|------------------|
+| `cwd` | Parent | Yes (cloned) | No (agent receives copy) |
+| `debug` | Parent | Yes (cloned) | No (agent receives copy) |
+| `metadata` | Parent | Yes (cloned) | No (agent receives copy) |
+| `execution_context` | Parent | Yes (cloned) | No (agent receives copy) |
+| User prompt | Params | Yes (passed) | Agent responds to it |
+| System prompt | `.claude/agents/*.md` | Yes (loaded fresh) | Agent uses as role |
+| API responses | Claude | Yes (streamed) | Agent generates them |
+
+### Examples
+
+#### Example 1: Parallel Independent Analysis
+
+```rust
+// All agents see the same cwd, metadata, etc.
+// All agents start fresh
+// All operate independently
+
+let code = r#"
+fn calculate(x: i32) -> i32 {
+    x * 2 + 1
+}
+"#;
+
+// Parallel execution - all see same context
+let review = invoke_agent("reviewer", format!("Review:\n{}", code)).await?;
+let tests = invoke_agent("tester", format!("Write tests for:\n{}", code)).await?;
+let perf = invoke_agent("optimizer", format!("Optimize:\n{}", code)).await?;
+
+// Each agent produced independent analysis
+// Parent combines: review.response + tests.response + perf.response
+```
+
+#### Example 2: Sequential Processing (Workaround)
+
+```rust
+// Agent 1: Analyze
+let analysis = invoke_agent("analyzer", "Analyze error in logs").await?;
+
+// Agent 2: Uses Agent 1's response as input
+// (Not shared context - explicit prompt inclusion)
+let solution = invoke_agent("fixer",
+    format!("Given this analysis:\n{}\n\nSuggest a fix:", analysis.response)
+).await?;
+
+// Each invocation is independent
+// Data flows through explicit prompts, not context sharing
+```
+
+#### Example 3: Resume Support
+
+```rust
+// First execution
+let params1 = AgentParams {
+    subagent_type: "worker".to_string(),
+    prompt: "Start processing large dataset...".to_string(),
+    resume: None,  // First run
+    ..
+};
+
+let output1 = invoke_agent(params1).await?;
+let agent_id = output1.agent_id;  // Save ID
+
+// Later: Resume same agent
+let params2 = AgentParams {
+    subagent_type: "worker".to_string(),
+    prompt: "Continue from previous state...".to_string(),
+    resume: Some(agent_id),  // Resume by ID
+    ..
+};
+
+let output2 = invoke_agent(params2).await?;
+
+// Resume allows continuation BUT still starts fresh context
+// Previous state must be encoded in the resumed prompt
+```
+
+### Implementation Details
+
+The agent tool implementation confirms this behavior:
+
+```rust
+// From agent.rs line 134-211:
+
+// 1. Clone the context
+let cwd = ctx.cwd.clone();        // ← Cloned
+let debug = ctx.debug;             // ← Copied (primitive)
+
+// 2. Load agent system prompt (not from context)
+let agent_system_prompt =
+    Self::load_agent_prompt(&agent_type, &cwd).await?;
+
+// 3. Create fresh API request
+let messages = vec![
+    Message::user(params.prompt.clone()),  // ← User prompt only
+];
+
+let request = CreateMessageRequest::new(model_id, messages, 4096)
+    .with_system(agent_system_prompt)      // ← Agent role
+    .with_temperature(0.7);
+
+// 4. API call - starts fresh, agent responds independently
+let mut event_stream = client.create_message_stream(request).await?;
+
+// 5. Return only response text
+yield ToolEvent::Result(AgentOutput {
+    agent_id,
+    agent_name: agent_type.clone(),
+    response: response_text,              // ← Only text returned
+    model: model_id,
+    tokens_used: TokenUsage { ... },
+});
+```
+
+### Common Misconceptions
+
+| Misconception | Reality |
+|---------------|---------|
+| "Agents fork context like processes" | Agents receive cloned context fields, cannot modify them |
+| "Agents see conversation history" | Agents only see the user prompt provided to them |
+| "Agent changes persist in parent" | All changes are isolated; only response text returns |
+| "Agents can modify metadata" | Agents receive copies; modifications don't affect parent |
+| "Context forking enables agent communication" | Context isolation prevents this; use explicit prompts instead |
+| "Multiple agents share state" | Each agent invocation is independent with cloned context |
+
+### Best Practices for Context Isolation
+
+1. **Treat agents as stateless**: Each invocation starts fresh
+2. **Pass data explicitly**: Use prompts, not shared context
+3. **Combine results manually**: Orchestrate agent outputs at parent level
+4. **Use resume for long tasks**: Resume by ID, not context sharing
+5. **Design for parallelization**: Since agents are isolated, they parallelize well
+6. **Document dependencies**: If Agent B needs Agent A's output, make it explicit in prompts
 
 ## Agent Prompts
 
