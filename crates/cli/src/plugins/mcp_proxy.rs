@@ -21,6 +21,8 @@ pub struct McpServerInstance {
     pub capabilities: Option<McpCapabilities>,
     /// Available tools from this server
     pub tools: Vec<McpToolDefinition>,
+    /// Available resources from this server
+    pub resources: Vec<Resource>,
 }
 
 /// MCP server capabilities
@@ -47,6 +49,39 @@ pub struct McpToolDefinition {
     /// JSON Schema for input
     #[serde(rename = "inputSchema")]
     pub input_schema: serde_json::Value,
+}
+
+/// MCP resource definition from server
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Resource {
+    /// Resource URI (e.g., file:///path/to/file, http://example.com/resource)
+    pub uri: String,
+    /// Human-readable resource name
+    pub name: String,
+    /// Resource description
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// MIME type of the resource
+    #[serde(rename = "mimeType")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mime_type: Option<String>,
+}
+
+/// MCP resource contents
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResourceContents {
+    /// Resource URI
+    pub uri: String,
+    /// MIME type of the contents
+    #[serde(rename = "mimeType")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mime_type: Option<String>,
+    /// Text contents (for text-based resources)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    /// Binary contents (base64 encoded, for binary resources)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blob: Option<String>,
 }
 
 /// MCP request message
@@ -103,6 +138,7 @@ impl McpProxy {
                 process: None,
                 capabilities: None,
                 tools: Vec::new(),
+                resources: Vec::new(),
             },
         );
     }
@@ -190,12 +226,25 @@ impl McpProxy {
             }
         }
 
+        // Check if resources capability is available
+        let has_resources = server.capabilities.as_ref()
+            .map(|caps| caps.resources)
+            .unwrap_or(false);
+
         // List tools
         let tools = self.list_tools_internal(server_id, &mut child).await?;
+
+        // List resources (if capability is available)
+        let resources = if has_resources {
+            self.list_resources_internal(server_id, &mut child).await.unwrap_or_default()
+        } else {
+            Vec::new()
+        };
 
         // Store state
         let server = self.servers.get_mut(server_id).unwrap();
         server.tools = tools;
+        server.resources = resources;
         server.process = Some(child);
 
         Ok(())
@@ -217,6 +266,7 @@ impl McpProxy {
 
         server.capabilities = None;
         server.tools.clear();
+        server.resources.clear();
 
         Ok(())
     }
@@ -357,6 +407,152 @@ impl McpProxy {
 
             if let Some(result) = response.result {
                 return Ok(result);
+            }
+        }
+
+        Err("No response from MCP server".to_string())
+    }
+
+    /// List resources from a server (internal helper)
+    async fn list_resources_internal(
+        &mut self,
+        _server_id: &str,
+        child: &mut TokioChild,
+    ) -> Result<Vec<Resource>, String> {
+        let list_request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: self.next_request_id,
+            method: "resources/list".to_string(),
+            params: serde_json::json!({}),
+        };
+        self.next_request_id += 1;
+
+        // Send request
+        if let Some(stdin) = child.stdin.as_mut() {
+            let request_str = serde_json::to_string(&list_request)
+                .map_err(|e| format!("Failed to serialize request: {}", e))?;
+            stdin
+                .write_all(request_str.as_bytes())
+                .await
+                .map_err(|e| format!("Failed to write to MCP server: {}", e))?;
+            stdin
+                .write_all(b"\n")
+                .await
+                .map_err(|e| format!("Failed to write newline: {}", e))?;
+            stdin
+                .flush()
+                .await
+                .map_err(|e| format!("Failed to flush: {}", e))?;
+        }
+
+        // Read response
+        if let Some(stdout) = child.stdout.as_mut() {
+            let mut reader = BufReader::new(stdout);
+            let mut line = String::new();
+            reader
+                .read_line(&mut line)
+                .await
+                .map_err(|e| format!("Failed to read resources list: {}", e))?;
+
+            let response: McpResponse = serde_json::from_str(&line)
+                .map_err(|e| format!("Failed to parse resources list response: {}", e))?;
+
+            if let Some(error) = response.error {
+                return Err(format!(
+                    "MCP server error listing resources: {}",
+                    error.message
+                ));
+            }
+
+            if let Some(result) = response.result {
+                let resources: Vec<Resource> =
+                    serde_json::from_value(result["resources"].clone())
+                        .map_err(|e| format!("Failed to parse resources: {}", e))?;
+                return Ok(resources);
+            }
+        }
+
+        Ok(Vec::new())
+    }
+
+    /// List all available resources from a server
+    pub fn list_resources(&self, server_id: &str) -> Result<Vec<Resource>, String> {
+        let server = self
+            .servers
+            .get(server_id)
+            .ok_or_else(|| format!("Server not found: {}", server_id))?;
+
+        if server.process.is_none() {
+            return Err(format!("Server not started: {}", server_id));
+        }
+
+        Ok(server.resources.clone())
+    }
+
+    /// Read a resource from an MCP server by URI
+    pub async fn read_resource(
+        &mut self,
+        server_id: &str,
+        uri: &str,
+    ) -> Result<ResourceContents, String> {
+        let server = self
+            .servers
+            .get_mut(server_id)
+            .ok_or_else(|| format!("Server not found: {}", server_id))?;
+
+        let process = server
+            .process
+            .as_mut()
+            .ok_or_else(|| format!("Server not started: {}", server_id))?;
+
+        let read_request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: self.next_request_id,
+            method: "resources/read".to_string(),
+            params: serde_json::json!({
+                "uri": uri,
+            }),
+        };
+        self.next_request_id += 1;
+
+        // Send request
+        if let Some(stdin) = process.stdin.as_mut() {
+            let request_str = serde_json::to_string(&read_request)
+                .map_err(|e| format!("Failed to serialize request: {}", e))?;
+            stdin
+                .write_all(request_str.as_bytes())
+                .await
+                .map_err(|e| format!("Failed to write to MCP server: {}", e))?;
+            stdin
+                .write_all(b"\n")
+                .await
+                .map_err(|e| format!("Failed to write newline: {}", e))?;
+            stdin
+                .flush()
+                .await
+                .map_err(|e| format!("Failed to flush: {}", e))?;
+        }
+
+        // Read response
+        if let Some(stdout) = process.stdout.as_mut() {
+            let mut reader = BufReader::new(stdout);
+            let mut line = String::new();
+            reader
+                .read_line(&mut line)
+                .await
+                .map_err(|e| format!("Failed to read resource: {}", e))?;
+
+            let response: McpResponse = serde_json::from_str(&line)
+                .map_err(|e| format!("Failed to parse resource read response: {}", e))?;
+
+            if let Some(error) = response.error {
+                return Err(format!("MCP resource read error: {}", error.message));
+            }
+
+            if let Some(result) = response.result {
+                let contents: ResourceContents = serde_json::from_value(result["contents"].clone())
+                    .map_err(|e| format!("Failed to parse resource contents: {}", e))?;
+                return Ok(contents);
             }
         }
 
