@@ -99,6 +99,28 @@ pub struct AgentDefinition {
     pub model: Option<String>,
 }
 
+/// MCP server transport type
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum McpTransportConfig {
+    /// Standard I/O transport (default)
+    Stdio {
+        /// Command to start the MCP server
+        command: String,
+        /// Command arguments
+        #[serde(default)]
+        args: Vec<String>,
+    },
+    /// HTTP/SSE transport
+    Http {
+        /// HTTP URL for MCP server
+        url: String,
+        /// Optional HTTP headers
+        #[serde(skip_serializing_if = "Option::is_none")]
+        headers: Option<HashMap<String, String>>,
+    },
+}
+
 /// MCP server configuration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct McpServerDefinition {
@@ -106,17 +128,40 @@ pub struct McpServerDefinition {
     pub id: String,
     /// Human-readable server name
     pub name: String,
-    /// Command to start the MCP server
-    pub command: String,
-    /// Command arguments
-    #[serde(default)]
+    /// Transport configuration (defaults to stdio for backward compatibility)
+    #[serde(flatten)]
+    pub transport: Option<McpTransportConfig>,
+    /// Command to start the MCP server (deprecated - use transport.stdio.command)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
+    /// Command arguments (deprecated - use transport.stdio.args)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub args: Vec<String>,
-    /// Environment variables for the server
+    /// Environment variables for the server (stdio only)
     #[serde(default)]
     pub env: HashMap<String, String>,
     /// Server description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+}
+
+impl McpServerDefinition {
+    /// Get the effective transport configuration, handling backward compatibility
+    pub fn get_transport(&self) -> Result<McpTransportConfig, String> {
+        if let Some(transport) = &self.transport {
+            return Ok(transport.clone());
+        }
+
+        // Backward compatibility: use command/args fields if transport not specified
+        if let Some(command) = &self.command {
+            return Ok(McpTransportConfig::Stdio {
+                command: command.clone(),
+                args: self.args.clone(),
+            });
+        }
+
+        Err("No transport configuration found".to_string())
+    }
 }
 
 /// Parse manifest from plugin.json file
@@ -281,5 +326,64 @@ mod tests {
 
         let result = validate_manifest(&manifest);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_mcp_transport_backward_compatibility() {
+        // Old format using command/args
+        let server = McpServerDefinition {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            transport: None,
+            command: Some("node".to_string()),
+            args: vec!["server.js".to_string()],
+            env: HashMap::new(),
+            description: None,
+        };
+
+        let transport = server.get_transport().unwrap();
+        assert!(matches!(transport, McpTransportConfig::Stdio { .. }));
+    }
+
+    #[test]
+    fn test_mcp_transport_new_stdio_format() {
+        // New format using transport field
+        let server = McpServerDefinition {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            transport: Some(McpTransportConfig::Stdio {
+                command: "node".to_string(),
+                args: vec!["server.js".to_string()],
+            }),
+            command: None,
+            args: vec![],
+            env: HashMap::new(),
+            description: None,
+        };
+
+        let transport = server.get_transport().unwrap();
+        assert!(matches!(transport, McpTransportConfig::Stdio { .. }));
+    }
+
+    #[test]
+    fn test_mcp_transport_http() {
+        let mut headers = HashMap::new();
+        headers.insert("Authorization".to_string(), "Bearer token".to_string());
+
+        let server = McpServerDefinition {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            transport: Some(McpTransportConfig::Http {
+                url: "http://localhost:8080/mcp".to_string(),
+                headers: Some(headers),
+            }),
+            command: None,
+            args: vec![],
+            env: HashMap::new(),
+            description: None,
+        };
+
+        let transport = server.get_transport().unwrap();
+        assert!(matches!(transport, McpTransportConfig::Http { .. }));
     }
 }

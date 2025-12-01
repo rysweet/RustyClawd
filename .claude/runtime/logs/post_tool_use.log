@@ -36652,3 +36652,45 @@
 [2025-11-17T22:46:12.230772] INFO: Tool used: unknown
 [2025-11-17T22:46:12.230855] INFO: Returning empty output (allows default behavior)
 [2025-11-17T22:46:12.230913] INFO: post_tool_use hook completed successfully
+[2025-12-01T22:39:09.277712] DEBUG: Context management hook registered
+[2025-12-01T22:39:09.277791] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-12-01T22:39:09.277871] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response', 'tool_use_id']
+[2025-12-01T22:39:09.277913] INFO: Event type: PostToolUse
+[2025-12-01T22:39:09.277949] INFO: Tool used: unknown
+[2025-12-01T22:39:09.278037] INFO: Returning empty output (allows default behavior)
+[2025-12-01T22:39:09.278092] INFO: post_tool_use hook completed successfully
+[2025-12-01T22:39:46.265562] DEBUG: Context management hook registered
+[2025-12-01T22:39:46.265687] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-12-01T22:39:46.265773] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response', 'tool_use_id']
+[2025-12-01T22:39:46.265815] INFO: Event type: PostToolUse
+[2025-12-01T22:39:46.265848] INFO: Tool used: unknown
+[2025-12-01T22:39:46.265936] INFO: Returning empty output (allows default behavior)
+[2025-12-01T22:39:46.265989] INFO: post_tool_use hook completed successfully
+[2025-12-01T22:39:47.830996] DEBUG: Context management hook registered
+[2025-12-01T22:39:47.831079] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-12-01T22:39:47.831157] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response', 'tool_use_id']
+[2025-12-01T22:39:47.831196] INFO: Event type: PostToolUse
+[2025-12-01T22:39:47.831228] INFO: Tool used: unknown
+[2025-12-01T22:39:47.834557] INFO: Returning empty output (allows default behavior)
+[2025-12-01T22:39:47.834662] INFO: post_tool_use hook completed successfully
+[2025-12-01T22:39:57.953869] DEBUG: Context management hook registered
+[2025-12-01T22:39:57.953947] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-12-01T22:39:57.954026] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response', 'tool_use_id']
+[2025-12-01T22:39:57.954068] INFO: Event type: PostToolUse
+[2025-12-01T22:39:57.954103] INFO: Tool used: unknown
+[2025-12-01T22:39:57.954192] INFO: Returning empty output (allows default behavior)
+[2025-12-01T22:39:57.954247] INFO: post_tool_use hook completed successfully
+[2025-12-01T22:39:59.681333] DEBUG: Context management hook registered
+[2025-12-01T22:39:59.681430] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-12-01T22:39:59.681514] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response', 'tool_use_id']
+[2025-12-01T22:39:59.681556] INFO: Event type: PostToolUse
+[2025-12-01T22:39:59.681613] INFO: Tool used: unknown
+[2025-12-01T22:39:59.681701] INFO: Returning empty output (allows default behavior)
+[2025-12-01T22:39:59.681764] INFO: post_tool_use hook completed successfully
+[2025-12-01T22:40:26.067746] DEBUG: Context management hook registered
+[2025-12-01T22:40:26.067827] INFO: post_tool_use hook starting (Python 3.11.14)
+[2025-12-01T22:40:26.170500] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'tool_name', 'tool_input', 'tool_response', 'tool_use_id']
+[2025-12-01T22:40:26.170626] INFO: Event type: PostToolUse
+[2025-12-01T22:40:26.170680] INFO: Tool used: unknown
+[2025-12-01T22:40:26.170815] INFO: Returning empty output (allows default behavior)
+[2025-12-01T22:40:26.170889] INFO: post_tool_use hook completed successfully

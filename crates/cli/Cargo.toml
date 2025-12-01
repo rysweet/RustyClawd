@@ -57,3 +57,6 @@ assert_cmd = "2.0"
 predicates = "3.0"
 tempfile = "3.8"
 escargot = "0.5"
+
+# HTTP testing
+wiremock = "0.6"
