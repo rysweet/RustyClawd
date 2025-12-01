@@ -155,7 +155,11 @@ fn test_agent_real_execution() {
 
     let temp_dir = TempDir::new().unwrap();
     let prompt_file = temp_dir.path().join("prompt.txt");
-    fs::write(&prompt_file, "Say 'Hello from agent test!' and nothing else.").unwrap();
+    fs::write(
+        &prompt_file,
+        "Say 'Hello from agent test!' and nothing else.",
+    )
+    .unwrap();
 
     // Create test agent file
     let claude_dir = temp_dir.path().join(".claude").join("agents");

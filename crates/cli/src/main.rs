@@ -557,7 +557,10 @@ impl App {
                 agent_type,
                 prompt,
                 model,
-            } => self.handle_agent_command(agent_type, prompt, model.as_deref()).await,
+            } => {
+                self.handle_agent_command(agent_type, prompt, model.as_deref())
+                    .await
+            }
         }
     }
 
