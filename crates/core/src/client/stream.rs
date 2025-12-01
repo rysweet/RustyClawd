@@ -126,7 +126,7 @@ where
                     }
                 }
                 Poll::Ready(Some(Err(e))) => {
-                    return Poll::Ready(Some(Err(ClientError::Request(e))));
+                    return Poll::Ready(Some(Err(ClientError::from(e))));
                 }
                 Poll::Ready(None) => {
                     // Stream ended, check if there's remaining data

@@ -11,7 +11,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum ClientError {
     #[error("HTTP request failed: {0}")]
-    Request(#[from] reqwest::Error),
+    Request(String),
 
     #[error("Failed to read API key: {0}")]
     ApiKeyRead(String),
@@ -36,6 +36,19 @@ pub enum ClientError {
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+
+    // Network error types for granular error handling (GAP-ERROR-4)
+    #[error("Request timeout: {0}")]
+    Timeout(String),
+
+    #[error("DNS resolution failed: {0}")]
+    DnsError(String),
+
+    #[error("Connection failed: {0}")]
+    ConnectionError(String),
+
+    #[error("Network error: {0}")]
+    NetworkError(String),
 }
 
 /// Pattern to detect API keys in error messages (sk-ant-...)
@@ -57,6 +70,35 @@ impl ClientError {
     /// Create a sanitized error message safe for logging
     pub fn sanitized_message(&self) -> String {
         sanitize_error(&self.to_string())
+    }
+}
+
+/// Convert reqwest::Error into specific ClientError types for better error handling
+impl From<reqwest::Error> for ClientError {
+    fn from(err: reqwest::Error) -> Self {
+        let error_msg = err.to_string();
+
+        // Check for timeout errors
+        if err.is_timeout() {
+            return ClientError::Timeout(error_msg);
+        }
+
+        // Check for connection errors
+        if err.is_connect() {
+            // Check if it's a DNS error specifically
+            if error_msg.contains("dns") || error_msg.contains("name resolution") {
+                return ClientError::DnsError(error_msg);
+            }
+            return ClientError::ConnectionError(error_msg);
+        }
+
+        // Check for other request errors (network issues)
+        if err.is_request() {
+            return ClientError::NetworkError(error_msg);
+        }
+
+        // For other errors, use the generic Request variant
+        ClientError::Request(error_msg)
     }
 }
 
