@@ -28,7 +28,7 @@ pub struct UpdateOperationResult {
     pub restart_required: bool,
 }
 
-/// Handle checking for updates (rusty update --check)
+/// Handle checking for updates (claude update --check)
 pub async fn handle_check_updates(force: bool) -> Result<UpdateOperationResult, UpdateError> {
     info!("Checking for updates (force: {})", force);
 
@@ -96,7 +96,7 @@ pub async fn handle_check_updates(force: bool) -> Result<UpdateOperationResult, 
     }
 }
 
-/// Handle installing an update (rusty update)
+/// Handle installing an update (claude update)
 pub async fn handle_install_update() -> Result<UpdateOperationResult, UpdateError> {
     info!("Starting update installation process");
 
@@ -178,7 +178,7 @@ pub async fn handle_install_update() -> Result<UpdateOperationResult, UpdateErro
     }
 }
 
-/// Handle rollback to previous version (rusty update --rollback)
+/// Handle rollback to previous version (claude update --rollback)
 pub async fn handle_rollback() -> Result<UpdateOperationResult, UpdateError> {
     info!("Starting rollback process");
 

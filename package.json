@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Production-ready Rust implementation of Claude Code",
   "bin": {
-    "rusty": "./bin.js"
+    "claude": "./bin.js"
   },
   "scripts": {
     "postinstall": "node install.js",

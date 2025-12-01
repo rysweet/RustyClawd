@@ -14,45 +14,45 @@ cd RustyClawd
 cargo build --release
 
 # Add to PATH or create alias
-alias rusty="$PWD/target/release/rusty"
+alias claude="$PWD/target/release/claude"
 
 # Then use:
-rusty "your prompt"
+claude "your prompt"
 ```
 
 ### Option 2: Cargo Install
 
 ```bash
-cargo install --git https://github.com/rysweet/RustyClawd --bin rusty
-rusty "your prompt"
+cargo install --git https://github.com/rysweet/RustyClawd --bin claude
+claude "your prompt"
 ```
 
 ## Usage
 
 ```bash
 # Interactive chat
-rusty
+claude
 
 # Direct prompt
-rusty "what is rust?"
+claude "what is rust?"
 
 # Print mode
-rusty -p "calculate 2+2"
+claude -p "calculate 2+2"
 
 # With model
-rusty --model haiku "count to 5"
+claude --model haiku "count to 5"
 
 # Tool execution (automatic)
-rusty -p "create file test.txt with 'hello'"
-rusty -p "run: ls -la"
+claude -p "create file test.txt with 'hello'"
+claude -p "run: ls -la"
 
 # New spec-compliant features
-rusty --verbose -p "debug this"                    # Verbose logging
-rusty --system-prompt-file ./prompt.txt "query"    # Custom system prompt
-rusty --add-dir ./src --add-dir ./tests "analyze"  # Multiple directories
-rusty --allowedTools Read --allowedTools Grep "search only"  # Tool control
-rusty update                                       # Update CLI
-rusty mcp                                          # Configure MCP servers
+claude --verbose -p "debug this"                    # Verbose logging
+claude --system-prompt-file ./prompt.txt "query"    # Custom system prompt
+claude --add-dir ./src --add-dir ./tests "analyze"  # Multiple directories
+claude --allowedTools Read --allowedTools Grep "search only"  # Tool control
+claude update                                       # Update CLI
+claude mcp                                          # Configure MCP servers
 ```
 
 See `MIGRATION_GUIDE.md` for breaking changes and `CLI_SPEC_COMPLIANCE.md` for full details.

@@ -7,7 +7,7 @@
 //! - tools: Display available tools from a server
 //! - status: Show detailed status of a specific server
 //!
-//! Used by both CLI (rusty mcp ...) and TUI (/mcp-... commands)
+//! Used by both CLI (claude mcp ...) and TUI (/mcp-... commands)
 
 use crate::plugins::mcp_proxy::{McpProxy, McpServerInstance};
 use std::sync::Arc;
