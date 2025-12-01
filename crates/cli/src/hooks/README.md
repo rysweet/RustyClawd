@@ -9,7 +9,7 @@ hooks/
 ├── mod.rs          - Public API and HooksSystem interface
 ├── types.rs        - All type definitions (Hook, HookConfig, HookContext, etc.)
 ├── executor.rs     - Hook execution engine with async/timeout support
-├── loader.rs       - Configuration loading from .claude/hooks/config.json
+├── loader.rs       - Configuration loading (.claude/settings.json or .claude/hooks/config.json)
 └── registry.rs     - Hook registration and retrieval
 ```
 
@@ -141,7 +141,11 @@ Matches all MCP server tools (format: `mcp__server__tool`).
 
 ## Configuration Format
 
-`.claude/hooks/config.json`:
+Configuration can be placed in either location (priority order):
+1. `.claude/settings.json` (amplihack standard, preferred)
+2. `.claude/hooks/config.json` (legacy location, still supported)
+
+Example configuration:
 
 ```json
 {
@@ -249,8 +253,8 @@ async fn main() -> anyhow::Result<()> {
     // Create hooks system
     let mut hooks = HooksSystem::new();
 
-    // Load configuration
-    hooks.load_from_file(".claude/hooks/config.json").await?;
+    // Load configuration (searches for .claude/settings.json or .claude/hooks/config.json)
+    hooks.load_from_file(".claude/settings.json").await?;
 
     // Create context
     let context = HookContext::for_session(
