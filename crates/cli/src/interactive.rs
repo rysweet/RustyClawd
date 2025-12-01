@@ -19,7 +19,7 @@ use crate::tui::{ChatMessage, MessageRole as TuiMessageRole, TuiState};
 use anyhow::Result;
 use futures::StreamExt;
 use rustyclawd_core::{
-    client::{Client, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent},
+    client::{Client, ClientError, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent},
     Context, Message, MessageRole,
 };
 use rustyclawd_tools::{
@@ -593,7 +593,7 @@ impl InteractiveSession {
 
         // Make HTTP request directly to capture rate limit headers
         let url = format!("{}/v1/messages", self.client.api_url());
-        let http_response = self
+        let http_response = match self
             .client
             .http_client()
             .post(&url)
@@ -606,7 +606,15 @@ impl InteractiveSession {
             .header("accept", "text/event-stream")
             .json(&request)
             .send()
-            .await?;
+            .await
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                // Convert reqwest error to ClientError for user-friendly messages
+                let client_error = ClientError::from(e);
+                return Err(anyhow::anyhow!("{}", self.format_http_error(&client_error)));
+            }
+        };
 
         // Extract rate limit headers before consuming response
         let headers = http_response.headers();
@@ -1243,6 +1251,123 @@ impl InteractiveSession {
         });
 
         Ok(())
+    }
+
+    /// Format HTTP error with user-friendly messages, especially for rate limits
+    fn format_http_error(&self, error: &ClientError) -> String {
+        match error {
+            ClientError::RateLimited { message, retry_after } => {
+                let mut output = String::from("⚠️  Rate limit exceeded!\n");
+                output.push_str(&format!("Message: {}\n", message));
+
+                if let Some(delay) = retry_after {
+                    let secs = delay.as_secs();
+                    let retry_msg = if secs < 60 {
+                        format!("Retry after: {} seconds", secs)
+                    } else if secs < 3600 {
+                        format!("Retry after: {} minutes", secs / 60)
+                    } else {
+                        format!("Retry after: {} hours", secs / 3600)
+                    };
+                    output.push_str(&format!("{}\n", retry_msg));
+                }
+
+                output.push_str("Tip: You can wait or adjust your request rate.");
+                output
+            }
+            ClientError::ServiceUnavailable { message, retry_after } => {
+                let mut output = String::from("🔧 Service unavailable\n");
+                output.push_str(&format!("Details: {}\n", message));
+
+                if let Some(delay) = retry_after {
+                    let secs = delay.as_secs();
+                    let retry_msg = if secs < 60 {
+                        format!("Retry after: {} seconds", secs)
+                    } else if secs < 3600 {
+                        format!("Retry after: {} minutes", secs / 60)
+                    } else {
+                        format!("Retry after: {} hours", secs / 3600)
+                    };
+                    output.push_str(&format!("{}\n", retry_msg));
+                }
+
+                output.push_str("Tip: The API is temporarily unavailable. Wait and retry.");
+                output
+            }
+            ClientError::Unauthorized(msg) => {
+                format!(
+                    "🔑 Authentication failed\n\
+                    Details: {}\n\
+                    Tip: Check your API key at https://console.anthropic.com/settings/keys",
+                    msg
+                )
+            }
+            ClientError::Forbidden(msg) => {
+                format!(
+                    "🚫 Access forbidden\n\
+                    Details: {}\n\
+                    Tip: Check your API key permissions.",
+                    msg
+                )
+            }
+            ClientError::BadRequest(msg) => {
+                format!(
+                    "❌ Bad request\n\
+                    Details: {}\n\
+                    Tip: Check your request parameters.",
+                    msg
+                )
+            }
+            ClientError::NotFound(msg) => {
+                format!(
+                    "🔍 Not found\n\
+                    Details: {}\n\
+                    Tip: Verify the endpoint or resource exists.",
+                    msg
+                )
+            }
+            ClientError::ServerError(status, message) => {
+                format!(
+                    "💥 Server error ({})\n\
+                    Details: {}\n\
+                    Tip: This is a temporary issue. Try again in a moment.",
+                    status, message
+                )
+            }
+            ClientError::Timeout(msg) => {
+                format!(
+                    "⏱️  Request timed out\n\
+                    Details: {}\n\
+                    Tip: Check your internet connection or try again later.",
+                    msg
+                )
+            }
+            ClientError::ConnectionError(msg) => {
+                format!(
+                    "🔌 Connection failed\n\
+                    Details: {}\n\
+                    Tip: Verify you can reach api.anthropic.com",
+                    msg
+                )
+            }
+            ClientError::DnsError(msg) => {
+                format!(
+                    "🌐 DNS resolution failed\n\
+                    Details: {}\n\
+                    Tip: Check your DNS settings or try a different network.",
+                    msg
+                )
+            }
+            ClientError::NetworkError(msg) => {
+                format!(
+                    "📡 Network error\n\
+                    Details: {}\n\
+                    Tip: Check your internet connection.",
+                    msg
+                )
+            }
+            _ => error.to_string(),
+        }
     }
 }
 
