@@ -10,6 +10,7 @@ use tokio::process::Command;
 use tokio::time::timeout;
 
 /// Hook executor handles running command and prompt hooks
+#[derive(Clone)]
 pub struct HookExecutor {
     /// Environment file path for persistence
     env_file: Option<String>,
@@ -254,21 +255,6 @@ impl HookExecutor {
                 stdout: String::new(),
                 stderr: format!("Hook timed out after {}ms", hook.effective_timeout()),
             }),
-        }
-    }
-
-    /// Find the project directory (directory with .claude folder)
-    fn find_project_dir(start_dir: &str) -> Result<String> {
-        let mut current = std::path::PathBuf::from(start_dir);
-        loop {
-            let claude_dir = current.join(".claude");
-            if claude_dir.exists() && claude_dir.is_dir() {
-                return Ok(current.to_string_lossy().to_string());
-            }
-            match current.parent() {
-                Some(parent) => current = parent.to_path_buf(),
-                None => return Err(anyhow::anyhow!("Project root not found")),
-            }
         }
     }
 

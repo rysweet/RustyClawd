@@ -475,6 +475,9 @@ impl App {
         // Determine mode: print mode (one-shot) or interactive
         let result = self.determine_and_run_mode().await;
 
+        // Execute Stop hook before session end (checks if work is complete)
+        self.execute_stop_hook().await?;
+
         // Call SessionEnd hook (even on error)
         self.execute_session_end_hook().await?;
 
@@ -667,6 +670,50 @@ impl App {
         while let Some(event) = stream.next().await {
             match event {
                 ToolEvent::Result(output) => {
+                    // Execute SubagentStop hook when agent completes
+                    let context = hooks::HookContext::for_session(
+                        self.session.id.clone(),
+                        format!(".claude/sessions/{}/transcript.json", self.session.id),
+                        std::env::current_dir()
+                            .ok()
+                            .and_then(|p| p.to_str().map(|s| s.to_string()))
+                            .unwrap_or_default(),
+                        "ask".to_string(),
+                        hooks::HookEvent::SubagentStop,
+                    );
+
+                    match self
+                        .hooks
+                        .execute_hooks(hooks::HookEvent::SubagentStop, &context)
+                        .await
+                    {
+                        Ok(results) => {
+                            for result in results {
+                                if let Some(hook_output) = result.parse_output() {
+                                    // Check if hook is blocking subagent completion
+                                    if let Some(decision) = hook_output.decision {
+                                        if decision == hooks::types::StopDecision::Block {
+                                            let reason = hook_output.reason.unwrap_or_else(|| {
+                                                "Subagent stop blocked by hook".to_string()
+                                            });
+                                            return Err(anyhow::anyhow!(
+                                                "Subagent completion blocked: {}",
+                                                reason
+                                            ));
+                                        }
+                                    }
+                                }
+                                if !result.is_success() {
+                                    tracing::warn!("SubagentStop hook failed: {}", result.stderr);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to execute SubagentStop hooks: {}", e);
+                            // Non-blocking - continue with output
+                        }
+                    }
+
                     // Output the agent response
                     println!("\n=== Agent Response ===\n");
                     println!("{}", output.response);
@@ -783,6 +830,51 @@ impl App {
         }
     }
 
+    /// Execute Stop hook before session end
+    async fn execute_stop_hook(&self) -> Result<()> {
+        let context = hooks::HookContext::for_session(
+            self.session.id.clone(),
+            format!(".claude/sessions/{}/transcript.json", self.session.id),
+            std::env::current_dir()
+                .ok()
+                .and_then(|p| p.to_str().map(|s| s.to_string()))
+                .unwrap_or_default(),
+            "ask".to_string(),
+            hooks::HookEvent::Stop,
+        );
+
+        match self
+            .hooks
+            .execute_hooks(hooks::HookEvent::Stop, &context)
+            .await
+        {
+            Ok(results) => {
+                for result in results {
+                    if let Some(output) = result.parse_output() {
+                        // Check if hook is blocking session end
+                        if let Some(decision) = output.decision {
+                            if decision == hooks::types::StopDecision::Block {
+                                let reason = output
+                                    .reason
+                                    .unwrap_or_else(|| "Session end blocked by hook".to_string());
+                                tracing::warn!("Stop hook blocked session end: {}", reason);
+                                // For non-interactive mode, we still exit but log the warning
+                            }
+                        }
+                    }
+                    if !result.is_success() {
+                        tracing::warn!("Stop hook failed: {}", result.stderr);
+                    }
+                }
+                Ok(())
+            }
+            Err(e) => {
+                tracing::warn!("Failed to execute Stop hooks: {}", e);
+                Ok(()) // Non-blocking - continue with shutdown
+            }
+        }
+    }
+
     /// Execute SessionEnd hook
     async fn execute_session_end_hook(&self) -> Result<()> {
         let context = hooks::HookContext::for_session(
@@ -818,8 +910,9 @@ impl App {
 
     /// Run interactive mode
     async fn run_interactive(&mut self) -> Result<()> {
-        // Always use regular interactive mode (TUI removed from official spec)
-        interactive::run_interactive().await
+        // Pass hooks to interactive session
+        let hooks = std::sync::Arc::new(self.hooks.clone());
+        interactive::run_interactive_with_hooks(Some(hooks)).await
     }
 
     /// Run in print mode (one-shot execution) - matches Claude Code's behavior
@@ -832,6 +925,45 @@ impl App {
         // Load API configuration
         let config = Config::from_default_location().await?;
         let client = Client::new(config);
+
+        // Execute UserPromptSubmit hook BEFORE processing prompt
+        let context = hooks::HookContext::for_user_prompt(
+            self.session.id.clone(),
+            format!(".claude/sessions/{}/transcript.json", self.session.id),
+            std::env::current_dir()
+                .ok()
+                .and_then(|p| p.to_str().map(|s| s.to_string()))
+                .unwrap_or_default(),
+            "ask".to_string(),
+            prompt.to_string(),
+        );
+
+        match self
+            .hooks
+            .execute_hooks(hooks::HookEvent::UserPromptSubmit, &context)
+            .await
+        {
+            Ok(results) => {
+                for result in results {
+                    if result.is_blocking() {
+                        return Err(anyhow::anyhow!("Prompt blocked by hook: {}", result.stderr));
+                    }
+                    if !result.is_success() {
+                        eprintln!(
+                            "⚠️  Warning: UserPromptSubmit hook failed: {}",
+                            result.stderr
+                        );
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!(
+                    "⚠️  Warning: Failed to execute UserPromptSubmit hooks: {}",
+                    e
+                );
+                // Non-blocking - continue even if hook fails
+            }
+        }
 
         // Model configuration - use CLI override or default
         let model = self
@@ -904,9 +1036,23 @@ impl App {
         }
 
         // Use the tool execution loop (tools always enabled in official spec)
+        // Pass hooks and session ID to tool executor
+        let hooks_for_tools = std::sync::Arc::new(self.hooks.clone());
+        let session_id_for_tools = self.session.id.clone();
+
         let response = match client
-            .execute_with_tools(request.clone(), |tool_name, tool_input| async move {
-                tool_executor::execute_tool(tool_name, tool_input).await
+            .execute_with_tools(request.clone(), |tool_name, tool_input| {
+                let hooks = hooks_for_tools.clone();
+                let session_id = session_id_for_tools.clone();
+                async move {
+                    tool_executor::execute_tool_with_hooks(
+                        tool_name,
+                        tool_input,
+                        Some(hooks),
+                        Some(session_id),
+                    )
+                    .await
+                }
             })
             .await
         {
@@ -932,9 +1078,22 @@ impl App {
                     fallback_request =
                         fallback_request.with_tools(tool_definitions::get_all_tool_definitions());
 
+                    let hooks_fallback = hooks_for_tools.clone();
+                    let session_id_fallback = session_id_for_tools.clone();
+
                     client
-                        .execute_with_tools(fallback_request, |tool_name, tool_input| async move {
-                            tool_executor::execute_tool(tool_name, tool_input).await
+                        .execute_with_tools(fallback_request, |tool_name, tool_input| {
+                            let hooks = hooks_fallback.clone();
+                            let session_id = session_id_fallback.clone();
+                            async move {
+                                tool_executor::execute_tool_with_hooks(
+                                    tool_name,
+                                    tool_input,
+                                    Some(hooks),
+                                    Some(session_id),
+                                )
+                                .await
+                            }
                         })
                         .await?
                 } else {

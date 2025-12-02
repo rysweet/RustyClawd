@@ -50,13 +50,17 @@ impl HookLoader {
             // Priority 1: Check .claude/settings.json first (amplihack standard)
             let settings_path = current_dir.join(".claude/settings.json");
             if settings_path.exists() {
-                return Self::load_from_file(settings_path.to_str().unwrap()).await;
+                if let Some(path_str) = settings_path.to_str() {
+                    return Self::load_from_file(path_str).await;
+                }
             }
 
             // Priority 2: Fallback to .claude/hooks/config.json (legacy location)
             let legacy_path = current_dir.join(".claude/hooks/config.json");
             if legacy_path.exists() {
-                return Self::load_from_file(legacy_path.to_str().unwrap()).await;
+                if let Some(path_str) = legacy_path.to_str() {
+                    return Self::load_from_file(path_str).await;
+                }
             }
 
             // Move to parent directory

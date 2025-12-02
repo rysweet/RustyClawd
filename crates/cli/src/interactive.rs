@@ -9,6 +9,7 @@
 //! - Rust-colored theme
 
 use crate::commands::SlashCommands;
+use crate::hooks;
 use crate::mcp_commands;
 use crate::plugins::mcp_proxy::McpProxy;
 use crate::session::SessionStats;
@@ -56,11 +57,20 @@ pub struct InteractiveSession {
     mcp_proxy: Arc<Mutex<McpProxy>>,
     /// Session statistics tracking
     stats: SessionStats,
+    /// Hooks system (optional)
+    hooks: Option<Arc<hooks::HooksSystem>>,
+    /// Session ID for hooks
+    session_id: String,
 }
 
 impl InteractiveSession {
     /// Create a new interactive session
     pub async fn new() -> Result<Self> {
+        Self::with_hooks(None).await
+    }
+
+    /// Create a new interactive session with optional hooks system
+    pub async fn with_hooks(hooks: Option<Arc<hooks::HooksSystem>>) -> Result<Self> {
         // Set execution context to TUI mode for process isolation
         terminal_guard::set_execution_context(terminal_guard::ExecutionContext::Tui);
 
@@ -86,6 +96,9 @@ impl InteractiveSession {
         // Initialize MCP proxy (empty for now, will be populated by App)
         let mcp_proxy = Arc::new(Mutex::new(McpProxy::new()));
 
+        // Generate session ID
+        let session_id = format!("session-{}", chrono::Utc::now().timestamp());
+
         Ok(Self {
             client,
             context: Context::new(),
@@ -95,6 +108,8 @@ impl InteractiveSession {
             persistence,
             mcp_proxy,
             stats: SessionStats::new(DEFAULT_MODEL),
+            hooks,
+            session_id,
         })
     }
 
@@ -208,6 +223,49 @@ impl InteractiveSession {
 
         match input {
             "/exit" | "/quit" => {
+                // Execute Stop hook to check if exit should be allowed
+                if let Some(ref hooks) = self.hooks {
+                    let context = hooks::HookContext::for_session(
+                        self.session_id.clone(),
+                        format!(".claude/sessions/{}/transcript.json", self.session_id),
+                        std::env::current_dir()
+                            .ok()
+                            .and_then(|p| p.to_str().map(|s| s.to_string()))
+                            .unwrap_or_default(),
+                        "ask".to_string(),
+                        hooks::HookEvent::Stop,
+                    );
+
+                    match hooks.execute_hooks(hooks::HookEvent::Stop, &context).await {
+                        Ok(results) => {
+                            for result in results {
+                                if let Some(output) = result.parse_output() {
+                                    // Check if hook is blocking exit
+                                    if let Some(decision) = output.decision {
+                                        if decision == hooks::types::StopDecision::Block {
+                                            let reason = output.reason.unwrap_or_else(|| {
+                                                "Stop blocked by hook".to_string()
+                                            });
+                                            self.tui.add_message(ChatMessage {
+                                                role: TuiMessageRole::System,
+                                                content: format!("Exit blocked: {}", reason),
+                                            });
+                                            return Ok(true); // Continue session
+                                        }
+                                    }
+                                }
+                                if !result.is_success() {
+                                    tracing::warn!("Stop hook failed: {}", result.stderr);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to execute Stop hooks: {}", e);
+                            // Non-blocking - continue with exit even if hook fails
+                        }
+                    }
+                }
+
                 // Auto-save before exit
                 self.auto_save_session();
 
@@ -489,6 +547,44 @@ impl InteractiveSession {
 
     /// Process a user message with streaming and tool support
     async fn process_user_message(&mut self, user_input: &str) -> Result<()> {
+        // Execute UserPromptSubmit hook BEFORE adding prompt to context
+        if let Some(ref hooks) = self.hooks {
+            let context = hooks::HookContext::for_user_prompt(
+                self.session_id.clone(),
+                format!(".claude/sessions/{}/transcript.json", self.session_id),
+                std::env::current_dir()
+                    .ok()
+                    .and_then(|p| p.to_str().map(|s| s.to_string()))
+                    .unwrap_or_default(),
+                "ask".to_string(),
+                user_input.to_string(),
+            );
+
+            match hooks
+                .execute_hooks(hooks::HookEvent::UserPromptSubmit, &context)
+                .await
+            {
+                Ok(results) => {
+                    for result in results {
+                        if result.is_blocking() {
+                            self.tui.add_message(ChatMessage {
+                                role: TuiMessageRole::Assistant,
+                                content: format!("⚠️  Prompt blocked by hook: {}", result.stderr),
+                            });
+                            return Ok(());
+                        }
+                        if !result.is_success() {
+                            tracing::warn!("UserPromptSubmit hook failed: {}", result.stderr);
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to execute UserPromptSubmit hooks: {}", e);
+                    // Non-blocking - continue even if hook fails
+                }
+            }
+        }
+
         // Add user message to TUI and context
         self.tui.add_message(ChatMessage {
             role: TuiMessageRole::User,
@@ -799,8 +895,17 @@ impl InteractiveSession {
             // Track tool call
             self.stats.add_tool_call();
 
-            // Execute the tool
-            match crate::tool_executor::execute_tool(name.clone(), input.clone()).await {
+            // Execute the tool with hooks
+            let hooks = self.hooks.as_ref().map(Arc::clone);
+            let session_id = Some(self.session_id.clone());
+            match crate::tool_executor::execute_tool_with_hooks(
+                name.clone(),
+                input.clone(),
+                hooks,
+                session_id,
+            )
+            .await
+            {
                 Ok(result) => {
                     // Show formatted success message
                     let success_msg = tool_formatter::format_tool_success(&name, &result);
@@ -1300,6 +1405,11 @@ impl InteractiveSession {
 
 /// Entry point for interactive mode
 pub async fn run_interactive() -> Result<()> {
-    let mut session = InteractiveSession::new().await?;
+    run_interactive_with_hooks(None).await
+}
+
+/// Entry point for interactive mode with optional hooks system
+pub async fn run_interactive_with_hooks(hooks: Option<Arc<hooks::HooksSystem>>) -> Result<()> {
+    let mut session = InteractiveSession::with_hooks(hooks).await?;
     session.run().await
 }
