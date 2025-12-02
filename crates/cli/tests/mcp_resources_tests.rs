@@ -272,7 +272,7 @@ fn test_mcp_proxy_multiple_servers() {
             id: format!("server-{}", i),
             name: format!("Server {}", i),
             transport: None,
-        command: Some("node".to_string()),
+            command: Some("node".to_string()),
             args: vec![],
             env: HashMap::new(),
             description: None,

@@ -824,14 +824,12 @@ impl Drop for McpProxy {
     fn drop(&mut self) {
         // Best effort cleanup - stop stdio servers synchronously
         for (_, server) in self.servers.iter_mut() {
-            if let Some(connection) = server.connection.take() {
-                if let McpConnection::Stdio { process } = connection {
-                    let _ = std::process::Command::new("kill")
-                        .arg(format!("{}", process.id().unwrap_or(0)))
-                        .output();
-                }
-                // HTTP connections don't need explicit cleanup
+            if let Some(McpConnection::Stdio { process }) = server.connection.take() {
+                let _ = std::process::Command::new("kill")
+                    .arg(format!("{}", process.id().unwrap_or(0)))
+                    .output();
             }
+            // HTTP connections don't need explicit cleanup
         }
     }
 }
