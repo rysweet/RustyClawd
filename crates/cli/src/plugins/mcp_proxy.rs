@@ -227,7 +227,9 @@ impl McpProxy {
         }
 
         // Check if resources capability is available
-        let has_resources = server.capabilities.as_ref()
+        let has_resources = server
+            .capabilities
+            .as_ref()
             .map(|caps| caps.resources)
             .unwrap_or(false);
 
@@ -236,7 +238,9 @@ impl McpProxy {
 
         // List resources (if capability is available)
         let resources = if has_resources {
-            self.list_resources_internal(server_id, &mut child).await.unwrap_or_default()
+            self.list_resources_internal(server_id, &mut child)
+                .await
+                .unwrap_or_default()
         } else {
             Vec::new()
         };
@@ -465,9 +469,8 @@ impl McpProxy {
             }
 
             if let Some(result) = response.result {
-                let resources: Vec<Resource> =
-                    serde_json::from_value(result["resources"].clone())
-                        .map_err(|e| format!("Failed to parse resources: {}", e))?;
+                let resources: Vec<Resource> = serde_json::from_value(result["resources"].clone())
+                    .map_err(|e| format!("Failed to parse resources: {}", e))?;
                 return Ok(resources);
             }
         }

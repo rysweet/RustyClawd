@@ -6,8 +6,8 @@
 //! - MCP proxy resource management
 //! - Error handling for missing resources
 
-use rustyclawd::plugins::mcp_proxy::{McpProxy, Resource, ResourceContents};
 use rustyclawd::plugins::manifest::McpServerDefinition;
+use rustyclawd::plugins::mcp_proxy::{McpProxy, Resource, ResourceContents};
 use std::collections::HashMap;
 
 #[test]
@@ -118,7 +118,11 @@ fn test_mcp_proxy_list_resources_not_started() {
     let result = proxy.list_resources("not-started");
     assert!(result.is_err());
     let error = result.unwrap_err();
-    assert!(error.contains("not started"), "Error should mention 'not started': {}", error);
+    assert!(
+        error.contains("not started"),
+        "Error should mention 'not started': {}",
+        error
+    );
 }
 
 #[tokio::test]
@@ -140,7 +144,11 @@ async fn test_mcp_proxy_read_resource_not_started() {
     let result = proxy.read_resource("not-started", "file:///test.txt").await;
     assert!(result.is_err());
     let error = result.unwrap_err();
-    assert!(error.contains("not started"), "Error should mention 'not started': {}", error);
+    assert!(
+        error.contains("not started"),
+        "Error should mention 'not started': {}",
+        error
+    );
 }
 
 #[test]
@@ -151,7 +159,11 @@ fn test_mcp_proxy_list_resources_not_found() {
     let result = proxy.list_resources("nonexistent");
     assert!(result.is_err());
     let error = result.unwrap_err();
-    assert!(error.contains("not found"), "Error should mention 'not found': {}", error);
+    assert!(
+        error.contains("not found"),
+        "Error should mention 'not found': {}",
+        error
+    );
 }
 
 #[tokio::test]
@@ -162,7 +174,11 @@ async fn test_mcp_proxy_read_resource_not_found() {
     let result = proxy.read_resource("nonexistent", "file:///test.txt").await;
     assert!(result.is_err());
     let error = result.unwrap_err();
-    assert!(error.contains("not found"), "Error should mention 'not found': {}", error);
+    assert!(
+        error.contains("not found"),
+        "Error should mention 'not found': {}",
+        error
+    );
 }
 
 #[test]
@@ -292,7 +308,10 @@ fn test_resource_deserialization_from_mcp_response() {
     assert_eq!(resources.len(), 2);
     assert_eq!(resources[0].uri, "file:///test/doc.txt");
     assert_eq!(resources[0].name, "Document");
-    assert_eq!(resources[0].description, Some("A test document".to_string()));
+    assert_eq!(
+        resources[0].description,
+        Some("A test document".to_string())
+    );
     assert_eq!(resources[0].mime_type, Some("text/plain".to_string()));
 
     assert_eq!(resources[1].uri, "file:///test/data.json");
