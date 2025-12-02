@@ -1,0 +1,67 @@
+{
+  "id": "com.example.http-mcp-plugin",
+  "name": "HTTP MCP Example Plugin",
+  "version": "1.0.0",
+  "description": "Example plugin demonstrating HTTP MCP server configuration",
+  "author": "RustyClawd Team",
+  "license": "MIT",
+  "main": "index.js",
+  "mcpServers": [
+    {
+      "id": "local-http-server",
+      "name": "Local HTTP MCP Server",
+      "type": "http",
+      "url": "http://localhost:3000/mcp",
+      "description": "Local development HTTP MCP server"
+    },
+    {
+      "id": "authenticated-http-server",
+      "name": "Authenticated HTTP Server",
+      "type": "http",
+      "url": "https://api.example.com/mcp/v1",
+      "headers": {
+        "Authorization": "Bearer ${MCP_API_TOKEN}",
+        "X-API-Version": "1.0",
+        "X-Client-ID": "rustyclawd-client"
+      },
+      "description": "Production HTTP server with authentication"
+    },
+    {
+      "id": "legacy-stdio-server",
+      "name": "Legacy Stdio Server",
+      "command": "node",
+      "args": ["legacy-server.js"],
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "description": "Backward compatible stdio server configuration"
+    },
+    {
+      "id": "new-stdio-server",
+      "name": "New Format Stdio Server",
+      "type": "stdio",
+      "command": "python",
+      "args": ["-m", "mcp_server"],
+      "description": "New format stdio server configuration"
+    }
+  ],
+  "commands": [],
+  "skills": [],
+  "hooks": [],
+  "agents": [],
+  "dependencies": {},
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "apiToken": {
+        "type": "string",
+        "description": "API token for authenticated HTTP servers"
+      },
+      "httpTimeout": {
+        "type": "integer",
+        "description": "HTTP request timeout in milliseconds",
+        "default": 30000
+      }
+    }
+  }
+}

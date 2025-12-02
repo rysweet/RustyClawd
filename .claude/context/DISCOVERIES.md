@@ -1832,3 +1832,88 @@ git merge-base HEAD origin/main
 - Phase 6: Knowledge Capture - This DISCOVERIES.md entry
 
 **Agent Orchestration**: Deployed prompt-writer, analyzer, and integration agents in parallel for efficient investigation. All three agents provided valuable complementary perspectives.
+
+## Agent Context Isolation Documentation (2025-12-02)
+
+### Discovery Summary
+
+Recreated PR #74 with comprehensive documentation for agent context management. Original PR closed due to merge conflicts - recreated fresh from main branch with all content from commit 09ad57e.
+
+### Key Documentation Insights
+
+**Context Cloning vs Forking**:
+- Agents receive **cloned** ToolContext fields, NOT shared references
+- Agent modifications **cannot affect** parent context
+- Context isolation enables parallel agent execution
+- Agent communication requires explicit prompt passing (not context sharing)
+
+**Critical Implementation Details**:
+```
+Parent Context (A, B, C)
+    ↓ [Clone]
+Agent Context (copy of A, B, C)
+    ↓ [Execute]
+Agent Response (text only)
+    ↓
+Parent Context UNCHANGED (still A, B, C)
+```
+
+**Common Misconceptions Documented**:
+- "Agents fork context like processes" → False, context is cloned and isolated
+- "Agents see conversation history" → False, only user prompt provided
+- "Agent changes persist in parent" → False, only response text returns
+- "Multiple agents share state" → False, each invocation is independent
+
+### Documentation Structure
+
+Added to `/crates/tools/src/agent/README.md`:
+1. Architecture diagrams showing context flow
+2. 4-step context flow visualization with boxes
+3. Key characteristics with code examples
+4. 6 detailed examples (parallel, sequential, resumption)
+5. Context variables table (7 rows)
+6. Best practices for context isolation design
+7. Common misconceptions reality checks
+8. Implementation details verified from agent.rs source
+
+### Testing & Validation
+
+- Cargo check: PASSED (compilation successful)
+- Test suite: 53 tests PASSED (no regressions)
+- PR #86 created successfully
+- CI checks: Format ✅, Security ✅, Build/Lint/Test pending
+
+### Pattern Recognition
+
+**Documentation Workflow Success**:
+- Skill invoked: documentation-writing (ensures compliance with Eight Rules)
+- Branch strategy: Worktree on main branch (isolated development)
+- Testing: Pre-commit validation with cargo check
+- Git workflow: Clean commit with meaningful message
+
+**Re-creation Success**:
+- Original PR #74 commit 09ad57e provided complete content
+- Fresh merge from main avoided conflicts
+- All 298 additions preserved with proper formatting
+- No conflicts due to isolated worktree approach
+
+### Related Issues
+
+- **Original PR #74**: Closed due to merge conflicts
+- **Issue GAP-AGENT-1**: Agent context isolation documentation
+- **New PR #86**: Fresh recreation with full context documentation
+- **Reference Commit**: 09ad57e (original documentation)
+
+### Learning for Future Work
+
+**Worktree Best Practice**: Creating feature branches in worktrees prevents conflicts with other active branches. This was key to successfully recreating PR #74 without merge conflicts.
+
+**Documentation Creation Pattern**:
+1. Invoke documentation-writing skill
+2. Create feature worktree from main
+3. Write comprehensive documentation with code examples
+4. Validate with cargo check and tests
+5. Create clear, descriptive commit messages
+6. Push and create PR with full description
+7. Monitor CI status
+8. Document learnings in DISCOVERIES.md

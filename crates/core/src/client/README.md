@@ -73,6 +73,40 @@ while let Some(result) = stream.next().await {
 }
 ```
 
+## Cancelling Streams
+
+RustyClawd streams are automatically cancelled when dropped (Rust's RAII pattern):
+
+### Cancellation via Drop
+
+```rust
+{
+    let stream = client.create_message_stream(request).await?;
+    // Stream is active here
+} // Stream automatically cancelled when dropped
+```
+
+### Cancellation via Task Abort
+
+```rust
+let handle = tokio::spawn(async move {
+    let mut stream = client.create_message_stream(request).await?;
+    // Process stream...
+});
+handle.abort(); // Cancel the stream
+```
+
+### Cancellation via Timeout
+
+```rust
+use tokio::time::{timeout, Duration};
+
+let result = timeout(Duration::from_secs(30), async {
+    let mut stream = client.create_message_stream(request).await?;
+    // Process stream...
+}).await;
+```
+
 ## Security Features
 
 ### API Key Protection
