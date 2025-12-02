@@ -58,7 +58,7 @@ fn test_exponential_backoff_calculation() {
     let max_delay = Duration::from_secs(30);
 
     // Test exponential backoff: 1s, 2s, 4s, 8s
-    let delays = vec![
+    let delays = [
         initial_delay * 2_u32.pow(0), // 1s
         initial_delay * 2_u32.pow(1), // 2s
         initial_delay * 2_u32.pow(2), // 4s

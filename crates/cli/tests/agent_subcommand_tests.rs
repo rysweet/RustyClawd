@@ -3,7 +3,7 @@
 //! Tests for the `claude agent` subcommand that invokes specialized agents
 //! with prompts from files.
 
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
 use std::fs;
 use tempfile::TempDir;
@@ -14,8 +14,8 @@ use tempfile::TempDir;
 
 #[test]
 fn test_agent_help() {
-    let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("agent")
+    cargo_bin_cmd!("claude")
+        .arg("agent")
         .arg("--help")
         .assert()
         .success()
@@ -25,8 +25,8 @@ fn test_agent_help() {
 
 #[test]
 fn test_agent_requires_type_and_prompt() {
-    let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("agent")
+    cargo_bin_cmd!("claude")
+        .arg("agent")
         .assert()
         .failure()
         .stderr(predicate::str::contains("required"));
@@ -34,8 +34,8 @@ fn test_agent_requires_type_and_prompt() {
 
 #[test]
 fn test_agent_requires_prompt_flag() {
-    let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("agent")
+    cargo_bin_cmd!("claude")
+        .arg("agent")
         .arg("test")
         .assert()
         .failure()
@@ -48,8 +48,8 @@ fn test_agent_requires_prompt_flag() {
 
 #[test]
 fn test_agent_missing_prompt_file() {
-    let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.arg("agent")
+    cargo_bin_cmd!("claude")
+        .arg("agent")
         .arg("test")
         .arg("--prompt")
         .arg("/nonexistent/file.txt")
@@ -64,8 +64,8 @@ fn test_agent_missing_agent_file() {
     let prompt_file = temp_dir.path().join("prompt.txt");
     fs::write(&prompt_file, "Test prompt").unwrap();
 
-    let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.current_dir(temp_dir.path())
+    cargo_bin_cmd!("claude")
+        .current_dir(temp_dir.path())
         .arg("agent")
         .arg("nonexistent_agent")
         .arg("--prompt")
@@ -92,18 +92,18 @@ fn test_agent_with_model_override() {
     let agent_file = claude_dir.join("test.md");
     fs::write(&agent_file, "You are a test agent.").unwrap();
 
-    let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.current_dir(temp_dir.path())
+    let _output = cargo_bin_cmd!("claude")
+        .current_dir(temp_dir.path())
         .arg("agent")
         .arg("test")
         .arg("--prompt")
         .arg(prompt_file.to_str().unwrap())
         .arg("--model")
-        .arg("haiku");
+        .arg("haiku")
+        .assert();
 
     // This test may succeed if API key is available, or fail if not
     // Either way, it should not be an argument parsing error
-    let _output = cmd.assert();
 
     // If it fails, should not be an argument parsing error
     // (Check stderr doesn't contain --prompt which would indicate arg parsing error)
@@ -127,17 +127,17 @@ fn test_agent_with_verbose_flag() {
     let agent_file = claude_dir.join("test.md");
     fs::write(&agent_file, "You are a test agent.").unwrap();
 
-    let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.current_dir(temp_dir.path())
+    let _output = cargo_bin_cmd!("claude")
+        .current_dir(temp_dir.path())
         .arg("--verbose")
         .arg("agent")
         .arg("test")
         .arg("--prompt")
-        .arg(prompt_file.to_str().unwrap());
+        .arg(prompt_file.to_str().unwrap())
+        .assert();
 
     // This test may succeed if API key is available, or fail if not
     // Either way, verbose should be recognized (no arg parsing error)
-    let _output = cmd.assert();
 }
 
 // ============================================================================
@@ -171,8 +171,8 @@ fn test_agent_real_execution() {
     )
     .unwrap();
 
-    let mut cmd = Command::cargo_bin("rusty").unwrap();
-    cmd.current_dir(temp_dir.path())
+    cargo_bin_cmd!("claude")
+        .current_dir(temp_dir.path())
         .arg("agent")
         .arg("test")
         .arg("--prompt")
