@@ -43,14 +43,15 @@ Real-world hooks configuration for Amplihack integration:
 ### 1. Copy configuration to your project
 
 ```bash
-# Create hooks directory
-mkdir -p .claude/hooks
+# Option 1: Use amplihack standard location (preferred)
+cp examples/hooks/config.json .claude/settings.json
 
-# Copy basic config
+# Option 2: Use legacy hooks directory location (still supported)
+mkdir -p .claude/hooks
 cp examples/hooks/config.json .claude/hooks/config.json
 
-# Or use amplihack example
-cp examples/hooks/amplihack_example.json .claude/hooks/config.json
+# For amplihack-specific config
+cp examples/hooks/amplihack_example.json .claude/settings.json
 ```
 
 ### 2. Make scripts executable
@@ -265,8 +266,8 @@ export CLAUDE_TOOL_NAME="Bash"
 ## Troubleshooting
 
 ### Hooks not running
-- Check that `.claude/hooks/config.json` exists
-- Verify JSON syntax with `jq . .claude/hooks/config.json`
+- Check that `.claude/settings.json` or `.claude/hooks/config.json` exists
+- Verify JSON syntax with `jq . .claude/settings.json` (or `.claude/hooks/config.json`)
 - Check hook script permissions
 
 ### Hook timeouts
