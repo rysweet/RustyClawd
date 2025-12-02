@@ -14,7 +14,7 @@ use tempfile::TempDir;
 
 #[test]
 fn test_agent_help() {
-    let mut cmd = Command::cargo_bin("rusty").unwrap();
+    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("claude"));
     cmd.arg("agent")
         .arg("--help")
         .assert()
@@ -25,7 +25,7 @@ fn test_agent_help() {
 
 #[test]
 fn test_agent_requires_type_and_prompt() {
-    let mut cmd = Command::cargo_bin("rusty").unwrap();
+    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("claude"));
     cmd.arg("agent")
         .assert()
         .failure()
@@ -34,7 +34,7 @@ fn test_agent_requires_type_and_prompt() {
 
 #[test]
 fn test_agent_requires_prompt_flag() {
-    let mut cmd = Command::cargo_bin("rusty").unwrap();
+    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("claude"));
     cmd.arg("agent")
         .arg("test")
         .assert()
@@ -48,7 +48,7 @@ fn test_agent_requires_prompt_flag() {
 
 #[test]
 fn test_agent_missing_prompt_file() {
-    let mut cmd = Command::cargo_bin("rusty").unwrap();
+    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("claude"));
     cmd.arg("agent")
         .arg("test")
         .arg("--prompt")
@@ -64,7 +64,7 @@ fn test_agent_missing_agent_file() {
     let prompt_file = temp_dir.path().join("prompt.txt");
     fs::write(&prompt_file, "Test prompt").unwrap();
 
-    let mut cmd = Command::cargo_bin("rusty").unwrap();
+    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("claude"));
     cmd.current_dir(temp_dir.path())
         .arg("agent")
         .arg("nonexistent_agent")
@@ -92,7 +92,7 @@ fn test_agent_with_model_override() {
     let agent_file = claude_dir.join("test.md");
     fs::write(&agent_file, "You are a test agent.").unwrap();
 
-    let mut cmd = Command::cargo_bin("rusty").unwrap();
+    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("claude"));
     cmd.current_dir(temp_dir.path())
         .arg("agent")
         .arg("test")
@@ -127,7 +127,7 @@ fn test_agent_with_verbose_flag() {
     let agent_file = claude_dir.join("test.md");
     fs::write(&agent_file, "You are a test agent.").unwrap();
 
-    let mut cmd = Command::cargo_bin("rusty").unwrap();
+    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("claude"));
     cmd.current_dir(temp_dir.path())
         .arg("--verbose")
         .arg("agent")
@@ -171,7 +171,7 @@ fn test_agent_real_execution() {
     )
     .unwrap();
 
-    let mut cmd = Command::cargo_bin("rusty").unwrap();
+    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("claude"));
     cmd.current_dir(temp_dir.path())
         .arg("agent")
         .arg("test")
