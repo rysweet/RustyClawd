@@ -6,7 +6,8 @@
 //! - Secure API key handling with zeroization
 //! - HTTP/2 streaming via Server-Sent Events (SSE)
 //! - Real-time message streaming
-//! - Comprehensive error handling
+//! - Comprehensive error handling with structured error types
+//! - Automatic retry logic with exponential backoff
 //! - Request timeout management
 //!
 //! # Example
@@ -53,14 +54,36 @@ pub use types::{
     StreamEvent, ToolChoice, ToolDefinition, Usage,
 };
 
+/// Configuration for retry behavior
+#[derive(Debug, Clone)]
+pub struct RetryConfig {
+    /// Maximum number of retries (default: 3)
+    pub max_retries: u32,
+    /// Initial delay before first retry (default: 1s)
+    pub initial_delay: Duration,
+    /// Maximum delay between retries (default: 30s)
+    pub max_delay: Duration,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            max_retries: 3,
+            initial_delay: Duration::from_secs(1),
+            max_delay: Duration::from_secs(30),
+        }
+    }
+}
+
 /// Anthropic API client
 pub struct Client {
     config: Config,
     http_client: HttpClient,
+    retry_config: RetryConfig,
 }
 
 impl Client {
-    /// Create a new client with the given configuration
+    /// Create a new client with the given configuration and default retry settings
     pub fn new(config: Config) -> Self {
         let timeout = Duration::from_secs(config.timeout_secs);
 
@@ -72,13 +95,71 @@ impl Client {
         Self {
             config,
             http_client,
+            retry_config: RetryConfig::default(),
         }
     }
 
-    /// Create a message (non-streaming)
+    /// Create a new client with custom retry configuration
+    pub fn with_retry_config(config: Config, retry_config: RetryConfig) -> Self {
+        let timeout = Duration::from_secs(config.timeout_secs);
+
+        let http_client = HttpClient::builder()
+            .timeout(timeout)
+            .build()
+            .expect("Failed to build HTTP client");
+
+        Self {
+            config,
+            http_client,
+            retry_config,
+        }
+    }
+
+    /// Create a message (non-streaming) with automatic retry logic
     pub async fn create_message(
         &self,
         request: CreateMessageRequest,
+    ) -> ClientResult<MessageResponse> {
+        self.create_message_with_retry(request).await
+    }
+
+    /// Internal method to create a message with retry logic
+    async fn create_message_with_retry(
+        &self,
+        request: CreateMessageRequest,
+    ) -> ClientResult<MessageResponse> {
+        let mut retries = 0;
+
+        loop {
+            match self.create_message_internal(&request).await {
+                Ok(message) => return Ok(message),
+                Err(e) if e.is_retryable() && retries < self.retry_config.max_retries => {
+                    // Calculate delay with exponential backoff
+                    let base_delay = self.retry_config.initial_delay * 2_u32.pow(retries);
+                    let delay = std::cmp::min(base_delay, self.retry_config.max_delay);
+
+                    // Use Retry-After if provided, otherwise use calculated delay
+                    let actual_delay = e.retry_after().unwrap_or(delay);
+
+                    eprintln!(
+                        "Retrying request after {}s (attempt {}/{})",
+                        actual_delay.as_secs(),
+                        retries + 1,
+                        self.retry_config.max_retries
+                    );
+
+                    tokio::time::sleep(actual_delay).await;
+                    retries += 1;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+    }
+
+    /// Internal method to execute a single message request without retry
+    async fn create_message_internal(
+        &self,
+        request: &CreateMessageRequest,
     ) -> ClientResult<MessageResponse> {
         let url = format!("{}/v1/messages", self.config.api_url);
 
@@ -88,7 +169,7 @@ impl Client {
             .header("x-api-key", self.config.api_key.expose_secret().expose())
             .header("anthropic-version", &self.config.api_version)
             .header("content-type", "application/json")
-            .json(&request)
+            .json(request)
             .send()
             .await?;
 
