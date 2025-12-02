@@ -926,6 +926,45 @@ impl App {
         let config = Config::from_default_location().await?;
         let client = Client::new(config);
 
+        // Execute UserPromptSubmit hook BEFORE processing prompt
+        let context = hooks::HookContext::for_user_prompt(
+            self.session.id.clone(),
+            format!(".claude/sessions/{}/transcript.json", self.session.id),
+            std::env::current_dir()
+                .ok()
+                .and_then(|p| p.to_str().map(|s| s.to_string()))
+                .unwrap_or_default(),
+            "ask".to_string(),
+            prompt.to_string(),
+        );
+
+        match self
+            .hooks
+            .execute_hooks(hooks::HookEvent::UserPromptSubmit, &context)
+            .await
+        {
+            Ok(results) => {
+                for result in results {
+                    if result.is_blocking() {
+                        return Err(anyhow::anyhow!("Prompt blocked by hook: {}", result.stderr));
+                    }
+                    if !result.is_success() {
+                        eprintln!(
+                            "⚠️  Warning: UserPromptSubmit hook failed: {}",
+                            result.stderr
+                        );
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!(
+                    "⚠️  Warning: Failed to execute UserPromptSubmit hooks: {}",
+                    e
+                );
+                // Non-blocking - continue even if hook fails
+            }
+        }
+
         // Model configuration - use CLI override or default
         let model = self
             .cli

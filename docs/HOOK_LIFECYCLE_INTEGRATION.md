@@ -816,6 +816,233 @@ When multiple hooks return decisions on Stop/SubagentStop:
 
 ---
 
+## Security Considerations
+
+### ⚠️ CRITICAL: Command Injection Risks
+
+**Hook scripts receive user-controlled data through environment variables.** If your hook scripts use these variables unsafely, command injection attacks are possible.
+
+#### Vulnerable Example (DO NOT USE):
+```bash
+#!/bin/bash
+# DANGEROUS: Unquoted variable usage
+eval "echo Processing: $CLAUDE_USER_PROMPT"
+bash -c "log-prompt $CLAUDE_TOOL_PARAMS"
+```
+
+**Attack Scenario**:
+```
+User prompt: "; rm -rf /tmp/important; echo "
+Hook executes: eval "echo Processing: ; rm -rf /tmp/important; echo "
+Result: Code execution!
+```
+
+#### Safe Example (USE THIS):
+```bash
+#!/bin/bash
+# SAFE: Properly quoted variables
+echo "Processing: ${CLAUDE_USER_PROMPT}"
+log-prompt "${CLAUDE_TOOL_PARAMS}"
+
+# SAFER: Use base64-encoded context if available
+if [ -n "$CLAUDE_USER_PROMPT_B64" ]; then
+    decoded=$(echo "$CLAUDE_USER_PROMPT_B64" | base64 -d)
+    echo "Processing: ${decoded}"
+fi
+```
+
+#### Best Practices for Command Injection Prevention:
+1. **Always quote environment variables** in shell scripts: `"$VAR"` not `$VAR`
+2. **Avoid `eval`, `source`, or `bash -c`** with user-controlled data
+3. **Use structured data** (parse JSON context instead of raw env vars)
+4. **Validate and sanitize** all inputs before processing
+5. **Prefer compiled languages** (Python, Node.js, Go) over shell scripts for complex logic
+
+### 🔐 Information Disclosure Risks
+
+**UserPromptSubmit and PostToolUse hooks receive sensitive data** that users may type or tools may return:
+
+#### Sensitive Data Examples:
+- API keys: `"Use API key sk-abc123xyz to connect"`
+- Passwords: `"Login with password: MySecret123"`
+- File contents: PostToolUse receives full `Read` tool outputs
+- Database credentials: Tool parameters may contain connection strings
+
+#### Protection Strategies:
+```bash
+#!/bin/bash
+# Hook: UserPromptSubmit - Log prompts with redaction
+
+PROMPT="${CLAUDE_USER_PROMPT}"
+
+# Redact common secret patterns
+REDACTED=$(echo "$PROMPT" | \
+    sed -E 's/sk-[a-zA-Z0-9]{20,}/[REDACTED_API_KEY]/g' | \
+    sed -E 's/ghp_[a-zA-Z0-9]{36}/[REDACTED_TOKEN]/g' | \
+    sed -E 's/password[=: ]+[^ ]+/password=[REDACTED]/gi')
+
+echo "$REDACTED" >> ~/.claude/prompt_audit.log
+```
+
+#### Recommendations:
+1. **Never log raw prompts** to external services without redaction
+2. **Implement pattern-based redaction** for API keys, tokens, passwords
+3. **Minimize data retention** - rotate and purge logs regularly
+4. **Secure hook outputs** - ensure log files have appropriate permissions (chmod 600)
+5. **Audit your hooks** - review what data they capture and where it goes
+
+### 🚨 Fail-Open Security Model
+
+**RustyClawd hooks use a fail-open model**: if a hook crashes or times out, execution continues.
+
+#### Behavior by Hook Type:
+| Hook | Fail Behavior | Rationale |
+|------|---------------|-----------|
+| **PreToolUse** | Fail-open (tool executes) | Availability over security |
+| **UserPromptSubmit** | Fail-open (prompt processes) | Avoid blocking user workflow |
+| **PostToolUse** | Fail-open (tool result used) | Already executed, logging optional |
+| **Stop** | Fail-open (session ends) | Always allow clean shutdown |
+
+#### Security Implications:
+```yaml
+# You configure a security hook:
+PreToolUse:
+  - matcher: "Bash"
+    hooks:
+      - type: "command"
+        command: "/opt/security/dangerous-command-scanner.sh"
+
+# If the hook crashes, times out, or returns exit code 1:
+# → Tool execution CONTINUES (fail-open)
+# → Security check is BYPASSED
+
+# Only exit code 2 blocks execution!
+```
+
+#### Recommendations:
+1. **Test your hooks thoroughly** - ensure they're robust and don't crash
+2. **Use exit code 2 for blocking** - exit 1 only warns, exit 2 blocks
+3. **Monitor hook health** - track failure rates to detect bypasses
+4. **Defense in depth** - don't rely solely on hooks for security
+5. **Minimize timeout risks** - keep hooks fast (<1 second ideal)
+
+### 🛡️ Exit Code Semantics (CRITICAL)
+
+**Only exit code 2 blocks execution!** This is a common source of confusion.
+
+```bash
+#!/bin/bash
+# Hook: PreToolUse - Block dangerous commands
+
+if [[ "$CLAUDE_TOOL_NAME" == "Bash" ]]; then
+    if echo "$CLAUDE_TOOL_PARAMS" | grep -q "rm -rf"; then
+        echo "ERROR: Dangerous command detected!" >&2
+        exit 1  # ❌ WRONG: This only logs a warning, doesn't block!
+    fi
+fi
+```
+
+**Correct Usage:**
+```bash
+#!/bin/bash
+if echo "$CLAUDE_TOOL_PARAMS" | grep -q "rm -rf"; then
+    echo '{"permissionDecision": "deny", "permissionDecisionReason": "Dangerous rm -rf detected"}' >&1
+    exit 2  # ✅ CORRECT: This blocks execution
+fi
+```
+
+#### Exit Code Reference:
+- **0**: Success - allow operation
+- **1**: Non-blocking error - log warning but continue
+- **2**: Blocking error - deny operation (PreToolUse/UserPromptSubmit only)
+
+### 📁 Path Traversal Risks
+
+**Hooks execute in the working directory** specified by `$CLAUDE_CWD`. Malicious paths could escape intended directories.
+
+#### Protection:
+```bash
+#!/bin/bash
+# Validate CWD is within project boundaries
+CWD=$(realpath "$CLAUDE_CWD" 2>/dev/null || echo "$CLAUDE_CWD")
+
+if [[ "$CWD" != /home/user/projects/* ]]; then
+    echo "ERROR: CWD outside allowed directory" >&2
+    exit 2
+fi
+
+cd "$CWD" || exit 2
+```
+
+### ⏱️ Timeout and Resource Management
+
+**Default hook timeout: 60 seconds.** Long-running hooks can cause:
+- User experience degradation (tool waits for hook)
+- Resource exhaustion (parallel hooks consume CPU/memory)
+- Denial of service (intentional or accidental)
+
+#### Best Practices:
+```json
+{
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "Bash",
+      "hooks": [{
+        "type": "command",
+        "command": "/usr/local/bin/quick-security-check.sh",
+        "timeout": 5000  // 5 seconds (override 60s default)
+      }]
+    }]
+  }
+}
+```
+
+1. **Keep hooks fast**: Aim for <1 second, never >5 seconds
+2. **Set explicit timeouts**: Override 60s default for critical hooks
+3. **Avoid blocking I/O**: Don't wait for network requests or user input
+4. **Test performance**: Measure hook execution time under load
+
+### 🔒 Hook Configuration Security
+
+**Hooks are configured in `.claude/settings.json` or `.claude/hooks.json`.** Protect these files:
+
+```bash
+# Secure hook configuration files
+chmod 600 ~/.claude/settings.json
+chmod 600 ~/.claude/hooks.json
+
+# Secure hook scripts
+chmod 700 ~/.claude/hooks/*.sh
+```
+
+#### Configuration Threats:
+1. **Malicious user with write access** can add hooks that exfiltrate data
+2. **Compromised editor/IDE** could modify hook configuration
+3. **Supply chain attacks** through shared hook scripts
+
+#### Mitigations:
+1. **File permissions**: Restrict write access to configuration files
+2. **Code review**: Audit hook scripts before deployment
+3. **Integrity monitoring**: Track changes to `.claude/` directory
+4. **Principle of least privilege**: Hooks run with your user permissions—limit what your account can do
+
+### 📝 Security Checklist for Hook Developers
+
+Before deploying a hook to production:
+
+- [ ] **Input validation**: All user-controlled data is validated/sanitized
+- [ ] **Proper quoting**: All environment variables are quoted in shell scripts
+- [ ] **Exit codes**: Blocking behavior uses exit 2, warnings use exit 1
+- [ ] **Timeout configured**: Explicit timeout set (<5 seconds ideal)
+- [ ] **Error handling**: Hook fails gracefully (doesn't crash/hang)
+- [ ] **Secrets redacted**: Sensitive data is filtered before logging
+- [ ] **File permissions**: Hook scripts are chmod 700, configs are chmod 600
+- [ ] **Tested failure modes**: Hook behavior verified when it times out/crashes
+- [ ] **No external dependencies**: Or dependencies are vendored/validated
+- [ ] **Audit logging**: Security decisions are logged for review
+
+---
+
 ## Hook Development Guide
 
 ### Command Hook Development

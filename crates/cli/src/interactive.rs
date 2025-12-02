@@ -566,6 +566,13 @@ impl InteractiveSession {
             {
                 Ok(results) => {
                     for result in results {
+                        if result.is_blocking() {
+                            self.tui.add_message(ChatMessage {
+                                role: TuiMessageRole::Assistant,
+                                content: format!("⚠️  Prompt blocked by hook: {}", result.stderr),
+                            });
+                            return Ok(());
+                        }
                         if !result.is_success() {
                             tracing::warn!("UserPromptSubmit hook failed: {}", result.stderr);
                         }
