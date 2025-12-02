@@ -60,3 +60,6 @@ escargot = "0.5"
 
 # HTTP testing
 wiremock = "0.6"
+
+# Serial test execution
+serial_test = "3.2"
