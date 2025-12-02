@@ -98,6 +98,13 @@ impl<'de> Deserialize<'de> for HookMatcher {
     }
 }
 
+impl Default for HookMatcher {
+    fn default() -> Self {
+        // Default to wildcard matcher that matches everything
+        HookMatcher::Exact("*".to_string())
+    }
+}
+
 impl HookMatcher {
     /// Check if a tool name matches this matcher
     pub fn matches(&self, tool_name: &str) -> bool {
@@ -185,6 +192,7 @@ impl Hook {
 /// Hook configuration for a specific event
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HookConfig {
+    #[serde(default)]
     pub matcher: HookMatcher,
     pub hooks: Vec<Hook>,
 }
@@ -226,6 +234,19 @@ impl HooksConfiguration {
             HookEvent::Notification => &self.notification,
             HookEvent::PreCompact => &self.pre_compact,
         }
+    }
+
+    /// Check if the configuration is empty (no hooks defined)
+    pub fn is_empty(&self) -> bool {
+        self.session_start.is_empty()
+            && self.session_end.is_empty()
+            && self.pre_tool_use.is_empty()
+            && self.post_tool_use.is_empty()
+            && self.user_prompt_submit.is_empty()
+            && self.stop.is_empty()
+            && self.subagent_stop.is_empty()
+            && self.notification.is_empty()
+            && self.pre_compact.is_empty()
     }
 }
 

@@ -1,7 +1,8 @@
-//! Hook configuration loader from .claude/hooks/config.json
+//! Hook configuration loader from .claude/settings.json or .claude/hooks/config.json
 
 use crate::hooks::types::HooksConfiguration;
 use anyhow::{Context, Result};
+use serde_json::Value;
 use std::path::Path;
 use tokio::fs;
 
@@ -24,18 +25,52 @@ impl HookLoader {
             .await
             .context("Failed to read hooks configuration file")?;
 
-        let config: HooksConfiguration =
-            serde_json::from_str(&content).context("Failed to parse hooks configuration JSON")?;
+        // Try to parse as nested settings.json format first (new format)
+        if let Ok(value) = serde_json::from_str::<Value>(&content) {
+            if let Some(hooks_value) = value.get("hooks") {
+                if let Ok(config) =
+                    serde_json::from_value::<HooksConfiguration>(hooks_value.clone())
+                {
+                    eprintln!(
+                        "[hooks] Loaded from nested 'hooks' field: {}",
+                        path.display()
+                    );
+                    return Ok(config);
+                }
+            }
+        }
 
-        Ok(config)
+        // Fallback to direct HooksConfiguration (legacy format)
+        if let Ok(config) = serde_json::from_str::<HooksConfiguration>(&content) {
+            eprintln!("[hooks] Loaded from legacy format: {}", path.display());
+            return Ok(config);
+        }
+
+        // If neither format works, return parse error
+        Err(anyhow::anyhow!(
+            "Failed to parse hooks configuration from {} - not a valid hooks configuration or settings file",
+            path.display()
+        ))
     }
 
     /// Load hooks configuration from the default location
+    /// Priority: 1) .claude/settings.json, 2) .claude/hooks/config.json
     pub async fn load_default() -> Result<HooksConfiguration> {
-        // Try to find .claude/hooks/config.json in current directory or parent directories
         let mut current_dir = std::env::current_dir()?;
 
         loop {
+            // Try .claude/settings.json FIRST (amplihack format)
+            let settings_path = current_dir.join(".claude/settings.json");
+            if settings_path.exists() {
+                if let Ok(config) = Self::load_from_file(settings_path.to_str().unwrap()).await {
+                    // Only return if we successfully loaded hooks from settings.json
+                    if !config.is_empty() {
+                        return Ok(config);
+                    }
+                }
+            }
+
+            // Fallback to .claude/hooks/config.json (legacy format)
             let config_path = current_dir.join(".claude/hooks/config.json");
             if config_path.exists() {
                 return Self::load_from_file(config_path.to_str().unwrap()).await;
@@ -53,9 +88,26 @@ impl HookLoader {
 
     /// Load hooks from a JSON string
     pub fn load_from_string(json: &str) -> Result<HooksConfiguration> {
-        let config: HooksConfiguration =
-            serde_json::from_str(json).context("Failed to parse hooks configuration JSON")?;
-        Ok(config)
+        // Try to parse as nested settings.json format first (new format)
+        if let Ok(value) = serde_json::from_str::<Value>(json) {
+            if let Some(hooks_value) = value.get("hooks") {
+                if let Ok(config) =
+                    serde_json::from_value::<HooksConfiguration>(hooks_value.clone())
+                {
+                    return Ok(config);
+                }
+            }
+        }
+
+        // Fallback to direct HooksConfiguration (legacy format)
+        if let Ok(config) = serde_json::from_str::<HooksConfiguration>(json) {
+            return Ok(config);
+        }
+
+        // If neither format works, return parse error
+        Err(anyhow::anyhow!(
+            "Failed to parse hooks configuration - not a valid hooks configuration or settings file"
+        ))
     }
 }
 
@@ -222,5 +274,89 @@ mod tests {
         let config = HookLoader::load_from_string(json).unwrap();
         assert_eq!(config.session_start.len(), 1);
         assert_eq!(config.session_start[0].hooks.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_load_nested_settings_format() {
+        // Test the new .claude/settings.json format with nested "hooks" field
+        let json = r#"{
+            "hooks": {
+                "SessionStart": [
+                    {
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "/path/to/session_start.py",
+                                "timeout": 10000
+                            }
+                        ]
+                    }
+                ],
+                "Stop": [
+                    {
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "/path/to/stop.py",
+                                "timeout": 30000
+                            }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+        let config = HookLoader::load_from_string(json).unwrap();
+        assert_eq!(config.session_start.len(), 1);
+        assert_eq!(config.session_start[0].hooks.len(), 1);
+        assert_eq!(config.stop.len(), 1);
+        assert_eq!(config.stop[0].hooks.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_load_nested_settings_with_matcher() {
+        // Test nested format with explicit matcher
+        let json = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "*",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "/path/to/pre_tool_use.py"
+                            }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+        let config = HookLoader::load_from_string(json).unwrap();
+        assert_eq!(config.pre_tool_use.len(), 1);
+        assert_eq!(config.pre_tool_use[0].hooks.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_is_empty() {
+        let empty_config = HooksConfiguration::default();
+        assert!(empty_config.is_empty());
+
+        let json = r#"{
+            "SessionStart": [
+                {
+                    "matcher": "*",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": "echo 'test'"
+                        }
+                    ]
+                }
+            ]
+        }"#;
+
+        let non_empty_config = HookLoader::load_from_string(json).unwrap();
+        assert!(!non_empty_config.is_empty());
     }
 }

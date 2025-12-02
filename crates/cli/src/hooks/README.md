@@ -9,7 +9,7 @@ hooks/
 ├── mod.rs          - Public API and HooksSystem interface
 ├── types.rs        - All type definitions (Hook, HookConfig, HookContext, etc.)
 ├── executor.rs     - Hook execution engine with async/timeout support
-├── loader.rs       - Configuration loading from .claude/hooks/config.json
+├── loader.rs       - Configuration loading from .claude/settings.json or .claude/hooks/config.json
 └── registry.rs     - Hook registration and retrieval
 ```
 
@@ -141,7 +141,58 @@ Matches all MCP server tools (format: `mcp__server__tool`).
 
 ## Configuration Format
 
-`.claude/hooks/config.json`:
+RustyClawd supports two configuration formats for hooks:
+
+### Format 1: .claude/settings.json (Recommended - Amplihack format)
+
+This is the preferred format that integrates with the amplihack framework. The loader checks for this location FIRST:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/path/to/session_start.py",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/path/to/pre_tool_use.py",
+            "timeout": 60000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/path/to/stop.py",
+            "timeout": 30000
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Format 2: .claude/hooks/config.json (Legacy format)
+
+This is the original format and is still fully supported for backward compatibility. The loader will use this if `.claude/settings.json` doesn't exist or has no hooks configured:
 
 ```json
 {
@@ -186,6 +237,13 @@ Matches all MCP server tools (format: `mcp__server__tool`).
   ]
 }
 ```
+
+### Configuration Priority
+
+The loader searches in this order:
+1. `.claude/settings.json` (checks for nested "hooks" field)
+2. `.claude/hooks/config.json` (legacy format)
+3. Returns empty configuration if neither exists
 
 ## Hook Environment Variables
 
