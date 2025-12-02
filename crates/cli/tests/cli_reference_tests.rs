@@ -20,7 +20,7 @@
 #![allow(clippy::len_zero)]
 #![allow(deprecated)]
 
-use assert_cmd::Command;
+use assert_cmd::prelude::*;
 use predicates::prelude::*;
 
 // ============================================================================
@@ -30,7 +30,7 @@ use predicates::prelude::*;
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_help_flag_short() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("-h")
         .assert()
         .success()
@@ -40,7 +40,7 @@ fn test_help_flag_short() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_help_flag_long() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--help")
         .assert()
         .success()
@@ -50,7 +50,7 @@ fn test_help_flag_long() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_version_flag_short() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("-V")
         .assert()
         .success()
@@ -60,7 +60,7 @@ fn test_version_flag_short() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_version_flag_long() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--version")
         .assert()
         .success()
@@ -74,7 +74,7 @@ fn test_version_flag_long() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_debug_flag_short() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("-d")
         .arg("bash")
         .arg("echo test")
@@ -85,7 +85,7 @@ fn test_debug_flag_short() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_debug_flag_long() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--debug")
         .arg("bash")
         .arg("echo test")
@@ -100,7 +100,7 @@ fn test_debug_flag_long() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_bash_command_exists() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("bash")
         .arg("--help")
         .assert()
@@ -111,7 +111,7 @@ fn test_bash_command_exists() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_bash_command_required_argument() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("bash")
         .assert()
         .failure()
@@ -121,14 +121,14 @@ fn test_bash_command_required_argument() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_bash_command_simple() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("bash").arg("echo hello").assert().success();
 }
 
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_bash_timeout_flag_short() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("bash")
         .arg("echo test")
         .arg("-t")
@@ -140,7 +140,7 @@ fn test_bash_timeout_flag_short() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_bash_timeout_flag_long() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("bash")
         .arg("echo test")
         .arg("--timeout")
@@ -152,7 +152,7 @@ fn test_bash_timeout_flag_long() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_bash_timeout_default_value() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     // Should work with default 120000ms timeout
     cmd.arg("bash").arg("echo test").assert().success();
 }
@@ -160,7 +160,7 @@ fn test_bash_timeout_default_value() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_bash_timeout_invalid_value() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("bash")
         .arg("echo test")
         .arg("--timeout")
@@ -173,7 +173,7 @@ fn test_bash_timeout_invalid_value() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_bash_description_flag_short() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("bash")
         .arg("echo test")
         .arg("-D")
@@ -185,7 +185,7 @@ fn test_bash_description_flag_short() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_bash_description_flag_long() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("bash")
         .arg("echo test")
         .arg("--description")
@@ -197,7 +197,7 @@ fn test_bash_description_flag_long() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_bash_combined_flags() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("bash")
         .arg("echo test")
         .arg("--timeout")
@@ -215,7 +215,7 @@ fn test_bash_combined_flags() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_read_command_exists() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("read")
         .arg("--help")
         .assert()
@@ -226,7 +226,7 @@ fn test_read_command_exists() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_read_command_required_argument() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("read")
         .assert()
         .failure()
@@ -236,14 +236,14 @@ fn test_read_command_required_argument() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_read_command_file_path() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("read").arg("/dev/null").assert().success();
 }
 
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_read_offset_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("read")
         .arg("/dev/null")
         .arg("--offset")
@@ -255,7 +255,7 @@ fn test_read_offset_flag() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_read_limit_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("read")
         .arg("/dev/null")
         .arg("--limit")
@@ -267,7 +267,7 @@ fn test_read_limit_flag() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_read_offset_and_limit() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("read")
         .arg("/dev/null")
         .arg("--offset")
@@ -281,7 +281,7 @@ fn test_read_offset_and_limit() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_read_offset_invalid_value() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("read")
         .arg("/dev/null")
         .arg("--offset")
@@ -294,7 +294,7 @@ fn test_read_offset_invalid_value() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_read_limit_invalid_value() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("read")
         .arg("/dev/null")
         .arg("--limit")
@@ -311,7 +311,7 @@ fn test_read_limit_invalid_value() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_write_command_exists() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("write")
         .arg("--help")
         .assert()
@@ -322,7 +322,7 @@ fn test_write_command_exists() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_write_command_required_arguments() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("write")
         .assert()
         .failure()
@@ -332,7 +332,7 @@ fn test_write_command_required_arguments() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_write_file_path_required() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("write")
         .arg("--content")
         .arg("test")
@@ -344,7 +344,7 @@ fn test_write_file_path_required() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_write_content_required() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("write")
         .arg("/tmp/test.txt")
         .assert()
@@ -355,7 +355,7 @@ fn test_write_content_required() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_write_with_content_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("write")
         .arg("/tmp/test_write.txt")
         .arg("--content")
@@ -367,7 +367,7 @@ fn test_write_with_content_flag() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_write_file_path_positional() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("write")
         .arg("/tmp/test_positional.txt")
         .arg("--content")
@@ -383,7 +383,7 @@ fn test_write_file_path_positional() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_edit_command_exists() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("edit")
         .arg("--help")
         .assert()
@@ -394,7 +394,7 @@ fn test_edit_command_exists() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_edit_command_required_arguments() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("edit")
         .assert()
         .failure()
@@ -404,7 +404,7 @@ fn test_edit_command_required_arguments() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_edit_file_path_required() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("edit")
         .arg("--old-string")
         .arg("old")
@@ -418,7 +418,7 @@ fn test_edit_file_path_required() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_edit_old_string_required() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("edit")
         .arg("/tmp/test.txt")
         .arg("--new-string")
@@ -431,7 +431,7 @@ fn test_edit_old_string_required() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_edit_new_string_required() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("edit")
         .arg("/tmp/test.txt")
         .arg("--old-string")
@@ -444,7 +444,7 @@ fn test_edit_new_string_required() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_edit_with_all_required_args() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("edit")
         .arg("/tmp/test.txt")
         .arg("--old-string")
@@ -458,7 +458,7 @@ fn test_edit_with_all_required_args() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_edit_replace_all_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("edit")
         .arg("/tmp/test.txt")
         .arg("--old-string")
@@ -473,7 +473,7 @@ fn test_edit_replace_all_flag() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_edit_replace_all_flag_false() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     // --replace-all is a boolean flag, presence should set to true
     cmd.arg("edit")
         .arg("/tmp/test.txt")
@@ -492,7 +492,7 @@ fn test_edit_replace_all_flag_false() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_glob_command_exists() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("glob")
         .arg("--help")
         .assert()
@@ -503,7 +503,7 @@ fn test_glob_command_exists() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_glob_command_pattern_required() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("glob")
         .assert()
         .failure()
@@ -513,21 +513,21 @@ fn test_glob_command_pattern_required() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_glob_pattern_simple() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("glob").arg("*.rs").assert().success();
 }
 
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_glob_pattern_recursive() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("glob").arg("**/*.rs").assert().success();
 }
 
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_glob_path_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("glob")
         .arg("*.rs")
         .arg("--path")
@@ -539,7 +539,7 @@ fn test_glob_path_flag() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_glob_path_with_pattern() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("glob")
         .arg("**/*.txt")
         .arg("--path")
@@ -555,7 +555,7 @@ fn test_glob_path_with_pattern() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_grep_command_exists() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("grep")
         .arg("--help")
         .assert()
@@ -566,7 +566,7 @@ fn test_grep_command_exists() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_grep_pattern_required() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("grep")
         .assert()
         .failure()
@@ -576,28 +576,28 @@ fn test_grep_pattern_required() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_grep_simple_pattern() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("grep").arg("test").assert().success();
 }
 
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_grep_regex_pattern() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("grep").arg("^test.*end$").assert().success();
 }
 
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_grep_case_insensitive_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("grep").arg("test").arg("-i").assert().success();
 }
 
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_grep_path_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("grep")
         .arg("test")
         .arg("--path")
@@ -609,7 +609,7 @@ fn test_grep_path_flag() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_grep_glob_filter() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("grep")
         .arg("test")
         .arg("--glob")
@@ -621,7 +621,7 @@ fn test_grep_glob_filter() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_grep_before_context() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("grep")
         .arg("test")
         .arg("-B")
@@ -633,7 +633,7 @@ fn test_grep_before_context() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_grep_after_context() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("grep")
         .arg("test")
         .arg("-A")
@@ -645,7 +645,7 @@ fn test_grep_after_context() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_grep_combined_context() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("grep")
         .arg("test")
         .arg("-B")
@@ -659,7 +659,7 @@ fn test_grep_combined_context() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_grep_head_limit() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("grep")
         .arg("test")
         .arg("--head-limit")
@@ -671,7 +671,7 @@ fn test_grep_head_limit() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_grep_all_flags_combined() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("grep")
         .arg("test")
         .arg("-i")
@@ -692,7 +692,7 @@ fn test_grep_all_flags_combined() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_grep_context_invalid_value() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("grep")
         .arg("test")
         .arg("-B")
@@ -705,7 +705,7 @@ fn test_grep_context_invalid_value() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_grep_head_limit_invalid_value() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("grep")
         .arg("test")
         .arg("--head-limit")
@@ -722,7 +722,7 @@ fn test_grep_head_limit_invalid_value() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_all_subcommands_in_help() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--help").assert().success().stdout(
         predicate::str::contains("bash")
             .and(predicate::str::contains("read"))
@@ -740,7 +740,7 @@ fn test_all_subcommands_in_help() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_invalid_command() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("invalid-command")
         .assert()
         .failure()
@@ -751,7 +751,7 @@ fn test_invalid_command() {
 #[test]
 fn test_no_command_provided() {
     // This should fail because Commands enum requires a subcommand
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.assert()
         .failure()
         .stderr(predicate::str::contains("required").or(predicate::str::contains("missing")));
@@ -760,7 +760,7 @@ fn test_no_command_provided() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_flag_after_command() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("bash")
         .arg("echo test")
         .arg("--debug")
@@ -771,7 +771,7 @@ fn test_flag_after_command() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_flag_before_command() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--debug")
         .arg("bash")
         .arg("echo test")
@@ -786,7 +786,7 @@ fn test_flag_before_command() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_bash_with_debug_and_description() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--debug")
         .arg("bash")
         .arg("echo integrated test")
@@ -801,7 +801,7 @@ fn test_bash_with_debug_and_description() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_grep_with_multiple_filters() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("grep")
         .arg("pattern")
         .arg("--path")
@@ -822,7 +822,7 @@ fn test_grep_with_multiple_filters() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_documented_debug_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("-d")
         .arg("bash")
         .arg("echo 'Documented flag test'")
@@ -845,7 +845,7 @@ fn test_documented_subcommands() {
     let subcommands = vec!["bash", "read", "write", "edit", "glob", "grep"];
 
     for subcommand in subcommands {
-        let mut cmd = Command::cargo_bin("claude").unwrap();
+        let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
         cmd.arg(subcommand)
             .arg("--help")
             .assert()
@@ -859,7 +859,7 @@ fn test_documented_subcommands() {
 #[test]
 fn test_bash_timeout_default_120000() {
     // The CLI reference documents default timeout as 120000ms
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("bash").arg("echo test").assert().success();
     // NOTE: This test verifies the flag exists and defaults apply
     // Actual default value validation would require integration with tool execution
@@ -872,14 +872,14 @@ fn test_bash_timeout_default_120000() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_bash_empty_command() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("bash").arg("").assert().success(); // Empty string is a valid command (will do nothing)
 }
 
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_bash_command_with_quotes() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("bash")
         .arg("echo 'quoted string'")
         .assert()
@@ -889,7 +889,7 @@ fn test_bash_command_with_quotes() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_bash_command_with_pipes() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("bash")
         .arg("echo hello | grep hello")
         .assert()
@@ -900,7 +900,7 @@ fn test_bash_command_with_pipes() {
 #[test]
 fn test_read_nonexistent_file() {
     // Should parse successfully but may fail during execution
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("read")
         .arg("/nonexistent/file/path/that/does/not/exist.txt")
         .assert()
@@ -910,7 +910,7 @@ fn test_read_nonexistent_file() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_write_empty_content() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("write")
         .arg("/tmp/empty.txt")
         .arg("--content")
@@ -922,7 +922,7 @@ fn test_write_empty_content() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_glob_complex_pattern() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("glob")
         .arg("**/tests/**/*.{rs,json}")
         .assert()
@@ -932,14 +932,14 @@ fn test_glob_complex_pattern() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_grep_with_special_regex_chars() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("grep").arg("test.*pattern\\d+").assert().success();
 }
 
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_timeout_boundary_zero() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("bash")
         .arg("echo test")
         .arg("--timeout")
@@ -951,7 +951,7 @@ fn test_timeout_boundary_zero() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_timeout_boundary_max() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("bash")
         .arg("echo test")
         .arg("--timeout")
@@ -963,7 +963,7 @@ fn test_timeout_boundary_max() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_offset_boundary_zero() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("read")
         .arg("/dev/null")
         .arg("--offset")
@@ -975,7 +975,7 @@ fn test_offset_boundary_zero() {
 #[ignore = "RustyClawd uses interactive AI CLI, not direct tool subcommands"]
 #[test]
 fn test_limit_boundary_one() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("read")
         .arg("/dev/null")
         .arg("--limit")
@@ -998,7 +998,7 @@ fn test_limit_boundary_one() {
 #[test]
 #[ignore = "Feature not yet implemented: Continue mode"]
 fn test_continue_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("-c").assert().failure();
 }
 
@@ -1009,7 +1009,7 @@ fn test_continue_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: Resume session"]
 fn test_resume_session_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("-r").arg("session-123").assert().failure();
 }
 
@@ -1020,7 +1020,7 @@ fn test_resume_session_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: Print mode"]
 fn test_print_mode_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("-p").arg("test query").assert().failure();
 }
 
@@ -1031,7 +1031,7 @@ fn test_print_mode_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: Update command"]
 fn test_update_command() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("update").assert().failure();
 }
 
@@ -1042,7 +1042,7 @@ fn test_update_command() {
 #[test]
 #[ignore = "Feature not yet implemented: MCP command"]
 fn test_mcp_command() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("mcp").assert().failure();
 }
 
@@ -1053,7 +1053,7 @@ fn test_mcp_command() {
 #[test]
 #[ignore = "Feature not yet implemented: --add-dir flag"]
 fn test_add_dir_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--add-dir")
         .arg("/tmp")
         .arg("bash")
@@ -1069,7 +1069,7 @@ fn test_add_dir_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: --agents flag"]
 fn test_agents_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--agents")
         .arg("{}")
         .arg("bash")
@@ -1085,7 +1085,7 @@ fn test_agents_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: --allowedTools flag"]
 fn test_allowed_tools_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--allowedTools")
         .arg("bash,read")
         .arg("bash")
@@ -1101,7 +1101,7 @@ fn test_allowed_tools_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: --disallowedTools flag"]
 fn test_disallowed_tools_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--disallowedTools")
         .arg("write")
         .arg("bash")
@@ -1117,7 +1117,7 @@ fn test_disallowed_tools_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: --model flag"]
 fn test_model_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--model")
         .arg("claude-3-sonnet")
         .arg("bash")
@@ -1133,7 +1133,7 @@ fn test_model_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: --max-turns flag"]
 fn test_max_turns_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--max-turns")
         .arg("5")
         .arg("bash")
@@ -1149,7 +1149,7 @@ fn test_max_turns_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: --verbose flag"]
 fn test_verbose_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--verbose")
         .arg("bash")
         .arg("echo test")
@@ -1164,7 +1164,7 @@ fn test_verbose_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: --system-prompt flag"]
 fn test_system_prompt_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--system-prompt")
         .arg("You are a helpful assistant")
         .arg("bash")
@@ -1180,7 +1180,7 @@ fn test_system_prompt_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: --system-prompt-file flag"]
 fn test_system_prompt_file_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--system-prompt-file")
         .arg("/tmp/prompt.txt")
         .arg("-p")
@@ -1196,7 +1196,7 @@ fn test_system_prompt_file_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: --append-system-prompt flag"]
 fn test_append_system_prompt_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--append-system-prompt")
         .arg("Always format responses as JSON")
         .arg("bash")
@@ -1212,7 +1212,7 @@ fn test_append_system_prompt_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: --output-format flag"]
 fn test_output_format_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--output-format")
         .arg("json")
         .arg("bash")
@@ -1228,7 +1228,7 @@ fn test_output_format_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: --input-format flag"]
 fn test_input_format_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--input-format")
         .arg("json")
         .arg("bash")
@@ -1244,7 +1244,7 @@ fn test_input_format_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: --include-partial-messages flag"]
 fn test_include_partial_messages_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--include-partial-messages")
         .arg("bash")
         .arg("echo test")
@@ -1259,7 +1259,7 @@ fn test_include_partial_messages_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: --permission-mode flag"]
 fn test_permission_mode_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--permission-mode")
         .arg("auto")
         .arg("bash")
@@ -1275,7 +1275,7 @@ fn test_permission_mode_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: --permission-prompt-tool flag"]
 fn test_permission_prompt_tool_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--permission-prompt-tool")
         .arg("my_tool")
         .arg("bash")
@@ -1291,7 +1291,7 @@ fn test_permission_prompt_tool_flag() {
 #[test]
 #[ignore = "Feature not yet implemented: --dangerously-skip-permissions flag"]
 fn test_dangerously_skip_permissions_flag() {
-    let mut cmd = Command::cargo_bin("claude").unwrap();
+    let mut cmd = assert_cmd::Command::cargo_bin("claude").unwrap();
     cmd.arg("--dangerously-skip-permissions")
         .arg("bash")
         .arg("echo test")
