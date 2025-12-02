@@ -14,9 +14,7 @@ use crate::plugins::manifest::{McpServerDefinition, McpTransportConfig};
 #[derive(Debug)]
 pub enum McpConnection {
     /// Standard I/O connection with child process
-    Stdio {
-        process: TokioChild,
-    },
+    Stdio { process: TokioChild },
     /// HTTP connection with reqwest client
     Http {
         client: reqwest::Client,
@@ -482,14 +480,12 @@ impl Drop for McpProxy {
     fn drop(&mut self) {
         // Best effort cleanup - stop stdio servers synchronously
         for (_, server) in self.servers.iter_mut() {
-            if let Some(connection) = server.connection.take() {
-                if let McpConnection::Stdio { process } = connection {
-                    let _ = std::process::Command::new("kill")
-                        .arg(format!("{}", process.id().unwrap_or(0)))
-                        .output();
-                }
-                // HTTP connections don't need explicit cleanup
+            if let Some(McpConnection::Stdio { process }) = server.connection.take() {
+                let _ = std::process::Command::new("kill")
+                    .arg(format!("{}", process.id().unwrap_or(0)))
+                    .output();
             }
+            // HTTP connections don't need explicit cleanup
         }
     }
 }
@@ -798,7 +794,10 @@ mod integration_tests {
 
         let mut proxy = McpProxy::new();
         let mut headers = HashMap::new();
-        headers.insert("Authorization".to_string(), "Bearer secret-token".to_string());
+        headers.insert(
+            "Authorization".to_string(),
+            "Bearer secret-token".to_string(),
+        );
 
         let definition = McpServerDefinition {
             id: "auth-http".to_string(),
