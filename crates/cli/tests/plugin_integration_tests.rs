@@ -130,7 +130,8 @@ async fn test_mcp_proxy_registration() {
     let server_def = rustyclawd::plugins::manifest::McpServerDefinition {
         id: "test-server".to_string(),
         name: "Test Server".to_string(),
-        command: "node".to_string(),
+        transport: None,
+        command: Some("node".to_string()),
         args: vec!["server.js".to_string()],
         env: HashMap::new(),
         description: Some("Test MCP server".to_string()),
@@ -400,7 +401,8 @@ async fn test_complete_plugin_system_workflow() {
         mcp_servers: vec![rustyclawd::plugins::manifest::McpServerDefinition {
             id: "mcp".to_string(),
             name: "MCP".to_string(),
-            command: "node".to_string(),
+            transport: None,
+            command: Some("node".to_string()),
             args: vec!["server.js".to_string()],
             env: HashMap::new(),
             description: None,
