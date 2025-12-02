@@ -114,10 +114,15 @@ impl McpCommandHandler {
         output.push_str("\nCommands:\n");
         output.push_str("  mcp start <server-id>                          - Start a server\n");
         output.push_str("  mcp stop <server-id>                           - Stop a server\n");
-        output.push_str("  mcp tools <server-id>                          - List available tools\n");
-        output.push_str("  mcp prompts <server-id>                        - List available prompts\n");
-        output.push_str("  mcp get-prompt <server-id> <name> [args-json] - Get a specific prompt\n");
-        output.push_str("  mcp status <server-id>                         - Show detailed status\n");
+        output
+            .push_str("  mcp tools <server-id>                          - List available tools\n");
+        output.push_str(
+            "  mcp prompts <server-id>                        - List available prompts\n",
+        );
+        output
+            .push_str("  mcp get-prompt <server-id> <name> [args-json] - Get a specific prompt\n");
+        output
+            .push_str("  mcp status <server-id>                         - Show detailed status\n");
 
         Ok(output)
     }
@@ -289,7 +294,12 @@ impl McpCommandHandler {
     }
 
     /// Get a specific prompt from a server
-    pub async fn get_prompt(&self, server_id: &str, prompt_name: &str, args_json: Option<&str>) -> McpCommandResult {
+    pub async fn get_prompt(
+        &self,
+        server_id: &str,
+        prompt_name: &str,
+        args_json: Option<&str>,
+    ) -> McpCommandResult {
         let mut proxy = self.proxy.lock().await;
 
         // Check if server exists
@@ -310,7 +320,10 @@ impl McpCommandHandler {
 
         // Parse arguments if provided
         let arguments = if let Some(json_str) = args_json {
-            Some(serde_json::from_str(json_str).map_err(|e| format!("Invalid JSON arguments: {}", e))?)
+            Some(
+                serde_json::from_str(json_str)
+                    .map_err(|e| format!("Invalid JSON arguments: {}", e))?,
+            )
         } else {
             None
         };

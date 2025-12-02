@@ -19,7 +19,9 @@ use crate::tui::{ChatMessage, MessageRole as TuiMessageRole, TuiState};
 use anyhow::Result;
 use futures::StreamExt;
 use rustyclawd_core::{
-    client::{Client, ClientError, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent},
+    client::{
+        Client, ClientError, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent,
+    },
     Context, Message, MessageRole,
 };
 use rustyclawd_tools::{
@@ -612,7 +614,10 @@ impl InteractiveSession {
             Err(e) => {
                 // Convert reqwest error to ClientError for user-friendly messages
                 let client_error = ClientError::from(e);
-                return Err(anyhow::anyhow!("{}", self.format_network_error(&client_error)));
+                return Err(anyhow::anyhow!(
+                    "{}",
+                    self.format_network_error(&client_error)
+                ));
             }
         };
 

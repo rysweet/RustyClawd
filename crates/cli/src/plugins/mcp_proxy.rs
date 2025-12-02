@@ -265,7 +265,9 @@ impl McpProxy {
         // List prompts if server supports them
         let prompts = if let Some(caps) = &self.servers.get(server_id).unwrap().capabilities {
             if caps.prompts {
-                self.list_prompts_internal(server_id, &mut child).await.unwrap_or_default()
+                self.list_prompts_internal(server_id, &mut child)
+                    .await
+                    .unwrap_or_default()
             } else {
                 Vec::new()
             }
@@ -490,12 +492,16 @@ impl McpProxy {
                 .map_err(|e| format!("Failed to parse prompts list response: {}", e))?;
 
             if let Some(error) = response.error {
-                return Err(format!("MCP server error listing prompts: {}", error.message));
+                return Err(format!(
+                    "MCP server error listing prompts: {}",
+                    error.message
+                ));
             }
 
             if let Some(result) = response.result {
-                let prompts: Vec<McpPromptDefinition> = serde_json::from_value(result["prompts"].clone())
-                    .map_err(|e| format!("Failed to parse prompts: {}", e))?;
+                let prompts: Vec<McpPromptDefinition> =
+                    serde_json::from_value(result["prompts"].clone())
+                        .map_err(|e| format!("Failed to parse prompts: {}", e))?;
                 return Ok(prompts);
             }
         }
@@ -788,7 +794,10 @@ mod tests {
 
         let json = serde_json::to_string(&result).unwrap();
         let deserialized: GetPromptResult = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.description, Some("Test prompt result".to_string()));
+        assert_eq!(
+            deserialized.description,
+            Some("Test prompt result".to_string())
+        );
         assert_eq!(deserialized.messages.len(), 2);
         assert_eq!(deserialized.messages[0].role, "user");
         assert_eq!(deserialized.messages[1].role, "assistant");
