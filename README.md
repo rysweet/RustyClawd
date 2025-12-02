@@ -94,6 +94,7 @@ Complete implementation:
 
 ## Documentation
 
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to RustyClawd
 - **[Architecture Guide](docs/ARCHITECTURE.md)** - System design, module structure, and key decisions
 - **[Hook Lifecycle Integration](docs/HOOK_LIFECYCLE_INTEGRATION.md)** - Complete hook system documentation
 - **[Rust Patterns Learned](RUST_PATTERNS_LEARNED.md)** - Technical patterns and best practices
