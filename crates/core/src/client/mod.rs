@@ -92,19 +92,9 @@ impl Client {
             .send()
             .await?;
 
-        // Check for HTTP errors
+        // Check for HTTP errors and create structured error
         if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-
-            return Err(ClientError::Api(format!(
-                "HTTP {}: {}",
-                status,
-                sanitize_error_text(&error_text)
-            )));
+            return Err(ClientError::from_response(response).await);
         }
 
         let message_response: MessageResponse = response.json().await?;
@@ -132,19 +122,9 @@ impl Client {
             .send()
             .await?;
 
-        // Check for HTTP errors
+        // Check for HTTP errors and create structured error
         if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-
-            return Err(ClientError::Api(format!(
-                "HTTP {}: {}",
-                status,
-                sanitize_error_text(&error_text)
-            )));
+            return Err(ClientError::from_response(response).await);
         }
 
         // Convert response body into a byte stream
@@ -177,7 +157,7 @@ impl Client {
                             return Some((Ok(text), stream));
                         }
                         Ok(StreamEvent::Error { error }) => {
-                            return Some((Err(ClientError::Api(error.message)), stream));
+                            return Some((Err(ClientError::Unknown(error.message)), stream));
                         }
                         Err(e) => {
                             return Some((Err(e), stream));
@@ -245,7 +225,7 @@ impl Client {
         loop {
             iteration += 1;
             if iteration > MAX_ITERATIONS {
-                return Err(ClientError::Api(
+                return Err(ClientError::Unknown(
                     "Tool execution exceeded maximum iterations".to_string(),
                 ));
             }
@@ -341,6 +321,7 @@ impl Client {
 }
 
 /// Sanitize error text to remove any API keys
+#[allow(dead_code)]
 fn sanitize_error_text(text: &str) -> String {
     error::sanitize_error(text)
 }

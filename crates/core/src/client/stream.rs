@@ -126,7 +126,7 @@ where
                     }
                 }
                 Poll::Ready(Some(Err(e))) => {
-                    return Poll::Ready(Some(Err(ClientError::Request(e))));
+                    return Poll::Ready(Some(Err(e.into())));
                 }
                 Poll::Ready(None) => {
                     // Stream ended, check if there's remaining data
@@ -207,7 +207,7 @@ where
                 chunks.push(text);
             }
             StreamEvent::Error { error } => {
-                return Err(ClientError::Api(error.message));
+                return Err(ClientError::Unknown(error.message));
             }
             _ => {
                 // Ignore other event types for text collection

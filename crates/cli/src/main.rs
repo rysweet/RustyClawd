@@ -5,6 +5,7 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(deprecated)] // TODO: Migrate from ClientError::Api to specific error types
 
 mod checkpoint;
 mod commands;
@@ -557,7 +558,10 @@ impl App {
                 agent_type,
                 prompt,
                 model,
-            } => self.handle_agent_command(agent_type, prompt, model.as_deref()).await,
+            } => {
+                self.handle_agent_command(agent_type, prompt, model.as_deref())
+                    .await
+            }
         }
     }
 
