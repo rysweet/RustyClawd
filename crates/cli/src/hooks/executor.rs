@@ -10,6 +10,7 @@ use tokio::process::Command;
 use tokio::time::timeout;
 
 /// Hook executor handles running command and prompt hooks
+#[derive(Clone)]
 pub struct HookExecutor {
     /// Environment file path for persistence
     env_file: Option<String>,
