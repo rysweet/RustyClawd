@@ -16,3 +16,14 @@
 [2025-11-16T23:28:09.151174] INFO: Loaded 21 considerations from YAML
 [2025-11-16T23:28:09.162263] INFO: Loaded 21 considerations from YAML
 [2025-11-16T23:28:09.162962] ERROR: Power-steering error (fail-open): Transcript path /home/azureuser/.claude/projects/-home-azureuser-src-RustyClawd/0efd2f3c-fe8f-4553-9572-cf138e089621.jsonl is outside project root /home/azureuser/src/RustyClawd
+[2025-12-02T19:51:43.619192] INFO: Loaded 22 considerations from YAML
+[2025-12-02T19:51:43.634396] INFO: Loaded 22 considerations from YAML
+[2025-12-02T19:51:43.634902] DEBUG: Path validated: within user home directory
+[2025-12-02T19:51:43.638386] INFO: Turn count incremented to 1
+[2025-12-02T19:51:43.638439] INFO: Turn state: turn=1, blocks=0
+[2025-12-02T19:51:43.638596] DEBUG: Simple task keyword 'cleanup' found in user message
+[2025-12-02T19:51:43.638643] INFO: Session classified as SIMPLE via keyword detection
+[2025-12-02T19:51:43.638679] INFO: Session classified as: SIMPLE
+[2025-12-02T19:51:43.638770] INFO: SIMPLE session - skipping all considerations
+[2025-12-02T19:51:43.639197] INFO: Parallel analysis completed: 0 checks in 0.0s
+[2025-12-02T19:51:43.639275] INFO: No power-steering checks applicable for session type - approving immediately

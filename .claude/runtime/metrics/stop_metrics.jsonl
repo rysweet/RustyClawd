@@ -7,3 +7,5 @@
 {"timestamp": "2025-11-16T23:28:09.151287", "metric": "power_steering_approves", "value": 1, "hook": "stop"}
 {"timestamp": "2025-11-16T23:28:09.163060", "metric": "power_steering_approves", "value": 1, "hook": "stop"}
 {"timestamp": "2025-11-17T03:30:22.127449", "metric": "lock_blocks", "value": 1, "hook": "stop"}
+{"timestamp": "2025-12-02T19:51:43.639735", "metric": "power_steering_approves", "value": 1, "hook": "stop"}
+{"timestamp": "2025-12-02T19:51:43.639891", "metric": "reflection_disabled_checks", "value": 1, "hook": "stop"}
