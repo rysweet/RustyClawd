@@ -19,7 +19,9 @@ use crate::tui::{ChatMessage, MessageRole as TuiMessageRole, TuiState};
 use anyhow::Result;
 use futures::StreamExt;
 use rustyclawd_core::{
-    client::{Client, ClientError, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent},
+    client::{
+        Client, ClientError, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent,
+    },
     Context, Message, MessageRole,
 };
 use rustyclawd_tools::{
