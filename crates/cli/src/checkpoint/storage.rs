@@ -51,6 +51,8 @@ impl CheckpointStorage {
 
     /// Save a checkpoint to disk
     pub fn save_checkpoint(&self, session_id: &str, checkpoint: &Checkpoint) -> io::Result<()> {
+        use std::io::Write;
+
         // Ensure session directory exists
         let session_dir = self.session_dir(session_id);
         fs::create_dir_all(&session_dir)?;
@@ -63,9 +65,11 @@ impl CheckpointStorage {
             )
         })?;
 
-        // Write to file
+        // Write to file with explicit sync to ensure data is flushed to disk
         let checkpoint_path = self.checkpoint_path(session_id, &checkpoint.id);
-        fs::write(checkpoint_path, json)?;
+        let mut file = fs::File::create(&checkpoint_path)?;
+        file.write_all(json.as_bytes())?;
+        file.sync_all()?; // Ensure data is written to disk before returning
 
         Ok(())
     }
