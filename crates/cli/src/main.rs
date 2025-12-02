@@ -5,6 +5,7 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(deprecated)] // TODO: Migrate from ClientError::Api to specific error types
 
 mod checkpoint;
 mod commands;
