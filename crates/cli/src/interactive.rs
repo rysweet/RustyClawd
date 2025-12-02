@@ -39,6 +39,14 @@ const DEFAULT_MODEL: &str = "claude-sonnet-4-5-20250929";
 /// Maximum tokens for responses
 const MAX_TOKENS: u32 = 4096;
 
+/// Helper function to get current working directory as string
+fn get_cwd_string() -> String {
+    std::env::current_dir()
+        .ok()
+        .and_then(|p| p.to_str().map(|s| s.to_string()))
+        .unwrap_or_default()
+}
+
 /// Interactive chat session with TUI
 pub struct InteractiveSession {
     /// Anthropic API client
@@ -228,10 +236,7 @@ impl InteractiveSession {
                     let context = hooks::HookContext::for_session(
                         self.session_id.clone(),
                         format!(".claude/sessions/{}/transcript.json", self.session_id),
-                        std::env::current_dir()
-                            .ok()
-                            .and_then(|p| p.to_str().map(|s| s.to_string()))
-                            .unwrap_or_default(),
+                        get_cwd_string(),
                         "ask".to_string(),
                         hooks::HookEvent::Stop,
                     );
@@ -282,10 +287,51 @@ impl InteractiveSession {
                 self.tui.set_status("Conversation cleared".to_string());
                 return Ok(true);
             }
+            "/compact" => {
+                // Fire PreCompact hook BEFORE compaction
+                if let Some(ref hooks) = self.hooks {
+                    let context = hooks::HookContext::for_session(
+                        self.session_id.clone(),
+                        format!(".claude/sessions/{}/transcript.json", self.session_id),
+                        get_cwd_string(),
+                        "ask".to_string(),
+                        hooks::HookEvent::PreCompact,
+                    );
+
+                    match hooks.execute_hooks(hooks::HookEvent::PreCompact, &context).await {
+                        Ok(results) => {
+                            for result in results {
+                                if !result.is_success() {
+                                    self.tui.add_message(ChatMessage {
+                                        role: TuiMessageRole::System,
+                                        content: format!("⚠️  PreCompact hook failed: {}", result.stderr),
+                                    });
+                                    return Ok(true);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!("PreCompact hook execution failed: {:?}", e);
+                            self.tui.add_message(ChatMessage {
+                                role: TuiMessageRole::System,
+                                content: format!("⚠️  Failed to execute PreCompact hooks: {}", e),
+                            });
+                            return Ok(true);
+                        }
+                    }
+                }
+
+                // PreCompact hook fired successfully
+                self.tui.add_message(ChatMessage {
+                    role: TuiMessageRole::System,
+                    content: "✓ PreCompact hook fired.\n\nCompacting conversation history...\n(Full compaction logic awaits implementation)".to_string(),
+                });
+                return Ok(true);
+            }
             "/help" => {
                 // Show all commands - built-in and custom
                 let custom_commands = self.slash_commands.list_commands();
-                let mut help_text = "Built-in Commands:\n  /exit, /quit - Exit the session\n  /clear - Clear conversation history\n  /help - Show this help\n  /stats - Show session statistics\n  /save [description] - Save checkpoint\n  /load <checkpoint_id> - Load checkpoint\n  /sessions - List available sessions\n  !<command> - Execute shell command directly\n\nMCP Commands:\n  /mcp-list - List all MCP servers\n  /mcp-start <server-id> - Start an MCP server\n  /mcp-stop <server-id> - Stop an MCP server\n  /mcp-tools <server-id> - List tools from server\n  /mcp-status <server-id> - Show server status\n".to_string();
+                let mut help_text = "Built-in Commands:\n  /exit, /quit - Exit the session\n  /clear - Clear conversation history\n  /compact - Compact conversation history (fires PreCompact hook)\n  /help - Show this help\n  /stats - Show session statistics\n  /save [description] - Save checkpoint\n  /load <checkpoint_id> - Load checkpoint\n  /sessions - List available sessions\n  !<command> - Execute shell command directly\n\nMCP Commands:\n  /mcp-list - List all MCP servers\n  /mcp-start <server-id> - Start an MCP server\n  /mcp-stop <server-id> - Stop an MCP server\n  /mcp-tools <server-id> - List tools from server\n  /mcp-status <server-id> - Show server status\n".to_string();
 
                 if !custom_commands.is_empty() {
                     help_text.push_str("\nCustom Commands:\n");
@@ -552,10 +598,7 @@ impl InteractiveSession {
             let context = hooks::HookContext::for_user_prompt(
                 self.session_id.clone(),
                 format!(".claude/sessions/{}/transcript.json", self.session_id),
-                std::env::current_dir()
-                    .ok()
-                    .and_then(|p| p.to_str().map(|s| s.to_string()))
-                    .unwrap_or_default(),
+                get_cwd_string(),
                 "ask".to_string(),
                 user_input.to_string(),
             );
