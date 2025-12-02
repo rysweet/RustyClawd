@@ -258,21 +258,6 @@ impl HookExecutor {
         }
     }
 
-    /// Find the project directory (directory with .claude folder)
-    fn find_project_dir(start_dir: &str) -> Result<String> {
-        let mut current = std::path::PathBuf::from(start_dir);
-        loop {
-            let claude_dir = current.join(".claude");
-            if claude_dir.exists() && claude_dir.is_dir() {
-                return Ok(current.to_string_lossy().to_string());
-            }
-            match current.parent() {
-                Some(parent) => current = parent.to_path_buf(),
-                None => return Err(anyhow::anyhow!("Project root not found")),
-            }
-        }
-    }
-
     /// Build a prompt for the LLM hook with context information
     fn build_hook_prompt(hook: &Hook, context: &HookContext) -> String {
         let context_json =
