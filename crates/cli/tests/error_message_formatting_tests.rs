@@ -156,7 +156,10 @@ fn test_bad_request_error_message() {
 
     assert!(msg.contains("Bad Request"));
     assert!(msg.contains("Invalid parameters"));
-    assert!(msg.contains("invalid"), "Should indicate request was invalid");
+    assert!(
+        msg.contains("invalid"),
+        "Should indicate request was invalid"
+    );
 }
 
 #[test]
@@ -272,7 +275,10 @@ fn test_rate_limited_is_retryable() {
         retry_after: Some(Duration::from_secs(60)),
     };
 
-    assert!(error.is_retryable(), "Rate limit errors should be retryable");
+    assert!(
+        error.is_retryable(),
+        "Rate limit errors should be retryable"
+    );
 }
 
 #[test]
@@ -309,10 +315,7 @@ fn test_network_error_is_retryable() {
 #[test]
 fn test_unauthorized_is_not_retryable() {
     let error = ClientError::Unauthorized("Invalid key".to_string());
-    assert!(
-        !error.is_retryable(),
-        "Auth errors should not be retryable"
-    );
+    assert!(!error.is_retryable(), "Auth errors should not be retryable");
 }
 
 #[test]

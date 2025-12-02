@@ -19,7 +19,9 @@ use crate::tui::{ChatMessage, MessageRole as TuiMessageRole, TuiState};
 use anyhow::Result;
 use futures::StreamExt;
 use rustyclawd_core::{
-    client::{Client, ClientError, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent},
+    client::{
+        Client, ClientError, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent,
+    },
     Context, Message, MessageRole,
 };
 use rustyclawd_tools::{
@@ -1256,7 +1258,10 @@ impl InteractiveSession {
     /// Format HTTP error with user-friendly messages, especially for rate limits
     fn format_http_error(&self, error: &ClientError) -> String {
         match error {
-            ClientError::RateLimited { message, retry_after } => {
+            ClientError::RateLimited {
+                message,
+                retry_after,
+            } => {
                 let mut output = String::from("⚠️  Rate limit exceeded!\n");
                 output.push_str(&format!("Message: {}\n", message));
 
@@ -1275,7 +1280,10 @@ impl InteractiveSession {
                 output.push_str("Tip: You can wait or adjust your request rate.");
                 output
             }
-            ClientError::ServiceUnavailable { message, retry_after } => {
+            ClientError::ServiceUnavailable {
+                message,
+                retry_after,
+            } => {
                 let mut output = String::from("🔧 Service unavailable\n");
                 output.push_str(&format!("Details: {}\n", message));
 
