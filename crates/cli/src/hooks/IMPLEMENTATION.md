@@ -206,8 +206,8 @@ All 74 tests passing. Ready for integration with CLI and Amplihack.
 ## Examples Provided
 
 ### Configuration Examples
-- `examples/hooks/config.json` - Basic setup for all events
-- `examples/hooks/amplihack_example.json` - Real-world Amplihack config
+- `examples/hooks/config.json` - Basic setup (copy to `.claude/settings.json` or `.claude/hooks/config.json`)
+- `examples/hooks/amplihack_example.json` - Real-world Amplihack config (copy to `.claude/settings.json`)
 
 ### Script Examples
 - `examples/hooks/advanced_validation.sh` - Security validation
@@ -225,7 +225,7 @@ All 74 tests passing. Ready for integration with CLI and Amplihack.
 use crate::hooks::{HooksSystem, HookEvent, HookContext};
 
 let mut hooks = HooksSystem::new();
-hooks.load_from_file(".claude/hooks/config.json").await?;
+hooks.load_from_file(".claude/settings.json").await?;  // Or .claude/hooks/config.json
 
 // Before tool execution
 let results = hooks.execute_hooks(HookEvent::PreToolUse, &context).await?;
