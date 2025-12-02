@@ -92,4 +92,9 @@ Complete implementation:
 - Plugin system
 - Settings hierarchy
 
-See `RUST_PATTERNS_LEARNED.md` and `JS_VS_RUST_COMPARISON.md` for technical deep-dive.
+## Documentation
+
+- **[Architecture Guide](docs/ARCHITECTURE.md)** - System design, module structure, and key decisions
+- **[Hook Lifecycle Integration](docs/HOOK_LIFECYCLE_INTEGRATION.md)** - Complete hook system documentation
+- **[Rust Patterns Learned](RUST_PATTERNS_LEARNED.md)** - Technical patterns and best practices
+- **[JS vs Rust Comparison](JS_VS_RUST_COMPARISON.md)** - Performance and design comparisons
