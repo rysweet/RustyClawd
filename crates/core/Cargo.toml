@@ -38,3 +38,4 @@ pin-project = "1.1"
 tracing-subscriber = { workspace = true }
 tokio = { workspace = true }
 serial_test = "3.0"
+wiremock = "0.6"
