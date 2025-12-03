@@ -254,7 +254,8 @@ impl BuiltinCommands {
     fn compact_command() -> String {
         "Compacting conversation history...\n\n\
          NOTE: PreCompact hook will fire when full compaction is implemented.\n\
-         Hook integration ready, awaiting compaction logic.".to_string()
+         Hook integration ready, awaiting compaction logic."
+            .to_string()
     }
 
     fn init_command() -> String {

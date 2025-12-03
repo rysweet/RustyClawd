@@ -7,8 +7,8 @@
 //! - AuthSuccess: API authentication succeeded
 //! - ElicitationDialog: Claude asks clarifying questions
 
-use crate::hooks::{HookContext, HookEvent, HooksSystem};
 use crate::hooks::types::NotificationType;
+use crate::hooks::{HookContext, HookEvent, HooksSystem};
 use std::sync::Arc;
 
 /// Sanitize message to prevent terminal injection attacks
@@ -49,7 +49,11 @@ impl NotificationManager {
         );
 
         // Execute Notification hooks
-        match self.hooks.execute_hooks(HookEvent::Notification, &context).await {
+        match self
+            .hooks
+            .execute_hooks(HookEvent::Notification, &context)
+            .await
+        {
             Ok(results) => {
                 for result in results {
                     if !result.is_success() {
@@ -78,11 +82,13 @@ mod tests {
         let manager = NotificationManager::new(hooks);
 
         // Basic smoke test - notification should not panic
-        manager.notify(
-            "test-session",
-            NotificationType::AuthSuccess,
-            "Test notification"
-        ).await;
+        manager
+            .notify(
+                "test-session",
+                NotificationType::AuthSuccess,
+                "Test notification",
+            )
+            .await;
     }
 
     #[tokio::test]
@@ -91,28 +97,36 @@ mod tests {
         let manager = NotificationManager::new(hooks);
 
         // Test all notification types
-        manager.notify(
-            "test-session",
-            NotificationType::PermissionPrompt,
-            "Permission required"
-        ).await;
+        manager
+            .notify(
+                "test-session",
+                NotificationType::PermissionPrompt,
+                "Permission required",
+            )
+            .await;
 
-        manager.notify(
-            "test-session",
-            NotificationType::IdlePrompt,
-            "Awaiting input"
-        ).await;
+        manager
+            .notify(
+                "test-session",
+                NotificationType::IdlePrompt,
+                "Awaiting input",
+            )
+            .await;
 
-        manager.notify(
-            "test-session",
-            NotificationType::AuthSuccess,
-            "Authentication successful"
-        ).await;
+        manager
+            .notify(
+                "test-session",
+                NotificationType::AuthSuccess,
+                "Authentication successful",
+            )
+            .await;
 
-        manager.notify(
-            "test-session",
-            NotificationType::ElicitationDialog,
-            "Claude is asking questions"
-        ).await;
+        manager
+            .notify(
+                "test-session",
+                NotificationType::ElicitationDialog,
+                "Claude is asking questions",
+            )
+            .await;
     }
 }

@@ -298,13 +298,19 @@ impl InteractiveSession {
                         hooks::HookEvent::PreCompact,
                     );
 
-                    match hooks.execute_hooks(hooks::HookEvent::PreCompact, &context).await {
+                    match hooks
+                        .execute_hooks(hooks::HookEvent::PreCompact, &context)
+                        .await
+                    {
                         Ok(results) => {
                             for result in results {
                                 if !result.is_success() {
                                     self.tui.add_message(ChatMessage {
                                         role: TuiMessageRole::System,
-                                        content: format!("⚠️  PreCompact hook failed: {}", result.stderr),
+                                        content: format!(
+                                            "⚠️  PreCompact hook failed: {}",
+                                            result.stderr
+                                        ),
                                     });
                                     return Ok(true);
                                 }
