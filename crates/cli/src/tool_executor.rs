@@ -4,6 +4,10 @@
 
 use crate::hooks;
 use crate::terminal_guard::TerminalGuard;
+
+// Import notification types
+use crate::notification::NotificationManager;
+use crate::hooks::NotificationType;
 use anyhow::Result;
 use futures::StreamExt;
 use rustyclawd_core::client::ClientError;
@@ -188,7 +192,7 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
 /// This function takes the tool name and input from Claude's API response,
 /// executes the corresponding internal tool, and returns the result as JSON.
 pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value, ClientError> {
-    execute_tool_with_hooks(tool_name, tool_input, None, None).await
+    execute_tool_with_hooks(tool_name, tool_input, None, None, None).await
 }
 
 /// Execute a tool with optional hooks system and session context
@@ -201,6 +205,7 @@ pub async fn execute_tool_with_hooks(
     tool_input: Value,
     hooks: Option<Arc<hooks::HooksSystem>>,
     session_id: Option<String>,
+    notification_manager: Option<&NotificationManager>,
 ) -> Result<Value, ClientError> {
     // Create tool context with execution context from global state
     use crate::terminal_guard::{get_execution_context, ExecutionContext as GuardContext};
@@ -237,6 +242,21 @@ pub async fn execute_tool_with_hooks(
                     if let Some(output) = result.parse_output() {
                         // Check permission decision
                         if let Some(decision) = output.permission_decision {
+                            // Fire PermissionPrompt notification when Ask decision is detected
+                            if decision == hooks::types::PermissionDecision::Ask {
+                                if let (Some(notification_mgr), Some(ref sess_id)) =
+                                    (notification_manager, &session_id)
+                                {
+                                    notification_mgr
+                                        .notify(
+                                            sess_id,
+                                            NotificationType::PermissionPrompt,
+                                            &format!("Permission required for tool: {}", tool_name),
+                                        )
+                                        .await;
+                                }
+                            }
+
                             if decision == hooks::types::PermissionDecision::Deny {
                                 let reason = output
                                     .permission_decision_reason
