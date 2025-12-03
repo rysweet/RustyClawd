@@ -14,8 +14,8 @@ use crate::mcp_commands;
 use crate::plugins::mcp_proxy::McpProxy;
 
 // Import notification types
-use crate::notification::NotificationManager;
 use crate::hooks::NotificationType;
+use crate::notification::NotificationManager;
 use crate::session::SessionStats;
 use crate::session_persistence::{SessionInfo, SessionPersistence};
 use crate::terminal_guard;
@@ -211,7 +211,11 @@ impl InteractiveSession {
             // Fire IdlePrompt notification BEFORE blocking on input
             if let Some(ref notification_mgr) = self.notification_manager {
                 notification_mgr
-                    .notify(&self.session_id, NotificationType::IdlePrompt, "Awaiting user input")
+                    .notify(
+                        &self.session_id,
+                        NotificationType::IdlePrompt,
+                        "Awaiting user input",
+                    )
                     .await;
             }
 

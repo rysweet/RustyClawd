@@ -6,8 +6,8 @@ use crate::hooks;
 use crate::terminal_guard::TerminalGuard;
 
 // Import notification types
-use crate::notification::NotificationManager;
 use crate::hooks::NotificationType;
+use crate::notification::NotificationManager;
 use anyhow::Result;
 use futures::StreamExt;
 use rustyclawd_core::client::ClientError;
