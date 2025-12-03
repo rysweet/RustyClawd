@@ -76,11 +76,9 @@ async fn test_multi_turn_conversation() {
     );
 
     // Turn 2: Question referencing context
-    session
-        .mock_llm()
-        .queue_response(MockResponse::text(
-            "My name is RustyClawd, as I just mentioned.",
-        ));
+    session.mock_llm().queue_response(MockResponse::text(
+        "My name is RustyClawd, as I just mentioned.",
+    ));
 
     session.send_input("What's your name?").await.unwrap();
 
@@ -103,10 +101,7 @@ async fn test_multi_turn_conversation() {
         .mock_llm()
         .queue_response(MockResponse::text("I can help with Rust development."));
 
-    session
-        .send_input("What can you do?")
-        .await
-        .unwrap();
+    session.send_input("What can you do?").await.unwrap();
 
     // Verify all context preserved
     let context = session.get_llm_context();
@@ -168,10 +163,7 @@ async fn test_tool_use_workflow() {
     ));
 
     // User requests file read
-    session
-        .send_input("Please read README.md")
-        .await
-        .unwrap();
+    session.send_input("Please read README.md").await.unwrap();
 
     // Verify: Tool invocation recorded
     assert!(

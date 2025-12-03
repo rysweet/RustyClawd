@@ -19,6 +19,7 @@ import sys
 import time
 import os
 import re
+import shlex
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
@@ -48,10 +49,36 @@ class ScenarioRunner:
         self.screenshot_dir = Path(__file__).parent / "screenshots"
         self.screenshot_dir.mkdir(exist_ok=True, parents=True)
 
-        # Load scenario
+        # Load scenario with size and depth limits for security
+        MAX_YAML_SIZE = 1024 * 1024  # 1MB limit
+        MAX_YAML_DEPTH = 50  # Depth limit
+
         try:
+            # Check file size before loading
+            file_size = scenario_file.stat().st_size
+            if file_size > MAX_YAML_SIZE:
+                raise RuntimeError(f"Scenario file too large: {file_size} bytes (max {MAX_YAML_SIZE})")
+
             with open(scenario_file) as f:
-                data = yaml.safe_load(f)
+                content = f.read(MAX_YAML_SIZE + 1)
+                if len(content) > MAX_YAML_SIZE:
+                    raise RuntimeError(f"Scenario content too large (max {MAX_YAML_SIZE} bytes)")
+
+                data = yaml.safe_load(content)
+
+                # Validate depth to prevent DoS
+                def check_depth(obj, depth=0):
+                    if depth > MAX_YAML_DEPTH:
+                        raise RuntimeError(f"YAML structure too deep (max depth {MAX_YAML_DEPTH})")
+                    if isinstance(obj, dict):
+                        for value in obj.values():
+                            check_depth(value, depth + 1)
+                    elif isinstance(obj, list):
+                        for item in obj:
+                            check_depth(item, depth + 1)
+
+                check_depth(data)
+
                 self.scenario = data.get("scenario", {})
                 self.name = self.scenario.get("name", "Unknown")
                 self.steps = self.scenario.get("steps", [])
@@ -113,9 +140,10 @@ class ScenarioRunner:
         timeout = self._parse_duration(step.get("timeout", "10s"))
 
         # Create bash script to start session (NO trap_cleanup - we manage cleanup in Python)
+        session_quoted = shlex.quote(self.session_name)
         bash_cmd = f"""
             {self._source_framework()}
-            SESSION="{self.session_name}"
+            SESSION={session_quoted}
             start_rustyclawd_session "$SESSION" {int(timeout)} || exit 1
             echo "Session started successfully"
         """
@@ -135,18 +163,22 @@ class ScenarioRunner:
         submit = step.get("submit", True)
         wait_time = step.get("wait", 1)
 
+        # Quote all bash variables for safety
+        session_quoted = shlex.quote(self.session_name)
+        text_quoted = shlex.quote(text)
+
         # Build tmux send command
         if submit:
             bash_cmd = f"""
                 {self._source_framework()}
-                SESSION="{self.session_name}"
-                send_command "$SESSION" "{text}" {wait_time} || exit 1
+                SESSION={session_quoted}
+                send_command "$SESSION" {text_quoted} {wait_time} || exit 1
             """
         else:
             bash_cmd = f"""
                 {self._source_framework()}
-                SESSION="{self.session_name}"
-                send_keys "$SESSION" "{text}" || exit 1
+                SESSION={session_quoted}
+                send_keys "$SESSION" {text_quoted} || exit 1
                 sleep {wait_time}
             """
 
@@ -164,10 +196,14 @@ class ScenarioRunner:
         contains = step.get("contains", "")
         timeout = self._parse_duration(step.get("timeout", "10s"))
 
+        # Quote bash variables for safety
+        session_quoted = shlex.quote(self.session_name)
+        contains_quoted = shlex.quote(contains)
+
         bash_cmd = f"""
             {self._source_framework()}
-            SESSION="{self.session_name}"
-            if wait_for_text "$SESSION" "{contains}" {int(timeout)}; then
+            SESSION={session_quoted}
+            if wait_for_text "$SESSION" {contains_quoted} {int(timeout)}; then
                 echo "Text found"
             else
                 echo "Text not found"
@@ -194,12 +230,22 @@ class ScenarioRunner:
     def _step_capture_screenshot(self, step: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
         """Execute capture_screenshot step: save terminal state"""
         filename = step.get("filename", f"screenshot-{int(time.time())}.txt")
+
+        # Sanitize filename to prevent path traversal
+        filename = os.path.basename(filename)
+        if not re.match(r'^[a-zA-Z0-9_\-\.]+$', filename):
+            return False, f"Invalid filename: {filename} (must contain only alphanumeric, dash, underscore, and dot)"
+
         filepath = self.screenshot_dir / filename
+
+        # Quote bash variables for safety
+        session_quoted = shlex.quote(self.session_name)
+        filepath_quoted = shlex.quote(str(filepath))
 
         bash_cmd = f"""
             {self._source_framework()}
-            SESSION="{self.session_name}"
-            capture_output "$SESSION" > "{filepath}" 2>&1 || exit 1
+            SESSION={session_quoted}
+            capture_output "$SESSION" > {filepath_quoted} 2>&1 || exit 1
         """
 
         exit_code, stdout, stderr = self._run_bash_cmd(bash_cmd)
@@ -277,9 +323,10 @@ class ScenarioRunner:
 
     def _cleanup(self):
         """Clean up tmux session"""
+        session_quoted = shlex.quote(self.session_name)
         bash_cmd = f"""
             {self._source_framework()}
-            SESSION="{self.session_name}"
+            SESSION={session_quoted}
             cleanup_session "$SESSION"
         """
         self._run_bash_cmd(bash_cmd)
@@ -353,11 +400,21 @@ class ScenarioManager:
             scenarios = [s for s in scenarios if pattern in s.name]
 
         if tag:
+            MAX_YAML_SIZE = 1024 * 1024  # 1MB limit
             filtered = []
             for scenario_file in scenarios:
                 try:
+                    # Check file size before loading
+                    file_size = scenario_file.stat().st_size
+                    if file_size > MAX_YAML_SIZE:
+                        continue  # Skip oversized files
+
                     with open(scenario_file) as f:
-                        data = yaml.safe_load(f)
+                        content = f.read(MAX_YAML_SIZE + 1)
+                        if len(content) > MAX_YAML_SIZE:
+                            continue  # Skip oversized content
+
+                        data = yaml.safe_load(content)
                         scenario = data.get("scenario", {})
                         tags = scenario.get("tags", [])
                         if tag in tags:

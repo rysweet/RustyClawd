@@ -87,10 +87,7 @@ async fn test_skill_accesses_prior_messages() {
         .mock_llm()
         .queue_response(MockResponse::text("The function is well-written"));
 
-    session
-        .send_input("Review that function")
-        .await
-        .unwrap();
+    session.send_input("Review that function").await.unwrap();
 
     // 5. Verify: Prior context accessible
     let llm_context = session.get_llm_context();
@@ -133,13 +130,14 @@ async fn test_skill_uses_context_correctly() {
         .unwrap();
 
     // Queue response for skill invocation
-    session
-        .mock_llm()
-        .queue_response(MockResponse::text(
-            "Summary: Testing pyramid with strategic mocking",
-        ));
+    session.mock_llm().queue_response(MockResponse::text(
+        "Summary: Testing pyramid with strategic mocking",
+    ));
 
-    session.send_input("Summarize our discussion").await.unwrap();
+    session
+        .send_input("Summarize our discussion")
+        .await
+        .unwrap();
 
     // Verify full conversation accessible
     let llm_context = session.get_llm_context();
@@ -237,7 +235,10 @@ async fn test_multiple_skills_context() {
 
     // Both skills should have same context
     let context = session.get_llm_context();
-    let loop_mentions = context.iter().filter(|msg| msg.contains("for i in")).count();
+    let loop_mentions = context
+        .iter()
+        .filter(|msg| msg.contains("for i in"))
+        .count();
 
     assert!(
         loop_mentions >= 1,

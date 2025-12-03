@@ -10,4 +10,6 @@
 pub mod mock_llm;
 
 // Re-export for convenience
-pub use mock_llm::{MockLLM, MockResponse, RecordedRequest};
+#[allow(unused_imports)]
+pub use mock_llm::RecordedRequest;
+pub use mock_llm::{MockLLM, MockResponse};

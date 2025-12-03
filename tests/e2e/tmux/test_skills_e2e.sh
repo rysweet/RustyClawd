@@ -16,7 +16,7 @@ source "$SCRIPT_DIR/framework.sh"
 SESSION="rustyclawd-skills-test-$$"
 trap_cleanup "$SESSION"
 
-# Skills directory for tests
+# Skills directory for tests (with secure permissions)
 TEST_SKILLS_DIR="/tmp/rustyclawd-test-skills-$$"
 
 #############################################################################
@@ -27,7 +27,9 @@ create_test_skill() {
     local skill_name="$1"
     local skill_content="$2"
 
+    # Create directory with secure permissions (owner only)
     mkdir -p "$TEST_SKILLS_DIR"
+    chmod 700 "$TEST_SKILLS_DIR"
 
     cat > "$TEST_SKILLS_DIR/${skill_name}.md" <<EOF
 ---

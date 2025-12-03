@@ -11,5 +11,6 @@ pub mod test_session;
 pub mod test_skill_env;
 
 // Re-exports for convenience
-pub use test_session::{SessionState, TestSession, TestSessionBuilder, ToolInvocation};
-pub use test_skill_env::{TestSkillEnvGuard, TestSkillEnvironment};
+pub use test_session::TestSession;
+#[allow(unused_imports)]
+pub use test_skill_env::TestSkillEnvironment;

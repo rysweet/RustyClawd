@@ -10,8 +10,8 @@
 //! - Regeneratable: Can be rebuilt from specification
 
 use anyhow::{anyhow, Result};
-use rustyclawd_core::client::{ContentBlock, CreateMessageRequest, Message, MessageResponse};
 use rustyclawd_core::client::types::MessageContent;
+use rustyclawd_core::client::{ContentBlock, CreateMessageRequest, Message, MessageResponse};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -19,13 +19,10 @@ use crate::e2e::mocks::MockLLM;
 
 /// Test session state
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum SessionState {
     /// Session starting up
     Starting,
-    /// Session running
-    Running,
-    /// Session stopped
-    Stopped,
 }
 
 /// Tool invocation record
@@ -35,14 +32,10 @@ pub struct ToolInvocation {
     pub tool_name: String,
     /// Tool parameters as JSON string
     pub parameters: String,
-    /// Timestamp
-    pub timestamp: std::time::Instant,
 }
 
 /// Internal session state
 struct TestSessionState {
-    /// Current session state
-    state: SessionState,
     /// Conversation history
     conversation_history: Vec<Message>,
     /// Tool invocations
@@ -81,7 +74,6 @@ struct TestSessionState {
 pub struct TestSession {
     state: Arc<Mutex<TestSessionState>>,
     model: String,
-    working_dir: Option<PathBuf>,
 }
 
 impl TestSession {
@@ -110,37 +102,36 @@ impl TestSession {
     /// session.send_input("/analyze src/").await?;
     /// ```
     pub async fn send_input(&mut self, input: &str) -> Result<()> {
-        let mut state = self.state.lock().unwrap();
+        let mock_llm = {
+            let mut state = self.state.lock().unwrap();
 
-        // Add user message to conversation
-        state
-            .conversation_history
-            .push(Message::user(input.to_string()));
+            // Add user message to conversation
+            state
+                .conversation_history
+                .push(Message::user(input.to_string()));
 
-        // Add to TUI output buffer
-        state.tui_output.push_str(&format!("User: {}\n", input));
+            // Add to TUI output buffer
+            state.tui_output.push_str(&format!("User: {}\n", input));
 
-        // Check if this is a slash command
-        if input.starts_with('/') {
-            // Record slash command as tool invocation
-            state.tool_invocations.push(ToolInvocation {
-                tool_name: "SlashCommand".to_string(),
-                parameters: input.to_string(),
-                timestamp: std::time::Instant::now(),
-            });
+            // Check if this is a slash command
+            if input.starts_with('/') {
+                // Record slash command as tool invocation
+                state.tool_invocations.push(ToolInvocation {
+                    tool_name: "SlashCommand".to_string(),
+                    parameters: input.to_string(),
+                });
 
-            // For now, just echo the command
-            // In a full implementation, this would expand the command
-            state.tui_output.push_str(&format!("Command: {}\n", input));
-        }
+                // For now, just echo the command
+                // In a full implementation, this would expand the command
+                state.tui_output.push_str(&format!("Command: {}\n", input));
+            }
 
-        // Get mock LLM and create request
-        let mock_llm = state
-            .mock_llm
-            .clone()
-            .ok_or_else(|| anyhow!("MockLLM not configured"))?;
-
-        drop(state); // Release lock before async call
+            // Get mock LLM and create request
+            state
+                .mock_llm
+                .clone()
+                .ok_or_else(|| anyhow!("MockLLM not configured"))?
+        };
 
         // Create API request
         let request = CreateMessageRequest::new(
@@ -160,23 +151,20 @@ impl TestSession {
 
     /// Process LLM response and update state
     async fn process_llm_response(&mut self, response: MessageResponse) -> Result<()> {
-        let mut state = self.state.lock().unwrap();
-
-        // Extract text content
+        // Extract text content first (outside lock)
         let mut text_content = String::new();
+        let mut tool_invocations_to_add = Vec::new();
+
         for block in &response.content {
             match block {
                 ContentBlock::Text { text } => {
                     text_content.push_str(text);
                 }
-                ContentBlock::ToolUse { id, name, input } => {
-                    // Record tool invocation
-                    state.tool_invocations.push(ToolInvocation {
-                        tool_name: name.clone(),
-                        parameters: serde_json::to_string(input).unwrap_or_default(),
-                        timestamp: std::time::Instant::now(),
-                    });
-
+                ContentBlock::ToolUse { name, input, .. } => {
+                    tool_invocations_to_add.push((
+                        name.clone(),
+                        serde_json::to_string(input).unwrap_or_default(),
+                    ));
                     text_content.push_str(&format!("[Tool: {}]", name));
                 }
                 ContentBlock::ToolResult { .. } => {
@@ -185,9 +173,20 @@ impl TestSession {
             }
         }
 
+        // Update state with collected data
+        let mut state = self.state.lock().unwrap();
+        for (tool_name, parameters) in tool_invocations_to_add {
+            state.tool_invocations.push(ToolInvocation {
+                tool_name,
+                parameters,
+            });
+        }
+
         // Add assistant message to conversation
         if !text_content.is_empty() {
-            state.tui_output.push_str(&format!("Assistant: {}\n", text_content));
+            state
+                .tui_output
+                .push_str(&format!("Assistant: {}\n", text_content));
         }
 
         Ok(())
@@ -220,9 +219,7 @@ impl TestSession {
             .iter()
             .map(|msg| match &msg.content {
                 MessageContent::Text(text) => text.clone(),
-                MessageContent::Blocks(_) => {
-                    "[structured content]".to_string()
-                }
+                MessageContent::Blocks(_) => "[structured content]".to_string(),
             })
             .collect()
     }
@@ -272,24 +269,29 @@ impl TestSession {
 
         // Add both messages to history
         state.conversation_history.push(Message::user(user_msg));
-        state.conversation_history.push(Message::assistant(assistant_msg));
+        state
+            .conversation_history
+            .push(Message::assistant(assistant_msg));
 
         // Add to TUI output
         state.tui_output.push_str(&format!("User: {}\n", user_msg));
-        state.tui_output.push_str(&format!("Assistant: {}\n", assistant_msg));
+        state
+            .tui_output
+            .push_str(&format!("Assistant: {}\n", assistant_msg));
 
         Ok(())
     }
 
     /// Get captured TUI output as string
+    #[allow(dead_code)]
     pub fn get_tui_output(&self) -> String {
         self.state.lock().unwrap().tui_output.clone()
     }
 
     /// Shutdown session cleanly
+    #[allow(dead_code)]
     pub async fn shutdown(self) -> Result<()> {
-        let mut state = self.state.lock().unwrap();
-        state.state = SessionState::Stopped;
+        // Session cleanup is automatic via Drop
         Ok(())
     }
 }
@@ -297,22 +299,15 @@ impl TestSession {
 /// Builder for configuring TestSession
 pub struct TestSessionBuilder {
     use_mock_llm: bool,
-    use_real_tui: bool,
-    hooks: Option<Arc<()>>, // Placeholder for now
+    #[allow(dead_code)]
     skill_dir: Option<PathBuf>,
-    working_dir: Option<PathBuf>,
-    test_mode: bool,
 }
 
 impl TestSessionBuilder {
     fn new() -> Self {
         Self {
             use_mock_llm: false,
-            use_real_tui: false,
-            hooks: None,
             skill_dir: None,
-            working_dir: None,
-            test_mode: true,
         }
     }
 
@@ -322,33 +317,10 @@ impl TestSessionBuilder {
         self
     }
 
-    /// Use real TUI rendering (TestBackend)
-    pub fn with_real_tui(mut self) -> Self {
-        self.use_real_tui = true;
-        self
-    }
-
-    /// Inject custom hooks system (placeholder for now)
-    pub fn with_hooks(mut self, _hooks: ()) -> Self {
-        self.hooks = Some(Arc::new(()));
-        self
-    }
-
     /// Set skill directory path
+    #[allow(dead_code)]
     pub fn with_skill_dir(mut self, path: PathBuf) -> Self {
         self.skill_dir = Some(path);
-        self
-    }
-
-    /// Set working directory for session
-    pub fn with_working_dir(mut self, path: PathBuf) -> Self {
-        self.working_dir = Some(path);
-        self
-    }
-
-    /// Enable test mode (no external API calls)
-    pub fn with_test_mode(mut self, enabled: bool) -> Self {
-        self.test_mode = enabled;
         self
     }
 
@@ -363,14 +335,12 @@ impl TestSessionBuilder {
 
         Ok(TestSession {
             state: Arc::new(Mutex::new(TestSessionState {
-                state: SessionState::Starting,
                 conversation_history: Vec::new(),
                 tool_invocations: Vec::new(),
                 tui_output: String::new(),
                 mock_llm,
             })),
             model: "claude-3-5-sonnet-20241022".to_string(),
-            working_dir: self.working_dir,
         })
     }
 }
@@ -401,7 +371,9 @@ mod tests {
             .unwrap();
 
         // Queue mock response
-        session.mock_llm().queue_response(MockResponse::text("Hello, world!"));
+        session
+            .mock_llm()
+            .queue_response(MockResponse::text("Hello, world!"));
 
         // Send input
         session.send_input("Hi").await.unwrap();
@@ -419,7 +391,9 @@ mod tests {
             .await
             .unwrap();
 
-        session.mock_llm().queue_response(MockResponse::text("Analysis complete"));
+        session
+            .mock_llm()
+            .queue_response(MockResponse::text("Analysis complete"));
 
         session.send_input("/analyze src/").await.unwrap();
 

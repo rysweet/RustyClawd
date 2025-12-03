@@ -37,9 +37,16 @@ start_rustyclawd_session() {
     local session_name="$1"
     local timeout="${2:-$TMUX_DEFAULT_TIMEOUT}"
 
-    # Check if RustyClawd binary exists
+    # Security: Validate binary path before execution
+    # Check if binary exists and is executable
     if [[ ! -x "$RUSTYCLAWD_BIN" ]]; then
         echo "${RED}ERROR${NC}: RustyClawd binary not found or not executable: $RUSTYCLAWD_BIN" >&2
+        return 1
+    fi
+
+    # Check if binary is a regular file (not a symlink or directory)
+    if [[ ! -f "$RUSTYCLAWD_BIN" ]] || [[ -L "$RUSTYCLAWD_BIN" ]]; then
+        echo "${RED}ERROR${NC}: RustyClawd binary must be a regular file (not a symlink): $RUSTYCLAWD_BIN" >&2
         return 1
     fi
 
@@ -100,11 +107,12 @@ cleanup_session() {
 # Usage: trap_cleanup <session_name>
 # Args:
 #   session_name: Session to clean up on exit/interrupt
+# Handles all signals (EXIT, INT, TERM, HUP) properly
 trap_cleanup() {
     local session_name="$1"
 
-    # Register cleanup function for EXIT, INT, TERM signals
-    trap "cleanup_session '$session_name'" EXIT INT TERM
+    # Register cleanup function for all relevant signals
+    trap "cleanup_session '$session_name'" EXIT INT TERM HUP
 }
 
 #############################################################################
@@ -130,7 +138,7 @@ send_command() {
     fi
 
     # Send keys with Enter (C-m)
-    tmux send-keys -t "$session_name" "$command" C-m
+    tmux send-keys -t "$session_name" -- "$command" C-m
 
     # Wait for command to process
     sleep "$wait_time"
@@ -153,7 +161,7 @@ send_keys() {
     fi
 
     # Send raw keys
-    tmux send-keys -t "$session_name" "$keys"
+    tmux send-keys -t "$session_name" -- "$keys"
 }
 
 #############################################################################
