@@ -12,6 +12,7 @@ mod commands;
 mod hooks;
 mod interactive;
 mod mcp_commands;
+mod notification;
 mod plugins;
 mod session;
 mod session_persistence;
@@ -1050,6 +1051,7 @@ impl App {
                         tool_input,
                         Some(hooks),
                         Some(session_id),
+                        None, // No notification manager in non-interactive mode
                     )
                     .await
                 }
@@ -1091,6 +1093,7 @@ impl App {
                                     tool_input,
                                     Some(hooks),
                                     Some(session_id),
+                                    None, // No notification manager in non-interactive mode
                                 )
                                 .await
                             }

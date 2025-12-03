@@ -7,9 +7,11 @@
 //! - AuthSuccess: API authentication succeeded
 //! - ElicitationDialog: Claude asks clarifying questions
 
-use crate::hooks::types::NotificationType;
 use crate::hooks::{HookContext, HookEvent, HooksSystem};
 use std::sync::Arc;
+
+// Re-export NotificationType for convenience
+pub use crate::hooks::NotificationType;
 
 /// Sanitize message to prevent terminal injection attacks
 fn sanitize_message(msg: &str) -> String {

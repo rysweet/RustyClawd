@@ -12,6 +12,10 @@ use crate::commands::SlashCommands;
 use crate::hooks;
 use crate::mcp_commands;
 use crate::plugins::mcp_proxy::McpProxy;
+
+// Import notification types
+use crate::hooks::NotificationType;
+use crate::notification::NotificationManager;
 use crate::session::SessionStats;
 use crate::session_persistence::{SessionInfo, SessionPersistence};
 use crate::terminal_guard;
@@ -69,6 +73,8 @@ pub struct InteractiveSession {
     hooks: Option<Arc<hooks::HooksSystem>>,
     /// Session ID for hooks
     session_id: String,
+    /// Notification manager (optional)
+    notification_manager: Option<NotificationManager>,
 }
 
 impl InteractiveSession {
@@ -107,6 +113,22 @@ impl InteractiveSession {
         // Generate session ID
         let session_id = format!("session-{}", chrono::Utc::now().timestamp());
 
+        // Initialize notification manager if hooks are available
+        let notification_manager = hooks
+            .as_ref()
+            .map(|hooks_sys| NotificationManager::new(Arc::clone(hooks_sys)));
+
+        // Fire AuthSuccess notification AFTER Client::new()
+        if let Some(ref notification_mgr) = notification_manager {
+            notification_mgr
+                .notify(
+                    &session_id,
+                    NotificationType::AuthSuccess,
+                    "API authentication successful",
+                )
+                .await;
+        }
+
         Ok(Self {
             client,
             context: Context::new(),
@@ -118,6 +140,7 @@ impl InteractiveSession {
             stats: SessionStats::new(DEFAULT_MODEL),
             hooks,
             session_id,
+            notification_manager,
         })
     }
 
@@ -184,6 +207,17 @@ impl InteractiveSession {
         loop {
             // Draw UI
             self.tui.draw()?;
+
+            // Fire IdlePrompt notification BEFORE blocking on input
+            if let Some(ref notification_mgr) = self.notification_manager {
+                notification_mgr
+                    .notify(
+                        &self.session_id,
+                        NotificationType::IdlePrompt,
+                        "Awaiting user input",
+                    )
+                    .await;
+            }
 
             // Handle input (Ctrl+C is handled by TuiState::handle_key_event)
             if let Some(input) = self.tui.handle_input()? {
@@ -700,6 +734,19 @@ impl InteractiveSession {
                     .join("");
 
                 if !response_text.is_empty() {
+                    // Check if response contains questions (ElicitationDialog trigger)
+                    if response_text.contains('?') {
+                        if let Some(ref notification_mgr) = self.notification_manager {
+                            notification_mgr
+                                .notify(
+                                    &self.session_id,
+                                    NotificationType::ElicitationDialog,
+                                    "Claude is asking clarifying questions",
+                                )
+                                .await;
+                        }
+                    }
+
                     self.context.add_message(Message::assistant(response_text));
                 }
 
@@ -944,14 +991,16 @@ impl InteractiveSession {
             // Track tool call
             self.stats.add_tool_call();
 
-            // Execute the tool with hooks
+            // Execute the tool with hooks and notification manager
             let hooks = self.hooks.as_ref().map(Arc::clone);
             let session_id = Some(self.session_id.clone());
+            let notification_mgr = self.notification_manager.as_ref();
             match crate::tool_executor::execute_tool_with_hooks(
                 name.clone(),
                 input.clone(),
                 hooks,
                 session_id,
+                notification_mgr,
             )
             .await
             {
