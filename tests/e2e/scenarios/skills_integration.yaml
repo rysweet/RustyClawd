@@ -1,0 +1,110 @@
+# YAML Scenario: Skills Integration with Context
+#
+# **Status:** Pending - Waiting for scenario runner implementation
+#
+# This scenario validates that skills load, execute, and use conversation
+# context correctly in a complete workflow.
+
+scenario:
+  name: "Skills Integration with Context"
+  description: "Validate skill invocation, context usage, and execution"
+  type: tui
+  tags: [skills, context, integration]
+  status: "pending_implementation"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 35
+    timeout: 50s
+    skill_dir: "tests/e2e/fixtures/test_skills"
+
+  steps:
+    # Setup: Ensure test skill exists
+    - action: ensure_file
+      description: "Ensure test skill file exists"
+      path: "tests/e2e/fixtures/test_skills/code-analyzer.md"
+      content: |
+        # Code Analyzer Skill
+
+        Perform deep analysis of code mentioned in the conversation.
+
+    # Startup
+    - action: launch
+      description: "Start RustyClawd with test skill directory"
+      target: "cargo run --bin rustyclawd --skill-dir tests/e2e/fixtures/test_skills"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for ready state"
+      contains: "Welcome"
+      timeout: 5s
+
+    # Establish context
+    - action: send_input
+      description: "Discuss code that skill will analyze"
+      text: "Here's a function: fn add(a: i32, b: i32) -> i32 { a + b }"
+      submit: true
+
+    - action: wait_for_text
+      description: "Wait for acknowledgment"
+      contains: "function"
+      timeout: 10s
+
+    # Invoke skill
+    - action: send_input
+      description: "Invoke code-analyzer skill"
+      text: "Use code-analyzer skill on that function"
+      submit: true
+
+    - action: wait_for_text
+      description: "Skill should execute"
+      contains: "analysis"
+      timeout: 20s
+
+    # Verify skill had context
+    - action: wait_for_text
+      description: "Skill should reference the function from context"
+      contains: "add"
+      timeout: 5s
+
+    # Capture state
+    - action: capture_screenshot
+      description: "Capture final state showing skill execution"
+      filename: "skills_integration_result.txt"
+
+    # Exit
+    - action: send_input
+      description: "Exit"
+      text: "/exit"
+      submit: true
+
+  assertions:
+    - type: text_present
+      value: "function"
+      description: "Context established with function discussion"
+
+    - type: text_present
+      value: "analysis"
+      description: "Skill executed and produced analysis"
+
+    - type: text_present
+      value: "add"
+      description: "Skill had access to function from context"
+
+    - type: exit_clean
+      description: "Clean exit after skill execution"
+
+  notes: |
+    This scenario will FAIL until the scenario runner is implemented.
+
+    Expected behavior:
+    1. Test skill file created/verified
+    2. RustyClawd starts with skill directory
+    3. User discusses code (establishes context)
+    4. User invokes skill
+    5. Skill has access to prior context
+    6. Skill executes successfully
+    7. Results show skill used context
+
+    See: docs/architecture/e2e_testing_architecture.md
