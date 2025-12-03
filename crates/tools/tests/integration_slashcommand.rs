@@ -6,10 +6,17 @@ use std::path::Path;
 
 #[tokio::test]
 async fn test_real_analyze_command() {
+    // Set working directory to project root
+    let project_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap();
+    std::env::set_current_dir(project_root).unwrap();
+
     // Check if command file exists before testing
     if !Path::new(".claude/commands/analyze.md").exists() {
-        eprintln!("Skipping test - .claude/commands/analyze.md not found");
-        return;
+        panic!("CRITICAL: .claude/commands/analyze.md not found at project root. Current dir: {:?}", std::env::current_dir());
     }
 
     let tool = SlashCommandTool;
@@ -40,10 +47,17 @@ async fn test_real_analyze_command() {
 
 #[tokio::test]
 async fn test_real_debug_command() {
+    // Set working directory to project root
+    let project_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap();
+    std::env::set_current_dir(project_root).unwrap();
+
     // Check if command file exists before testing
     if !Path::new(".claude/commands/debug.md").exists() {
-        eprintln!("Skipping test - .claude/commands/debug.md not found");
-        return;
+        panic!("CRITICAL: .claude/commands/debug.md not found at project root. Current dir: {:?}", std::env::current_dir());
     }
 
     let tool = SlashCommandTool;
@@ -72,10 +86,17 @@ async fn test_real_debug_command() {
 
 #[tokio::test]
 async fn test_real_ultrathink_command() {
+    // Set working directory to project root
+    let project_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap();
+    std::env::set_current_dir(project_root).unwrap();
+
     // Check if command file exists before testing
     if !Path::new(".claude/commands/ultrathink.md").exists() {
-        eprintln!("Skipping test - .claude/commands/ultrathink.md not found");
-        return;
+        panic!("CRITICAL: .claude/commands/ultrathink.md not found at project root. Current dir: {:?}", std::env::current_dir());
     }
 
     let tool = SlashCommandTool;
