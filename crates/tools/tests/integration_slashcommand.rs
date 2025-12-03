@@ -16,7 +16,10 @@ async fn test_real_analyze_command() {
 
     // Check if command file exists before testing
     if !Path::new(".claude/commands/analyze.md").exists() {
-        panic!("CRITICAL: .claude/commands/analyze.md not found at project root. Current dir: {:?}", std::env::current_dir());
+        panic!(
+            "CRITICAL: .claude/commands/analyze.md not found at project root. Current dir: {:?}",
+            std::env::current_dir()
+        );
     }
 
     let tool = SlashCommandTool;
@@ -57,7 +60,10 @@ async fn test_real_debug_command() {
 
     // Check if command file exists before testing
     if !Path::new(".claude/commands/debug.md").exists() {
-        panic!("CRITICAL: .claude/commands/debug.md not found at project root. Current dir: {:?}", std::env::current_dir());
+        panic!(
+            "CRITICAL: .claude/commands/debug.md not found at project root. Current dir: {:?}",
+            std::env::current_dir()
+        );
     }
 
     let tool = SlashCommandTool;
@@ -96,7 +102,10 @@ async fn test_real_ultrathink_command() {
 
     // Check if command file exists before testing
     if !Path::new(".claude/commands/ultrathink.md").exists() {
-        panic!("CRITICAL: .claude/commands/ultrathink.md not found at project root. Current dir: {:?}", std::env::current_dir());
+        panic!(
+            "CRITICAL: .claude/commands/ultrathink.md not found at project root. Current dir: {:?}",
+            std::env::current_dir()
+        );
     }
 
     let tool = SlashCommandTool;

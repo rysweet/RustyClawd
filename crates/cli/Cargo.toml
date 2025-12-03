@@ -58,6 +58,7 @@ predicates = "3.0"
 tempfile = "3.8"
 escargot = "0.5"
 serial_test = "3.0"
+uuid = { version = "1.11", features = ["v4"] }
 
 # HTTP testing
 wiremock = "0.6"

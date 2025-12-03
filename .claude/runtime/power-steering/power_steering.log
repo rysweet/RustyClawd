@@ -35,3 +35,14 @@
 [2025-12-03T01:19:41.948151] INFO: Loaded 22 considerations from YAML
 [2025-12-03T03:14:15.623365] INFO: Loaded 22 considerations from YAML
 [2025-12-03T03:14:15.637420] INFO: Loaded 22 considerations from YAML
+[2025-12-03T17:28:55.113534] INFO: Loaded 22 considerations from YAML
+[2025-12-03T17:28:55.128899] INFO: Loaded 22 considerations from YAML
+[2025-12-03T17:28:55.129413] DEBUG: Path validated: within user home directory
+[2025-12-03T17:28:55.133134] INFO: Turn count incremented to 1
+[2025-12-03T17:28:55.133188] INFO: Turn state: turn=1, blocks=0
+[2025-12-03T17:28:55.133305] DEBUG: Simple task keyword 'cleanup' found in user message
+[2025-12-03T17:28:55.133355] INFO: Session classified as SIMPLE via keyword detection
+[2025-12-03T17:28:55.133392] INFO: Session classified as: SIMPLE
+[2025-12-03T17:28:55.133469] INFO: SIMPLE session - skipping all considerations
+[2025-12-03T17:28:55.133925] INFO: Parallel analysis completed: 0 checks in 0.0s
+[2025-12-03T17:28:55.134005] INFO: No power-steering checks applicable for session type - approving immediately
