@@ -18,8 +18,8 @@ use rustyclawd::hooks::types::{
 };
 use rustyclawd::hooks::{HookContext, HookEvent, HooksSystem};
 use rustyclawd::notification::NotificationManager;
-use serial_test::serial;
 use serde_json::json;
+use serial_test::serial;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -47,16 +47,6 @@ fn setup_test_config_dir() -> Result<TempDir> {
     Ok(temp_dir)
 }
 
-/// Helper to create a test hooks configuration file
-fn create_test_hooks_config(dir: &TempDir, config: &HooksConfiguration) -> Result<PathBuf> {
-    let config_path = dir.path().join(".claude").join("settings.json");
-    let config_json = serde_json::to_string_pretty(&json!({
-        "hooks": config
-    }))?;
-    fs::write(&config_path, config_json)?;
-    Ok(config_path)
-}
-
 /// Helper to create a simple command hook that writes to a file
 fn create_tracking_hook(output_file: &str, message: &str) -> Hook {
     Hook::command(
@@ -75,7 +65,9 @@ fn create_decision_hook(decision_json: &str) -> Hook {
 
 /// Helper to create a hook that returns Ask permission decision
 fn create_hook_with_ask_decision() -> Hook {
-    create_decision_hook(r#"{"permissionDecision": "ask", "permissionDecisionReason": "User confirmation required"}"#)
+    create_decision_hook(
+        r#"{"permissionDecision": "ask", "permissionDecisionReason": "User confirmation required"}"#,
+    )
 }
 
 /// Helper to check if a tracking file was created
@@ -117,7 +109,11 @@ fn create_notification_context(notification_type: NotificationType) -> HookConte
 }
 
 /// Helper to create a test skill directory structure
-fn create_test_skill_dir(temp_dir: &TempDir, skill_name: &str, skill_content: &str) -> Result<PathBuf> {
+fn create_test_skill_dir(
+    temp_dir: &TempDir,
+    skill_name: &str,
+    skill_content: &str,
+) -> Result<PathBuf> {
     let skills_dir = temp_dir.path().join(".claude").join("skills");
     fs::create_dir_all(&skills_dir)?;
 
@@ -477,7 +473,11 @@ Follow these test instructions carefully.
     // Restore original directory before assertions (for better error messages)
     std::env::set_current_dir(&original_dir).unwrap();
 
-    assert!(output.found, "Skill should be found. Searched paths: {:?}", output.path);
+    assert!(
+        output.found,
+        "Skill should be found. Searched paths: {:?}",
+        output.path
+    );
     assert!(
         output.prompt.contains("Test Skill Content"),
         "Should load prompt content. Got: {}",
@@ -663,7 +663,9 @@ async fn test_skill_tool_not_found() {
         "Should include skill name in error"
     );
     assert!(
-        output.prompt.contains("Searched in the following locations"),
+        output
+            .prompt
+            .contains("Searched in the following locations"),
         "Should list searched locations"
     );
     assert!(output.metadata.is_none(), "Should have no metadata");
@@ -828,8 +830,14 @@ async fn test_notification_with_pretooluse_interaction() {
         .unwrap();
 
     // THEN: Both hooks should fire correctly
-    assert!(notif_results[0].is_success(), "Notification hook should succeed");
-    assert!(pretool_results[0].is_success(), "PreToolUse hook should succeed");
+    assert!(
+        notif_results[0].is_success(),
+        "Notification hook should succeed"
+    );
+    assert!(
+        pretool_results[0].is_success(),
+        "PreToolUse hook should succeed"
+    );
 
     // Verify notification hook fired
     assert!(check_tracking_file(notif_file.to_str().unwrap()));
@@ -890,8 +898,14 @@ async fn test_precompact_with_subagentstop_workflow() {
         .unwrap();
 
     // THEN: Both hooks should fire in workflow sequence
-    assert!(precompact_results[0].is_success(), "PreCompact hook should succeed");
-    assert!(subagent_results[0].is_success(), "SubagentStop hook should succeed");
+    assert!(
+        precompact_results[0].is_success(),
+        "PreCompact hook should succeed"
+    );
+    assert!(
+        subagent_results[0].is_success(),
+        "SubagentStop hook should succeed"
+    );
 
     assert!(check_tracking_file(precompact_file.to_str().unwrap()));
     assert!(check_tracking_file(subagent_file.to_str().unwrap()));

@@ -27,3 +27,9 @@
 [2025-12-02T19:51:43.638770] INFO: SIMPLE session - skipping all considerations
 [2025-12-02T19:51:43.639197] INFO: Parallel analysis completed: 0 checks in 0.0s
 [2025-12-02T19:51:43.639275] INFO: No power-steering checks applicable for session type - approving immediately
+[2025-12-02T23:39:01.698114] INFO: Loaded 22 considerations from YAML
+[2025-12-02T23:39:01.712130] INFO: Loaded 22 considerations from YAML
+[2025-12-03T00:29:56.730347] INFO: Loaded 22 considerations from YAML
+[2025-12-03T00:29:56.744290] INFO: Loaded 22 considerations from YAML
+[2025-12-03T01:19:41.933993] INFO: Loaded 22 considerations from YAML
+[2025-12-03T01:19:41.948151] INFO: Loaded 22 considerations from YAML
