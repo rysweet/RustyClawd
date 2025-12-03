@@ -245,8 +245,17 @@ impl BuiltinCommands {
         "Configured hooks:\n  (No hooks configured)".to_string()
     }
 
+    /// /compact - Compact conversation history
+    ///
+    /// NOTE: PreCompact hook integration is COMPLETE in interactive.rs (async context).
+    /// This synchronous command stub shows hook intent for documentation.
+    /// When full compaction logic is implemented, wire PreCompact hook here.
+    /// See interactive.rs:285-326 for reference implementation pattern.
     fn compact_command() -> String {
-        "Compacting conversation history...".to_string()
+        "Compacting conversation history...\n\n\
+         NOTE: PreCompact hook will fire when full compaction is implemented.\n\
+         Hook integration ready, awaiting compaction logic."
+            .to_string()
     }
 
     fn init_command() -> String {
