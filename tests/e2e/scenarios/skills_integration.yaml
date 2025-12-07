@@ -37,7 +37,7 @@ scenario:
 
     - action: wait_for_text
       description: "Wait for ready state"
-      contains: "Welcome"
+      contains: "System>"
       timeout: 5s
 
     # Establish context
