@@ -27,7 +27,7 @@ scenario:
 
     - action: wait_for_text
       description: "Wait for welcome message"
-      contains: "Welcome"
+      contains: "System>"
       timeout: 5s
 
     # Execute slash command
@@ -59,8 +59,8 @@ scenario:
 
   assertions:
     - type: text_present
-      value: "Welcome"
-      description: "TUI shows welcome screen on startup"
+      value: "System>"
+      description: "TUI shows prompt on startup"
 
     - type: text_present
       value: "/analyze"

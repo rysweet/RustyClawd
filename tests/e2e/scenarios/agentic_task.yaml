@@ -27,7 +27,7 @@ scenario:
 
     - action: wait_for_text
       description: "Wait for ready"
-      contains: "Welcome"
+      contains: "System>"
       timeout: 5s
 
     # Step 1: Initial analysis request
