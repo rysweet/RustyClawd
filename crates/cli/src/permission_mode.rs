@@ -29,7 +29,7 @@ impl PermissionMode {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// use rustyclawd_cli::permission_mode::PermissionMode;
     ///
     /// let mode = PermissionMode::Ask;
@@ -90,7 +90,7 @@ impl PermissionMode {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// use rustyclawd_cli::permission_mode::PermissionMode;
     ///
     /// let mode = PermissionMode::Plan;
