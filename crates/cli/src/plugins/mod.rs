@@ -43,7 +43,9 @@ pub mod manager;
 pub mod manifest;
 pub mod mcp_proxy;
 
-pub use agent_discovery::AgentDiscovery;
+pub use agent_discovery::{
+    parse_runtime_agents, validate_runtime_agents, AgentDiscovery, RuntimeAgentDefinition,
+};
 pub use discovery::PluginDiscovery;
 pub use executor::PluginExecutor;
 pub use hooks_integration::{register_plugin_hooks, PluginHooksIntegrator};

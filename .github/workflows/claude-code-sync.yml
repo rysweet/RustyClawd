@@ -1,0 +1,78 @@
+name: Claude Code Sync Monitor
+
+on:
+  # Run weekly on Monday at 9 AM UTC
+  schedule:
+    - cron: '0 9 * * 1'
+
+  # Allow manual triggering
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  sync-monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build sync monitor
+        run: cargo build --release --package rustyclawd-tools
+
+      - name: Create CLI wrapper script
+        run: |
+          cat > sync_monitor_cli.sh << 'EOF'
+          #!/bin/bash
+          # CLI wrapper for Claude Code Sync Monitor
+
+          INVENTORY_PATH="${INVENTORY_PATH:-.claude/data/feature_inventory.yaml}"
+          LEDGER_PATH="${LEDGER_PATH:-.claude/data/sync_ledger.json}"
+          GITHUB_TOKEN="${GITHUB_TOKEN}"
+          GITHUB_REPO="${GITHUB_REPOSITORY}"
+
+          # Run the sync monitor using Rust
+          # Note: This would typically call a CLI binary, but for now we'll use cargo run
+          cargo run --package rustyclawd-tools --example claude_code_sync_cli -- \
+            --inventory "$INVENTORY_PATH" \
+            --ledger "$LEDGER_PATH" \
+            --token "$GITHUB_TOKEN" \
+            --repo "$GITHUB_REPO"
+          EOF
+          chmod +x sync_monitor_cli.sh
+
+      - name: Run sync monitor
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INVENTORY_PATH: .claude/data/feature_inventory.yaml
+          LEDGER_PATH: .claude/data/sync_ledger.json
+        run: |
+          # For now, just show what would be executed
+          echo "Would run sync monitor with:"
+          echo "  Inventory: $INVENTORY_PATH"
+          echo "  Ledger: $LEDGER_PATH"
+          echo "  Repo: $GITHUB_REPOSITORY"
+          echo ""
+          echo "Sync monitor execution will be implemented after CLI is created."
+          echo "This workflow will:"
+          echo "  1. Fetch Claude Code features from docs/changelog"
+          echo "  2. Compare with $INVENTORY_PATH"
+          echo "  3. Create GitHub issues for gaps"
+          echo "  4. Track in $LEDGER_PATH to prevent duplicates"
+
+      - name: Upload ledger artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sync-ledger
+          path: .claude/data/sync_ledger.json
+          if-no-files-found: ignore
