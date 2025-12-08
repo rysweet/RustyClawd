@@ -212,6 +212,8 @@ struct App {
     session_saver: checkpoint::SessionSaver,
     /// MCP proxy for managing MCP servers
     mcp_proxy: std::sync::Arc<tokio::sync::Mutex<plugins::mcp_proxy::McpProxy>>,
+    /// Runtime agents defined via --agents flag
+    runtime_agents: std::collections::HashMap<String, plugins::RuntimeAgentDefinition>,
 }
 
 impl App {
@@ -304,6 +306,40 @@ impl App {
         }
 
         let mcp_proxy = std::sync::Arc::new(tokio::sync::Mutex::new(mcp_proxy));
+
+        // 4.5 Parse and validate runtime agents from --agents flag
+        let runtime_agents = if let Some(ref agents_json) = cli.agents {
+            tracing::info!("Parsing runtime agents from --agents flag");
+            match plugins::parse_runtime_agents(agents_json) {
+                Ok(parsed_agents) => {
+                    // Validate the agents
+                    if let Err(errors) = plugins::validate_runtime_agents(&parsed_agents) {
+                        return Err(anyhow::anyhow!(
+                            "Invalid runtime agents: {}",
+                            errors.join("; ")
+                        ));
+                    }
+
+                    tracing::info!("Loaded {} runtime agents", parsed_agents.len());
+                    for (id, agent) in &parsed_agents {
+                        tracing::debug!(
+                            "Runtime agent '{}': description='{}', tools={:?}, model={:?}",
+                            id,
+                            agent.description,
+                            agent.tools,
+                            agent.model
+                        );
+                    }
+
+                    parsed_agents
+                }
+                Err(e) => {
+                    return Err(anyhow::anyhow!("Failed to parse --agents JSON: {}", e));
+                }
+            }
+        } else {
+            std::collections::HashMap::new()
+        };
 
         // 5. Initialize slash command system
         tracing::debug!("Initializing slash command system...");
@@ -458,6 +494,7 @@ impl App {
             session,
             session_saver,
             mcp_proxy,
+            runtime_agents,
         })
     }
 
