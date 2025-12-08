@@ -389,6 +389,7 @@ impl TuiState {
     }
 
     /// Render the UI
+    #[allow(clippy::too_many_arguments)]
     fn render_ui(
         f: &mut Frame,
         messages: &[ChatMessage],

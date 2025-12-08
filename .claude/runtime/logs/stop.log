@@ -544,3 +544,35 @@
 [2025-12-03T17:28:55.134718] INFO: === STOP HOOK ENDED (decision: approve - no reflection) ===
 [2025-12-03T17:28:55.134762] INFO: Returning output with keys: ['decision']
 [2025-12-03T17:28:55.134818] INFO: stop hook completed successfully
+[2025-12-08T16:24:03.009217] INFO: stop hook starting (Python 3.11.14)
+[2025-12-08T16:24:03.009326] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-12-08T16:24:03.009371] INFO: Event type: Stop
+[2025-12-08T16:24:03.009408] INFO: === STOP HOOK STARTED ===
+[2025-12-08T16:24:03.009442] INFO: Input keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-12-08T16:24:03.009495] DEBUG: Neo4j credentials not configured - skipping cleanup
+[2025-12-08T16:24:03.009532] DEBUG: Neo4j not in use - skipping cleanup handler
+[2025-12-08T16:24:03.013321] INFO: Starting Neo4j learning capture for session 20251208_162403
+[2025-12-08T16:24:03.013396] INFO: Neo4j learning capture skipped (Neo4j not available)
+[2025-12-08T16:24:03.481012] INFO: Running power-steering analysis...
+[2025-12-08T16:24:03.497359] INFO: Power-steering approved stop: ['error_failopen']
+[2025-12-08T16:24:03.497526] WARNING: Reflection is disabled - skipping
+[2025-12-08T16:24:03.497628] INFO: Reflection not enabled or skipped - allowing stop
+[2025-12-08T16:24:03.497665] INFO: === STOP HOOK ENDED (decision: approve - no reflection) ===
+[2025-12-08T16:24:03.497788] INFO: Returning output with keys: ['decision']
+[2025-12-08T16:24:03.497861] INFO: stop hook completed successfully
+[2025-12-08T16:30:57.992803] INFO: stop hook starting (Python 3.11.14)
+[2025-12-08T16:30:58.603211] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-12-08T16:30:58.603334] INFO: Event type: Stop
+[2025-12-08T16:30:58.603381] INFO: === STOP HOOK STARTED ===
+[2025-12-08T16:30:58.603434] INFO: Input keys: ['session_id', 'transcript_path', 'cwd', 'permission_mode', 'hook_event_name', 'stop_hook_active']
+[2025-12-08T16:30:58.603510] DEBUG: Neo4j credentials not configured - skipping cleanup
+[2025-12-08T16:30:58.603552] DEBUG: Neo4j not in use - skipping cleanup handler
+[2025-12-08T16:30:58.607530] INFO: Starting Neo4j learning capture for session 20251208_163058
+[2025-12-08T16:30:58.607602] INFO: Neo4j learning capture skipped (Neo4j not available)
+[2025-12-08T16:30:59.082188] INFO: Running power-steering analysis...
+[2025-12-08T16:30:59.098539] INFO: Power-steering approved stop: ['error_failopen']
+[2025-12-08T16:30:59.098734] WARNING: Reflection is disabled - skipping
+[2025-12-08T16:30:59.098813] INFO: Reflection not enabled or skipped - allowing stop
+[2025-12-08T16:30:59.098847] INFO: === STOP HOOK ENDED (decision: approve - no reflection) ===
+[2025-12-08T16:30:59.098978] INFO: Returning output with keys: ['decision']
+[2025-12-08T16:30:59.099049] INFO: stop hook completed successfully
