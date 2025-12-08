@@ -6,7 +6,9 @@
 //! - Streams agent responses in real-time
 //! - Supports model selection (haiku/sonnet/opus)
 //! - Allows resuming previous agent executions
+//! - Supports background execution (run_in_background)
 
+use crate::agent_registry::global_agent_registry;
 use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
 use async_stream::stream;
 use async_trait::async_trait;
@@ -34,6 +36,10 @@ pub struct AgentParams {
     /// Optional agent ID to resume a previous execution
     #[serde(default)]
     pub resume: Option<String>,
+
+    /// Run the agent in the background (returns immediately with agent_id)
+    #[serde(default)]
+    pub run_in_background: bool,
 }
 
 /// Output from the Agent tool
@@ -138,6 +144,7 @@ impl crate::Tool for AgentTool {
         let prompt = params.prompt.clone();
         let model_name = params.model.clone();
         let resume_id = params.resume.clone();
+        let run_in_background = params.run_in_background;
 
         Ok(Box::pin(stream! {
             yield ToolEvent::Progress {
@@ -150,6 +157,7 @@ impl crate::Tool for AgentTool {
                     agent_type = %agent_type,
                     model = ?model_name,
                     resume = ?resume_id,
+                    run_in_background = run_in_background,
                     "Starting agent execution"
                 );
             }
@@ -187,6 +195,151 @@ impl crate::Tool for AgentTool {
                 );
             }
 
+            // Generate agent ID early (needed for background mode)
+            let agent_id = resume_id.clone().unwrap_or_else(|| Self::generate_agent_id(&agent_type));
+
+            // Handle background mode
+            if run_in_background {
+                // Register the agent in the global registry
+                let registry = global_agent_registry();
+                if let Err(e) = registry.register(
+                    agent_id.clone(),
+                    agent_type.clone(),
+                    model_id.clone(),
+                ).await {
+                    yield ToolEvent::Error {
+                        message: format!("Failed to register background agent: {}", e),
+                    };
+                    return;
+                }
+
+                if debug {
+                    tracing::debug!(
+                        agent_id = %agent_id,
+                        "Background agent registered, spawning execution task"
+                    );
+                }
+
+                // Spawn the agent execution in the background
+                let bg_agent_id = agent_id.clone();
+                let bg_agent_type = agent_type.clone();
+                let bg_model_id = model_id.clone();
+                let bg_prompt = prompt.clone();
+                let bg_system_prompt = agent_system_prompt.clone();
+                let bg_debug = debug;
+
+                tokio::spawn(async move {
+                    let registry = global_agent_registry();
+
+                    // Load API config
+                    let config = match rustyclawd_core::client::Config::from_default_location().await {
+                        Ok(cfg) => cfg,
+                        Err(err) => {
+                            registry.mark_failed(&bg_agent_id, format!("Failed to load API config: {}", err)).await.ok();
+                            return;
+                        }
+                    };
+
+                    let client = rustyclawd_core::client::Client::new(config);
+
+                    // Build the request
+                    let messages = vec![
+                        rustyclawd_core::client::types::Message::user(bg_prompt),
+                    ];
+
+                    let request = rustyclawd_core::client::types::CreateMessageRequest::new(
+                        bg_model_id,
+                        messages,
+                        4096, // max_tokens
+                    )
+                    .with_system(bg_system_prompt)
+                    .with_temperature(0.7);
+
+                    // Stream the response
+                    let stream_result = client.create_message_stream(request).await;
+                    let mut event_stream = match stream_result {
+                        Ok(s) => s,
+                        Err(err) => {
+                            registry.mark_failed(&bg_agent_id, format!("Failed to create stream: {}", err)).await.ok();
+                            return;
+                        }
+                    };
+
+                    let mut input_tokens = 0u32;
+                    let mut output_tokens = 0u32;
+
+                    // Process stream events
+                    while let Some(event_result) = event_stream.next().await {
+                        match event_result {
+                            Ok(event) => {
+                                match event {
+                                    rustyclawd_core::client::types::StreamEvent::MessageStart { message } => {
+                                        input_tokens = message.usage.input_tokens;
+                                        registry.update_token_usage(&bg_agent_id, input_tokens, output_tokens).await.ok();
+                                    }
+                                    rustyclawd_core::client::types::StreamEvent::ContentBlockDelta {
+                                        delta: rustyclawd_core::client::types::ContentDelta::TextDelta { text },
+                                        ..
+                                    } => {
+                                        registry.append_response(&bg_agent_id, text).await.ok();
+                                    }
+                                    rustyclawd_core::client::types::StreamEvent::MessageDelta { usage, .. } => {
+                                        output_tokens = usage.output_tokens;
+                                        registry.update_token_usage(&bg_agent_id, input_tokens, output_tokens).await.ok();
+                                    }
+                                    rustyclawd_core::client::types::StreamEvent::MessageStop => {
+                                        if bg_debug {
+                                            tracing::debug!(
+                                                agent_id = %bg_agent_id,
+                                                "Background agent stream completed"
+                                            );
+                                        }
+                                        break;
+                                    }
+                                    rustyclawd_core::client::types::StreamEvent::Error { error } => {
+                                        registry.mark_failed(&bg_agent_id, format!("Agent error: {}", error.message)).await.ok();
+                                        return;
+                                    }
+                                    _ => {
+                                        // Ignore other event types
+                                    }
+                                }
+                            }
+                            Err(err) => {
+                                registry.mark_failed(&bg_agent_id, format!("Stream error: {}", err)).await.ok();
+                                return;
+                            }
+                        }
+                    }
+
+                    // Mark as completed
+                    registry.mark_completed(&bg_agent_id).await.ok();
+
+                    if bg_debug {
+                        tracing::debug!(
+                            agent_id = %bg_agent_id,
+                            agent_type = %bg_agent_type,
+                            "Background agent execution complete"
+                        );
+                    }
+                });
+
+                // Return immediately with agent_id
+                yield ToolEvent::Result(AgentOutput {
+                    agent_id,
+                    agent_name: agent_type.clone(),
+                    response: String::new(), // Empty - use AgentOutput tool to get response
+                    model: model_id,
+                    tokens_used: TokenUsage {
+                        input_tokens: 0,
+                        output_tokens: 0,
+                        total_tokens: 0,
+                    },
+                });
+                return;
+            }
+
+            // Foreground execution (existing logic)
             yield ToolEvent::Progress {
                 step: format!("Invoking {} agent", agent_type),
                 percentage: Some(50.0),
@@ -312,7 +465,6 @@ impl crate::Tool for AgentTool {
                 percentage: Some(95.0),
             };
 
-            let agent_id = resume_id.unwrap_or_else(|| Self::generate_agent_id(&agent_type));
             let total_tokens = input_tokens + output_tokens;
 
             if debug {
@@ -448,6 +600,7 @@ mod tests {
             subagent_type: "nonexistent".to_string(),
             model: None,
             resume: None,
+            run_in_background: false,
         };
         let ctx = ToolContext {
             cwd: temp_dir.path().to_path_buf(),
@@ -486,6 +639,7 @@ mod tests {
             subagent_type: "test_agent".to_string(),
             model: Some("haiku".to_string()),
             resume: None,
+            run_in_background: false,
         };
         let ctx = ToolContext {
             cwd,
