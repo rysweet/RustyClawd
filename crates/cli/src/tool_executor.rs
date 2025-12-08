@@ -13,9 +13,9 @@ use anyhow::Result;
 use futures::StreamExt;
 use rustyclawd_core::client::ClientError;
 use rustyclawd_tools::{
-    AgentTool, AskUserQuestionTool, BashOutputTool, BashTool, EditTool, GlobTool, GrepTool,
-    KillShellTool, ReadTool, SkillTool, SlashCommandTool, TodoWriteTool, Tool, ToolContext,
-    ToolEvent, WriteTool,
+    AgentOutputTool, AgentTool, AskUserQuestionTool, BashOutputTool, BashTool, EditTool, GlobTool,
+    GrepTool, KillShellTool, ReadTool, SkillTool, SlashCommandTool, TodoWriteTool, Tool,
+    ToolContext, ToolEvent, WriteTool,
 };
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -141,12 +141,20 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
         ),
         "Task" => (
             vec!["subagent_type", "prompt", "description"],
-            vec!["model", "resume"],
+            vec!["model", "resume", "run_in_background"],
             json!({
                 "subagent_type": "agent_name",
                 "prompt": "Full task description for the agent",
                 "description": "Brief task summary",
-                "model": "sonnet"
+                "model": "sonnet",
+                "run_in_background": false
+            }),
+        ),
+        "AgentOutput" => (
+            vec!["agent_id"],
+            vec![],
+            json!({
+                "agent_id": "agent_builder_t1234567890"
             }),
         ),
         "TodoWrite" => (
@@ -324,6 +332,7 @@ pub async fn execute_tool_with_hooks(
         "Skill" => execute_skill_tool(tool_input.clone(), &ctx).await,
         "SlashCommand" => execute_slash_command_tool(tool_input.clone(), &ctx).await,
         "Task" => execute_agent_tool(tool_input.clone(), &ctx).await,
+        "AgentOutput" => execute_agent_output_tool(tool_input.clone(), &ctx).await,
         "TodoWrite" => execute_todowrite_tool(tool_input.clone(), &ctx).await,
         _ => Err(ClientError::Api(format!("Unknown tool: {}", tool_name))),
     };
@@ -794,6 +803,40 @@ async fn execute_agent_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cl
 
     Err(ClientError::Api(
         "Task tool completed without result".to_string(),
+    ))
+}
+
+/// Execute AgentOutput tool
+async fn execute_agent_output_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
+    let params: rustyclawd_tools::agent_output::AgentOutputParams =
+        serde_json::from_value(input)
+            .map_err(|e| create_schema_error("AgentOutput", &e.to_string()))?;
+
+    let tool = AgentOutputTool;
+    let mut stream = tool
+        .execute(params, ctx)
+        .await
+        .map_err(|e| ClientError::Api(format!("AgentOutput tool execution failed: {}", e)))?;
+
+    while let Some(event) = stream.next().await {
+        match event {
+            ToolEvent::Result(output) => {
+                return serde_json::to_value(&output).map_err(|e| {
+                    ClientError::Api(format!("Failed to serialize AgentOutput output: {}", e))
+                });
+            }
+            ToolEvent::Error { message } => {
+                return Err(ClientError::Api(format!(
+                    "AgentOutput tool error: {}",
+                    message
+                )));
+            }
+            ToolEvent::Progress { .. } => {}
+        }
+    }
+
+    Err(ClientError::Api(
+        "AgentOutput tool completed without result".to_string(),
     ))
 }
 

@@ -695,6 +695,7 @@ impl App {
             subagent_type: agent_type.to_string(),
             model: model.map(|m| m.to_string()),
             resume: None,
+            run_in_background: false,
         };
 
         // Execute agent tool
