@@ -7,6 +7,7 @@ pub mod agent;
 pub mod ask_user_question;
 pub mod bash;
 pub mod bash_output;
+pub mod claude_code_sync;
 pub mod edit;
 pub mod error;
 pub mod glob_tool;

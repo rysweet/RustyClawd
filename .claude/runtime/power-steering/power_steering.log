@@ -46,3 +46,11 @@
 [2025-12-03T17:28:55.133469] INFO: SIMPLE session - skipping all considerations
 [2025-12-03T17:28:55.133925] INFO: Parallel analysis completed: 0 checks in 0.0s
 [2025-12-03T17:28:55.134005] INFO: No power-steering checks applicable for session type - approving immediately
+[2025-12-08T16:24:03.466606] INFO: Loaded 22 considerations from YAML
+[2025-12-08T16:24:03.480780] INFO: Loaded 22 considerations from YAML
+[2025-12-08T16:24:03.481280] DEBUG: Path validated: within user home directory
+[2025-12-08T16:24:03.496494] ERROR: Power-steering error (fail-open): Expecting ',' delimiter: line 1 column 27 (char 26)
+[2025-12-08T16:30:59.067859] INFO: Loaded 22 considerations from YAML
+[2025-12-08T16:30:59.081955] INFO: Loaded 22 considerations from YAML
+[2025-12-08T16:30:59.082460] DEBUG: Path validated: within user home directory
+[2025-12-08T16:30:59.097703] ERROR: Power-steering error (fail-open): Expecting ',' delimiter: line 1 column 27 (char 26)

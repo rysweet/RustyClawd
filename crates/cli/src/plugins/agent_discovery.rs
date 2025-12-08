@@ -1,16 +1,80 @@
 //! Agent Discovery - Auto-discovers agents from .claude/agents/ directory
 //!
 //! Scans the .claude/agents/ directory for agent definition files and makes them
-//! available to the plugin system.
+//! available to the plugin system. Also supports runtime agent definitions via
+//! the `--agents` CLI flag.
 
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::plugins::manifest::AgentDefinition;
 
-/// Agent discovery from filesystem
+/// Runtime agent definition from --agents CLI JSON flag
+///
+/// Format: `--agents '{"name": {"description":"...", "prompt":"...", "tools":["Read"], "model":"sonnet"}}'`
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RuntimeAgentDefinition {
+    /// Agent description
+    pub description: String,
+    /// System prompt for the agent
+    pub prompt: String,
+    /// Tools available to this agent (e.g., ["Read", "Write", "Bash"])
+    #[serde(default)]
+    pub tools: Vec<String>,
+    /// Model to use (e.g., "sonnet", "opus", "haiku", or full model ID)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+}
+
+/// Parse runtime agents from JSON string
+///
+/// Expected format: `{"agent_name": {"description": "...", "prompt": "...", "tools": [...], "model": "..."}}`
+///
+/// # Errors
+/// Returns error if JSON is malformed or doesn't match expected schema
+pub fn parse_runtime_agents(
+    json_str: &str,
+) -> Result<HashMap<String, RuntimeAgentDefinition>, String> {
+    serde_json::from_str(json_str).map_err(|e| format!("Invalid agents JSON: {}", e))
+}
+
+/// Validate runtime agent definitions
+///
+/// Checks:
+/// - Agent names are non-empty
+/// - Descriptions are non-empty
+/// - Prompts are non-empty
+pub fn validate_runtime_agents(
+    agents: &HashMap<String, RuntimeAgentDefinition>,
+) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+
+    for (name, agent) in agents {
+        if name.is_empty() {
+            errors.push("Agent name cannot be empty".to_string());
+        }
+        if agent.description.is_empty() {
+            errors.push(format!("Agent '{}' has empty description", name));
+        }
+        if agent.prompt.is_empty() {
+            errors.push(format!("Agent '{}' has empty prompt", name));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+/// Agent discovery from filesystem with optional runtime agents
 pub struct AgentDiscovery {
     agents_dir: PathBuf,
+    /// Runtime agents defined via --agents CLI flag
+    runtime_agents: HashMap<String, RuntimeAgentDefinition>,
 }
 
 impl AgentDiscovery {
@@ -18,7 +82,58 @@ impl AgentDiscovery {
     pub fn new(project_root: impl AsRef<Path>) -> Self {
         Self {
             agents_dir: project_root.as_ref().join(".claude").join("agents"),
+            runtime_agents: HashMap::new(),
         }
+    }
+
+    /// Add runtime agents from --agents CLI flag
+    ///
+    /// Runtime agents take precedence over file-based agents with the same ID.
+    pub fn with_runtime_agents(mut self, agents: HashMap<String, RuntimeAgentDefinition>) -> Self {
+        self.runtime_agents = agents;
+        self
+    }
+
+    /// Add a single runtime agent
+    pub fn add_runtime_agent(&mut self, id: String, agent: RuntimeAgentDefinition) {
+        self.runtime_agents.insert(id, agent);
+    }
+
+    /// Get runtime agent by ID
+    pub fn get_runtime_agent(&self, agent_id: &str) -> Option<&RuntimeAgentDefinition> {
+        self.runtime_agents.get(agent_id)
+    }
+
+    /// List all runtime agent IDs
+    pub fn runtime_agent_ids(&self) -> Vec<String> {
+        self.runtime_agents.keys().cloned().collect()
+    }
+
+    /// Get all agents (both file-based and runtime)
+    ///
+    /// Returns AgentDefinition for file-based agents.
+    /// Runtime agents have their prompt stored in the path field for compatibility.
+    pub fn all_agents(&self) -> Result<Vec<AgentDefinition>, String> {
+        let mut agents = self.discover_all()?;
+
+        // Convert runtime agents to AgentDefinition format
+        // Runtime agents use a special path format: "runtime:<agent_id>"
+        for (id, runtime_agent) in &self.runtime_agents {
+            agents.push(AgentDefinition {
+                id: id.clone(),
+                name: id.clone(), // Use ID as name for runtime agents
+                description: runtime_agent.description.clone(),
+                path: format!("runtime:{}", id), // Special marker for runtime agents
+                model: runtime_agent.model.clone(),
+            });
+        }
+
+        Ok(agents)
+    }
+
+    /// Check if agent is a runtime agent
+    pub fn is_runtime_agent(&self, agent_id: &str) -> bool {
+        self.runtime_agents.contains_key(agent_id)
     }
 
     /// Discover all agents in the .claude/agents/ directory
@@ -267,5 +382,255 @@ mod tests {
         assert!(ids.contains(&"a".to_string()));
         assert!(ids.contains(&"b".to_string()));
         assert!(ids.contains(&"c".to_string()));
+    }
+
+    // ==================== Runtime Agent Tests ====================
+
+    #[test]
+    fn test_parse_runtime_agents_valid() {
+        let json = r#"{
+            "code-reviewer": {
+                "description": "Reviews code for quality",
+                "prompt": "You are a code reviewer. Review the given code.",
+                "tools": ["Read", "Grep"],
+                "model": "sonnet"
+            }
+        }"#;
+
+        let agents = parse_runtime_agents(json).unwrap();
+        assert_eq!(agents.len(), 1);
+
+        let agent = agents.get("code-reviewer").unwrap();
+        assert_eq!(agent.description, "Reviews code for quality");
+        assert_eq!(
+            agent.prompt,
+            "You are a code reviewer. Review the given code."
+        );
+        assert_eq!(agent.tools, vec!["Read", "Grep"]);
+        assert_eq!(agent.model, Some("sonnet".to_string()));
+    }
+
+    #[test]
+    fn test_parse_runtime_agents_multiple() {
+        let json = r#"{
+            "writer": {
+                "description": "Writes documentation",
+                "prompt": "Write docs",
+                "tools": ["Write"]
+            },
+            "tester": {
+                "description": "Runs tests",
+                "prompt": "Run tests",
+                "model": "haiku"
+            }
+        }"#;
+
+        let agents = parse_runtime_agents(json).unwrap();
+        assert_eq!(agents.len(), 2);
+        assert!(agents.contains_key("writer"));
+        assert!(agents.contains_key("tester"));
+    }
+
+    #[test]
+    fn test_parse_runtime_agents_minimal() {
+        // Only description and prompt are required, tools and model are optional
+        let json = r#"{
+            "simple": {
+                "description": "A simple agent",
+                "prompt": "Do something"
+            }
+        }"#;
+
+        let agents = parse_runtime_agents(json).unwrap();
+        let agent = agents.get("simple").unwrap();
+        assert_eq!(agent.description, "A simple agent");
+        assert_eq!(agent.prompt, "Do something");
+        assert!(agent.tools.is_empty());
+        assert!(agent.model.is_none());
+    }
+
+    #[test]
+    fn test_parse_runtime_agents_invalid_json() {
+        let json = "not valid json";
+        let result = parse_runtime_agents(json);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid agents JSON"));
+    }
+
+    #[test]
+    fn test_parse_runtime_agents_missing_required_field() {
+        // Missing prompt field
+        let json = r#"{
+            "incomplete": {
+                "description": "Only description"
+            }
+        }"#;
+
+        let result = parse_runtime_agents(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_runtime_agents_valid() {
+        let mut agents = HashMap::new();
+        agents.insert(
+            "test".to_string(),
+            RuntimeAgentDefinition {
+                description: "Test agent".to_string(),
+                prompt: "Test prompt".to_string(),
+                tools: vec![],
+                model: None,
+            },
+        );
+
+        assert!(validate_runtime_agents(&agents).is_ok());
+    }
+
+    #[test]
+    fn test_validate_runtime_agents_empty_description() {
+        let mut agents = HashMap::new();
+        agents.insert(
+            "test".to_string(),
+            RuntimeAgentDefinition {
+                description: "".to_string(),
+                prompt: "Test prompt".to_string(),
+                tools: vec![],
+                model: None,
+            },
+        );
+
+        let result = validate_runtime_agents(&agents);
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("empty description")));
+    }
+
+    #[test]
+    fn test_validate_runtime_agents_empty_prompt() {
+        let mut agents = HashMap::new();
+        agents.insert(
+            "test".to_string(),
+            RuntimeAgentDefinition {
+                description: "Test description".to_string(),
+                prompt: "".to_string(),
+                tools: vec![],
+                model: None,
+            },
+        );
+
+        let result = validate_runtime_agents(&agents);
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("empty prompt")));
+    }
+
+    #[test]
+    fn test_agent_discovery_with_runtime_agents() {
+        let temp_dir = setup_test_agents_dir();
+        let agents_dir = temp_dir.path().join(".claude").join("agents");
+
+        // Create file-based agent
+        fs::write(
+            agents_dir.join("file-agent.md"),
+            "# File Agent\n\nFrom file.",
+        )
+        .unwrap();
+
+        // Create runtime agent
+        let mut runtime_agents = HashMap::new();
+        runtime_agents.insert(
+            "runtime-agent".to_string(),
+            RuntimeAgentDefinition {
+                description: "Runtime agent".to_string(),
+                prompt: "Runtime prompt".to_string(),
+                tools: vec!["Read".to_string()],
+                model: Some("sonnet".to_string()),
+            },
+        );
+
+        let discovery = AgentDiscovery::new(temp_dir.path()).with_runtime_agents(runtime_agents);
+
+        // Test all_agents returns both
+        let all = discovery.all_agents().unwrap();
+        assert_eq!(all.len(), 2);
+
+        // Check file-based agent
+        let file_agent = all.iter().find(|a| a.id == "file-agent").unwrap();
+        assert_eq!(file_agent.name, "File Agent");
+        assert!(!file_agent.path.starts_with("runtime:"));
+
+        // Check runtime agent
+        let runtime = all.iter().find(|a| a.id == "runtime-agent").unwrap();
+        assert_eq!(runtime.description, "Runtime agent");
+        assert_eq!(runtime.path, "runtime:runtime-agent");
+        assert_eq!(runtime.model, Some("sonnet".to_string()));
+    }
+
+    #[test]
+    fn test_is_runtime_agent() {
+        let temp_dir = setup_test_agents_dir();
+
+        let mut runtime_agents = HashMap::new();
+        runtime_agents.insert(
+            "runtime-agent".to_string(),
+            RuntimeAgentDefinition {
+                description: "Runtime".to_string(),
+                prompt: "Prompt".to_string(),
+                tools: vec![],
+                model: None,
+            },
+        );
+
+        let discovery = AgentDiscovery::new(temp_dir.path()).with_runtime_agents(runtime_agents);
+
+        assert!(discovery.is_runtime_agent("runtime-agent"));
+        assert!(!discovery.is_runtime_agent("file-agent"));
+    }
+
+    #[test]
+    fn test_get_runtime_agent() {
+        let temp_dir = setup_test_agents_dir();
+
+        let mut runtime_agents = HashMap::new();
+        runtime_agents.insert(
+            "my-agent".to_string(),
+            RuntimeAgentDefinition {
+                description: "My agent".to_string(),
+                prompt: "My prompt".to_string(),
+                tools: vec!["Bash".to_string()],
+                model: Some("opus".to_string()),
+            },
+        );
+
+        let discovery = AgentDiscovery::new(temp_dir.path()).with_runtime_agents(runtime_agents);
+
+        let agent = discovery.get_runtime_agent("my-agent").unwrap();
+        assert_eq!(agent.description, "My agent");
+        assert_eq!(agent.prompt, "My prompt");
+        assert_eq!(agent.tools, vec!["Bash"]);
+        assert_eq!(agent.model, Some("opus".to_string()));
+
+        assert!(discovery.get_runtime_agent("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_add_runtime_agent() {
+        let temp_dir = setup_test_agents_dir();
+        let mut discovery = AgentDiscovery::new(temp_dir.path());
+
+        assert_eq!(discovery.runtime_agent_ids().len(), 0);
+
+        discovery.add_runtime_agent(
+            "added-agent".to_string(),
+            RuntimeAgentDefinition {
+                description: "Added".to_string(),
+                prompt: "Added prompt".to_string(),
+                tools: vec![],
+                model: None,
+            },
+        );
+
+        assert_eq!(discovery.runtime_agent_ids().len(), 1);
+        assert!(discovery.is_runtime_agent("added-agent"));
     }
 }

@@ -8,6 +8,7 @@
 //! - Rust-colored theme (orange/rust colors)
 
 use super::input_viewport;
+use crate::permission_mode::PermissionMode;
 use anyhow::Result;
 use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
@@ -95,6 +96,8 @@ pub struct TuiState {
     selected_suggestion: usize,
     /// Completion callback function
     completion_callback: Option<CompletionCallback>,
+    /// Current permission mode for tool execution
+    permission_mode: PermissionMode,
 }
 
 impl TuiState {
@@ -118,12 +121,30 @@ impl TuiState {
             suggestions: vec![],
             selected_suggestion: 0,
             completion_callback: None,
+            permission_mode: PermissionMode::default(),
         })
     }
 
     /// Set the completion callback function
     pub fn set_completion_callback(&mut self, callback: CompletionCallback) {
         self.completion_callback = Some(callback);
+    }
+
+    /// Get the current permission mode
+    pub fn permission_mode(&self) -> PermissionMode {
+        self.permission_mode
+    }
+
+    /// Set the permission mode
+    pub fn set_permission_mode(&mut self, mode: PermissionMode) {
+        self.permission_mode = mode;
+    }
+
+    /// Cycle to the next permission mode (Shift+Tab behavior)
+    /// Returns the new mode for notification purposes
+    pub fn cycle_permission_mode(&mut self) -> PermissionMode {
+        self.permission_mode = self.permission_mode.cycle();
+        self.permission_mode
     }
 
     /// Update autocomplete suggestions based on current input
@@ -313,6 +334,15 @@ impl TuiState {
                 self.scroll_offset =
                     (self.scroll_offset + 5).min(self.messages.len().saturating_sub(1));
             }
+            // Shift+Tab (BackTab) - Cycle permission mode
+            (KeyCode::BackTab, _) => {
+                let new_mode = self.cycle_permission_mode();
+                // Return special command to notify interactive session of mode change
+                return Some(format!(
+                    "__permission_mode_changed:{}",
+                    new_mode.display_name()
+                ));
+            }
             // Character input - Insert at cursor position
             (KeyCode::Char(c), _) => {
                 // Convert grapheme position to byte position
@@ -341,6 +371,7 @@ impl TuiState {
         let scroll_offset = self.scroll_offset;
         let status = self.status.clone();
         let show_banner = self.show_banner;
+        let permission_mode = self.permission_mode;
 
         self.terminal.draw(|f| {
             Self::render_ui(
@@ -351,12 +382,14 @@ impl TuiState {
                 scroll_offset,
                 &status,
                 show_banner,
+                permission_mode,
             );
         })?;
         Ok(())
     }
 
     /// Render the UI
+    #[allow(clippy::too_many_arguments)]
     fn render_ui(
         f: &mut Frame,
         messages: &[ChatMessage],
@@ -365,6 +398,7 @@ impl TuiState {
         scroll_offset: usize,
         _status: &str,
         show_banner: bool,
+        permission_mode: PermissionMode,
     ) {
         let size = f.area();
 
@@ -378,8 +412,8 @@ impl TuiState {
             ])
             .split(size);
 
-        // Render status bar
-        Self::render_status_bar(f, chunks[0]);
+        // Render status bar with permission mode
+        Self::render_status_bar(f, chunks[0], permission_mode);
 
         // Render messages area (with optional banner)
         Self::render_messages_area(f, chunks[1], messages, scroll_offset, show_banner);
@@ -388,8 +422,8 @@ impl TuiState {
         Self::render_input_area(f, chunks[2], input, cursor_position);
     }
 
-    /// Render status bar
-    fn render_status_bar(f: &mut Frame, area: Rect) {
+    /// Render status bar with permission mode indicator
+    fn render_status_bar(f: &mut Frame, area: Rect, permission_mode: PermissionMode) {
         let banner = vec![Line::from(vec![
             Span::styled(" 🦀 ", Style::default().fg(RUST_ORANGE)),
             Span::styled(
@@ -405,6 +439,13 @@ impl TuiState {
                 Style::default()
                     .fg(RUST_LIGHT)
                     .add_modifier(Modifier::ITALIC),
+            ),
+            Span::styled(" | ", Style::default().fg(RUST_LIGHT)),
+            Span::styled(
+                format!("[Mode: {}]", permission_mode.status_indicator()),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
             ),
         ])];
 
