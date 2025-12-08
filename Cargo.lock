@@ -2334,6 +2334,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "bytes",
+ "chrono",
  "dialoguer",
  "futures",
  "glob",
