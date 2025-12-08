@@ -402,7 +402,10 @@ mod tests {
 
         let agent = agents.get("code-reviewer").unwrap();
         assert_eq!(agent.description, "Reviews code for quality");
-        assert_eq!(agent.prompt, "You are a code reviewer. Review the given code.");
+        assert_eq!(
+            agent.prompt,
+            "You are a code reviewer. Review the given code."
+        );
         assert_eq!(agent.tools, vec!["Read", "Grep"]);
         assert_eq!(agent.model, Some("sonnet".to_string()));
     }
@@ -527,7 +530,11 @@ mod tests {
         let agents_dir = temp_dir.path().join(".claude").join("agents");
 
         // Create file-based agent
-        fs::write(agents_dir.join("file-agent.md"), "# File Agent\n\nFrom file.").unwrap();
+        fs::write(
+            agents_dir.join("file-agent.md"),
+            "# File Agent\n\nFrom file.",
+        )
+        .unwrap();
 
         // Create runtime agent
         let mut runtime_agents = HashMap::new();

@@ -71,6 +71,16 @@ impl ChatMessage {
     }
 }
 
+/// UI rendering state
+struct RenderState<'a> {
+    messages: &'a [ChatMessage],
+    input: &'a str,
+    cursor_position: usize,
+    scroll_offset: usize,
+    show_banner: bool,
+    permission_mode: PermissionMode,
+}
+
 /// Completion callback type
 pub type CompletionCallback = Box<dyn Fn(&str) -> Vec<(String, Option<String>)> + Send>;
 
@@ -369,36 +379,27 @@ impl TuiState {
         let input = self.input.clone();
         let cursor_position = self.cursor_position;
         let scroll_offset = self.scroll_offset;
-        let status = self.status.clone();
         let show_banner = self.show_banner;
         let permission_mode = self.permission_mode;
 
         self.terminal.draw(|f| {
             Self::render_ui(
                 f,
-                &messages,
-                &input,
-                cursor_position,
-                scroll_offset,
-                &status,
-                show_banner,
-                permission_mode,
+                RenderState {
+                    messages: &messages,
+                    input: &input,
+                    cursor_position,
+                    scroll_offset,
+                    show_banner,
+                    permission_mode,
+                },
             );
         })?;
         Ok(())
     }
 
     /// Render the UI
-    fn render_ui(
-        f: &mut Frame,
-        messages: &[ChatMessage],
-        input: &str,
-        cursor_position: usize,
-        scroll_offset: usize,
-        _status: &str,
-        show_banner: bool,
-        permission_mode: PermissionMode,
-    ) {
+    fn render_ui(f: &mut Frame, state: RenderState) {
         let size = f.area();
 
         // Create main layout
@@ -412,13 +413,19 @@ impl TuiState {
             .split(size);
 
         // Render status bar with permission mode
-        Self::render_status_bar(f, chunks[0], permission_mode);
+        Self::render_status_bar(f, chunks[0], state.permission_mode);
 
         // Render messages area (with optional banner)
-        Self::render_messages_area(f, chunks[1], messages, scroll_offset, show_banner);
+        Self::render_messages_area(
+            f,
+            chunks[1],
+            state.messages,
+            state.scroll_offset,
+            state.show_banner,
+        );
 
         // Render input area
-        Self::render_input_area(f, chunks[2], input, cursor_position);
+        Self::render_input_area(f, chunks[2], state.input, state.cursor_position);
     }
 
     /// Render status bar with permission mode indicator
