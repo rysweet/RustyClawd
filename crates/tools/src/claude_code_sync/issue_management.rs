@@ -139,10 +139,7 @@ impl IssueManager {
         Ok(IssueCreated {
             number: issue_data["number"].as_u64().unwrap_or(0),
             title,
-            url: issue_data["html_url"]
-                .as_str()
-                .unwrap_or("")
-                .to_string(),
+            url: issue_data["html_url"].as_str().unwrap_or("").to_string(),
         })
     }
 

@@ -135,9 +135,7 @@ impl FeatureDiscovery {
         for pattern in &patterns {
             if let Ok(re) = regex::Regex::new(pattern) {
                 if let Some(captures) = re.captures(line) {
-                    let name = captures
-                        .get(1)
-                        .map(|m| m.as_str().trim().to_string())?;
+                    let name = captures.get(1).map(|m| m.as_str().trim().to_string())?;
 
                     return Some(ClaudeFeature {
                         name,

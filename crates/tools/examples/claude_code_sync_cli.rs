@@ -93,7 +93,10 @@ async fn main() {
             println!("Sync completed successfully!");
             println!();
             println!("Results:");
-            println!("  Claude Code features found: {}", report.claude_features_found);
+            println!(
+                "  Claude Code features found: {}",
+                report.claude_features_found
+            );
             println!("  Gaps identified:            {}", report.gaps_identified);
             println!("  Issues created:             {}", report.issues_created);
             println!();
@@ -121,7 +124,9 @@ fn print_usage() {
     println!();
     println!("Options:");
     println!("  --inventory <path>  Path to feature inventory YAML (default: .claude/data/feature_inventory.yaml)");
-    println!("  --ledger <path>     Path to issue ledger JSON (default: .claude/data/sync_ledger.json)");
+    println!(
+        "  --ledger <path>     Path to issue ledger JSON (default: .claude/data/sync_ledger.json)"
+    );
     println!("  --token <token>     GitHub API token (required)");
     println!("  --repo <owner/repo> GitHub repository (required)");
     println!("  --help, -h          Show this help message");

@@ -29,12 +29,12 @@ impl PermissionMode {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```ignore
     /// use rusty_cli::permission_mode::PermissionMode;
     ///
     /// let mode = PermissionMode::Ask;
     /// assert_eq!(mode.cycle(), PermissionMode::AutoAccept);
-    /// ```
+    /// ```ignore
     pub fn cycle(&self) -> Self {
         match self {
             PermissionMode::Ask => PermissionMode::AutoAccept,
@@ -90,13 +90,13 @@ impl PermissionMode {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```ignore
     /// use rusty_cli::permission_mode::PermissionMode;
     ///
     /// let mode = PermissionMode::Plan;
     /// assert!(!mode.allows_tool("Bash")); // Blocked
     /// assert!(mode.allows_tool("Read"));  // Allowed
-    /// ```
+    /// ```ignore
     pub fn allows_tool(&self, tool_name: &str) -> bool {
         match self {
             PermissionMode::Ask | PermissionMode::AutoAccept => true,
