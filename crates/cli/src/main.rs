@@ -73,10 +73,6 @@ struct Cli {
     #[arg(long = "add-dir", value_name = "DIR")]
     add_dir: Vec<String>,
 
-    /// Define custom subagents via JSON format
-    #[arg(long, value_name = "JSON")]
-    agents: Option<String>,
-
     /// List of tools allowed without prompting (e.g., "Bash(git log:*)" "Read")
     #[arg(long = "allowedTools", value_name = "TOOL")]
     allowed_tools: Vec<String>,
@@ -116,6 +112,11 @@ struct Cli {
     /// Skip permission prompts (use with caution)
     #[arg(long)]
     dangerously_skip_permissions: bool,
+
+    /// Define custom agents via JSON
+    /// Format: '{"agent_name": {"description":"...", "prompt":"...", "tools":["Read"], "model":"sonnet"}}'
+    #[arg(long)]
+    agents: Option<String>,
 
     /// Fork from existing session ID
     #[arg(long)]

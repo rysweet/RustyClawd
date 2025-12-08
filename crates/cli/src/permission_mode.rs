@@ -29,8 +29,8 @@ impl PermissionMode {
     ///
     /// # Example
     ///
-    /// ```
-    /// use rusty_cli::permission_mode::PermissionMode;
+    /// ```no_run
+    /// use rustyclawd_cli::permission_mode::PermissionMode;
     ///
     /// let mode = PermissionMode::Ask;
     /// assert_eq!(mode.cycle(), PermissionMode::AutoAccept);
@@ -90,8 +90,8 @@ impl PermissionMode {
     ///
     /// # Example
     ///
-    /// ```
-    /// use rusty_cli::permission_mode::PermissionMode;
+    /// ```no_run
+    /// use rustyclawd_cli::permission_mode::PermissionMode;
     ///
     /// let mode = PermissionMode::Plan;
     /// assert!(!mode.allows_tool("Bash")); // Blocked
