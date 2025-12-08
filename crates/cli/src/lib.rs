@@ -13,6 +13,7 @@ pub mod hooks;
 pub mod interactive;
 pub mod mcp_commands;
 pub mod notification;
+pub mod permission_mode;
 pub mod plugins;
 pub mod session;
 pub mod session_persistence;

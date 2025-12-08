@@ -11,6 +11,7 @@
 use crate::commands::SlashCommands;
 use crate::hooks;
 use crate::mcp_commands;
+use crate::permission_mode::PermissionMode;
 use crate::plugins::mcp_proxy::McpProxy;
 
 // Import notification types
@@ -19,6 +20,7 @@ use crate::notification::NotificationManager;
 use crate::session::SessionStats;
 use crate::session_persistence::{SessionInfo, SessionPersistence};
 use crate::terminal_guard;
+use crate::tool_executor;
 use crate::tool_formatter;
 use crate::tui::{ChatMessage, MessageRole as TuiMessageRole, TuiState};
 use anyhow::Result;
@@ -225,6 +227,15 @@ impl InteractiveSession {
 
                 // Handle empty input
                 if input.is_empty() {
+                    continue;
+                }
+
+                // Handle permission mode change event (from Shift+Tab)
+                if let Some(mode_name) = input.strip_prefix("__permission_mode_changed:") {
+                    self.tui.add_message(ChatMessage {
+                        role: TuiMessageRole::System,
+                        content: format!("Permission mode changed to: {}", mode_name),
+                    });
                     continue;
                 }
 
@@ -991,13 +1002,15 @@ impl InteractiveSession {
             // Track tool call
             self.stats.add_tool_call();
 
-            // Execute the tool with hooks and notification manager
+            // Execute the tool with hooks, notification manager, and permission mode
             let hooks = self.hooks.as_ref().map(Arc::clone);
             let session_id = Some(self.session_id.clone());
             let notification_mgr = self.notification_manager.as_ref();
-            match crate::tool_executor::execute_tool_with_hooks(
+            let permission_mode = self.tui.permission_mode();
+            match tool_executor::execute_tool_with_permission(
                 name.clone(),
                 input.clone(),
+                permission_mode,
                 hooks,
                 session_id,
                 notification_mgr,
