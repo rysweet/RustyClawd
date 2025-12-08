@@ -3,6 +3,7 @@
 //! This module bridges between Anthropic API tool calls and our internal tool implementations.
 
 use crate::hooks;
+use crate::permission_mode::PermissionMode;
 use crate::terminal_guard::TerminalGuard;
 
 // Import notification types
@@ -193,6 +194,35 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
 /// executes the corresponding internal tool, and returns the result as JSON.
 pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value, ClientError> {
     execute_tool_with_hooks(tool_name, tool_input, None, None, None).await
+}
+
+/// Execute a tool with permission mode checking
+///
+/// Checks permission mode before execution and blocks tools in Plan mode.
+pub async fn execute_tool_with_permission(
+    tool_name: String,
+    tool_input: Value,
+    permission_mode: PermissionMode,
+    hooks: Option<Arc<hooks::HooksSystem>>,
+    session_id: Option<String>,
+    notification_manager: Option<&NotificationManager>,
+) -> Result<Value, ClientError> {
+    // Check permission mode first
+    if !permission_mode.allows_tool(&tool_name) {
+        return Err(ClientError::Api(
+            permission_mode.blocked_tool_error(&tool_name),
+        ));
+    }
+
+    // Proceed with normal execution
+    execute_tool_with_hooks(
+        tool_name,
+        tool_input,
+        hooks,
+        session_id,
+        notification_manager,
+    )
+    .await
 }
 
 /// Execute a tool with optional hooks system and session context

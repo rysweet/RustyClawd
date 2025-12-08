@@ -13,6 +13,7 @@ mod hooks;
 mod interactive;
 mod mcp_commands;
 mod notification;
+mod permission_mode;
 mod plugins;
 mod session;
 mod session_persistence;
