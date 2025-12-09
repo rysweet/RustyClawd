@@ -36,7 +36,7 @@ impl NotificationManager {
         &self,
         session_id: &str,
         notification_type: NotificationType,
-        message: &str,
+        _message: &str,  // Unused in TUI mode - status shown via status bar
     ) {
         // Create hook context
         let context = HookContext::for_notification(
@@ -69,8 +69,12 @@ impl NotificationManager {
             }
         }
 
-        // Display notification to user (stderr keeps stdout clean)
-        eprintln!("🔔 {}", sanitize_message(message));
+        // NOTE: Notification display suppressed when using TUI
+        // TUI mode shows status via the status bar (streaming indicator, error messages)
+        // Notifications via stderr would bleed through and corrupt the display
+
+        // If you need to debug notifications, check hook execution logs instead
+        // or add them to the debug panel via TUI state
     }
 }
 

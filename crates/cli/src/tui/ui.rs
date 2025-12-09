@@ -1,794 +1,296 @@
-//! TUI (Terminal User Interface) for RustyClawd
-//!
-//! A beautiful terminal interface using ratatui with:
-//! - Orange crab banner (Unicode block art)
-//! - Scrollable message display area
-//! - Input area with prompt
-//! - Status bar
-//! - Rust-colored theme (orange/rust colors)
+//! Rendering layer for TUI - pure functions, no state mutation
 
-use super::input_viewport;
-use crate::permission_mode::PermissionMode;
-use anyhow::Result;
-use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
 use ratatui::{
-    backend::CrosstermBackend,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Paragraph, Wrap},
-    Frame, Terminal,
+    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
+    Frame,
 };
-use std::io::{self, Stdout};
-use unicode_segmentation::UnicodeSegmentation;
 
-/// Rust-themed colors
+use crate::permission_mode::PermissionMode;
+use crate::tui::app::App;
+use crate::tui::layout::{LayoutConfig, LayoutOrganizer};
+use crate::tui::message::{Message, Role};
+
+/// Rust-themed colors for structural elements (borders, titles)
 const RUST_ORANGE: Color = Color::Rgb(222, 165, 132);
-const RUST_DARK: Color = Color::Rgb(165, 42, 42);
-const RUST_LIGHT: Color = Color::Rgb(255, 195, 160);
-const RUST_BACKGROUND: Color = Color::Rgb(40, 40, 50);
-const TEXT_COLOR: Color = Color::Rgb(255, 255, 255);
 
-/// Message role
-#[derive(Debug, Clone)]
-pub enum MessageRole {
-    User,
-    Assistant,
-    System,
-}
+/// Main render function - pure function, no state mutation
+pub fn render(frame: &mut Frame, app: &App) {
+    // Build layout configuration from app state
+    let config = LayoutConfig {
+        debug_visible: app.debug_visible(),
+        debug_width: 60,
+    };
 
-/// Chat message
-#[derive(Debug, Clone)]
-pub struct ChatMessage {
-    pub role: MessageRole,
-    pub content: String,
-}
+    // Organize layout dynamically
+    let layout = LayoutOrganizer::organize(frame.area(), &config);
 
-impl ChatMessage {
-    pub fn user(content: String) -> Self {
-        Self {
-            role: MessageRole::User,
-            content,
-        }
-    }
+    // Render status bar
+    render_status_bar(frame, layout.status, app);
 
-    pub fn assistant(content: String) -> Self {
-        Self {
-            role: MessageRole::Assistant,
-            content,
-        }
-    }
+    // Split main area into messages + input
+    let (messages_area, input_area) = LayoutOrganizer::split_main(layout.main);
 
-    pub fn system(content: String) -> Self {
-        Self {
-            role: MessageRole::System,
-            content,
-        }
+    // Render main content
+    render_messages(frame, messages_area, app);
+    render_input(frame, input_area, app);
+
+    // Render debug panel if visible
+    if let Some(debug_area) = layout.debug {
+        render_debug_panel(frame, debug_area, app);
     }
 }
 
-/// Completion callback type
-pub type CompletionCallback = Box<dyn Fn(&str) -> Vec<(String, Option<String>)> + Send>;
+fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
+    let mode_text = format!(" {} ", app.permission_mode().status_indicator());
 
-/// TUI state
-pub struct TuiState {
-    /// Terminal instance
-    terminal: Terminal<CrosstermBackend<Stdout>>,
-    /// Chat messages
-    messages: Vec<ChatMessage>,
-    /// Current input
-    input: String,
-    /// Input cursor position
-    cursor_position: usize,
-    /// Scroll offset for messages
-    scroll_offset: usize,
-    /// Status message
-    status: String,
-    /// Whether to show the orange crab banner
-    show_banner: bool,
-    /// Autocomplete suggestions (command_name, optional_hint)
-    suggestions: Vec<(String, Option<String>)>,
-    /// Selected suggestion index
-    selected_suggestion: usize,
-    /// Completion callback function
-    completion_callback: Option<CompletionCallback>,
-    /// Current permission mode for tool execution
-    permission_mode: PermissionMode,
-}
+    let mode_style = Style::default()
+        .fg(Color::Black)
+        .bg(Color::Cyan)
+        .add_modifier(Modifier::BOLD);
 
-impl TuiState {
-    /// Create a new TUI state
-    pub fn new() -> Result<Self> {
-        // Setup terminal
-        enable_raw_mode()?;
-        let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen)?;
-        let backend = CrosstermBackend::new(stdout);
-        let terminal = Terminal::new(backend)?;
-
-        Ok(Self {
-            terminal,
-            messages: vec![],
-            input: String::new(),
-            cursor_position: 0,
-            scroll_offset: 0,
-            status: "Ready".to_string(),
-            show_banner: true,
-            suggestions: vec![],
-            selected_suggestion: 0,
-            completion_callback: None,
-            permission_mode: PermissionMode::default(),
-        })
-    }
-
-    /// Set the completion callback function
-    pub fn set_completion_callback(&mut self, callback: CompletionCallback) {
-        self.completion_callback = Some(callback);
-    }
-
-    /// Get the current permission mode
-    pub fn permission_mode(&self) -> PermissionMode {
-        self.permission_mode
-    }
-
-    /// Set the permission mode
-    pub fn set_permission_mode(&mut self, mode: PermissionMode) {
-        self.permission_mode = mode;
-    }
-
-    /// Cycle to the next permission mode (Shift+Tab behavior)
-    /// Returns the new mode for notification purposes
-    pub fn cycle_permission_mode(&mut self) -> PermissionMode {
-        self.permission_mode = self.permission_mode.cycle();
-        self.permission_mode
-    }
-
-    /// Update autocomplete suggestions based on current input
-    fn update_suggestions(&mut self) {
-        // Check if input starts with '/' for slash command completion
-        if let Some(callback) = &self.completion_callback {
-            if self.input.starts_with('/') {
-                // Get the command prefix (everything after '/')
-                let prefix = &self.input[1..];
-
-                // Get completions from callback
-                self.suggestions = callback(prefix);
-
-                // Reset selection to first item
-                self.selected_suggestion = 0;
-            } else {
-                // Clear suggestions if not a slash command
-                self.suggestions.clear();
-                self.selected_suggestion = 0;
-            }
-        }
-    }
-
-    /// Get current suggestions
-    pub fn get_suggestions(&self) -> &[(String, Option<String>)] {
-        &self.suggestions
-    }
-
-    /// Select next suggestion
-    fn select_next_suggestion(&mut self) {
-        if !self.suggestions.is_empty() {
-            self.selected_suggestion = (self.selected_suggestion + 1) % self.suggestions.len();
-        }
-    }
-
-    /// Select previous suggestion
-    fn select_previous_suggestion(&mut self) {
-        if !self.suggestions.is_empty() {
-            if self.selected_suggestion == 0 {
-                self.selected_suggestion = self.suggestions.len() - 1;
-            } else {
-                self.selected_suggestion -= 1;
-            }
-        }
-    }
-
-    /// Apply selected suggestion to input
-    fn apply_suggestion(&mut self) {
-        if !self.suggestions.is_empty() && self.selected_suggestion < self.suggestions.len() {
-            let (command, hint) = &self.suggestions[self.selected_suggestion];
-
-            // Replace input with selected command
-            self.input = format!("/{}", command);
-
-            // If there's an argument hint, add a space
-            if hint.is_some() {
-                self.input.push(' ');
-            }
-
-            // Move cursor to end
-            self.cursor_position = self.input.graphemes(true).count();
-
-            // Clear suggestions after applying
-            self.suggestions.clear();
-            self.selected_suggestion = 0;
-        }
-    }
-
-    /// Add a message to the chat
-    pub fn add_message(&mut self, message: ChatMessage) {
-        self.messages.push(message);
-        // Auto-scroll to bottom
-        self.scroll_to_bottom();
-    }
-
-    /// Start a new streaming message from assistant
-    /// Returns index to use for appending
-    pub fn begin_streaming_message(&mut self) -> usize {
-        let index = self.messages.len();
-        self.messages.push(ChatMessage {
-            role: MessageRole::Assistant,
-            content: String::new(),
-        });
-        index
-    }
-
-    /// Append text to message at index
-    pub fn append_to_message(&mut self, index: usize, text: &str) {
-        if let Some(message) = self.messages.get_mut(index) {
-            message.content.push_str(text);
-            self.scroll_to_bottom();
-        }
-    }
-
-    /// Finalize streaming message
-    pub fn finalize_streaming_message(&mut self, _index: usize) {
-        self.scroll_to_bottom();
-    }
-
-    /// Set status message
-    pub fn set_status(&mut self, status: String) {
-        self.status = status;
-    }
-
-    /// Scroll to bottom of messages
-    fn scroll_to_bottom(&mut self) {
-        if !self.messages.is_empty() {
-            self.scroll_offset = self.messages.len().saturating_sub(1);
-        }
-    }
-
-    /// Handle keyboard input
-    pub fn handle_input(&mut self) -> Result<Option<String>> {
-        if event::poll(std::time::Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                return Ok(self.handle_key_event(key));
-            }
-        }
-        Ok(None)
-    }
-
-    /// Handle key events with Unicode-aware cursor positioning
-    fn handle_key_event(&mut self, key: KeyEvent) -> Option<String> {
-        match (key.code, key.modifiers) {
-            // Ctrl+C - Exit
-            (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
-                return Some("/exit".to_string());
-            }
-            // Ctrl+D - Exit
-            (KeyCode::Char('d'), KeyModifiers::CONTROL) => {
-                return Some("/exit".to_string());
-            }
-            // Enter - Submit input
-            (KeyCode::Enter, _) => {
-                if !self.input.is_empty() {
-                    let input = self.input.clone();
-                    self.input.clear();
-                    self.cursor_position = 0;
-                    return Some(input);
-                }
-            }
-            // Backspace - Delete character before cursor
-            (KeyCode::Backspace, _) => {
-                if self.cursor_position > 0 {
-                    // Convert grapheme position to byte position
-                    let graphemes: Vec<&str> = self.input.graphemes(true).collect();
-                    if self.cursor_position <= graphemes.len() {
-                        let byte_pos: usize = graphemes
-                            .iter()
-                            .take(self.cursor_position - 1)
-                            .map(|g| g.len())
-                            .sum();
-                        let grapheme_len = graphemes[self.cursor_position - 1].len();
-                        self.input
-                            .replace_range(byte_pos..byte_pos + grapheme_len, "");
-                        self.cursor_position -= 1;
-                    }
-                }
-            }
-            // Left arrow - Move cursor left
-            (KeyCode::Left, _) => {
-                if self.cursor_position > 0 {
-                    self.cursor_position -= 1;
-                }
-            }
-            // Right arrow - Move cursor right
-            (KeyCode::Right, _) => {
-                let text_len = self.input.graphemes(true).count();
-                if self.cursor_position < text_len {
-                    self.cursor_position += 1;
-                }
-            }
-            // Home - Move to start
-            (KeyCode::Home, _) => {
-                self.cursor_position = 0;
-            }
-            // End - Move to end
-            (KeyCode::End, _) => {
-                self.cursor_position = self.input.graphemes(true).count();
-            }
-            // Page Up - Scroll messages up
-            (KeyCode::PageUp, _) => {
-                self.scroll_offset = self.scroll_offset.saturating_sub(5);
-            }
-            // Page Down - Scroll messages down
-            (KeyCode::PageDown, _) => {
-                self.scroll_offset =
-                    (self.scroll_offset + 5).min(self.messages.len().saturating_sub(1));
-            }
-            // Shift+Tab (BackTab) - Cycle permission mode
-            (KeyCode::BackTab, _) => {
-                let new_mode = self.cycle_permission_mode();
-                // Return special command to notify interactive session of mode change
-                return Some(format!(
-                    "__permission_mode_changed:{}",
-                    new_mode.display_name()
-                ));
-            }
-            // Character input - Insert at cursor position
-            (KeyCode::Char(c), _) => {
-                // Convert grapheme position to byte position
-                let graphemes: Vec<&str> = self.input.graphemes(true).collect();
-                if self.cursor_position <= graphemes.len() {
-                    let byte_pos: usize = graphemes
-                        .iter()
-                        .take(self.cursor_position)
-                        .map(|g| g.len())
-                        .sum();
-                    self.input.insert(byte_pos, c);
-                    self.cursor_position += 1;
-                }
-            }
-            _ => {}
-        }
-        None
-    }
-
-    /// Draw the TUI
-    pub fn draw(&mut self) -> Result<()> {
-        // Clone data needed for rendering to avoid borrowing issues
-        let messages = self.messages.clone();
-        let input = self.input.clone();
-        let cursor_position = self.cursor_position;
-        let scroll_offset = self.scroll_offset;
-        let status = self.status.clone();
-        let show_banner = self.show_banner;
-        let permission_mode = self.permission_mode;
-
-        self.terminal.draw(|f| {
-            Self::render_ui(
-                f,
-                &messages,
-                &input,
-                cursor_position,
-                scroll_offset,
-                &status,
-                show_banner,
-                permission_mode,
-            );
-        })?;
-        Ok(())
-    }
-
-    /// Render the UI
-    #[allow(clippy::too_many_arguments)]
-    fn render_ui(
-        f: &mut Frame,
-        messages: &[ChatMessage],
-        input: &str,
-        cursor_position: usize,
-        scroll_offset: usize,
-        _status: &str,
-        show_banner: bool,
-        permission_mode: PermissionMode,
-    ) {
-        let size = f.area();
-
-        // Create main layout
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3), // Status bar
-                Constraint::Min(0),    // Messages area
-                Constraint::Length(3), // Input area
-            ])
-            .split(size);
-
-        // Render status bar with permission mode
-        Self::render_status_bar(f, chunks[0], permission_mode);
-
-        // Render messages area (with optional banner)
-        Self::render_messages_area(f, chunks[1], messages, scroll_offset, show_banner);
-
-        // Render input area
-        Self::render_input_area(f, chunks[2], input, cursor_position);
-    }
-
-    /// Render status bar with permission mode indicator
-    fn render_status_bar(f: &mut Frame, area: Rect, permission_mode: PermissionMode) {
-        let banner = vec![Line::from(vec![
-            Span::styled(" 🦀 ", Style::default().fg(RUST_ORANGE)),
+    let mut status_spans = if let Some(error) = app.error() {
+        vec![
+            Span::styled(mode_text, mode_style),
+            Span::raw(" "),
+            Span::styled(error, Style::default().fg(Color::Red)),
+        ]
+    } else if app.is_streaming() {
+        vec![
+            Span::styled(mode_text, mode_style),
+            Span::raw(" "),
+            Span::styled("⚡ Streaming...", Style::default().fg(Color::Yellow)),
+        ]
+    } else {
+        vec![
+            Span::styled(mode_text, mode_style),
+            Span::raw(" "),
             Span::styled(
-                "RustyClawd",
+                "🦀 RustyClawd",
+                Style::default().fg(RUST_ORANGE).add_modifier(Modifier::BOLD),
+            ),
+        ]
+    };
+
+    // Add debug indicator and menu hint on the right
+    let debug_status = if app.debug_visible() { "Debug:ON" } else { "Debug:OFF" };
+    let debug_style = if app.debug_visible() {
+        Style::default().fg(Color::Green)
+    } else {
+        Style::default().fg(Color::Gray)
+    };
+
+    // Calculate padding to right-align
+    let left_width: usize = status_spans.iter().map(|s| s.content.len()).sum();
+    let right_text = format!(" | {} | F1:Menu ", debug_status);
+    let padding_width = area.width.saturating_sub((left_width + right_text.len()) as u16);
+
+    status_spans.push(Span::raw(" ".repeat(padding_width as usize)));
+    status_spans.push(Span::raw(" | "));
+    status_spans.push(Span::styled(debug_status, debug_style));
+    status_spans.push(Span::styled(" | F1:Menu ", Style::default().fg(Color::Gray)));
+
+    let status = Paragraph::new(Line::from(status_spans)).style(Style::default().bg(Color::Black));
+
+    frame.render_widget(status, area);
+}
+
+fn render_messages(frame: &mut Frame, area: Rect, app: &App) {
+    let messages = app.messages();
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(RUST_ORANGE))
+        .title(vec![
+            Span::styled("💬 ", Style::default().fg(RUST_ORANGE)),
+            Span::styled(
+                "Messages",
                 Style::default()
                     .fg(RUST_ORANGE)
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled(" - Rusty Edition ", Style::default().fg(RUST_LIGHT)),
-            Span::styled("⛵", Style::default().fg(RUST_ORANGE)),
-            Span::styled(
-                " Ahoy matey! ",
-                Style::default()
-                    .fg(RUST_LIGHT)
-                    .add_modifier(Modifier::ITALIC),
-            ),
-            Span::styled(" | ", Style::default().fg(RUST_LIGHT)),
-            Span::styled(
-                format!("[Mode: {}]", permission_mode.status_indicator()),
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            ),
-        ])];
+        ]);
 
-        let status = Paragraph::new(banner)
-            .style(Style::default().bg(RUST_DARK))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(RUST_ORANGE)),
-            )
-            .alignment(Alignment::Center);
-
-        f.render_widget(status, area);
-    }
-
-    /// Render messages area
-    fn render_messages_area(
-        f: &mut Frame,
-        area: Rect,
-        messages: &[ChatMessage],
-        scroll_offset: usize,
-        show_banner: bool,
-    ) {
-        let mut lines = Vec::new();
-
-        // Add orange crab banner if enabled
-        if show_banner && messages.is_empty() {
-            lines.extend(Self::render_orange_crab());
-            lines.push(Line::from(""));
-            lines.push(Line::from(vec![
+    if messages.is_empty() {
+        // Welcome screen
+        let welcome_text = Text::from(vec![
+            Line::from(""),
+            Line::from(vec![
                 Span::styled(
-                    "Welcome aboard! ",
-                    Style::default().fg(RUST_LIGHT).add_modifier(Modifier::BOLD),
-                ),
-                Span::styled(
-                    "Type your message below and press Enter to chat with Claude.",
-                    Style::default().fg(TEXT_COLOR),
-                ),
-            ]));
-            lines.push(Line::from(vec![
-                Span::styled(
-                    "Commands: ",
+                    "Welcome to RustyClawd! ",
                     Style::default()
                         .fg(RUST_ORANGE)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Span::styled("/exit, /clear, /help", Style::default().fg(TEXT_COLOR)),
-            ]));
-        }
+                Span::styled("🦀", Style::default().fg(RUST_ORANGE)),
+            ]),
+            Line::from(""),
+            Line::from("Type your message and press Enter to chat with Claude."),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled(
+                    "Controls: ",
+                    Style::default()
+                        .fg(RUST_ORANGE)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    "Enter=Send | Ctrl+C/Ctrl+D=Exit | ↑↓=Scroll | Shift+Tab=Mode | F1=Debug",
+                    Style::default().fg(Color::Gray),
+                ),
+            ]),
+        ]);
 
-        // Add messages
+        let paragraph = Paragraph::new(welcome_text)
+            .block(block);
+
+        frame.render_widget(paragraph, area);
+    } else {
+        // Build complete text content as styled text
+        let mut text_lines = Vec::new();
+
         for message in messages {
-            lines.push(Line::from(""));
-            lines.extend(Self::format_message(message));
-        }
-
-        let messages_widget = Paragraph::new(lines)
-            .style(Style::default().fg(TEXT_COLOR).bg(RUST_BACKGROUND))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(RUST_ORANGE))
-                    .title(vec![
-                        Span::styled("⚓ ", Style::default().fg(RUST_ORANGE)),
-                        Span::styled(
-                            "Messages",
-                            Style::default().fg(RUST_LIGHT).add_modifier(Modifier::BOLD),
-                        ),
-                    ]),
-            )
-            .wrap(Wrap { trim: false })
-            .scroll((scroll_offset as u16, 0));
-
-        f.render_widget(messages_widget, area);
-    }
-
-    /// Render orange crab banner with Unicode block art
-    fn render_orange_crab() -> Vec<Line<'static>> {
-        // Beautiful orange crab made with Unicode block characters and emojis
-        vec![
-            Line::from(vec![Span::styled(
-                "                      ╔═════════╗",
-                Style::default().fg(RUST_ORANGE),
-            )]),
-            Line::from(vec![Span::styled(
-                "                      ║  🦀     ║",
-                Style::default().fg(RUST_ORANGE),
-            )]),
-            Line::from(vec![Span::styled(
-                "                      ║ RUSTY   ║",
-                Style::default().fg(RUST_LIGHT),
-            )]),
-            Line::from(vec![Span::styled(
-                "                      ║ CRAB    ║",
-                Style::default().fg(RUST_LIGHT),
-            )]),
-            Line::from(vec![Span::styled(
-                "                      ╠═════════╣",
-                Style::default().fg(RUST_ORANGE),
-            )]),
-            Line::from(vec![
-                Span::styled("                    ", Style::default()),
-                Span::styled("███", Style::default().fg(RUST_ORANGE)),
-                Span::styled("     ", Style::default()),
-                Span::styled("███", Style::default().fg(RUST_ORANGE)),
-            ]),
-            Line::from(vec![
-                Span::styled("                    ", Style::default()),
-                Span::styled("█", Style::default().fg(RUST_ORANGE)),
-                Span::styled(" ", Style::default()),
-                Span::styled("█", Style::default().fg(RUST_ORANGE)),
-                Span::styled("   ", Style::default()),
-                Span::styled("█", Style::default().fg(RUST_ORANGE)),
-                Span::styled(" ", Style::default()),
-                Span::styled("█", Style::default().fg(RUST_ORANGE)),
-            ]),
-            Line::from(vec![
-                Span::styled("                      ", Style::default()),
-                Span::styled("███", Style::default().fg(RUST_ORANGE)),
-            ]),
-            Line::from(vec![
-                Span::styled("                   ", Style::default()),
-                Span::styled("█████████", Style::default().fg(RUST_ORANGE)),
-            ]),
-            Line::from(vec![
-                Span::styled("                   ", Style::default()),
-                Span::styled("█", Style::default().fg(RUST_DARK)),
-                Span::styled("       ", Style::default()),
-                Span::styled("█", Style::default().fg(RUST_DARK)),
-            ]),
-            Line::from(vec![
-                Span::styled("                    ", Style::default()),
-                Span::styled("███████", Style::default().fg(RUST_DARK)),
-            ]),
-            Line::from(vec![
-                Span::styled("              ", Style::default()),
-                Span::styled("█", Style::default().fg(RUST_ORANGE)),
-                Span::styled(" ", Style::default()),
-                Span::styled("███", Style::default().fg(RUST_DARK)),
-                Span::styled("     ", Style::default()),
-                Span::styled("███", Style::default().fg(RUST_DARK)),
-                Span::styled(" ", Style::default()),
-                Span::styled("█", Style::default().fg(RUST_ORANGE)),
-            ]),
-            Line::from(vec![
-                Span::styled("              ", Style::default()),
-                Span::styled("█", Style::default().fg(RUST_ORANGE)),
-                Span::styled(" ", Style::default()),
-                Span::styled("█", Style::default().fg(RUST_DARK)),
-                Span::styled("   ", Style::default()),
-                Span::styled("█", Style::default().fg(RUST_DARK)),
-                Span::styled("   ", Style::default()),
-                Span::styled("█", Style::default().fg(RUST_DARK)),
-                Span::styled(" ", Style::default()),
-                Span::styled("█", Style::default().fg(RUST_ORANGE)),
-            ]),
-            Line::from(vec![
-                Span::styled("              ", Style::default()),
-                Span::styled("███████████", Style::default().fg(RUST_DARK)),
-            ]),
-            Line::from(vec![
-                Span::styled("             ", Style::default()),
-                Span::styled("█", Style::default().fg(RUST_ORANGE)),
-                Span::styled("  ", Style::default()),
-                Span::styled("█████████", Style::default().fg(RUST_DARK)),
-                Span::styled("  ", Style::default()),
-                Span::styled("█", Style::default().fg(RUST_ORANGE)),
-            ]),
-            Line::from(vec![
-                Span::styled("               ", Style::default()),
-                Span::styled("▀▀▀▀▀▀▀", Style::default().fg(RUST_DARK)),
-            ]),
-        ]
-    }
-
-    /// Format a message for display
-    fn format_message(message: &ChatMessage) -> Vec<Line<'_>> {
-        let (prefix, style) = match message.role {
-            MessageRole::User => (
-                "You",
-                Style::default()
+            // Add message header
+            let header_style = match message.role {
+                Role::User => Style::default()
                     .fg(Color::Cyan)
                     .add_modifier(Modifier::BOLD),
-            ),
-            MessageRole::Assistant => (
-                "Claude",
+                Role::Assistant => Style::default()
+                    .fg(RUST_ORANGE)
+                    .add_modifier(Modifier::BOLD),
+                Role::System => Style::default()
+                    .fg(Color::Gray)
+                    .add_modifier(Modifier::ITALIC),
+            };
+
+            let mut header_spans = vec![Span::styled(message.format_header(), header_style)];
+            if message.streaming {
+                header_spans.push(Span::styled(
+                    " [streaming]",
+                    Style::default().fg(Color::Yellow),
+                ));
+            }
+            text_lines.push(Line::from(header_spans));
+
+            // Add message content - preserve exact text structure
+            if !message.content.is_empty() {
+                // System messages: compact format
+                if message.role == Role::System {
+                    let content = message.content.replace('\n', " ");
+                    text_lines.push(Line::from(Span::styled(
+                        format!("    → {}", content),
+                        Style::default().fg(Color::Gray).add_modifier(Modifier::ITALIC),
+                    )));
+                } else {
+                    // Regular messages: preserve exact structure, plain text
+                    for line in message.content.lines() {
+                        text_lines.push(Line::from(line.to_string()));
+                    }
+                }
+            }
+
+            // Blank separator
+            text_lines.push(Line::from(""));
+        }
+
+        let text = Text::from(text_lines);
+
+        // IMPORTANT: When using Wrap, we cannot accurately calculate scroll offset
+        // based on logical lines because wrapping creates MORE rendered lines.
+        // Solution: Only apply scroll when user explicitly scrolls UP (not at bottom).
+        // Otherwise, let Paragraph naturally show the end of content.
+
+        let scroll_offset = if app.scroll_offset() == usize::MAX {
+            // User is at "bottom" - show content from top (no scroll)
+            // Content will naturally fill from top, showing most recent at bottom
+            0
+        } else {
+            // User scrolled up - use their offset directly
+            app.scroll_offset().min(u16::MAX as usize) as u16
+        };
+
+        let paragraph = Paragraph::new(text)
+            .block(block)
+            .wrap(Wrap { trim: false })  // Wraps at widget's inner width automatically
+            .scroll((scroll_offset, 0));
+
+        frame.render_widget(paragraph, area);
+    }
+}
+
+fn render_input(frame: &mut Frame, area: Rect, app: &App) {
+    let input = app.input();
+    let cursor_pos = app.cursor_pos();
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(RUST_ORANGE))
+        .title(vec![
+            Span::styled("✏️  ", Style::default().fg(RUST_ORANGE)),
+            Span::styled(
+                "Input",
                 Style::default()
                     .fg(RUST_ORANGE)
                     .add_modifier(Modifier::BOLD),
             ),
-            MessageRole::System => (
-                "System",
+        ]);
+
+    let inner = block.inner(area);
+
+    // Render block first
+    frame.render_widget(block, area);
+
+    // Simple input rendering - use terminal default colors
+    let paragraph = Paragraph::new(input);
+
+    frame.render_widget(paragraph, inner);
+
+    // Set cursor position
+    let cursor_char_pos = input[..cursor_pos].chars().count();
+    frame.set_cursor_position((inner.x + cursor_char_pos as u16, inner.y));
+}
+
+fn render_debug_panel(frame: &mut Frame, area: Rect, app: &App) {
+    let messages = app.debug_messages();
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Yellow))
+        .title(vec![
+            Span::styled("🔍 ", Style::default().fg(Color::Yellow)),
+            Span::styled(
+                "Debug Panel",
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
             ),
-        };
-
-        let mut lines = Vec::new();
-
-        // Add role prefix
-        lines.push(Line::from(vec![Span::styled(
-            format!("{}> ", prefix),
-            style,
-        )]));
-
-        // Add message content (word-wrapped)
-        for line in message.content.lines() {
-            lines.push(Line::from(vec![Span::styled(
-                format!("  {}", line),
-                Style::default().fg(TEXT_COLOR),
-            )]));
-        }
-
-        lines
-    }
-
-    /// Render input area with horizontal scrolling support
-    fn render_input_area(f: &mut Frame, area: Rect, input: &str, cursor_position: usize) {
-        // Calculate available width for text (subtract borders and prompt)
-        // Border: 2 (left + right), Prompt: 5 ("You> ")
-        let prompt_text = "You> ";
-        let prompt_width = 5u16;
-        let borders_width = 2u16;
-        let available_width = area.width.saturating_sub(borders_width + prompt_width) as usize;
-
-        // Calculate viewport
-        let viewport = input_viewport::calculate_viewport(input, cursor_position, available_width);
-
-        // Create input text with prompt and visible portion
-        let input_text = vec![Line::from(vec![
             Span::styled(
-                prompt_text,
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
+                format!(" ({} messages)", messages.len()),
+                Style::default().fg(Color::Gray),
             ),
-            Span::styled(&viewport.visible_text, Style::default().fg(TEXT_COLOR)),
-        ])];
+        ]);
 
-        let input_widget = Paragraph::new(input_text)
-            .style(Style::default().bg(RUST_BACKGROUND))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(RUST_ORANGE))
-                    .title(vec![
-                        Span::styled("✏️  ", Style::default().fg(RUST_ORANGE)),
-                        Span::styled(
-                            "Input",
-                            Style::default().fg(RUST_LIGHT).add_modifier(Modifier::BOLD),
-                        ),
-                    ]),
-            );
-
-        f.render_widget(input_widget, area);
-
-        // Calculate cursor position with bounds checking
-        let (cursor_x, cursor_y) = input_viewport::calculate_cursor_coords(
-            &viewport,
-            prompt_width + 1, // +1 for left border
-            area.x,
-            area.y + 1, // +1 for top border
-        );
-
-        // Ensure cursor stays within bounds
-        let max_x = area.x + area.width.saturating_sub(1);
-        let max_y = area.y + area.height.saturating_sub(1);
-        let bounded_x = cursor_x.min(max_x);
-        let bounded_y = cursor_y.min(max_y);
-
-        f.set_cursor_position((bounded_x, bounded_y));
+    // Build text with automatic wrapping based on widget width
+    let mut text_lines = Vec::new();
+    for msg in messages {
+        text_lines.push(Line::from(Span::styled(
+            msg.as_str(),
+            Style::default().fg(Color::Gray),
+        )));
     }
 
-    /// Cleanup terminal on drop
-    pub fn cleanup(&mut self) -> Result<()> {
-        disable_raw_mode()?;
-        execute!(self.terminal.backend_mut(), LeaveAlternateScreen)?;
-        self.terminal.show_cursor()?;
-        Ok(())
-    }
-}
+    let text = Text::from(text_lines);
 
-impl Drop for TuiState {
-    fn drop(&mut self) {
-        // Best effort cleanup
-        let _ = self.cleanup();
-    }
-}
+    // Auto-scroll to bottom to show latest debug messages
+    // Show from top (scroll = 0) to let content fill naturally
+    let scroll_offset = 0;
 
-/// Run the TUI mode
-pub async fn run_tui() -> Result<()> {
-    let mut tui = TuiState::new()?;
+    let paragraph = Paragraph::new(text)
+        .block(block)
+        .wrap(Wrap { trim: false })  // Wrap at widget's inner width
+        .scroll((scroll_offset, 0));
 
-    // Add welcome message
-    tui.add_message(ChatMessage::system(
-        "Welcome to RustyClawd! Type your message and press Enter.".to_string(),
-    ));
-
-    loop {
-        // Draw UI
-        tui.draw()?;
-
-        // Handle input
-        if let Some(input) = tui.handle_input()? {
-            let input = input.trim();
-
-            // Handle exit
-            if input == "/exit" || input == "/quit" {
-                break;
-            }
-
-            // Handle clear
-            if input == "/clear" {
-                tui.messages.clear();
-                tui.add_message(ChatMessage::system("Conversation cleared.".to_string()));
-                continue;
-            }
-
-            // Handle help
-            if input == "/help" {
-                tui.add_message(ChatMessage::system(
-                    "Commands: /exit, /quit, /clear, /help\nPress Ctrl+C or Ctrl+D to exit."
-                        .to_string(),
-                ));
-                continue;
-            }
-
-            // Add user message
-            if !input.is_empty() {
-                tui.add_message(ChatMessage::user(input.to_string()));
-
-                // TUI mode requires API integration - not yet implemented
-                // Use non-interactive CLI mode for Claude API access
-                tui.add_message(ChatMessage::system(
-                    "Error: TUI interactive mode requires Claude API integration.\nPlease use the CLI mode instead: rusty \"your prompt here\"".to_string(),
-                ));
-            }
-        }
-    }
-
-    tui.cleanup()?;
-    println!("Goodbye, matey! Fair winds and following seas! ⛵");
-
-    Ok(())
+    frame.render_widget(paragraph, area);
 }

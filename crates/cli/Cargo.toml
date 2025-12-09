@@ -37,7 +37,10 @@ http = "1.3"
 rustyline = "13.0"
 ratatui = "0.29"
 crossterm = "0.28"
+tui-input = "0.11"
 unicode-segmentation = "1.12"
+tui-scrollview = "0.4"
+tui-textarea = "0.6"
 
 # Slash command support
 serde_yaml = "0.9"

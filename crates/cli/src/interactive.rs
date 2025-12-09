@@ -171,25 +171,19 @@ impl InteractiveSession {
                                 self.context.add_message(msg.clone());
 
                                 // Add to TUI display (will be added after TUI reinit)
-                                let role = match msg.role {
-                                    MessageRole::User => TuiMessageRole::User,
-                                    MessageRole::Assistant => TuiMessageRole::Assistant,
-                                    MessageRole::System => TuiMessageRole::System,
+                                let chat_msg = match msg.role {
+                                    MessageRole::User => ChatMessage::user(msg.content),
+                                    MessageRole::Assistant => ChatMessage::assistant(msg.content),
+                                    MessageRole::System => ChatMessage::system(msg.content),
                                 };
-                                self.tui.add_message(ChatMessage {
-                                    role,
-                                    content: msg.content,
-                                });
+                                self.tui.add_message(chat_msg);
                             }
 
-                            self.tui.add_message(ChatMessage {
-                                role: TuiMessageRole::System,
-                                content: format!(
+                            self.tui.add_message(ChatMessage::system(format!(
                                     "Session resumed ({} messages, {})",
                                     session_info.message_count,
                                     session_info.format_age()
-                                ),
-                            });
+                                )));
                         }
                         Err(e) => {
                             eprintln!("Warning: Failed to resume session: {}", e);
@@ -207,53 +201,74 @@ impl InteractiveSession {
         }
 
         loop {
-            // Draw UI
-            self.tui.draw()?;
-
-            // Fire IdlePrompt notification BEFORE blocking on input
-            if let Some(ref notification_mgr) = self.notification_manager {
-                notification_mgr
-                    .notify(
-                        &self.session_id,
-                        NotificationType::IdlePrompt,
-                        "Awaiting user input",
-                    )
-                    .await;
+            // Render only if state changed (dirty flag)
+            if self.tui.is_dirty() {
+                self.tui.draw()?;
+                self.tui.clear_dirty();
             }
 
-            // Handle input (Ctrl+C is handled by TuiState::handle_key_event)
-            if let Some(input) = self.tui.handle_input()? {
-                let input = input.trim();
+            // Poll for terminal events (16ms for 60 FPS responsiveness)
+            use crossterm::event;
+            use std::time::Duration;
 
-                // Handle empty input
-                if input.is_empty() {
-                    continue;
-                }
+            if event::poll(Duration::from_millis(16))? {
+                let terminal_event = event::read()?;
 
-                // Handle permission mode change event (from Shift+Tab)
-                if let Some(mode_name) = input.strip_prefix("__permission_mode_changed:") {
-                    self.tui.add_message(ChatMessage {
-                        role: TuiMessageRole::System,
-                        content: format!("Permission mode changed to: {}", mode_name),
-                    });
-                    continue;
-                }
+                // Handle terminal event
+                if let Some(input) = self.handle_terminal_event(terminal_event)? {
+                    let input = input.trim();
 
-                // Handle special commands
-                if self.handle_command(input).await? {
-                    continue;
-                }
+                    // Handle empty input
+                    if input.is_empty() {
+                        continue;
+                    }
 
-                // Process user message and get Claude's response
-                if let Err(e) = self.process_user_message(input).await {
-                    self.tui.add_message(ChatMessage {
-                        role: TuiMessageRole::System,
-                        content: format!("Error: {}", e),
-                    });
-                    self.tui.set_status(format!("Error: {}", e));
+                    // Fire IdlePrompt notification
+                    if let Some(ref notification_mgr) = self.notification_manager {
+                        notification_mgr
+                            .notify(
+                                &self.session_id,
+                                NotificationType::IdlePrompt,
+                                "Awaiting user input",
+                            )
+                            .await;
+                    }
+
+                    // Handle permission mode change event (from Shift+Tab)
+                    if let Some(mode_name) = input.strip_prefix("__permission_mode_changed:") {
+                        self.tui.add_message(ChatMessage::system(format!("Permission mode changed to: {}", mode_name)));
+                        continue;
+                    }
+
+                    // Handle special commands
+                    if self.handle_command(input).await? {
+                        continue;
+                    }
+
+                    // Process user message and get Claude's response
+                    if let Err(e) = self.process_user_message(input).await {
+                        self.tui.add_message(ChatMessage::system(format!("Error: {}", e)));
+                        self.tui.set_status(format!("Error: {}", e));
+                    }
                 }
+            }
+
+            // Check exit condition
+            if self.tui.should_exit() {
+                // CRITICAL: Explicit cleanup on Ctrl+C / Ctrl+D exit
+                self.tui.cleanup()?;
+                break;
             }
         }
+
+        Ok(())
+    }
+
+    /// Handle terminal event (keyboard, resize, etc.)
+    /// Returns Some(input) if user submitted input, None otherwise
+    fn handle_terminal_event(&mut self, event: crossterm::event::Event) -> Result<Option<String>> {
+        // Just return the input - don't add message here (process_user_message will do it)
+        self.tui.handle_event(event)
     }
 
     /// Handle special commands
@@ -263,10 +278,7 @@ impl InteractiveSession {
         if let Some(stripped) = input.strip_prefix('!') {
             let command = stripped.trim();
             if command.is_empty() {
-                self.tui.add_message(ChatMessage {
-                    role: TuiMessageRole::System,
-                    content: "Error: No command specified after '!'".to_string(),
-                });
+                self.tui.add_message(ChatMessage::system("Error: No command specified after '!'".to_string(),));
                 return Ok(true);
             }
 
@@ -296,10 +308,7 @@ impl InteractiveSession {
                                             let reason = output.reason.unwrap_or_else(|| {
                                                 "Stop blocked by hook".to_string()
                                             });
-                                            self.tui.add_message(ChatMessage {
-                                                role: TuiMessageRole::System,
-                                                content: format!("Exit blocked: {}", reason),
-                                            });
+                                            self.tui.add_message(ChatMessage::system(format!("Exit blocked: {}", reason)));
                                             return Ok(true); // Continue session
                                         }
                                     }
@@ -325,10 +334,7 @@ impl InteractiveSession {
             }
             "/clear" => {
                 self.context = Context::new();
-                self.tui.add_message(ChatMessage {
-                    role: TuiMessageRole::System,
-                    content: "Conversation history cleared".to_string(),
-                });
+                self.tui.add_message(ChatMessage::system("Conversation history cleared".to_string(),));
                 self.tui.set_status("Conversation cleared".to_string());
                 return Ok(true);
             }
@@ -350,33 +356,24 @@ impl InteractiveSession {
                         Ok(results) => {
                             for result in results {
                                 if !result.is_success() {
-                                    self.tui.add_message(ChatMessage {
-                                        role: TuiMessageRole::System,
-                                        content: format!(
+                                    self.tui.add_message(ChatMessage::system(format!(
                                             "⚠️  PreCompact hook failed: {}",
                                             result.stderr
-                                        ),
-                                    });
+                                        )));
                                     return Ok(true);
                                 }
                             }
                         }
                         Err(e) => {
                             tracing::error!("PreCompact hook execution failed: {:?}", e);
-                            self.tui.add_message(ChatMessage {
-                                role: TuiMessageRole::System,
-                                content: format!("⚠️  Failed to execute PreCompact hooks: {}", e),
-                            });
+                            self.tui.add_message(ChatMessage::system(format!("⚠️  Failed to execute PreCompact hooks: {}", e)));
                             return Ok(true);
                         }
                     }
                 }
 
                 // PreCompact hook fired successfully
-                self.tui.add_message(ChatMessage {
-                    role: TuiMessageRole::System,
-                    content: "✓ PreCompact hook fired.\n\nCompacting conversation history...\n(Full compaction logic awaits implementation)".to_string(),
-                });
+                self.tui.add_message(ChatMessage::system("✓ PreCompact hook fired.\n\nCompacting conversation history...\n(Full compaction logic awaits implementation)".to_string(),));
                 return Ok(true);
             }
             "/help" => {
@@ -393,10 +390,7 @@ impl InteractiveSession {
 
                 help_text.push_str("\nPress Ctrl+C or Ctrl+D to exit.");
 
-                self.tui.add_message(ChatMessage {
-                    role: TuiMessageRole::System,
-                    content: help_text,
-                });
+                self.tui.add_message(ChatMessage::system(help_text,));
                 return Ok(true);
             }
             "/stats" => {
@@ -422,10 +416,7 @@ impl InteractiveSession {
                     self.model,
                     self.stats.duration_seconds
                 );
-                self.tui.add_message(ChatMessage {
-                    role: TuiMessageRole::System,
-                    content: stats,
-                });
+                self.tui.add_message(ChatMessage::system(stats,));
                 return Ok(true);
             }
             "/cost" => {
@@ -466,17 +457,11 @@ impl InteractiveSession {
                         .await
                     {
                         Ok(output) => {
-                            self.tui.add_message(ChatMessage {
-                                role: TuiMessageRole::System,
-                                content: output,
-                            });
+                            self.tui.add_message(ChatMessage::system(output,));
                             self.tui.set_status("Ready".to_string());
                         }
                         Err(e) => {
-                            self.tui.add_message(ChatMessage {
-                                role: TuiMessageRole::System,
-                                content: format!("Error: {}", e),
-                            });
+                            self.tui.add_message(ChatMessage::system(format!("Error: {}", e)));
                             self.tui.set_status(format!("Error: {}", e));
                         }
                     }
@@ -494,15 +479,9 @@ impl InteractiveSession {
                     match self.slash_commands.execute(input).await {
                         Ok(result) => {
                             // Add expanded prompt as user message
-                            self.tui.add_message(ChatMessage {
-                                role: TuiMessageRole::User,
-                                content: format!("{}\n\n[Command expanded to:]", input),
-                            });
+                            self.tui.add_message(ChatMessage::user(format!("{}\n\n[Command expanded to:]", input)));
 
-                            self.tui.add_message(ChatMessage {
-                                role: TuiMessageRole::System,
-                                content: result.expanded_prompt.clone(),
-                            });
+                            self.tui.add_message(ChatMessage::system(result.expanded_prompt.clone(),));
 
                             // Add to conversation context
                             self.context
@@ -511,30 +490,21 @@ impl InteractiveSession {
                             // Process the expanded prompt as if user typed it
                             if let Err(e) = self.process_user_message(&result.expanded_prompt).await
                             {
-                                self.tui.add_message(ChatMessage {
-                                    role: TuiMessageRole::System,
-                                    content: format!("Error processing command: {}", e),
-                                });
+                                self.tui.add_message(ChatMessage::system(format!("Error processing command: {}", e)));
                             }
                         }
                         Err(e) => {
-                            self.tui.add_message(ChatMessage {
-                                role: TuiMessageRole::System,
-                                content: format!("Error executing command: {}", e),
-                            });
+                            self.tui.add_message(ChatMessage::system(format!("Error executing command: {}", e)));
                         }
                     }
                     return Ok(true);
                 }
 
                 // Unknown command
-                self.tui.add_message(ChatMessage {
-                    role: TuiMessageRole::System,
-                    content: format!(
+                self.tui.add_message(ChatMessage::system(format!(
                         "Unknown command: {}\nType /help for available commands",
                         input
-                    ),
-                });
+                    )));
                 return Ok(true);
             }
             _ => {}
@@ -595,10 +565,7 @@ impl InteractiveSession {
                     success = output.success;
                 }
                 ToolEvent::Error { message } => {
-                    self.tui.add_message(ChatMessage {
-                        role: TuiMessageRole::System,
-                        content: format!("Error: {}", message),
-                    });
+                    self.tui.add_message(ChatMessage::system(format!("Error: {}", message)));
                     return Err(anyhow::anyhow!("Command execution failed: {}", message));
                 }
             }
@@ -620,10 +587,7 @@ impl InteractiveSession {
         }
 
         // Add to TUI
-        self.tui.add_message(ChatMessage {
-            role: TuiMessageRole::System,
-            content: result_msg.clone(),
-        });
+        self.tui.add_message(ChatMessage::system(result_msg.clone(),));
 
         // Add to context as a user message (tool use result)
         self.context.add_message(Message::user(result_msg));
@@ -661,10 +625,7 @@ impl InteractiveSession {
                 Ok(results) => {
                     for result in results {
                         if result.is_blocking() {
-                            self.tui.add_message(ChatMessage {
-                                role: TuiMessageRole::Assistant,
-                                content: format!("⚠️  Prompt blocked by hook: {}", result.stderr),
-                            });
+                            self.tui.add_message(ChatMessage::assistant(format!("⚠️  Prompt blocked by hook: {}", result.stderr)));
                             return Ok(());
                         }
                         if !result.is_success() {
@@ -680,10 +641,7 @@ impl InteractiveSession {
         }
 
         // Add user message to TUI and context
-        self.tui.add_message(ChatMessage {
-            role: TuiMessageRole::User,
-            content: user_input.to_string(),
-        });
+        self.tui.add_message(ChatMessage::user(user_input.to_string(),));
         self.context
             .add_message(Message::user(user_input.to_string()));
 
@@ -857,6 +815,14 @@ impl InteractiveSession {
         };
         let mut stop_reason = None;
 
+        // Throttle rendering to 60 FPS during streaming
+        use std::time::Instant;
+        let mut last_render = Instant::now();
+        const RENDER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(16); // 60 FPS
+
+        // Log stream start
+        self.tui.push_debug(format!("🚀 [STREAM START] Beginning to process response stream"));
+
         // Process stream events
         while let Some(result) = stream.next().await {
             match result {
@@ -884,12 +850,20 @@ impl InteractiveSession {
                         delta: rustyclawd_core::client::types::ContentDelta::TextDelta { text },
                         ..
                     } => {
-                        // Append text to TUI in real-time
+                        // Debug: Log API chunk BEFORE passing to TUI
+                        self.tui.push_debug(format!("[API CHUNK] Received: {:?} (length: {})", text, text.len()));
+                        self.tui.push_debug(format!("[API CHUNK] Message index: {}", message_index));
+
+                        // Append text to TUI (marks dirty)
                         self.tui.append_to_message(message_index, &text);
                         current_text.push_str(&text);
 
-                        // Draw UI to show updates
-                        self.tui.draw()?;
+                        // Throttle rendering to 60 FPS
+                        if last_render.elapsed() >= RENDER_INTERVAL {
+                            self.tui.draw()?;
+                            self.tui.clear_dirty();
+                            last_render = Instant::now();
+                        }
                     }
                     StreamEvent::ContentBlockDelta {
                         delta:
@@ -941,17 +915,31 @@ impl InteractiveSession {
                         // Keep-alive, ignore
                     }
                     StreamEvent::Error { error } => {
+                        // Log the API error to debug panel
+                        self.tui.push_debug(format!("❌ [API ERROR] {}", error.message));
+                        self.tui.push_debug(format!("[API ERROR] Error type: {}", error.type_field));
+                        self.tui.push_debug(format!("[API ERROR] Accumulated before error: {} chars", current_text.len()));
                         return Err(anyhow::anyhow!("Stream error: {}", error.message));
                     }
                 },
                 Err(e) => {
+                    // Log the error to debug panel before bailing
+                    self.tui.push_debug(format!("❌ [STREAM ERROR] {}", e));
+                    self.tui.push_debug(format!("[STREAM ERROR] This error caused streaming to stop early"));
+                    self.tui.push_debug(format!("[STREAM ERROR] Accumulated so far: {} chars", current_text.len()));
                     return Err(anyhow::anyhow!("Stream error: {}", e));
                 }
             }
         }
 
-        // Finalize streaming message in TUI
+        // Log successful completion
+        self.tui.push_debug(format!("✅ [STREAM COMPLETE] Total accumulated: {} chars", current_text.len()));
+        self.tui.push_debug(format!("[STREAM COMPLETE] Final message: {:?}", current_text.chars().take(100).collect::<String>()));
+
+        // Finalize streaming message in TUI and do final render
         self.tui.finalize_streaming_message(message_index);
+        self.tui.draw()?;
+        self.tui.clear_dirty();
 
         // Build complete response
         let response = rustyclawd_core::client::MessageResponse {
@@ -985,18 +973,12 @@ impl InteractiveSession {
             // Show formatted tool call with icon
             let tool_call_msg = tool_formatter::format_tool_call(&name, &input);
             self.tui.set_status(format!("Executing: {}", name));
-            self.tui.add_message(ChatMessage {
-                role: TuiMessageRole::System,
-                content: tool_call_msg,
-            });
+            self.tui.add_message(ChatMessage::system(tool_call_msg,));
 
             // Show formatted parameters if interesting
             let params_msg = tool_formatter::format_tool_params(&name, &input);
             if !params_msg.is_empty() && params_msg != "Processing..." {
-                self.tui.add_message(ChatMessage {
-                    role: TuiMessageRole::System,
-                    content: format!("  {}", params_msg),
-                });
+                self.tui.add_message(ChatMessage::system(format!("  {}", params_msg)));
             }
 
             // Track tool call
@@ -1020,10 +1002,7 @@ impl InteractiveSession {
                 Ok(result) => {
                     // Show formatted success message
                     let success_msg = tool_formatter::format_tool_success(&name, &result);
-                    self.tui.add_message(ChatMessage {
-                        role: TuiMessageRole::System,
-                        content: format!("  {}", success_msg),
-                    });
+                    self.tui.add_message(ChatMessage::system(format!("  {}", success_msg)));
 
                     tool_result_blocks.push(
                         rustyclawd_core::client::types::ContentBlock::ToolResult {
@@ -1036,10 +1015,7 @@ impl InteractiveSession {
                 Err(e) => {
                     // Show formatted error message
                     let error_msg = tool_formatter::format_tool_error(&name, &e.to_string());
-                    self.tui.add_message(ChatMessage {
-                        role: TuiMessageRole::System,
-                        content: format!("  {}", error_msg),
-                    });
+                    self.tui.add_message(ChatMessage::system(format!("  {}", error_msg)));
 
                     tool_result_blocks.push(
                         rustyclawd_core::client::types::ContentBlock::ToolResult {
@@ -1112,23 +1088,14 @@ impl InteractiveSession {
 
             match persistence.save_checkpoint(&messages, description.clone()) {
                 Ok(checkpoint_id) => {
-                    self.tui.add_message(ChatMessage {
-                        role: TuiMessageRole::System,
-                        content: format!("Checkpoint saved: {} ({})", checkpoint_id, description),
-                    });
+                    self.tui.add_message(ChatMessage::system(format!("Checkpoint saved: {} ({})", checkpoint_id, description)));
                 }
                 Err(e) => {
-                    self.tui.add_message(ChatMessage {
-                        role: TuiMessageRole::System,
-                        content: format!("Failed to save checkpoint: {}", e),
-                    });
+                    self.tui.add_message(ChatMessage::system(format!("Failed to save checkpoint: {}", e)));
                 }
             }
         } else {
-            self.tui.add_message(ChatMessage {
-                role: TuiMessageRole::System,
-                content: "Session persistence not available".to_string(),
-            });
+            self.tui.add_message(ChatMessage::system("Session persistence not available".to_string(),));
         }
 
         Ok(())
@@ -1141,12 +1108,8 @@ impl InteractiveSession {
             let checkpoint_id = input.strip_prefix("/load").unwrap_or("").trim();
 
             if checkpoint_id.is_empty() {
-                self.tui.add_message(ChatMessage {
-                    role: TuiMessageRole::System,
-                    content:
-                        "Usage: /load <checkpoint_id>\nUse /sessions to list available checkpoints"
-                            .to_string(),
-                });
+                self.tui.add_message(ChatMessage::system("Usage: /load <checkpoint_id>\nUse /sessions to list available checkpoints"
+                            .to_string(),));
                 return Ok(());
             }
 
@@ -1159,39 +1122,27 @@ impl InteractiveSession {
                     for msg in &messages {
                         self.context.add_message(msg.clone());
 
-                        let role = match msg.role {
-                            MessageRole::User => TuiMessageRole::User,
-                            MessageRole::Assistant => TuiMessageRole::Assistant,
-                            MessageRole::System => TuiMessageRole::System,
+                        let chat_msg = match msg.role {
+                            MessageRole::User => ChatMessage::user(msg.content.clone()),
+                            MessageRole::Assistant => ChatMessage::assistant(msg.content.clone()),
+                            MessageRole::System => ChatMessage::system(msg.content.clone()),
                         };
 
-                        self.tui.add_message(ChatMessage {
-                            role,
-                            content: msg.content.clone(),
-                        });
+                        self.tui.add_message(chat_msg);
                     }
 
-                    self.tui.add_message(ChatMessage {
-                        role: TuiMessageRole::System,
-                        content: format!(
+                    self.tui.add_message(ChatMessage::system(format!(
                             "Checkpoint loaded: {} ({} messages)",
                             checkpoint_id,
                             messages.len()
-                        ),
-                    });
+                        )));
                 }
                 Err(e) => {
-                    self.tui.add_message(ChatMessage {
-                        role: TuiMessageRole::System,
-                        content: format!("Failed to load checkpoint: {}", e),
-                    });
+                    self.tui.add_message(ChatMessage::system(format!("Failed to load checkpoint: {}", e)));
                 }
             }
         } else {
-            self.tui.add_message(ChatMessage {
-                role: TuiMessageRole::System,
-                content: "Session persistence not available".to_string(),
-            });
+            self.tui.add_message(ChatMessage::system("Session persistence not available".to_string(),));
         }
 
         Ok(())
@@ -1234,10 +1185,7 @@ impl InteractiveSession {
             total_cost
         );
 
-        self.tui.add_message(ChatMessage {
-            role: TuiMessageRole::System,
-            content: cost_display,
-        });
+        self.tui.add_message(ChatMessage::system(cost_display,));
     }
 
     /// Handle /context command
@@ -1273,10 +1221,7 @@ impl InteractiveSession {
             self.model
         );
 
-        self.tui.add_message(ChatMessage {
-            role: TuiMessageRole::System,
-            content: context_display,
-        });
+        self.tui.add_message(ChatMessage::system(context_display,));
     }
 
     /// Handle /sessions command
@@ -1285,10 +1230,7 @@ impl InteractiveSession {
             match persistence.list_checkpoints() {
                 Ok(checkpoints) => {
                     if checkpoints.is_empty() {
-                        self.tui.add_message(ChatMessage {
-                            role: TuiMessageRole::System,
-                            content: "No checkpoints found for current session".to_string(),
-                        });
+                        self.tui.add_message(ChatMessage::system("No checkpoints found for current session".to_string(),));
                     } else {
                         let mut output =
                             format!("Available checkpoints ({}):\n", checkpoints.len());
@@ -1303,24 +1245,15 @@ impl InteractiveSession {
                         }
                         output.push_str("\nUse /load <checkpoint_id> to restore a checkpoint");
 
-                        self.tui.add_message(ChatMessage {
-                            role: TuiMessageRole::System,
-                            content: output,
-                        });
+                        self.tui.add_message(ChatMessage::system(output,));
                     }
                 }
                 Err(e) => {
-                    self.tui.add_message(ChatMessage {
-                        role: TuiMessageRole::System,
-                        content: format!("Failed to list checkpoints: {}", e),
-                    });
+                    self.tui.add_message(ChatMessage::system(format!("Failed to list checkpoints: {}", e)));
                 }
             }
         } else {
-            self.tui.add_message(ChatMessage {
-                role: TuiMessageRole::System,
-                content: "Session persistence not available".to_string(),
-            });
+            self.tui.add_message(ChatMessage::system("Session persistence not available".to_string(),));
         }
 
         Ok(())
@@ -1406,10 +1339,7 @@ impl InteractiveSession {
             }
         }
 
-        self.tui.add_message(ChatMessage {
-            role: TuiMessageRole::System,
-            content: output,
-        });
+        self.tui.add_message(ChatMessage::system(output,));
     }
 
     /// Handle /bashes command - Display background shell information
@@ -1420,16 +1350,13 @@ impl InteractiveSession {
         let shell_ids = registry.list_ids().await;
 
         if shell_ids.is_empty() {
-            self.tui.add_message(ChatMessage {
-                role: TuiMessageRole::System,
-                content: "Background Bash Shells:\n\n\
+            self.tui.add_message(ChatMessage::system("Background Bash Shells:\n\n\
                           No background shells currently running.\n\n\
                           Tips:\n\
                           - Background shells are created using Bash tool with run_in_background: true\n\
                           - Use BashOutput tool to read shell output\n\
                           - Use KillShell tool to terminate shells"
-                    .to_string(),
-            });
+                    .to_string(),));
             return Ok(());
         }
 
@@ -1466,10 +1393,7 @@ impl InteractiveSession {
              Example: Ask Claude to check output from a specific shell ID",
         );
 
-        self.tui.add_message(ChatMessage {
-            role: TuiMessageRole::System,
-            content: output,
-        });
+        self.tui.add_message(ChatMessage::system(output,));
 
         Ok(())
     }

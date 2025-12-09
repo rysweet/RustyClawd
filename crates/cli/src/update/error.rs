@@ -64,6 +64,10 @@ pub enum UpdateError {
     /// Invalid state data
     #[error("Invalid state data: {0}")]
     InvalidStateData(String),
+
+    /// No releases available (not an error, just informational)
+    #[error("No releases available for repository")]
+    NoReleasesAvailable,
 }
 
 impl From<std::io::Error> for UpdateError {

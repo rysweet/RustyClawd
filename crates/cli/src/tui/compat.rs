@@ -1,0 +1,205 @@
+//! Compatibility wrapper for legacy TuiState interface
+//!
+//! Provides the old TuiState API on top of the new App architecture
+//! for backward compatibility with interactive.rs
+
+use super::{App, Message, PermissionMode};
+use anyhow::Result;
+use crossterm::{
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use ratatui::{backend::CrosstermBackend, Terminal};
+use std::io::{self, Stdout};
+use std::time::Duration;
+
+/// Completion callback type
+pub type CompletionCallback = Box<dyn Fn(&str) -> Vec<(String, Option<String>)> + Send>;
+
+/// Legacy TuiState compatibility wrapper
+pub struct TuiState {
+    /// Core app state
+    app: App,
+
+    /// Terminal instance
+    terminal: Terminal<CrosstermBackend<Stdout>>,
+
+    /// Completion callback (not implemented yet)
+    #[allow(dead_code)]
+    completion_callback: Option<CompletionCallback>,
+
+    /// Track if cleanup has been done (for idempotency)
+    cleaned_up: bool,
+}
+
+impl TuiState {
+    /// Create a new TUI state
+    pub fn new() -> Result<Self> {
+        // Setup terminal
+        enable_raw_mode()?;
+        let mut stdout = io::stdout();
+
+        // CRITICAL: Enter alternate screen to isolate TUI from terminal history
+        execute!(stdout, EnterAlternateScreen)?;
+
+        let backend = CrosstermBackend::new(stdout);
+        let terminal = Terminal::new(backend)?;
+
+        Ok(Self {
+            app: App::new(PermissionMode::default()),
+            terminal,
+            completion_callback: None,
+            cleaned_up: false,
+        })
+    }
+
+    /// Set the completion callback function
+    pub fn set_completion_callback(&mut self, callback: CompletionCallback) {
+        self.completion_callback = Some(callback);
+    }
+
+    /// Get the current permission mode
+    pub fn permission_mode(&self) -> PermissionMode {
+        self.app.permission_mode()
+    }
+
+    /// Set the permission mode
+    pub fn set_permission_mode(&mut self, mode: PermissionMode) {
+        // Update internal app state
+        while self.app.permission_mode() != mode {
+            self.app.cycle_permission_mode();
+        }
+    }
+
+    /// Get all chat messages
+    pub fn messages(&self) -> &[Message] {
+        self.app.messages()
+    }
+
+    /// Check if UI needs re-rendering
+    pub fn is_dirty(&self) -> bool {
+        self.app.is_dirty()
+    }
+
+    /// Clear dirty flag after rendering
+    pub fn clear_dirty(&mut self) {
+        self.app.clear_dirty();
+    }
+
+    /// Check if application should exit
+    pub fn should_exit(&self) -> bool {
+        self.app.should_exit()
+    }
+
+    /// Cycle to the next permission mode
+    pub fn cycle_permission_mode(&mut self) -> PermissionMode {
+        self.app.cycle_permission_mode()
+    }
+
+    /// Add a message to the chat
+    pub fn add_message(&mut self, message: Message) {
+        self.app.add_message(message);
+    }
+
+    /// Start a new streaming message from assistant
+    pub fn begin_streaming_message(&mut self) -> usize {
+        self.app.start_streaming_response()
+    }
+
+    /// Append text to message at index
+    pub fn append_to_message(&mut self, _index: usize, text: &str) {
+        self.app.append_streaming_content(text);
+    }
+
+    /// Finalize streaming message
+    pub fn finalize_streaming_message(&mut self, _index: usize) {
+        self.app.finish_streaming();
+    }
+
+    /// Set status message
+    pub fn set_status(&mut self, status: String) {
+        if status.contains("error") || status.contains("Error") {
+            self.app.set_error(status);
+        } else {
+            self.app.clear_error();
+        }
+    }
+
+    /// Handle keyboard input
+    pub fn handle_input(&mut self) -> Result<Option<String>> {
+        use super::event::{handle_event, poll_event, EventResult};
+
+        if let Some(event) = poll_event(Duration::from_millis(100))? {
+            match handle_event(&mut self.app, event)? {
+                EventResult::Continue => Ok(None),
+                EventResult::Submit(input) => Ok(Some(input)),
+                EventResult::Exit => Ok(Some("/exit".to_string())),
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Handle a terminal event (without polling)
+    /// Returns Some(input) if user submitted, None otherwise
+    pub fn handle_event(&mut self, event: crossterm::event::Event) -> Result<Option<String>> {
+        use super::event::{handle_event, EventResult};
+
+        match handle_event(&mut self.app, event)? {
+            EventResult::Continue => Ok(None),
+            EventResult::Submit(input) => Ok(Some(input)),
+            EventResult::Exit => {
+                self.app.exit();
+                Ok(None)
+            }
+        }
+    }
+
+    /// Draw the TUI
+    pub fn draw(&mut self) -> Result<()> {
+        // Render without spamming debug (renders happen at 60fps)
+        self.terminal.draw(|f| super::ui::render(f, &self.app))?;
+        Ok(())
+    }
+
+    /// Push a debug message to the debug panel
+    pub fn push_debug(&mut self, message: String) {
+        self.app.push_debug_message(message);
+    }
+
+    /// Cleanup terminal (idempotent - safe to call multiple times)
+    pub fn cleanup(&mut self) -> Result<()> {
+        use crossterm::terminal::Clear;
+        use crossterm::terminal::ClearType;
+
+        // Idempotent - only cleanup once
+        if self.cleaned_up {
+            return Ok(());
+        }
+
+        // Show cursor first (may have been hidden)
+        let _ = self.terminal.show_cursor();
+
+        // Clear the current screen before leaving
+        let _ = execute!(self.terminal.backend_mut(), Clear(ClearType::All));
+
+        // Disable raw mode (restore terminal input processing)
+        let _ = disable_raw_mode();
+
+        // CRITICAL: Leave alternate screen to restore terminal history
+        // This MUST succeed for proper cleanup
+        execute!(self.terminal.backend_mut(), LeaveAlternateScreen)?;
+
+        // Mark as cleaned up
+        self.cleaned_up = true;
+
+        Ok(())
+    }
+}
+
+impl Drop for TuiState {
+    fn drop(&mut self) {
+        // Best effort cleanup
+        let _ = self.cleanup();
+    }
+}

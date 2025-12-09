@@ -87,6 +87,11 @@ impl GitHubClient {
             .await
             .map_err(|e| UpdateError::GitHubApiError(e.to_string()))?;
 
+        // Handle 404 specifically - this means no releases exist yet
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Err(UpdateError::NoReleasesAvailable);
+        }
+
         if !response.status().is_success() {
             return Err(UpdateError::GitHubApiError(format!(
                 "GitHub API returned status: {}",
