@@ -1,0 +1,125 @@
+# YAML Scenario: Runtime Agent Registration via --agents Flag
+#
+# Tests the --agents JSON flag feature (Issue #110)
+# Validates runtime agent loading and merging with file-based agents
+
+scenario:
+  name: "Runtime Agent Registration"
+  description: "Validate --agents JSON flag loads and registers runtime agents"
+  type: tui
+  tags: [agents, runtime-config, json-flag]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 60s
+    cli_args: '--agents ''{"custom-reviewer":{"description":"Custom code reviewer for tests","prompt":"You are a specialized code reviewer focusing on test coverage"}}'''
+
+  steps:
+    # Startup with runtime agent
+    - action: launch
+      description: "Start with --agents flag"
+      target: "cargo run --bin claude -- --agents '{\"custom-reviewer\":{\"description\":\"Custom reviewer\",\"prompt\":\"Review code\"}}'"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for initialization with runtime agents"
+      contains: "runtime agents"
+      timeout: 5s
+
+    # Test 1: Verify runtime agent loaded
+    - action: send_input
+      description: "List all available agents"
+      text: "List all available agents"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should include custom-reviewer"
+      contains: "custom-reviewer"
+      timeout: 15s
+
+    # Test 2: Use the runtime agent via Task tool
+    - action: send_input
+      description: "Invoke custom runtime agent"
+      text: "Use the custom-reviewer agent to review the README.md file"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should spawn Task with custom agent"
+      contains: "custom-reviewer"
+      timeout: 20s
+
+    # Test 3: Verify file-based agents still work
+    - action: send_input
+      description: "Use a file-based agent"
+      text: "Use the architect agent to design a simple module"
+      submit: true
+
+    - action: wait_for_text
+      description: "File-based agent should work alongside runtime"
+      contains: "architect"
+      timeout: 20s
+
+    # Capture final state
+    - action: capture_screenshot
+      description: "Capture runtime agent usage"
+      filename: "runtime_agents_result.txt"
+
+    # Exit
+    - action: send_input
+      description: "Exit"
+      text: "/exit"
+      submit: true
+
+  assertions:
+    - type: text_present
+      value: "runtime agents"
+      description: "Runtime agents loaded from --agents flag"
+
+    - type: text_present
+      value: "custom-reviewer"
+      description: "Custom runtime agent registered"
+
+    - type: text_present
+      value: "architect"
+      description: "File-based agents still accessible"
+
+    - type: exit_clean
+      description: "Session completes successfully"
+
+  cleanup:
+    - action: none
+      description: "No files created, no cleanup needed"
+
+  notes: |
+    This scenario validates Issue #110: --agents JSON Flag
+
+    Key behaviors tested:
+    1. --agents flag parses JSON correctly
+    2. Runtime agents register successfully
+    3. Runtime agents available via Task tool
+    4. File-based and runtime agents coexist
+    5. Agents discoverable via listing
+
+    Matches Claude Code v2.0.59+ behavior:
+    - JSON schema validation
+    - Runtime-only (not persistent)
+    - Merges with file-based agents
+
+    **JSON Format**:
+    ```json
+    {
+      "agent-name": {
+        "description": "When to use",
+        "prompt": "System prompt",
+        "tools": ["Read", "Write"],  // optional
+        "model": "sonnet"             // optional
+      }
+    }
+    ```
+
+    **Sources**:
+    - [CLI Reference](https://code.claude.com/docs/en/cli-reference)
+    - [Claude Code Cheatsheet](https://awesomeclaude.ai/code-cheatsheet)
