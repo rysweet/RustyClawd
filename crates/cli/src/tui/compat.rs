@@ -181,19 +181,24 @@ impl TuiState {
         self.app.is_streaming()
     }
 
-    /// Set active tool being executed
-    pub fn set_active_tool(&mut self, tool_name: String) {
-        self.app.set_active_tool(tool_name);
+    /// Begin a new tool execution message
+    pub fn begin_tool_message(&mut self, tool_id: String, tool_name: String, params: serde_json::Value) -> usize {
+        self.app.begin_tool_message(tool_id, tool_name, params)
     }
 
-    /// Clear active tool
-    pub fn clear_active_tool(&mut self) {
-        self.app.clear_active_tool();
+    /// Finalize a tool execution message with result
+    pub fn finalize_tool_message(&mut self, tool_id: &str, result: crate::tui::ToolResult) {
+        self.app.finalize_tool_message(tool_id, result);
     }
 
-    /// Check if a tool is currently executing
-    pub fn has_active_tool(&self) -> bool {
-        self.app.has_active_tool()
+    /// Check if any tools are currently executing
+    pub fn has_active_tools(&self) -> bool {
+        self.app.has_active_tools()
+    }
+
+    /// Get name of active tool (for status bar compatibility)
+    pub fn active_tool_name(&self) -> Option<String> {
+        self.app.active_tool_name()
     }
 
     /// Cleanup terminal (idempotent - safe to call multiple times)

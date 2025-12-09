@@ -29,7 +29,7 @@ mod token_counter;
 mod ui;
 
 // Re-export for backward compatibility with existing code
-pub use app::App;
+pub use app::{App, ToolResult, ToolMessageState};
 pub use event::{handle_event, poll_event, EventResult};
 pub use message::{Message, Role};
 pub use ui::render;

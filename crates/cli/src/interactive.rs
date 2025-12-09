@@ -274,8 +274,8 @@ impl InteractiveSession {
         }
 
         loop {
-            // Render if dirty OR if streaming/executing (for throbber animation)
-            if self.tui.is_dirty() || self.tui.is_streaming() || self.tui.has_active_tool() {
+            // Render if dirty OR if streaming/executing (for throbber animation and timer updates)
+            if self.tui.is_dirty() || self.tui.is_streaming() || self.tui.has_active_tools() {
                 self.tui.draw()?;
                 self.tui.clear_dirty();
             }
@@ -341,14 +341,9 @@ impl InteractiveSession {
             if let Some(ref mut rx) = self.tool_rx {
                 match rx.try_recv() {
                     Ok(event) => match event {
-                        ToolExecutionEvent::Started { tool_id, tool_name, params } => {
-                            // Show tool call immediately with spinner
-                            let tool_call_msg = tool_formatter::format_tool_call(&tool_name, &params);
-                            self.tui.add_message(ChatMessage::system(format!("⠁ {}", tool_call_msg)));
-
-                            // Track active tool and update status bar with animated throbber
-                            self.active_tools.insert(tool_id.clone(), tool_name.clone());
-                            self.tui.set_active_tool(tool_name);
+                        ToolExecutionEvent::Started { .. } => {
+                            // Started events no longer used - messages created synchronously in spawn_tools()
+                            // Keeping this variant for backward compatibility
                         }
                         ToolExecutionEvent::Progress { tool_id, message } => {
                             // Optional: show progress updates
@@ -357,39 +352,63 @@ impl InteractiveSession {
                             }
                         }
                         ToolExecutionEvent::Complete { tool_id, result } => {
-                            // Tool finished - store result
-                            if let Some(tool_name) = self.active_tools.remove(&tool_id) {
-                                // Show completion message
-                                if let rustyclawd_core::client::types::ContentBlock::ToolResult { content, .. } = &result {
-                                    let success_msg = tool_formatter::format_tool_success(&tool_name, &serde_json::Value::String(content.clone()));
-                                    self.tui.add_message(ChatMessage::system(format!("  {}", success_msg)));
-                                }
-                                self.tool_results.insert(tool_id, result);
-                            }
+                            // Parse tool result
+                            let tool_result = if let rustyclawd_core::client::types::ContentBlock::ToolResult { content, is_error, .. } = &result {
+                                // Try to parse as JSON (for bash tools)
+                                let (exit_code, stdout, stderr) = if let Ok(json) = serde_json::from_str::<serde_json::Value>(content) {
+                                    let exit_code = json.get("exit_code").and_then(|v| v.as_i64()).map(|v| v as i32);
+                                    let stdout = json.get("stdout").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    let stderr = json.get("stderr").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    (exit_code, stdout, stderr)
+                                } else {
+                                    // Plain text result
+                                    (None, content.clone(), String::new())
+                                };
 
-                            // Clear active tool indicator if no more tools running
-                            if self.active_tools.is_empty() {
-                                self.tui.clear_active_tool();
+                                crate::tui::ToolResult {
+                                    exit_code,
+                                    stdout,
+                                    stderr,
+                                    is_error: is_error.unwrap_or(false),
+                                }
+                            } else {
+                                // Non-ToolResult content block (shouldn't happen)
+                                crate::tui::ToolResult {
+                                    exit_code: None,
+                                    stdout: String::new(),
+                                    stderr: "Unexpected result format".to_string(),
+                                    is_error: true,
+                                }
+                            };
+
+                            // Finalize tool message (updates UI with result)
+                            self.tui.finalize_tool_message(&tool_id, tool_result);
+
+                            // Store result for tool loop continuation
+                            if let Some(_tool_name) = self.active_tools.remove(&tool_id) {
+                                self.tool_results.insert(tool_id, result);
                             }
                         }
                         ToolExecutionEvent::Error { tool_id, error } => {
-                            // Tool failed
-                            if let Some(tool_name) = self.active_tools.remove(&tool_id) {
-                                let error_msg = tool_formatter::format_tool_error(&tool_name, &error);
-                                self.tui.add_message(ChatMessage::system(format!("  {}", error_msg)));
+                            // Tool failed - create error result
+                            let tool_result = crate::tui::ToolResult {
+                                exit_code: Some(1), // Generic error exit code
+                                stdout: String::new(),
+                                stderr: error.clone(),
+                                is_error: true,
+                            };
 
-                                // Store error as tool result
+                            // Finalize tool message with error
+                            self.tui.finalize_tool_message(&tool_id, tool_result);
+
+                            // Store error as tool result for tool loop continuation
+                            if let Some(_tool_name) = self.active_tools.remove(&tool_id) {
                                 let error_result = rustyclawd_core::client::types::ContentBlock::ToolResult {
                                     tool_use_id: tool_id.clone(),
                                     content: format!("Tool execution error: {}", error),
                                     is_error: Some(true),
                                 };
                                 self.tool_results.insert(tool_id, error_result);
-                            }
-
-                            // Clear active tool indicator if no more tools running
-                            if self.active_tools.is_empty() {
-                                self.tui.clear_active_tool();
                             }
                         }
                     },
@@ -1304,10 +1323,15 @@ impl InteractiveSession {
         self.active_tools.clear();
         self.expected_tool_ids = tool_use_blocks.iter().map(|(id, _, _)| id.clone()).collect();
 
+        // Create tool messages FIRST (synchronously) to avoid race conditions
+        for (id, name, input) in &tool_use_blocks {
+            self.tui.begin_tool_message(id.clone(), name.clone(), input.clone());
+            self.active_tools.insert(id.clone(), name.clone());
+            self.stats.add_tool_call();
+        }
+
         // Spawn background task for each tool
         for (id, name, input) in tool_use_blocks {
-            // Track tool call
-            self.stats.add_tool_call();
 
             // Clone data for background task
             let hooks = self.hooks.as_ref().map(Arc::clone);
@@ -1318,13 +1342,6 @@ impl InteractiveSession {
 
             // Spawn tool execution in background
             tokio::spawn(async move {
-                // Send Started event immediately
-                let _ = tx.send(ToolExecutionEvent::Started {
-                    tool_id: id.clone(),
-                    tool_name: name.clone(),
-                    params: input.clone(),
-                });
-
                 // Execute the tool
                 let result = tool_executor::execute_tool_with_permission(
                     name.clone(),

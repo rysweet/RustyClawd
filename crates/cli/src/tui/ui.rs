@@ -67,9 +67,9 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
             Span::raw(" "),
             Span::styled(error, Style::default().fg(Color::Red)),
         ]
-    } else if app.has_active_tool() {
+    } else if app.has_active_tools() {
         // Show throbber + tool name when tool is executing
-        let tool_name = app.active_tool().unwrap_or("tool");
+        let tool_name = app.active_tool_name().unwrap_or_else(|| "tool".to_string());
         let status_text = format!("{} Executing: {}", throbber, tool_name);
 
         vec![
@@ -129,6 +129,57 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(status, area);
 }
 
+/// Generate animated throbber character (Braille patterns)
+fn generate_throbber() -> char {
+    const BRAILLE_FRAMES: [char; 8] = ['⠁', '⠂', '⠄', '⡀', '⢀', '⠠', '⠐', '⠈'];
+
+    let frame_idx = (std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() / 100) as usize % BRAILLE_FRAMES.len();
+
+    BRAILLE_FRAMES[frame_idx]
+}
+
+/// Format a tool call for display (compact JSON parameters)
+fn format_tool_params(params: &serde_json::Value) -> String {
+    match params {
+        serde_json::Value::Object(map) if map.is_empty() => "{}".to_string(),
+        serde_json::Value::Object(map) => {
+            let items: Vec<String> = map
+                .iter()
+                .take(3) // Show max 3 params
+                .map(|(k, v)| {
+                    let value_str = match v {
+                        serde_json::Value::String(s) if s.len() > 30 => {
+                            format!("\"{}...\"", &s[..27])
+                        }
+                        serde_json::Value::String(s) => format!("\"{}\"", s),
+                        _ => v.to_string(),
+                    };
+                    format!("{}: {}", k, value_str)
+                })
+                .collect();
+
+            if map.len() > 3 {
+                format!("{{ {}, ... }}", items.join(", "))
+            } else {
+                format!("{{ {} }}", items.join(", "))
+            }
+        }
+        _ => params.to_string(),
+    }
+}
+
+/// Truncate output for display (keep last N chars)
+fn truncate_output(output: &str, max_chars: usize) -> String {
+    if output.len() <= max_chars {
+        output.to_string()
+    } else {
+        format!("...{}", &output[output.len() - max_chars..])
+    }
+}
+
 fn render_messages(frame: &mut Frame, area: Rect, app: &App) {
     let messages = app.messages();
 
@@ -183,8 +234,79 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App) {
         // Build complete text content as styled text
         let mut text_lines = Vec::new();
 
-        for message in messages {
-            // Add message header
+        for (msg_idx, message) in messages.iter().enumerate() {
+            // Check if this is a tool message (dynamic rendering)
+            if message.role == Role::System {
+                if let Some((_tool_id, tool_state)) = app.tool_message_by_index(msg_idx) {
+                    // This is a tool execution message - render dynamically
+                    let elapsed = tool_state.start_time.elapsed().as_secs();
+
+                    if tool_state.completed {
+                        // Tool completed - show final result
+                        if let Some(ref result) = tool_state.result {
+                            let icon = if result.is_error { "✗" } else { "✓" };
+                            let icon_color = if result.is_error { Color::Red } else { Color::Green };
+
+                            // Header: "✓ Bash { command: "ls -la" } (2s)"
+                            let header = format!(
+                                "{} {} {} ({}s)",
+                                icon,
+                                tool_state.tool_name,
+                                format_tool_params(&tool_state.params),
+                                elapsed
+                            );
+                            text_lines.push(Line::from(Span::styled(
+                                header,
+                                Style::default().fg(icon_color).add_modifier(Modifier::BOLD),
+                            )));
+
+                            // Result: exit code + stdout (truncated)
+                            if let Some(exit_code) = result.exit_code {
+                                text_lines.push(Line::from(Span::styled(
+                                    format!("    exit_code: {}", exit_code),
+                                    Style::default().fg(Color::Gray),
+                                )));
+                            }
+
+                            if !result.stdout.is_empty() {
+                                let truncated = truncate_output(&result.stdout, 200);
+                                text_lines.push(Line::from(Span::styled(
+                                    format!("    stdout: {}", truncated),
+                                    Style::default().fg(Color::Gray),
+                                )));
+                            }
+
+                            if !result.stderr.is_empty() {
+                                let truncated = truncate_output(&result.stderr, 200);
+                                text_lines.push(Line::from(Span::styled(
+                                    format!("    stderr: {}", truncated),
+                                    Style::default().fg(Color::Red),
+                                )));
+                            }
+                        }
+                    } else {
+                        // Tool still running - show throbber + timer
+                        let throbber = generate_throbber();
+                        let header = format!(
+                            "{} {} {} ({}s)",
+                            throbber,
+                            tool_state.tool_name,
+                            format_tool_params(&tool_state.params),
+                            elapsed
+                        );
+                        text_lines.push(Line::from(Span::styled(
+                            header,
+                            Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
+                        )));
+                    }
+
+                    // Blank separator
+                    text_lines.push(Line::from(""));
+                    continue; // Skip normal message rendering
+                }
+            }
+
+            // Normal message rendering (non-tool messages)
             let header_style = match message.role {
                 Role::User => Style::default()
                     .fg(Color::Cyan)

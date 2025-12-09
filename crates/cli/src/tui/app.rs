@@ -3,9 +3,41 @@
 use crate::permission_mode::PermissionMode;
 use crate::tui::message::Message;
 use crate::tui::token_counter::TokenCount;
+use std::collections::HashMap;
+use std::time::Instant;
 
 /// Maximum debug messages to keep in buffer
 const MAX_DEBUG_MESSAGES: usize = 1000;
+
+/// State for an active tool execution message
+#[derive(Clone)]
+pub struct ToolMessageState {
+    /// Index of the message in the messages list
+    pub message_index: usize,
+    /// Tool name
+    pub tool_name: String,
+    /// Tool parameters (for display)
+    pub params: serde_json::Value,
+    /// When the tool started executing
+    pub start_time: Instant,
+    /// Whether the tool has completed
+    pub completed: bool,
+    /// Result (if completed)
+    pub result: Option<ToolResult>,
+}
+
+/// Result of a tool execution
+#[derive(Clone)]
+pub struct ToolResult {
+    /// Exit code (for bash tools) or success indicator
+    pub exit_code: Option<i32>,
+    /// Stdout output
+    pub stdout: String,
+    /// Stderr output
+    pub stderr: String,
+    /// Whether this was an error
+    pub is_error: bool,
+}
 
 /// Main application state - single source of truth
 pub struct App {
@@ -30,8 +62,8 @@ pub struct App {
     /// Active streaming state (if any)
     streaming: Option<StreamingState>,
 
-    /// Active tool execution (if any)
-    active_tool: Option<String>,
+    /// Active tool executions (tool_id -> state)
+    tool_messages: HashMap<String, ToolMessageState>,
 
     /// Whether to exit the application
     should_exit: bool,
@@ -77,7 +109,7 @@ impl App {
             follow_bottom: true, // Start in auto-follow mode
             permission_mode,
             streaming: None,
-            active_tool: None,
+            tool_messages: HashMap::new(),
             should_exit: false,
             error: None,
             dirty: true, // Start dirty to trigger initial render
@@ -215,26 +247,90 @@ impl App {
 
     // === Tool execution state ===
 
-    pub fn set_active_tool(&mut self, tool_name: String) {
-        self.push_debug_message(format!("[TOOL] Started: {}", tool_name));
-        self.active_tool = Some(tool_name);
+    /// Begin a new tool execution message (creates placeholder that will be updated dynamically)
+    pub fn begin_tool_message(&mut self, tool_id: String, tool_name: String, params: serde_json::Value) -> usize {
+        self.push_debug_message(format!("[TOOL] Started: {} (id: {})", tool_name, tool_id));
+
+        // Create a placeholder message
+        let message = Message {
+            role: crate::tui::message::Role::System,
+            content: String::new(), // Will be filled by renderer
+            timestamp: chrono::Local::now(),
+            streaming: false,
+        };
+
+        let message_index = self.messages.len();
+        self.messages.push(message);
+
+        // Track tool state
+        let state = ToolMessageState {
+            message_index,
+            tool_name,
+            params,
+            start_time: Instant::now(),
+            completed: false,
+            result: None,
+        };
+
+        self.tool_messages.insert(tool_id, state);
         self.mark_dirty();
+
+        message_index
     }
 
-    pub fn clear_active_tool(&mut self) {
-        if let Some(ref tool_name) = self.active_tool {
-            self.push_debug_message(format!("[TOOL] Finished: {}", tool_name));
+    /// Update tool message content (called by renderer to show dynamic content with timer/throbber)
+    pub fn get_tool_message_state(&self, tool_id: &str) -> Option<&ToolMessageState> {
+        self.tool_messages.get(tool_id)
+    }
+
+    /// Get all active (non-completed) tool messages
+    pub fn active_tool_messages(&self) -> impl Iterator<Item = (&String, &ToolMessageState)> {
+        self.tool_messages.iter().filter(|(_, state)| !state.completed)
+    }
+
+    /// Finalize a tool execution message with result
+    pub fn finalize_tool_message(&mut self, tool_id: &str, result: ToolResult) {
+        // Get tool info for debug message before mutation
+        let debug_info = self.tool_messages.get(tool_id).map(|state| {
+            (state.tool_name.clone(), state.start_time.elapsed().as_secs())
+        });
+
+        // Update tool state
+        if let Some(state) = self.tool_messages.get_mut(tool_id) {
+            state.completed = true;
+            state.result = Some(result.clone());
+            self.mark_dirty();
         }
-        self.active_tool = None;
-        self.mark_dirty();
+
+        // Log debug message after mutation
+        if let Some((tool_name, elapsed)) = debug_info {
+            self.push_debug_message(format!(
+                "[TOOL] Finished: {} ({}s, exit_code: {:?})",
+                tool_name,
+                elapsed,
+                result.exit_code
+            ));
+        }
     }
 
-    pub fn active_tool(&self) -> Option<&str> {
-        self.active_tool.as_deref()
+    /// Check if any tools are currently executing
+    pub fn has_active_tools(&self) -> bool {
+        self.tool_messages.iter().any(|(_, state)| !state.completed)
     }
 
-    pub fn has_active_tool(&self) -> bool {
-        self.active_tool.is_some()
+    /// Get name of any active tool (for status bar)
+    pub fn active_tool_name(&self) -> Option<String> {
+        self.tool_messages
+            .iter()
+            .find(|(_, state)| !state.completed)
+            .map(|(_, state)| state.tool_name.clone())
+    }
+
+    /// Find tool state by message index (for rendering)
+    pub fn tool_message_by_index(&self, message_index: usize) -> Option<(&String, &ToolMessageState)> {
+        self.tool_messages
+            .iter()
+            .find(|(_, state)| state.message_index == message_index)
     }
 
     // === Input buffer management ===
