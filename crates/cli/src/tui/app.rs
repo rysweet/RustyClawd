@@ -2,6 +2,7 @@
 
 use crate::permission_mode::PermissionMode;
 use crate::tui::message::Message;
+use crate::tui::token_counter::TokenCount;
 
 /// Maximum debug messages to keep in buffer
 const MAX_DEBUG_MESSAGES: usize = 1000;
@@ -20,11 +21,17 @@ pub struct App {
     /// Scroll offset for message viewport (lines from top)
     scroll_offset: usize,
 
+    /// Auto-follow bottom (true = stick to bottom, false = manual scroll position)
+    follow_bottom: bool,
+
     /// Current permission mode
     permission_mode: PermissionMode,
 
     /// Active streaming state (if any)
     streaming: Option<StreamingState>,
+
+    /// Active tool execution (if any)
+    active_tool: Option<String>,
 
     /// Whether to exit the application
     should_exit: bool,
@@ -52,6 +59,12 @@ struct StreamingState {
 
     /// Accumulated content so far
     accumulated: String,
+
+    /// Token count (live updates during streaming)
+    token_count: TokenCount,
+
+    /// Thinking indicator (true when waiting for first token)
+    thinking: bool,
 }
 
 impl App {
@@ -61,8 +74,10 @@ impl App {
             input: String::new(),
             cursor_pos: 0,
             scroll_offset: 0,
+            follow_bottom: true, // Start in auto-follow mode
             permission_mode,
             streaming: None,
+            active_tool: None,
             should_exit: false,
             error: None,
             dirty: true, // Start dirty to trigger initial render
@@ -88,6 +103,10 @@ impl App {
 
     pub fn scroll_offset(&self) -> usize {
         self.scroll_offset
+    }
+
+    pub fn follow_bottom(&self) -> bool {
+        self.follow_bottom
     }
 
     pub fn permission_mode(&self) -> PermissionMode {
@@ -150,6 +169,8 @@ impl App {
         self.streaming = Some(StreamingState {
             message_index: index,
             accumulated: String::new(),
+            token_count: TokenCount::default(),
+            thinking: true,  // Start in thinking mode
         });
         self.scroll_to_bottom();
         self.mark_dirty();
@@ -175,7 +196,8 @@ impl App {
             if let Some(msg) = self.messages.get_mut(state.message_index) {
                 *msg = Message::assistant_partial(state.accumulated.clone());
             }
-            self.scroll_to_bottom();
+            // Only auto-scroll if user is already at bottom
+            self.scroll_to_bottom_if_at_bottom();
             self.mark_dirty();
         }
     }
@@ -190,6 +212,32 @@ impl App {
             self.mark_dirty();
         }
     }
+
+    // === Tool execution state ===
+
+    pub fn set_active_tool(&mut self, tool_name: String) {
+        self.push_debug_message(format!("[TOOL] Started: {}", tool_name));
+        self.active_tool = Some(tool_name);
+        self.mark_dirty();
+    }
+
+    pub fn clear_active_tool(&mut self) {
+        if let Some(ref tool_name) = self.active_tool {
+            self.push_debug_message(format!("[TOOL] Finished: {}", tool_name));
+        }
+        self.active_tool = None;
+        self.mark_dirty();
+    }
+
+    pub fn active_tool(&self) -> Option<&str> {
+        self.active_tool.as_deref()
+    }
+
+    pub fn has_active_tool(&self) -> bool {
+        self.active_tool.is_some()
+    }
+
+    // === Input buffer management ===
 
     pub fn insert_char(&mut self, c: char) {
         // Unicode-aware insertion at cursor position
@@ -264,19 +312,44 @@ impl App {
     }
 
     pub fn scroll_up(&mut self, lines: usize) {
+        // Disable auto-follow when user scrolls manually
+        self.follow_bottom = false;
         self.scroll_offset = self.scroll_offset.saturating_sub(lines);
         self.mark_dirty();
     }
 
     pub fn scroll_down(&mut self, lines: usize) {
+        // If already following bottom, stay there
+        if self.follow_bottom {
+            self.mark_dirty();
+            return;
+        }
+
+        // When scrolling down, we might reach bottom again
         self.scroll_offset = self.scroll_offset.saturating_add(lines);
+
+        // If we've scrolled to a very large offset, assume we're trying to reach bottom
+        // This handles the case where user presses "End" or scrolls down repeatedly
+        if self.scroll_offset > 100000 {
+            self.follow_bottom = true;
+        }
+
         self.mark_dirty();
-        // Clamped during rendering based on viewport
     }
 
     pub fn scroll_to_bottom(&mut self) {
-        self.scroll_offset = usize::MAX; // Will be clamped during render
+        self.follow_bottom = true;
+        self.scroll_offset = 0; // Will be set to max_scroll during render
         self.mark_dirty();
+    }
+
+    /// Scroll to bottom only if already following bottom (preserves manual scroll position)
+    fn scroll_to_bottom_if_at_bottom(&mut self) {
+        if self.follow_bottom {
+            // Already following bottom, just mark dirty to update
+            self.mark_dirty();
+        }
+        // Otherwise, user has scrolled up - don't force them back
     }
 
     pub fn set_error(&mut self, error: String) {
@@ -335,6 +408,28 @@ impl App {
             self.scroll_offset,
             self.streaming.is_some()
         )
+    }
+
+    /// Update token count during streaming
+    pub fn update_token_count(&mut self, input: u32, output: u32) {
+        if let Some(ref mut state) = self.streaming {
+            state.token_count.add(input, output);
+            // First token received - no longer thinking
+            if output > 0 {
+                state.thinking = false;
+            }
+            self.mark_dirty();
+        }
+    }
+
+    /// Get current token count (if streaming)
+    pub fn token_count(&self) -> Option<TokenCount> {
+        self.streaming.as_ref().map(|s| s.token_count)
+    }
+
+    /// Check if currently in thinking mode (waiting for first token)
+    pub fn is_thinking(&self) -> bool {
+        self.streaming.as_ref().map(|s| s.thinking).unwrap_or(false)
     }
 }
 

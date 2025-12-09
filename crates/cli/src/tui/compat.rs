@@ -42,6 +42,10 @@ impl TuiState {
         // CRITICAL: Enter alternate screen to isolate TUI from terminal history
         execute!(stdout, EnterAlternateScreen)?;
 
+        // Enable mouse capture for scrolling
+        use crossterm::event::{EnableMouseCapture};
+        execute!(stdout, EnableMouseCapture)?;
+
         let backend = CrosstermBackend::new(stdout);
         let terminal = Terminal::new(backend)?;
 
@@ -167,10 +171,36 @@ impl TuiState {
         self.app.push_debug_message(message);
     }
 
+    /// Update token count during streaming
+    pub fn update_token_count(&mut self, input: u32, output: u32) {
+        self.app.update_token_count(input, output);
+    }
+
+    /// Check if currently streaming
+    pub fn is_streaming(&self) -> bool {
+        self.app.is_streaming()
+    }
+
+    /// Set active tool being executed
+    pub fn set_active_tool(&mut self, tool_name: String) {
+        self.app.set_active_tool(tool_name);
+    }
+
+    /// Clear active tool
+    pub fn clear_active_tool(&mut self) {
+        self.app.clear_active_tool();
+    }
+
+    /// Check if a tool is currently executing
+    pub fn has_active_tool(&self) -> bool {
+        self.app.has_active_tool()
+    }
+
     /// Cleanup terminal (idempotent - safe to call multiple times)
     pub fn cleanup(&mut self) -> Result<()> {
         use crossterm::terminal::Clear;
         use crossterm::terminal::ClearType;
+        use crossterm::event::DisableMouseCapture;
 
         // Idempotent - only cleanup once
         if self.cleaned_up {
@@ -182,6 +212,9 @@ impl TuiState {
 
         // Clear the current screen before leaving
         let _ = execute!(self.terminal.backend_mut(), Clear(ClearType::All));
+
+        // Disable mouse capture
+        let _ = execute!(self.terminal.backend_mut(), DisableMouseCapture);
 
         // Disable raw mode (restore terminal input processing)
         let _ = disable_raw_mode();

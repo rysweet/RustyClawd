@@ -33,12 +33,33 @@ pub fn poll_event(timeout: Duration) -> Result<Option<Event>> {
 pub fn handle_event(app: &mut App, event: Event) -> Result<EventResult> {
     match event {
         Event::Key(key) => handle_key_event(app, key),
+        Event::Mouse(mouse) => handle_mouse_event(app, mouse),
         Event::Resize(_, _) => {
             // Terminal resized - will be handled in next render
             Ok(EventResult::Continue)
         }
         _ => Ok(EventResult::Continue),
     }
+}
+
+fn handle_mouse_event(app: &mut App, mouse: event::MouseEvent) -> Result<EventResult> {
+    use event::MouseEventKind;
+
+    match mouse.kind {
+        MouseEventKind::ScrollUp => {
+            // Scroll up 3 lines (smooth scrolling)
+            app.scroll_up(3);
+        }
+        MouseEventKind::ScrollDown => {
+            // Scroll down 3 lines (smooth scrolling)
+            app.scroll_down(3);
+        }
+        _ => {
+            // Ignore other mouse events (clicks, drags, etc.)
+        }
+    }
+
+    Ok(EventResult::Continue)
 }
 
 fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<EventResult> {

@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, Borders, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
     Frame,
 };
 
@@ -44,6 +44,16 @@ pub fn render(frame: &mut Frame, app: &App) {
 }
 
 fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
+    // BRAILLE_SIX throbber pattern (Unicode Braille)
+    const BRAILLE_FRAMES: &[&str] = &["⠁", "⠂", "⠄", "⡀", "⢀", "⠠", "⠐", "⠈"];
+
+    // Use system time to rotate throbber (simple, stateless)
+    let frame_idx = (std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() / 100) as usize % BRAILLE_FRAMES.len();
+    let throbber = BRAILLE_FRAMES[frame_idx];
+
     let mode_text = format!(" {} ", app.permission_mode().status_indicator());
 
     let mode_style = Style::default()
@@ -57,11 +67,33 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
             Span::raw(" "),
             Span::styled(error, Style::default().fg(Color::Red)),
         ]
-    } else if app.is_streaming() {
+    } else if app.has_active_tool() {
+        // Show throbber + tool name when tool is executing
+        let tool_name = app.active_tool().unwrap_or("tool");
+        let status_text = format!("{} Executing: {}", throbber, tool_name);
+
         vec![
             Span::styled(mode_text, mode_style),
             Span::raw(" "),
-            Span::styled("⚡ Streaming...", Style::default().fg(Color::Yellow)),
+            Span::styled(status_text, Style::default().fg(Color::Magenta)),
+        ]
+    } else if app.is_streaming() {
+        // Show throbber + token count when streaming
+        let status_text = if app.is_thinking() {
+            // Thinking mode - show throbber without token count
+            format!("{} Thinking...", throbber)
+        } else if let Some(token_count) = app.token_count() {
+            // Streaming mode - show throbber with live token count
+            format!("{} Streaming  {}", throbber, token_count.format_compact())
+        } else {
+            // Fallback
+            format!("{} Streaming...", throbber)
+        };
+
+        vec![
+            Span::styled(mode_text, mode_style),
+            Span::raw(" "),
+            Span::styled(status_text, Style::default().fg(Color::Yellow)),
         ]
     } else {
         vec![
@@ -195,20 +227,22 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App) {
             text_lines.push(Line::from(""));
         }
 
+        // Calculate content height before converting to Text
+        let content_height = text_lines.len();
         let text = Text::from(text_lines);
 
-        // IMPORTANT: When using Wrap, we cannot accurately calculate scroll offset
-        // based on logical lines because wrapping creates MORE rendered lines.
-        // Solution: Only apply scroll when user explicitly scrolls UP (not at bottom).
-        // Otherwise, let Paragraph naturally show the end of content.
+        // Scroll handling: Calculate actual scroll position
+        // Subtract 2 for block borders
+        let viewport_height = area.height.saturating_sub(2) as usize;
+        let max_scroll = content_height.saturating_sub(viewport_height);
 
-        let scroll_offset = if app.scroll_offset() == usize::MAX {
-            // User is at "bottom" - show content from top (no scroll)
-            // Content will naturally fill from top, showing most recent at bottom
-            0
+        let scroll_offset = if app.follow_bottom() {
+            // Auto-follow bottom - show last viewport worth of content
+            max_scroll.min(u16::MAX as usize) as u16
         } else {
-            // User scrolled up - use their offset directly
-            app.scroll_offset().min(u16::MAX as usize) as u16
+            // Manual scroll - clamp to valid range [0, max_scroll]
+            let clamped = app.scroll_offset().min(max_scroll);
+            clamped.min(u16::MAX as usize) as u16
         };
 
         let paragraph = Paragraph::new(text)
@@ -217,7 +251,43 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App) {
             .scroll((scroll_offset, 0));
 
         frame.render_widget(paragraph, area);
+
+        // Render scrollbar on the right edge
+        if content_height > viewport_height {
+            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("↑"))
+                .end_symbol(Some("↓"))
+                .style(Style::default().fg(RUST_ORANGE));
+
+            let mut scrollbar_state = ScrollbarState::new(max_scroll)
+                .position(scroll_offset as usize);
+
+            frame.render_stateful_widget(
+                scrollbar,
+                area,
+                &mut scrollbar_state,
+            );
+        }
     }
+}
+
+/// Get max scroll for messages (used by compat layer to update app state)
+pub fn get_max_scroll(app: &App, viewport_height: usize) -> usize {
+    let message_count = app.messages().len();
+    if message_count == 0 {
+        return 0;
+    }
+
+    // Approximate line count (this is a rough estimate)
+    // Each message has: 1 header + content lines + 1 separator
+    let mut total_lines = 0;
+    for msg in app.messages() {
+        total_lines += 1; // header
+        total_lines += msg.content.lines().count().max(1); // content
+        total_lines += 1; // separator
+    }
+
+    total_lines.saturating_sub(viewport_height)
 }
 
 fn render_input(frame: &mut Frame, area: Rect, app: &App) {

@@ -21,6 +21,7 @@ fn sanitize_message(msg: &str) -> String {
 }
 
 /// Notification manager with hook integration
+#[derive(Clone)]
 pub struct NotificationManager {
     hooks: Arc<HooksSystem>,
 }

@@ -25,6 +25,7 @@ mod event;
 mod keybindings;
 mod layout;
 mod message;
+mod token_counter;
 mod ui;
 
 // Re-export for backward compatibility with existing code

@@ -45,6 +45,49 @@ const DEFAULT_MODEL: &str = "claude-sonnet-4-5-20250929";
 /// Maximum tokens for responses
 const MAX_TOKENS: u32 = 4096;
 
+/// Events sent from background streaming task to main event loop
+#[derive(Debug, Clone)]
+enum StreamingChannelEvent {
+    /// Text content delta to append
+    TextDelta { text: String },
+    /// Token count update (input_tokens, output_tokens)
+    TokenUpdate { input: u32, output: u32 },
+    /// Streaming completed successfully with final response
+    Complete {
+        response: rustyclawd_core::client::MessageResponse,
+    },
+    /// Streaming failed with error
+    Error { message: String },
+    /// Thinking mode update (true = thinking, false = receiving tokens)
+    ThinkingUpdate { thinking: bool },
+}
+
+/// Events sent from background tool execution tasks to main event loop
+#[derive(Debug, Clone)]
+enum ToolExecutionEvent {
+    /// Tool execution started
+    Started {
+        tool_id: String,
+        tool_name: String,
+        params: serde_json::Value,
+    },
+    /// Tool execution progress (optional)
+    Progress {
+        tool_id: String,
+        message: String,
+    },
+    /// Tool execution completed successfully
+    Complete {
+        tool_id: String,
+        result: rustyclawd_core::client::types::ContentBlock,
+    },
+    /// Tool execution failed
+    Error {
+        tool_id: String,
+        error: String,
+    },
+}
+
 /// Helper function to get current working directory as string
 fn get_cwd_string() -> String {
     std::env::current_dir()
@@ -77,6 +120,26 @@ pub struct InteractiveSession {
     session_id: String,
     /// Notification manager (optional)
     notification_manager: Option<NotificationManager>,
+    /// Channel receiver for streaming events from background task
+    streaming_rx: Option<tokio::sync::mpsc::UnboundedReceiver<StreamingChannelEvent>>,
+    /// Active streaming message index (if streaming)
+    streaming_message_index: Option<usize>,
+    /// Channel receiver for tool execution events from background tasks
+    tool_rx: Option<tokio::sync::mpsc::UnboundedReceiver<ToolExecutionEvent>>,
+    /// Active tool executions (tool_id -> tool_name)
+    active_tools: std::collections::HashMap<String, String>,
+    /// Completed tool results (tool_id -> result)
+    tool_results: std::collections::HashMap<String, rustyclawd_core::client::types::ContentBlock>,
+    /// Channel receiver for streaming response completion
+    response_rx: Option<tokio::sync::oneshot::Receiver<rustyclawd_core::client::MessageResponse>>,
+    /// API messages for current turn (needed for tool use loop continuation)
+    api_messages: Vec<ApiMessage>,
+    /// Pending response for tool use loop processing
+    pending_response: Option<rustyclawd_core::client::MessageResponse>,
+    /// Expected tool IDs for current batch (used to detect completion)
+    expected_tool_ids: Vec<String>,
+    /// Current response waiting for tool completion
+    pending_tool_response: Option<rustyclawd_core::client::MessageResponse>,
 }
 
 impl InteractiveSession {
@@ -143,6 +206,16 @@ impl InteractiveSession {
             hooks,
             session_id,
             notification_manager,
+            streaming_rx: None,
+            streaming_message_index: None,
+            tool_rx: None,
+            active_tools: std::collections::HashMap::new(),
+            tool_results: std::collections::HashMap::new(),
+            response_rx: None,
+            api_messages: Vec::new(),
+            pending_response: None,
+            expected_tool_ids: Vec::new(),
+            pending_tool_response: None,
         })
     }
 
@@ -201,10 +274,206 @@ impl InteractiveSession {
         }
 
         loop {
-            // Render only if state changed (dirty flag)
-            if self.tui.is_dirty() {
+            // Render if dirty OR if streaming/executing (for throbber animation)
+            if self.tui.is_dirty() || self.tui.is_streaming() || self.tui.has_active_tool() {
                 self.tui.draw()?;
                 self.tui.clear_dirty();
+            }
+
+            // Poll for streaming events from background task (non-blocking)
+            if let Some(ref mut rx) = self.streaming_rx {
+                match rx.try_recv() {
+                    Ok(event) => match event {
+                        StreamingChannelEvent::TextDelta { text } => {
+                            if let Some(idx) = self.streaming_message_index {
+                                self.tui.append_to_message(idx, &text);
+                            }
+                        }
+                        StreamingChannelEvent::TokenUpdate { input, output } => {
+                            self.tui.update_token_count(input, output);
+                        }
+                        StreamingChannelEvent::ThinkingUpdate { thinking } => {
+                            // Thinking mode updated - token counter will reflect this
+                            if !thinking {
+                                // First token received - no longer thinking
+                                self.tui.push_debug("[STREAMING] First token received - thinking complete".to_string());
+                            }
+                        }
+                        StreamingChannelEvent::Complete { response } => {
+                            // Finalize streaming
+                            if let Some(idx) = self.streaming_message_index {
+                                self.tui.finalize_streaming_message(idx);
+                            }
+                            self.streaming_rx = None;
+                            self.streaming_message_index = None;
+                            self.tui.set_status("Ready".to_string());
+
+                            // Track token usage
+                            self.stats.add_assistant_message(
+                                response.usage.input_tokens as u64,
+                                response.usage.output_tokens as u64,
+                            );
+
+                            // Store response for tool use loop continuation
+                            // (handled in stream_with_tools)
+                        }
+                        StreamingChannelEvent::Error { message } => {
+                            // Streaming failed
+                            self.tui.add_message(ChatMessage::system(format!("Error: {}", message)));
+                            self.tui.set_status(format!("Error: {}", message));
+                            self.streaming_rx = None;
+                            self.streaming_message_index = None;
+                        }
+                    },
+                    Err(tokio::sync::mpsc::error::TryRecvError::Empty) => {
+                        // No events available - this is normal
+                    }
+                    Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => {
+                        // Channel closed unexpectedly
+                        self.tui.push_debug("[STREAMING] Channel disconnected unexpectedly".to_string());
+                        self.streaming_rx = None;
+                        self.streaming_message_index = None;
+                    }
+                }
+            }
+
+            // Poll for tool execution events from background tasks (non-blocking)
+            if let Some(ref mut rx) = self.tool_rx {
+                match rx.try_recv() {
+                    Ok(event) => match event {
+                        ToolExecutionEvent::Started { tool_id, tool_name, params } => {
+                            // Show tool call immediately with spinner
+                            let tool_call_msg = tool_formatter::format_tool_call(&tool_name, &params);
+                            self.tui.add_message(ChatMessage::system(format!("⠁ {}", tool_call_msg)));
+
+                            // Track active tool and update status bar with animated throbber
+                            self.active_tools.insert(tool_id.clone(), tool_name.clone());
+                            self.tui.set_active_tool(tool_name);
+                        }
+                        ToolExecutionEvent::Progress { tool_id, message } => {
+                            // Optional: show progress updates
+                            if let Some(tool_name) = self.active_tools.get(&tool_id) {
+                                self.tui.push_debug(format!("[TOOL:{}] {}", tool_name, message));
+                            }
+                        }
+                        ToolExecutionEvent::Complete { tool_id, result } => {
+                            // Tool finished - store result
+                            if let Some(tool_name) = self.active_tools.remove(&tool_id) {
+                                // Show completion message
+                                if let rustyclawd_core::client::types::ContentBlock::ToolResult { content, .. } = &result {
+                                    let success_msg = tool_formatter::format_tool_success(&tool_name, &serde_json::Value::String(content.clone()));
+                                    self.tui.add_message(ChatMessage::system(format!("  {}", success_msg)));
+                                }
+                                self.tool_results.insert(tool_id, result);
+                            }
+
+                            // Clear active tool indicator if no more tools running
+                            if self.active_tools.is_empty() {
+                                self.tui.clear_active_tool();
+                            }
+                        }
+                        ToolExecutionEvent::Error { tool_id, error } => {
+                            // Tool failed
+                            if let Some(tool_name) = self.active_tools.remove(&tool_id) {
+                                let error_msg = tool_formatter::format_tool_error(&tool_name, &error);
+                                self.tui.add_message(ChatMessage::system(format!("  {}", error_msg)));
+
+                                // Store error as tool result
+                                let error_result = rustyclawd_core::client::types::ContentBlock::ToolResult {
+                                    tool_use_id: tool_id.clone(),
+                                    content: format!("Tool execution error: {}", error),
+                                    is_error: Some(true),
+                                };
+                                self.tool_results.insert(tool_id, error_result);
+                            }
+
+                            // Clear active tool indicator if no more tools running
+                            if self.active_tools.is_empty() {
+                                self.tui.clear_active_tool();
+                            }
+                        }
+                    },
+                    Err(tokio::sync::mpsc::error::TryRecvError::Empty) => {
+                        // No events available - this is normal
+                    }
+                    Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => {
+                        // Channel closed - tools done
+                        self.tool_rx = None;
+                    }
+                }
+            }
+
+            // Check if all expected tools have completed
+            if !self.expected_tool_ids.is_empty() {
+                let all_tools_complete = self.expected_tool_ids
+                    .iter()
+                    .all(|id| self.tool_results.contains_key(id));
+
+                if all_tools_complete {
+                    self.tui.push_debug("[TOOLS] All tools complete, continuing tool loop".to_string());
+
+                    // Collect results in order
+                    let mut tool_result_blocks = Vec::new();
+                    for id in &self.expected_tool_ids {
+                        if let Some(result) = self.tool_results.remove(id) {
+                            tool_result_blocks.push(result);
+                        }
+                    }
+
+                    // Clear expected tool IDs
+                    self.expected_tool_ids.clear();
+
+                    // If we have a pending response waiting for tools, continue the loop
+                    if let Some(response) = self.pending_tool_response.take() {
+                        // Add assistant's response with tool_use blocks to API messages
+                        self.api_messages.push(ApiMessage::with_blocks(
+                            rustyclawd_core::client::Role::Assistant,
+                            response.content,
+                        ));
+
+                        // Add tool results as user message to API messages
+                        self.api_messages.push(ApiMessage::with_blocks(
+                            rustyclawd_core::client::Role::User,
+                            tool_result_blocks,
+                        ));
+
+                        // Continue to next turn (spawn new streaming task)
+                        self.tui.push_debug("[TOOL_LOOP] Starting next turn after tools".to_string());
+                        let _ = self.stream_single_turn_with_messages(&self.api_messages.clone()).await;
+                    }
+                }
+            }
+
+            // Poll for streaming response completion (non-blocking)
+            if let Some(ref mut rx) = self.response_rx {
+                match rx.try_recv() {
+                    Ok(response) => {
+                        // Response complete - store for processing
+                        self.tui.push_debug("[RESPONSE] Streaming response complete".to_string());
+                        self.pending_response = Some(response);
+                        self.response_rx = None;
+                    }
+                    Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {
+                        // Still waiting - this is normal
+                    }
+                    Err(tokio::sync::oneshot::error::TryRecvError::Closed) => {
+                        // Channel closed unexpectedly
+                        self.tui.push_debug("[RESPONSE] Channel closed unexpectedly".to_string());
+                        self.response_rx = None;
+                    }
+                }
+            }
+
+            // Process pending response if ready (continue tool use loop)
+            if let Some(response) = self.pending_response.take() {
+                self.tui.push_debug("[RESPONSE] Processing pending response for tool use loop".to_string());
+
+                // Continue tool use loop with this response
+                if let Err(e) = self.process_response_in_tool_loop(response).await {
+                    let error_msg = format!("Tool loop processing error: {}", e);
+                    self.tui.set_status(format!("Error: {}", e));
+                    self.tui.add_message(ChatMessage::system(error_msg));
+                }
             }
 
             // Poll for terminal events (16ms for 60 FPS responsiveness)
@@ -223,6 +492,8 @@ impl InteractiveSession {
                         continue;
                     }
 
+                    self.tui.push_debug("[SUBMIT] Input received, firing IdlePrompt notification".to_string());
+
                     // Fire IdlePrompt notification
                     if let Some(ref notification_mgr) = self.notification_manager {
                         notification_mgr
@@ -233,6 +504,8 @@ impl InteractiveSession {
                             )
                             .await;
                     }
+
+                    self.tui.push_debug("[SUBMIT] IdlePrompt notification complete".to_string());
 
                     // Handle permission mode change event (from Shift+Tab)
                     if let Some(mode_name) = input.strip_prefix("__permission_mode_changed:") {
@@ -608,8 +881,12 @@ impl InteractiveSession {
 
     /// Process a user message with streaming and tool support
     async fn process_user_message(&mut self, user_input: &str) -> Result<()> {
+        self.tui.push_debug("[PROCESS] Starting process_user_message".to_string());
+
         // Execute UserPromptSubmit hook BEFORE adding prompt to context
         if let Some(ref hooks) = self.hooks {
+            self.tui.push_debug("[PROCESS] Executing UserPromptSubmit hook".to_string());
+
             let context = hooks::HookContext::for_user_prompt(
                 self.session_id.clone(),
                 format!(".claude/sessions/{}/transcript.json", self.session_id),
@@ -623,6 +900,7 @@ impl InteractiveSession {
                 .await
             {
                 Ok(results) => {
+                    self.tui.push_debug("[PROCESS] UserPromptSubmit hook complete".to_string());
                     for result in results {
                         if result.is_blocking() {
                             self.tui.add_message(ChatMessage::assistant(format!("⚠️  Prompt blocked by hook: {}", result.stderr)));
@@ -634,116 +912,135 @@ impl InteractiveSession {
                     }
                 }
                 Err(e) => {
+                    self.tui.push_debug(format!("[PROCESS] UserPromptSubmit hook error: {}", e));
                     tracing::warn!("Failed to execute UserPromptSubmit hooks: {}", e);
                     // Non-blocking - continue even if hook fails
                 }
             }
         }
 
+        self.tui.push_debug("[PROCESS] Adding user message to TUI".to_string());
+
         // Add user message to TUI and context
         self.tui.add_message(ChatMessage::user(user_input.to_string(),));
         self.context
             .add_message(Message::user(user_input.to_string()));
 
+        self.tui.push_debug("[PROCESS] Starting stream_with_tools".to_string());
+
         // Stream response with tool use loop
         self.stream_with_tools().await?;
+
+        self.tui.push_debug("[PROCESS] Completed process_user_message".to_string());
 
         Ok(())
     }
 
     /// Manages the tool use loop with streaming
+    ///
+    /// This method only INITIATES the first turn - the actual loop happens
+    /// in the main event loop via response polling and process_response_in_tool_loop()
     async fn stream_with_tools(&mut self) -> Result<()> {
-        // High limit for complex agentic workflows
-        const MAX_ITERATIONS: usize = 10_000;
-        let mut iteration = 0;
+        // Initialize API messages for tool use loop
+        self.api_messages = self.convert_messages_to_api_format();
 
-        // Track API-level messages for tool use loop (separate from context)
-        let mut api_messages = self.convert_messages_to_api_format();
+        // Update status
+        self.tui.set_status("Streaming...".to_string());
 
-        loop {
-            iteration += 1;
-            if iteration > MAX_ITERATIONS {
-                return Err(anyhow::anyhow!(
-                    "Tool execution exceeded maximum iterations"
-                ));
+        // Stream the first turn (returns immediately, response processed via polling)
+        let _ = self.stream_single_turn_with_messages(&self.api_messages.clone()).await;
+
+        // The rest of the tool loop happens in the main event loop via response polling
+        // See process_response_in_tool_loop() for continuation logic
+        Ok(())
+    }
+
+    /// Process a completed response and continue tool use loop if needed
+    ///
+    /// This method is called from the main event loop when a streaming response completes.
+    /// It checks for tool use and either:
+    /// - Completes the turn (no tool use)
+    /// - Executes tools and continues to next turn (tool use present)
+    async fn process_response_in_tool_loop(
+        &mut self,
+        response: rustyclawd_core::client::MessageResponse,
+    ) -> Result<()> {
+        // Check if response contains tool use
+        let mut tool_use_blocks = Vec::new();
+        for block in &response.content {
+            if let rustyclawd_core::client::types::ContentBlock::ToolUse { id, name, input } =
+                block
+            {
+                tool_use_blocks.push((id.clone(), name.clone(), input.clone()));
             }
-
-            // Update status
-            self.tui.set_status("Streaming...".to_string());
-
-            // Stream a single turn
-            let response = self.stream_single_turn_with_messages(&api_messages).await?;
-
-            // Check if response contains tool use
-            let mut tool_use_blocks = Vec::new();
-            for block in &response.content {
-                if let rustyclawd_core::client::types::ContentBlock::ToolUse { id, name, input } =
-                    block
-                {
-                    tool_use_blocks.push((id.clone(), name.clone(), input.clone()));
-                }
-            }
-
-            // If no tool use, we're done
-            if tool_use_blocks.is_empty() {
-                self.tui.set_status("Ready".to_string());
-
-                // Add final text response to context
-                let response_text = response
-                    .content
-                    .iter()
-                    .filter_map(|block| {
-                        if let rustyclawd_core::client::types::ContentBlock::Text { text } = block {
-                            Some(text.as_str())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("");
-
-                if !response_text.is_empty() {
-                    // Check if response contains questions (ElicitationDialog trigger)
-                    if response_text.contains('?') {
-                        if let Some(ref notification_mgr) = self.notification_manager {
-                            notification_mgr
-                                .notify(
-                                    &self.session_id,
-                                    NotificationType::ElicitationDialog,
-                                    "Claude is asking clarifying questions",
-                                )
-                                .await;
-                        }
-                    }
-
-                    self.context.add_message(Message::assistant(response_text));
-                }
-
-                return Ok(());
-            }
-
-            // Execute tools and get results
-            let tool_result_blocks = self.execute_tools(tool_use_blocks).await?;
-
-            // Add assistant's response with tool_use blocks to API messages
-            api_messages.push(ApiMessage::with_blocks(
-                rustyclawd_core::client::Role::Assistant,
-                response.content,
-            ));
-
-            // Add tool results as user message to API messages
-            api_messages.push(ApiMessage::with_blocks(
-                rustyclawd_core::client::Role::User,
-                tool_result_blocks,
-            ));
         }
+
+        // If no tool use, we're done with this turn
+        if tool_use_blocks.is_empty() {
+            self.tui.set_status("Ready".to_string());
+
+            // Add final text response to context
+            let response_text = response
+                .content
+                .iter()
+                .filter_map(|block| {
+                    if let rustyclawd_core::client::types::ContentBlock::Text { text } = block {
+                        Some(text.as_str())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("");
+
+            if !response_text.is_empty() {
+                // Check if response contains questions (ElicitationDialog trigger)
+                if response_text.contains('?') {
+                    if let Some(ref notification_mgr) = self.notification_manager {
+                        notification_mgr
+                            .notify(
+                                &self.session_id,
+                                NotificationType::ElicitationDialog,
+                                "Claude is asking clarifying questions",
+                            )
+                            .await;
+                    }
+                }
+
+                self.context.add_message(Message::assistant(response_text));
+            }
+
+            return Ok(());
+        }
+
+        // Tool use present - spawn tool execution (non-blocking)
+        self.tui.push_debug("[TOOL_LOOP] Spawning tool execution".to_string());
+
+        // Store response for continuation after tools complete
+        self.pending_tool_response = Some(response);
+
+        // Spawn tools (returns immediately, results via polling)
+        self.spawn_tools(tool_use_blocks)?;
+
+        // The main event loop will detect tool completion and continue
+        // See lines 406-444 for completion detection and continuation
+        Ok(())
     }
 
     /// Streams a single turn and returns the complete response
+    /// Spawns streaming in background task for non-blocking operation
     async fn stream_single_turn_with_messages(
         &mut self,
         api_messages: &[ApiMessage],
     ) -> Result<rustyclawd_core::client::MessageResponse> {
+        self.tui.push_debug("[STREAM] Starting stream_single_turn_with_messages".to_string());
+
+        // Create channels for communication with background task
+        let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+
+        self.tui.push_debug("[STREAM] Channels created, preparing background task".to_string());
+
         // Get tool definitions
         let tools = crate::tool_definitions::get_all_tool_definitions();
 
@@ -754,117 +1051,112 @@ impl InteractiveSession {
                 .with_temperature(1.0)
                 .with_stream(true);
 
-        // Make HTTP request directly to capture rate limit headers
-        let url = format!("{}/v1/messages", self.client.api_url());
-        let http_response = match self
-            .client
-            .http_client()
-            .post(&url)
-            .header(
-                "x-api-key",
-                self.client.config().api_key.expose_secret().expose(),
-            )
-            .header("anthropic-version", self.client.api_version())
-            .header("content-type", "application/json")
-            .header("accept", "text/event-stream")
-            .json(&request)
-            .send()
-            .await
-        {
-            Ok(resp) => resp,
-            Err(e) => {
-                // Convert reqwest error to ClientError for user-friendly messages
-                let client_error = ClientError::from(e);
-                return Err(anyhow::anyhow!(
-                    "{}",
-                    self.format_network_error(&client_error)
-                ));
-            }
-        };
+        // Clone client data needed for background task
+        let api_url = self.client.api_url().to_string();
+        let api_key = self.client.config().api_key.expose_secret().expose().to_string();
+        let api_version = self.client.api_version().to_string();
+        let http_client = self.client.http_client().clone();
+        let model = self.model.clone();
 
-        // Extract rate limit headers before consuming response
-        let headers = http_response.headers();
-        self.stats.rate_limits.update_from_headers(headers);
-
-        // Check for HTTP errors
-        if !http_response.status().is_success() {
-            let status = http_response.status();
-            let error_text = http_response
-                .text()
+        // Spawn background task for streaming (completely independent of self)
+        tokio::spawn(async move {
+            // Make HTTP request
+            let url = format!("{}/v1/messages", api_url);
+            let http_response = match http_client
+                .post(&url)
+                .header("x-api-key", api_key)
+                .header("anthropic-version", api_version)
+                .header("content-type", "application/json")
+                .header("accept", "text/event-stream")
+                .json(&request)
+                .send()
                 .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-            return Err(anyhow::anyhow!("HTTP {}: {}", status, error_text));
-        }
+            {
+                Ok(resp) => resp,
+                Err(e) => {
+                    let _ = event_tx.send(StreamingChannelEvent::Error {
+                        message: format!("HTTP request failed: {}", e),
+                    });
+                    return;
+                }
+            };
 
-        // Convert response body into event stream
-        use rustyclawd_core::client::EventStream;
-        let byte_stream = http_response.bytes_stream();
-        let mut stream = EventStream::new(byte_stream);
+            // Check for HTTP errors
+            if !http_response.status().is_success() {
+                let status = http_response.status();
+                let error_text = http_response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Unknown error".to_string());
+                let _ = event_tx.send(StreamingChannelEvent::Error {
+                    message: format!("HTTP {}: {}", status, error_text),
+                });
+                return;
+            }
 
-        // Begin streaming message in TUI
-        let message_index = self.tui.begin_streaming_message();
+            // Convert response body into event stream
+            use rustyclawd_core::client::EventStream;
+            let byte_stream = http_response.bytes_stream();
+            let mut stream = EventStream::new(byte_stream);
 
-        // Track response data
-        let mut message_id = String::new();
-        let mut response_content = Vec::new();
-        let mut current_text = String::new();
-        let mut current_tool_use: Option<(String, String, String)> = None; // (id, name, json)
-        let mut usage = rustyclawd_core::client::Usage {
-            input_tokens: 0,
-            output_tokens: 0,
-        };
-        let mut stop_reason = None;
+            // Track response data
+            let mut message_id = String::new();
+            let mut response_content = Vec::new();
+            let mut current_text = String::new();
+            let mut current_tool_use: Option<(String, String, String)> = None; // (id, name, json)
+            let mut usage = rustyclawd_core::client::Usage {
+                input_tokens: 0,
+                output_tokens: 0,
+            };
+            let mut stop_reason = None;
+            let mut thinking = true; // Start in thinking mode
 
-        // Throttle rendering to 60 FPS during streaming
-        use std::time::Instant;
-        let mut last_render = Instant::now();
-        const RENDER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(16); // 60 FPS
+            // Process stream events and send to main loop via channel
+            while let Some(result) = stream.next().await {
+                match result {
+                    Ok(event) => match event {
+                        StreamEvent::MessageStart { message } => {
+                            message_id = message.id.clone();
+                            usage = message.usage.clone();
 
-        // Log stream start
-        self.tui.push_debug(format!("🚀 [STREAM START] Beginning to process response stream"));
-
-        // Process stream events
-        while let Some(result) = stream.next().await {
-            match result {
-                Ok(event) => match event {
-                    StreamEvent::MessageStart { message } => {
-                        message_id = message.id;
-                        usage = message.usage;
-                    }
-                    StreamEvent::ContentBlockStart {
-                        content_block:
-                            rustyclawd_core::client::types::ContentBlockStart::Text { .. },
-                        ..
-                    } => {
-                        // Starting a text block
-                    }
-                    StreamEvent::ContentBlockStart {
-                        content_block:
-                            rustyclawd_core::client::types::ContentBlockStart::ToolUse { id, name },
-                        ..
-                    } => {
-                        // Starting a tool use block
-                        current_tool_use = Some((id, name, String::new()));
-                    }
-                    StreamEvent::ContentBlockDelta {
-                        delta: rustyclawd_core::client::types::ContentDelta::TextDelta { text },
-                        ..
-                    } => {
-                        // Debug: Log API chunk BEFORE passing to TUI
-                        self.tui.push_debug(format!("[API CHUNK] Received: {:?} (length: {})", text, text.len()));
-                        self.tui.push_debug(format!("[API CHUNK] Message index: {}", message_index));
-
-                        // Append text to TUI (marks dirty)
-                        self.tui.append_to_message(message_index, &text);
-                        current_text.push_str(&text);
-
-                        // Throttle rendering to 60 FPS
-                        if last_render.elapsed() >= RENDER_INTERVAL {
-                            self.tui.draw()?;
-                            self.tui.clear_dirty();
-                            last_render = Instant::now();
+                            // Send initial token count
+                            let _ = event_tx.send(StreamingChannelEvent::TokenUpdate {
+                                input: message.usage.input_tokens,
+                                output: message.usage.output_tokens,
+                            });
                         }
-                    }
+                        StreamEvent::ContentBlockStart {
+                            content_block:
+                                rustyclawd_core::client::types::ContentBlockStart::Text { .. },
+                            ..
+                        } => {
+                            // Starting a text block
+                        }
+                        StreamEvent::ContentBlockStart {
+                            content_block:
+                                rustyclawd_core::client::types::ContentBlockStart::ToolUse { id, name },
+                            ..
+                        } => {
+                            // Starting a tool use block
+                            current_tool_use = Some((id, name, String::new()));
+                        }
+                        StreamEvent::ContentBlockDelta {
+                            delta: rustyclawd_core::client::types::ContentDelta::TextDelta { text },
+                            ..
+                        } => {
+                            // Send text delta to main loop for display
+                            let _ = event_tx.send(StreamingChannelEvent::TextDelta {
+                                text: text.clone()
+                            });
+
+                            // First text received - no longer thinking
+                            if thinking {
+                                thinking = false;
+                                let _ = event_tx.send(StreamingChannelEvent::ThinkingUpdate { thinking: false });
+                            }
+
+                            current_text.push_str(&text);
+                        }
                     StreamEvent::ContentBlockDelta {
                         delta:
                             rustyclawd_core::client::types::ContentDelta::InputJsonDelta {
@@ -890,22 +1182,37 @@ impl InteractiveSession {
 
                         if let Some((id, name, json)) = current_tool_use.take() {
                             // Parse tool input
-                            let input: serde_json::Value = serde_json::from_str(&json)?;
-                            response_content.push(
-                                rustyclawd_core::client::types::ContentBlock::ToolUse {
-                                    id,
-                                    name,
-                                    input,
-                                },
-                            );
+                            match serde_json::from_str(&json) {
+                                Ok(input) => {
+                                    response_content.push(
+                                        rustyclawd_core::client::types::ContentBlock::ToolUse {
+                                            id,
+                                            name,
+                                            input,
+                                        },
+                                    );
+                                }
+                                Err(e) => {
+                                    let _ = event_tx.send(StreamingChannelEvent::Error {
+                                        message: format!("Failed to parse tool input JSON: {}", e),
+                                    });
+                                    return;
+                                }
+                            }
                         }
                     }
                     StreamEvent::MessageDelta {
                         delta,
                         usage: usage_delta,
                     } => {
-                        stop_reason = delta.stop_reason;
-                        usage = usage_delta;
+                        stop_reason = delta.stop_reason.clone();
+                        usage = usage_delta.clone();
+
+                        // Send updated token count
+                        let _ = event_tx.send(StreamingChannelEvent::TokenUpdate {
+                            input: usage.input_tokens,
+                            output: usage.output_tokens,
+                        });
                     }
                     StreamEvent::MessageStop => {
                         // Stream complete
@@ -915,31 +1222,20 @@ impl InteractiveSession {
                         // Keep-alive, ignore
                     }
                     StreamEvent::Error { error } => {
-                        // Log the API error to debug panel
-                        self.tui.push_debug(format!("❌ [API ERROR] {}", error.message));
-                        self.tui.push_debug(format!("[API ERROR] Error type: {}", error.type_field));
-                        self.tui.push_debug(format!("[API ERROR] Accumulated before error: {} chars", current_text.len()));
-                        return Err(anyhow::anyhow!("Stream error: {}", error.message));
+                        let _ = event_tx.send(StreamingChannelEvent::Error {
+                            message: format!("API error: {}", error.message),
+                        });
+                        return;
                     }
                 },
                 Err(e) => {
-                    // Log the error to debug panel before bailing
-                    self.tui.push_debug(format!("❌ [STREAM ERROR] {}", e));
-                    self.tui.push_debug(format!("[STREAM ERROR] This error caused streaming to stop early"));
-                    self.tui.push_debug(format!("[STREAM ERROR] Accumulated so far: {} chars", current_text.len()));
-                    return Err(anyhow::anyhow!("Stream error: {}", e));
+                    let _ = event_tx.send(StreamingChannelEvent::Error {
+                        message: format!("Stream error: {}", e),
+                    });
+                    return;
                 }
             }
         }
-
-        // Log successful completion
-        self.tui.push_debug(format!("✅ [STREAM COMPLETE] Total accumulated: {} chars", current_text.len()));
-        self.tui.push_debug(format!("[STREAM COMPLETE] Final message: {:?}", current_text.chars().take(100).collect::<String>()));
-
-        // Finalize streaming message in TUI and do final render
-        self.tui.finalize_streaming_message(message_index);
-        self.tui.draw()?;
-        self.tui.clear_dirty();
 
         // Build complete response
         let response = rustyclawd_core::client::MessageResponse {
@@ -947,88 +1243,127 @@ impl InteractiveSession {
             type_field: "message".to_string(),
             role: rustyclawd_core::client::Role::Assistant,
             content: response_content,
-            model: self.model.clone(),
+            model,
             stop_reason,
             stop_sequence: None,
             usage,
         };
 
-        // Track token usage in session stats
-        self.stats.add_assistant_message(
-            response.usage.input_tokens as u64,
-            response.usage.output_tokens as u64,
-        );
+        // Send complete response via oneshot channel
+        let _ = response_tx.send(response.clone());
 
-        Ok(response)
+        // Send completion event via unbounded channel
+        let _ = event_tx.send(StreamingChannelEvent::Complete { response });
+    });
+
+        self.tui.push_debug("[STREAM] Background task spawned, setting up TUI".to_string());
+
+        // Begin streaming message in TUI
+        let message_index = self.tui.begin_streaming_message();
+
+        // Store channel receiver and message index for main event loop to poll
+        self.streaming_rx = Some(event_rx);
+        self.streaming_message_index = Some(message_index);
+
+        self.tui.push_debug("[STREAM] Storing response receiver for polling".to_string());
+
+        // Store response receiver for non-blocking polling in main event loop
+        // DO NOT AWAIT HERE - this would block the main thread!
+        self.response_rx = Some(response_rx);
+
+        // Return immediately - response will be processed via polling
+        // The main event loop will detect completion and continue tool use loop
+        self.tui.push_debug("[STREAM] Background task spawned, returning immediately".to_string());
+
+        // Return a placeholder - actual response processed via polling
+        // This is a temporary hack until we refactor the return type
+        Err(anyhow::anyhow!("Response pending - will be processed via polling"))
     }
 
-    /// Execute tools and return result blocks
-    async fn execute_tools(
+    /// Spawn tools in background tasks (non-blocking)
+    ///
+    /// Tools execute in background tasks to keep UI responsive.
+    /// Results are collected via channel events in the main event loop.
+    /// This method returns IMMEDIATELY - tool completion detected by polling.
+    fn spawn_tools(
         &mut self,
         tool_use_blocks: Vec<(String, String, serde_json::Value)>,
-    ) -> Result<Vec<rustyclawd_core::client::types::ContentBlock>> {
-        let mut tool_result_blocks = Vec::new();
+    ) -> Result<()> {
+        if tool_use_blocks.is_empty() {
+            return Ok(());
+        }
 
+        // Create channel for tool execution events
+        let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
+
+        // Store receiver for main loop polling
+        self.tool_rx = Some(event_rx);
+
+        // Clear any previous tool results and store expected IDs
+        self.tool_results.clear();
+        self.active_tools.clear();
+        self.expected_tool_ids = tool_use_blocks.iter().map(|(id, _, _)| id.clone()).collect();
+
+        // Spawn background task for each tool
         for (id, name, input) in tool_use_blocks {
-            // Show formatted tool call with icon
-            let tool_call_msg = tool_formatter::format_tool_call(&name, &input);
-            self.tui.set_status(format!("Executing: {}", name));
-            self.tui.add_message(ChatMessage::system(tool_call_msg,));
-
-            // Show formatted parameters if interesting
-            let params_msg = tool_formatter::format_tool_params(&name, &input);
-            if !params_msg.is_empty() && params_msg != "Processing..." {
-                self.tui.add_message(ChatMessage::system(format!("  {}", params_msg)));
-            }
-
             // Track tool call
             self.stats.add_tool_call();
 
-            // Execute the tool with hooks, notification manager, and permission mode
+            // Clone data for background task
             let hooks = self.hooks.as_ref().map(Arc::clone);
             let session_id = Some(self.session_id.clone());
-            let notification_mgr = self.notification_manager.as_ref();
+            let notification_manager = self.notification_manager.clone();
             let permission_mode = self.tui.permission_mode();
-            match tool_executor::execute_tool_with_permission(
-                name.clone(),
-                input.clone(),
-                permission_mode,
-                hooks,
-                session_id,
-                notification_mgr,
-            )
-            .await
-            {
-                Ok(result) => {
-                    // Show formatted success message
-                    let success_msg = tool_formatter::format_tool_success(&name, &result);
-                    self.tui.add_message(ChatMessage::system(format!("  {}", success_msg)));
+            let tx = event_tx.clone();
 
-                    tool_result_blocks.push(
-                        rustyclawd_core::client::types::ContentBlock::ToolResult {
-                            tool_use_id: id,
-                            content: result.to_string(),
-                            is_error: None,
-                        },
-                    );
-                }
-                Err(e) => {
-                    // Show formatted error message
-                    let error_msg = tool_formatter::format_tool_error(&name, &e.to_string());
-                    self.tui.add_message(ChatMessage::system(format!("  {}", error_msg)));
+            // Spawn tool execution in background
+            tokio::spawn(async move {
+                // Send Started event immediately
+                let _ = tx.send(ToolExecutionEvent::Started {
+                    tool_id: id.clone(),
+                    tool_name: name.clone(),
+                    params: input.clone(),
+                });
 
-                    tool_result_blocks.push(
-                        rustyclawd_core::client::types::ContentBlock::ToolResult {
-                            tool_use_id: id,
-                            content: format!("Tool execution error: {}", e),
-                            is_error: Some(true),
-                        },
-                    );
+                // Execute the tool
+                let result = tool_executor::execute_tool_with_permission(
+                    name.clone(),
+                    input,
+                    permission_mode,
+                    hooks,
+                    session_id,
+                    notification_manager.as_ref(),
+                )
+                .await;
+
+                // Send Complete or Error event
+                match result {
+                    Ok(output) => {
+                        let _ = tx.send(ToolExecutionEvent::Complete {
+                            tool_id: id.clone(),
+                            result: rustyclawd_core::client::types::ContentBlock::ToolResult {
+                                tool_use_id: id,
+                                content: output.to_string(),
+                                is_error: None,
+                            },
+                        });
+                    }
+                    Err(e) => {
+                        let _ = tx.send(ToolExecutionEvent::Error {
+                            tool_id: id.clone(),
+                            error: e.to_string(),
+                        });
+                    }
                 }
-            }
+            });
         }
 
-        Ok(tool_result_blocks)
+        // Drop sender so channel closes when all tools complete
+        drop(event_tx);
+
+        // Return immediately - tool completion detected via polling in main event loop
+        // See lines 406-444 for completion detection and continuation
+        Ok(())
     }
 
     /// Convert context messages to API message format
