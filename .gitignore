@@ -44,3 +44,8 @@ package-lock.json
 
 # Claude Code framework (local only)
 .claude/
+
+# Screenshots folder symlink (WSL hack)
+Screenshots
+Screenshots/
+Screenshots/*
