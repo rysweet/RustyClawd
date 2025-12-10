@@ -44,3 +44,16 @@ package-lock.json
 
 # Claude Code framework (local only)
 .claude/
+
+# Backup directories (prevent repo pollution)
+.claude.backup*/
+*.backup/
+
+# Point-in-time reports (archive manually if needed)
+*_SUMMARY.txt
+*_REPORT*.md
+*_FINDINGS.md
+
+# Python cache
+__pycache__/
+*.pyc
