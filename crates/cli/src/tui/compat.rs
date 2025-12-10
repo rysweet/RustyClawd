@@ -146,6 +146,11 @@ impl TuiState {
             match handle_event(&mut self.app, event)? {
                 EventResult::Continue => Ok(None),
                 EventResult::Submit(input) => Ok(Some(input)),
+                EventResult::SaveMemory(memory_text, file_path) => {
+                    // Save memory to file
+                    self.save_memory_to_file(&memory_text, &file_path)?;
+                    Ok(None)
+                }
                 EventResult::Exit => Ok(Some("/exit".to_string())),
             }
         } else {
@@ -160,17 +165,33 @@ impl TuiState {
 
         let result = handle_event(&mut self.app, event)?;
 
-        // Only update autocomplete if input actually changed
+        // Only update autocomplete/memory modal if input actually changed
         // This prevents resetting selection when navigating with arrow keys
         let current_input = self.app.input().to_string();
         if current_input != self.last_input {
             self.last_input = current_input;
             self.update_autocomplete_if_needed();
+            self.update_memory_modal_if_needed();
         }
 
         match result {
             EventResult::Continue => Ok(None),
             EventResult::Submit(input) => Ok(Some(input)),
+            EventResult::SaveMemory(memory_text, file_path) => {
+                // Save memory to file
+                self.save_memory_to_file(&memory_text, &file_path)?;
+
+                // Add confirmation message
+                let truncated = if memory_text.len() > 60 {
+                    format!("{}...", &memory_text[..60])
+                } else {
+                    memory_text.clone()
+                };
+                let confirmation = format!("💾 Memory saved: \"{}\" → {}", truncated, file_path);
+                self.app.add_message(super::Message::system(confirmation));
+
+                Ok(None)
+            }
             EventResult::Exit => {
                 self.app.exit();
                 Ok(None)
@@ -220,6 +241,105 @@ impl TuiState {
             // Activate autocomplete with filtered items
             self.app.activate_autocomplete(items);
         }
+    }
+
+    /// Update memory modal based on current input
+    /// Called after any input change to check for memory trigger (#)
+    fn update_memory_modal_if_needed(&mut self) {
+        let input = self.app.input();
+
+        // Clear modal if input no longer starts with '#'
+        if !input.starts_with('#') {
+            if self.app.memory_modal_active() {
+                self.app.clear_memory_modal();
+            }
+            return;
+        }
+
+        // Extract memory text (everything after #, trimmed)
+        let memory_text = input[1..].trim().to_string();
+
+        // Modal should appear immediately when user types '#'
+        if !self.app.memory_modal_active() {
+            // First time - activate modal (sets selection to 0)
+            let destinations = self.discover_memory_destinations();
+            self.app.activate_memory_modal(memory_text, destinations);
+        } else {
+            // Modal already active - just update the text (preserves selection)
+            self.app.update_memory_text(memory_text);
+        }
+    }
+
+    /// Discover available memory destinations
+    fn discover_memory_destinations(&self) -> Vec<super::MemoryDestination> {
+        use std::path::Path;
+        let mut destinations = Vec::new();
+
+        // 1. User memory (~/.claude/CLAUDE.md)
+        if let Some(home) = std::env::var("HOME").ok().or_else(|| std::env::var("USERPROFILE").ok()) {
+            let user_memory_path = format!("{}/.claude/CLAUDE.md", home);
+            destinations.push(super::MemoryDestination {
+                name: "User memory".to_string(),
+                file_path: user_memory_path.clone(),
+                description: Some(format!("Saved in {}", user_memory_path)),
+                is_imported: false,
+            });
+        }
+
+        // 2. Project memory (./CLAUDE.md)
+        let project_memory_path = "./CLAUDE.md".to_string();
+        destinations.push(super::MemoryDestination {
+            name: "Project memory".to_string(),
+            file_path: project_memory_path.clone(),
+            description: Some("Checked in at ./CLAUDE.md".to_string()),
+            is_imported: false,
+        });
+
+        // 3. Imported context files (.claude/context/*.md)
+        if let Ok(entries) = std::fs::read_dir(".claude/context") {
+            for entry in entries.flatten() {
+                if let Ok(file_type) = entry.file_type() {
+                    if file_type.is_file() {
+                        if let Some(path_str) = entry.path().to_str() {
+                            if path_str.ends_with(".md") {
+                                let file_name = entry.file_name();
+                                let file_name_str = file_name.to_string_lossy();
+                                destinations.push(super::MemoryDestination {
+                                    name: file_name_str.to_string(),
+                                    file_path: path_str.to_string(),
+                                    description: Some("@-imported".to_string()),
+                                    is_imported: true,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        destinations
+    }
+
+    /// Save memory to file
+    fn save_memory_to_file(&self, memory_text: &str, file_path: &str) -> Result<()> {
+        use std::fs::OpenOptions;
+        use std::io::Write;
+
+        // Get current timestamp
+        let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
+
+        // Format memory entry (inline format: ## Memory - TIMESTAMP - TEXT)
+        let memory_entry = format!("\n## Memory - {} - {}\n", timestamp, memory_text);
+
+        // Append to file (create if doesn't exist)
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(file_path)?;
+
+        file.write_all(memory_entry.as_bytes())?;
+
+        Ok(())
     }
 
     /// Draw the TUI

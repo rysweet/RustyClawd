@@ -16,6 +16,9 @@ pub enum EventResult {
     /// Submit user input (returns the input string)
     Submit(String),
 
+    /// Save memory to file (memory_text, file_path)
+    SaveMemory(String, String),
+
     /// Exit application
     Exit,
 }
@@ -104,23 +107,30 @@ fn handle_key_action(app: &mut App, action: &KeyAction) -> Result<EventResult> {
             app.cycle_permission_mode();
         }
         KeyAction::ClearError => {
-            // Escape key clears both errors and autocomplete
+            // Escape key clears errors, memory modal, and autocomplete
             app.clear_error();
+            if app.memory_modal_active() {
+                app.clear_memory_modal();
+            }
             if app.autocomplete_active() {
                 app.clear_autocomplete();
             }
         }
         KeyAction::ScrollUp(n) => {
-            // If autocomplete is active, navigate up in list instead of scrolling
-            if app.autocomplete_active() {
+            // Priority: memory modal > autocomplete > scrolling
+            if app.memory_modal_active() {
+                app.memory_modal_prev();
+            } else if app.autocomplete_active() {
                 app.autocomplete_prev();
             } else {
                 app.scroll_up(*n);
             }
         }
         KeyAction::ScrollDown(n) => {
-            // If autocomplete is active, navigate down in list instead of scrolling
-            if app.autocomplete_active() {
+            // Priority: memory modal > autocomplete > scrolling
+            if app.memory_modal_active() {
+                app.memory_modal_next();
+            } else if app.autocomplete_active() {
                 app.autocomplete_next();
             } else {
                 app.scroll_down(*n);
@@ -146,8 +156,20 @@ fn handle_key_action(app: &mut App, action: &KeyAction) -> Result<EventResult> {
         }
         KeyAction::Submit => {
             if !app.is_streaming() {
-                // If autocomplete is active, select the highlighted item
-                if app.autocomplete_active() {
+                // Priority: memory modal > autocomplete > normal submit
+                if app.memory_modal_active() {
+                    // Save memory to selected destination
+                    if let Some(modal) = app.memory_modal() {
+                        if let Some(dest) = app.memory_modal_selected() {
+                            let memory_text = modal.memory_text.clone();
+                            let file_path = dest.file_path.clone();
+                            app.clear_memory_modal();
+                            app.submit_input(); // Clear the input
+                            return Ok(EventResult::SaveMemory(memory_text, file_path));
+                        }
+                    }
+                } else if app.autocomplete_active() {
+                    // If autocomplete is active, select the highlighted item
                     if let Some(item) = app.autocomplete_selected() {
                         // Replace input with selected command
                         let command_text = format!("/{}", item.command);

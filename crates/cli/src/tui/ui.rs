@@ -43,6 +43,11 @@ pub fn render(frame: &mut Frame, app: &App) -> usize {
         render_autocomplete(frame, input_area, app);
     }
 
+    // Render memory modal if active (after autocomplete, highest priority overlay)
+    if app.memory_modal_active() {
+        render_memory_modal(frame, input_area, app);
+    }
+
     // Render debug panel if visible
     if let Some(debug_area) = layout.debug {
         render_debug_panel(frame, debug_area, app);
@@ -592,6 +597,167 @@ fn render_autocomplete(frame: &mut Frame, input_area: Rect, app: &App) {
 
         frame.render_widget(list, popup_area);
     }
+}
+
+fn render_memory_modal(frame: &mut Frame, input_area: Rect, app: &App) {
+    if let Some(modal) = app.memory_modal() {
+        // Calculate popup area - centered above input
+        let max_visible_items = 10;
+        let popup_height = (modal.destinations.len().min(max_visible_items) + 2) as u16; // +2 for borders
+        let popup_width = 80; // Wider for paths
+
+        // Position above input area
+        if input_area.y < popup_height {
+            // Not enough space above, skip rendering
+            return;
+        }
+
+        let popup_area = Rect {
+            x: input_area.x,
+            y: input_area.y.saturating_sub(popup_height),
+            width: popup_width.min(input_area.width),
+            height: popup_height,
+        };
+
+        // Clear the area behind the popup first
+        frame.render_widget(Clear, popup_area);
+
+        // Calculate available width for items (subtract 2 for borders)
+        let item_width = popup_area.width.saturating_sub(2);
+
+        // Calculate scroll offset to keep selected item visible
+        let selected = modal.selected;
+        let total_items = modal.destinations.len();
+
+        // Calculate which items to show (scrolling window)
+        let scroll_offset = if total_items <= max_visible_items {
+            // All items fit, no scrolling needed
+            0
+        } else if selected < max_visible_items / 2 {
+            // Near top, show from beginning
+            0
+        } else if selected >= total_items - max_visible_items / 2 {
+            // Near bottom, show last max_visible_items
+            total_items.saturating_sub(max_visible_items)
+        } else {
+            // In middle, center the selection
+            selected.saturating_sub(max_visible_items / 2)
+        };
+
+        let visible_end = (scroll_offset + max_visible_items).min(total_items);
+
+        // Build list items with right-aligned paths (only for visible window)
+        let items: Vec<ListItem> = modal.destinations[scroll_offset..visible_end]
+            .iter()
+            .enumerate()
+            .map(|(window_idx, dest)| {
+                let actual_idx = scroll_offset + window_idx;
+                let is_selected = actual_idx == selected;
+                build_memory_list_item(dest, is_selected, item_width)
+            })
+            .collect();
+
+        let list = List::new(items).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(RUST_ORANGE))
+                .title(vec![
+                    Span::styled("📝 ", Style::default().fg(RUST_ORANGE)),
+                    Span::styled(
+                        "Select memory file to edit:",
+                        Style::default()
+                            .fg(RUST_ORANGE)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        format!(" ({}/{})", selected + 1, total_items),
+                        Style::default().fg(Color::Gray),
+                    ),
+                ]),
+        );
+
+        frame.render_widget(list, popup_area);
+    }
+}
+
+/// Build a memory list item with right-aligned path
+fn build_memory_list_item(
+    dest: &crate::tui::MemoryDestination,
+    is_selected: bool,
+    available_width: u16,
+) -> ListItem<'static> {
+    let mut spans = Vec::new();
+
+    // Selection indicator (always 2 chars: "> " or "  ")
+    let selection_indicator = if is_selected { "> " } else { "  " };
+    let selection_style = if is_selected {
+        Style::default().fg(Color::Black).bg(RUST_ORANGE)
+    } else {
+        Style::default()
+    };
+
+    spans.push(Span::styled(selection_indicator.to_string(), selection_style));
+
+    // Tree indicator for imported files ("└ " = 2 chars)
+    let tree_indicator = if dest.is_imported { "└ " } else { "" };
+    if !tree_indicator.is_empty() {
+        spans.push(Span::styled(
+            tree_indicator.to_string(),
+            if is_selected {
+                Style::default().fg(Color::Black).bg(RUST_ORANGE)
+            } else {
+                Style::default().fg(Color::DarkGray)
+            },
+        ));
+    }
+
+    // Item name
+    let name_style = if is_selected {
+        Style::default()
+            .fg(Color::Black)
+            .bg(RUST_ORANGE)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    spans.push(Span::styled(dest.name.clone(), name_style));
+
+    // Calculate used width (sum of all span widths)
+    let left_width: usize = spans.iter()
+        .map(|s| s.content.chars().count()) // Unicode-safe width
+        .sum();
+
+    // Get description/path for right side
+    let right_text = dest.description.as_deref().unwrap_or("");
+    let right_width = right_text.chars().count();
+
+    // Calculate padding (ensure at least 2 spaces between)
+    let min_spacing = 2;
+    let total_content = left_width + min_spacing + right_width;
+
+    let padding_width = if total_content < available_width as usize {
+        available_width as usize - left_width - right_width
+    } else {
+        min_spacing // Fallback to minimum spacing
+    };
+
+    // Add padding (CRITICAL: must have selection background if selected)
+    let padding_style = if is_selected {
+        Style::default().bg(RUST_ORANGE)
+    } else {
+        Style::default()
+    };
+    spans.push(Span::styled(" ".repeat(padding_width), padding_style));
+
+    // Add right-aligned path/description
+    let path_style = if is_selected {
+        Style::default().fg(Color::Black).bg(RUST_ORANGE)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+    spans.push(Span::styled(right_text.to_string(), path_style));
+
+    ListItem::new(Line::from(spans))
 }
 
 fn render_debug_panel(frame: &mut Frame, area: Rect, app: &App) {

@@ -29,7 +29,7 @@ mod token_counter;
 mod ui;
 
 // Re-export for backward compatibility with existing code
-pub use app::{App, ToolResult, ToolMessageState, CompletionItem, AutocompleteState};
+pub use app::{App, ToolResult, ToolMessageState, CompletionItem, AutocompleteState, MemoryDestination, MemoryModalState};
 pub use event::{handle_event, poll_event, EventResult};
 pub use message::{Message, Role};
 pub use ui::render;
@@ -94,6 +94,18 @@ where
                 EventResult::Submit(input) => {
                     app.add_message(Message::user(input.clone()));
                     on_submit(&input)?;
+                }
+                EventResult::SaveMemory(memory_text, file_path) => {
+                    // Save memory to file
+                    use std::fs::OpenOptions;
+                    use std::io::Write;
+                    let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
+                    let memory_entry = format!("\n## Memory - {} - {}\n", timestamp, memory_text);
+                    let mut file = OpenOptions::new()
+                        .create(true)
+                        .append(true)
+                        .open(&file_path)?;
+                    file.write_all(memory_entry.as_bytes())?;
                 }
                 EventResult::Exit => {
                     break;

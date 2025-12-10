@@ -59,6 +59,30 @@ pub struct AutocompleteState {
     pub selected: usize,
 }
 
+/// Memory destination for saving user memories
+#[derive(Clone, Debug)]
+pub struct MemoryDestination {
+    /// Display name (e.g., "User memory", "Project memory")
+    pub name: String,
+    /// File path where memory will be saved
+    pub file_path: String,
+    /// Optional description/hint (e.g., "Saved in ~/.claude/CLAUDE.md")
+    pub description: Option<String>,
+    /// Whether this is an imported context file
+    pub is_imported: bool,
+}
+
+/// Memory modal state
+#[derive(Clone, Debug)]
+pub struct MemoryModalState {
+    /// Memory text to be saved
+    pub memory_text: String,
+    /// Available destinations
+    pub destinations: Vec<MemoryDestination>,
+    /// Currently selected index
+    pub selected: usize,
+}
+
 /// Main application state - single source of truth
 pub struct App {
     /// Message history (all messages in conversation)
@@ -82,6 +106,9 @@ pub struct App {
 
     /// Autocomplete state
     autocomplete: Option<AutocompleteState>,
+
+    /// Memory modal state
+    memory_modal: Option<MemoryModalState>,
 
     /// Current permission mode
     permission_mode: PermissionMode,
@@ -136,6 +163,7 @@ impl App {
             follow_bottom: true, // Start in auto-follow mode
             max_scroll: 0, // Will be updated by renderer
             autocomplete: None,
+            memory_modal: None,
             permission_mode,
             streaming: None,
             tool_messages: HashMap::new(),
@@ -637,6 +665,77 @@ impl App {
     /// Get autocomplete state (for rendering)
     pub fn autocomplete(&self) -> Option<&AutocompleteState> {
         self.autocomplete.as_ref()
+    }
+
+    // === Memory modal management ===
+
+    /// Activate memory modal with destinations
+    pub fn activate_memory_modal(&mut self, memory_text: String, destinations: Vec<MemoryDestination>) {
+        if destinations.is_empty() {
+            self.memory_modal = None;
+        } else {
+            self.memory_modal = Some(MemoryModalState {
+                memory_text,
+                destinations,
+                selected: 0,
+            });
+        }
+        self.mark_dirty();
+    }
+
+    /// Update memory text without resetting selection
+    pub fn update_memory_text(&mut self, memory_text: String) {
+        if let Some(ref mut modal) = self.memory_modal {
+            modal.memory_text = memory_text;
+            self.mark_dirty();
+        }
+    }
+
+    /// Clear memory modal
+    pub fn clear_memory_modal(&mut self) {
+        self.memory_modal = None;
+        self.mark_dirty();
+    }
+
+    /// Navigate memory modal selection up
+    pub fn memory_modal_prev(&mut self) {
+        if let Some(ref mut modal) = self.memory_modal {
+            if modal.selected > 0 {
+                modal.selected -= 1;
+            } else {
+                // Wrap to bottom
+                modal.selected = modal.destinations.len().saturating_sub(1);
+            }
+            self.mark_dirty();
+        }
+    }
+
+    /// Navigate memory modal selection down
+    pub fn memory_modal_next(&mut self) {
+        if let Some(ref mut modal) = self.memory_modal {
+            if modal.selected < modal.destinations.len().saturating_sub(1) {
+                modal.selected += 1;
+            } else {
+                // Wrap to top
+                modal.selected = 0;
+            }
+            self.mark_dirty();
+        }
+    }
+
+    /// Get selected memory destination
+    pub fn memory_modal_selected(&self) -> Option<&MemoryDestination> {
+        self.memory_modal.as_ref().and_then(|modal| modal.destinations.get(modal.selected))
+    }
+
+    /// Check if memory modal is active
+    pub fn memory_modal_active(&self) -> bool {
+        self.memory_modal.is_some()
+    }
+
+    /// Get memory modal state (for rendering)
+    pub fn memory_modal(&self) -> Option<&MemoryModalState> {
+        self.memory_modal.as_ref()
     }
 }
 
