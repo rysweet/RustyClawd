@@ -23,11 +23,12 @@ try {
 
 try {
   // Build release binary
+  // Use parent directory since script is in scripts/ subdirectory
   execSync('cargo build --release', {
     stdio: 'inherit',
-    cwd: __dirname
+    cwd: path.join(__dirname, '..')
   });
-  
+
   console.log('\n✅ RustyClawd built successfully!');
   console.log('You can now use: npx github:rysweet/RustyClawd "your prompt"');
 } catch (e) {
