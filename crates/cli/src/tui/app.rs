@@ -3,11 +3,20 @@
 use crate::permission_mode::PermissionMode;
 use crate::tui::message::Message;
 use crate::tui::token_counter::TokenCount;
+use ratatui::{
+    style::{Color, Modifier, Style},
+    text::Span,
+    widgets::{Block, Borders},
+};
 use std::collections::HashMap;
 use std::time::Instant;
+use tui_textarea::TextArea;
 
 /// Maximum debug messages to keep in buffer
 const MAX_DEBUG_MESSAGES: usize = 1000;
+
+/// Rust orange color for TUI styling
+const RUST_ORANGE: Color = Color::Rgb(222, 165, 132);
 
 /// State for an active tool execution message
 #[derive(Clone)]
@@ -88,11 +97,8 @@ pub struct App {
     /// Message history (all messages in conversation)
     messages: Vec<Message>,
 
-    /// Current input buffer
-    input: String,
-
-    /// Cursor position in input buffer (byte offset)
-    cursor_pos: usize,
+    /// Current input buffer (multi-line text editor)
+    pub input: TextArea<'static>,
 
     /// Scroll offset for message viewport (lines from top)
     scroll_offset: usize,
@@ -155,10 +161,28 @@ struct StreamingState {
 
 impl App {
     pub fn new(permission_mode: PermissionMode) -> Self {
+        // Configure TextArea with styling ONCE during initialization
+        let mut input = TextArea::default();
+        input.set_block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(RUST_ORANGE))
+                .title(vec![
+                    Span::styled("✏️  ", Style::default().fg(RUST_ORANGE)),
+                    Span::styled(
+                        "Input",
+                        Style::default()
+                            .fg(RUST_ORANGE)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                ]),
+        );
+        // Remove underline from cursor line (default is underlined)
+        input.set_cursor_line_style(Style::default());
+
         Self {
             messages: Vec::new(),
-            input: String::new(),
-            cursor_pos: 0,
+            input,
             scroll_offset: 0,
             follow_bottom: true, // Start in auto-follow mode
             max_scroll: 0, // Will be updated by renderer
@@ -182,12 +206,20 @@ impl App {
         &self.messages
     }
 
-    pub fn input(&self) -> &str {
-        &self.input
+    pub fn input(&self) -> String {
+        self.input.lines().join("\n")
     }
 
-    pub fn cursor_pos(&self) -> usize {
-        self.cursor_pos
+    pub fn cursor_pos(&self) -> (usize, usize) {
+        self.input.cursor()
+    }
+
+    pub fn input_line_count(&self) -> usize {
+        self.input.lines().len().max(1)
+    }
+
+    pub fn has_multi_line_input(&self) -> bool {
+        self.input.lines().len() > 1
     }
 
     pub fn scroll_offset(&self) -> usize {
@@ -395,79 +427,164 @@ impl App {
     // === Input buffer management ===
 
     pub fn insert_char(&mut self, c: char) {
-        // Unicode-aware insertion at cursor position
-        let byte_pos = self.cursor_pos;
-        if byte_pos <= self.input.len() {
-            self.input.insert(byte_pos, c);
-            self.cursor_pos += c.len_utf8();
-            self.mark_dirty();
-        }
+        self.input.insert_char(c);
+        self.mark_dirty();
     }
 
     pub fn delete_char(&mut self) {
-        if self.cursor_pos < self.input.len() {
-            self.input.remove(self.cursor_pos);
-            self.mark_dirty();
-        }
+        self.input.delete_next_char();  // Delete key: delete char AT cursor
+        self.mark_dirty();
     }
 
     pub fn backspace(&mut self) {
-        if self.cursor_pos > 0 {
-            // Find previous char boundary
-            let mut pos = self.cursor_pos - 1;
-            while pos > 0 && !self.input.is_char_boundary(pos) {
-                pos -= 1;
-            }
-            self.input.remove(pos);
-            self.cursor_pos = pos;
-            self.mark_dirty();
-        }
+        self.input.delete_char();  // Backspace key: delete char BEFORE cursor
+        self.mark_dirty();
     }
 
     pub fn move_cursor_left(&mut self) {
-        if self.cursor_pos > 0 {
-            let mut pos = self.cursor_pos - 1;
-            while pos > 0 && !self.input.is_char_boundary(pos) {
-                pos -= 1;
-            }
-            self.cursor_pos = pos;
-            self.mark_dirty();
-        }
+        self.input.move_cursor(tui_textarea::CursorMove::Back);
+        self.mark_dirty();
     }
 
     pub fn move_cursor_right(&mut self) {
-        if self.cursor_pos < self.input.len() {
-            let mut pos = self.cursor_pos + 1;
-            while pos < self.input.len() && !self.input.is_char_boundary(pos) {
-                pos += 1;
-            }
-            self.cursor_pos = pos;
-            self.mark_dirty();
-        }
+        self.input.move_cursor(tui_textarea::CursorMove::Forward);
+        self.mark_dirty();
     }
 
     pub fn move_cursor_to_start(&mut self) {
-        self.cursor_pos = 0;
+        self.input.move_cursor(tui_textarea::CursorMove::Head);
         self.mark_dirty();
     }
 
     pub fn move_cursor_to_end(&mut self) {
-        self.cursor_pos = self.input.len();
+        self.input.move_cursor(tui_textarea::CursorMove::End);
+        self.mark_dirty();
+    }
+
+    // === NEW: Multi-line input methods ===
+
+    pub fn insert_newline(&mut self) {
+        self.input.insert_newline();
+        self.mark_dirty();
+    }
+
+    pub fn move_cursor_up(&mut self) {
+        self.input.move_cursor(tui_textarea::CursorMove::Up);
+        self.mark_dirty();
+    }
+
+    pub fn move_cursor_down(&mut self) {
+        self.input.move_cursor(tui_textarea::CursorMove::Down);
+        self.mark_dirty();
+    }
+
+    pub fn move_cursor_word_left(&mut self) {
+        self.input.move_cursor(tui_textarea::CursorMove::WordBack);
+        self.mark_dirty();
+    }
+
+    pub fn move_cursor_word_right(&mut self) {
+        self.input.move_cursor(tui_textarea::CursorMove::WordForward);
+        self.mark_dirty();
+    }
+
+    pub fn move_cursor_absolute_start(&mut self) {
+        self.input.move_cursor(tui_textarea::CursorMove::Top);
+        self.mark_dirty();
+    }
+
+    pub fn move_cursor_absolute_end(&mut self) {
+        self.input.move_cursor(tui_textarea::CursorMove::Bottom);
+        self.mark_dirty();
+    }
+
+    pub fn move_cursor_to_input_top(&mut self) {
+        self.input.move_cursor(tui_textarea::CursorMove::Top);
+        self.mark_dirty();
+    }
+
+    pub fn move_cursor_to_input_bottom(&mut self) {
+        self.input.move_cursor(tui_textarea::CursorMove::Bottom);
+        self.mark_dirty();
+    }
+
+    pub fn scroll_input_viewport_up(&mut self) {
+        // TODO: Investigate if TextArea has scroll() method or if auto-handled
+        // For now, just mark dirty in case TextArea needs repaint
+        self.mark_dirty();
+    }
+
+    pub fn scroll_input_viewport_down(&mut self) {
+        // TODO: Same as above
+        self.mark_dirty();
+    }
+
+    /// Clear input without submitting (Ctrl+U behavior)
+    pub fn clear_input(&mut self) {
+        // Reset TextArea - recreate with same styling
+        let mut new_input = TextArea::default();
+        new_input.set_block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(RUST_ORANGE))
+                .title(vec![
+                    Span::styled("✏️  ", Style::default().fg(RUST_ORANGE)),
+                    Span::styled(
+                        "Input",
+                        Style::default()
+                            .fg(RUST_ORANGE)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                ]),
+        );
+        // Remove underline from cursor line (default is underlined)
+        new_input.set_cursor_line_style(Style::default());
+        self.input = new_input;
         self.mark_dirty();
     }
 
     pub fn submit_input(&mut self) -> Option<String> {
-        if self.input.trim().is_empty() {
+        let text = self.input.lines().join("\n");
+        if text.trim().is_empty() {
             return None;
         }
-        let input = std::mem::take(&mut self.input);
-        self.cursor_pos = 0;
-        self.mark_dirty();
-        Some(input)
+
+        // Clear input and return text
+        self.clear_input();
+        Some(text)
     }
 
     pub fn set_input(&mut self, text: &str) {
-        self.input = text.to_string();
+        // Clear existing and set new text
+        let mut new_input = TextArea::default();
+        new_input.set_block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(RUST_ORANGE))
+                .title(vec![
+                    Span::styled("✏️  ", Style::default().fg(RUST_ORANGE)),
+                    Span::styled(
+                        "Input",
+                        Style::default()
+                            .fg(RUST_ORANGE)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                ]),
+        );
+        // Remove underline from cursor line (default is underlined)
+        new_input.set_cursor_line_style(Style::default());
+
+        // Insert the text line by line
+        for (i, line) in text.lines().enumerate() {
+            if i > 0 {
+                new_input.insert_newline();
+            }
+            for ch in line.chars() {
+                new_input.insert_char(ch);
+            }
+        }
+
+        self.input = new_input;
         self.mark_dirty();
     }
 
@@ -514,6 +631,7 @@ impl App {
     /// This allows scroll operations to clamp properly
     pub fn update_max_scroll(&mut self, max_scroll: usize) {
         self.max_scroll = max_scroll;
+        self.mark_dirty(); // Trigger UI refresh when max_scroll changes
     }
 
     /// Scroll to bottom only if already following bottom (preserves manual scroll position)
@@ -750,10 +868,10 @@ mod tests {
         app.insert_char('b');
         app.insert_char('c');
 
-        assert_eq!(app.cursor_pos(), 3);
+        assert_eq!(app.cursor_pos().1, 3);
 
         app.move_cursor_left();
-        assert_eq!(app.cursor_pos(), 2);
+        assert_eq!(app.cursor_pos().1, 2);
 
         app.delete_char();
         assert_eq!(app.input(), "ab");
@@ -797,7 +915,7 @@ mod tests {
         let input = app.submit_input();
         assert_eq!(input, Some("hi".to_string()));
         assert_eq!(app.input(), "");
-        assert_eq!(app.cursor_pos(), 0);
+        assert_eq!(app.cursor_pos(), (0, 0));
     }
 
     #[test]

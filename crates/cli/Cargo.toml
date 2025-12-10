@@ -35,10 +35,11 @@ http = "1.3"
 
 # Interactive mode
 rustyline = "13.0"
-ratatui = "0.29"
+ratatui = "0.28"
 crossterm = "0.28"
 tui-input = "0.11"
 unicode-segmentation = "1.12"
+unicode-width = "0.1"
 tui-scrollview = "0.4"
 tui-textarea = "0.6"
 

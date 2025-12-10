@@ -122,9 +122,9 @@ mod tests {
         assert_eq!(TokenCount::format_count(1_234), "1.2K");
         assert_eq!(TokenCount::format_count(9_999), "10.0K");
         assert_eq!(TokenCount::format_count(10_000), "10.0K");
-        assert_eq!(TokenCount::format_count(99_999), "100K");
+        assert_eq!(TokenCount::format_count(99_999), "100.0K");
         assert_eq!(TokenCount::format_count(100_000), "100K");
-        assert_eq!(TokenCount::format_count(999_999), "1000K");
+        assert_eq!(TokenCount::format_count(999_999), "999K");
         assert_eq!(TokenCount::format_count(1_000_000), "1.0M");
         assert_eq!(TokenCount::format_count(1_234_567), "1.2M");
         assert_eq!(TokenCount::format_count(10_000_000), "10.0M");

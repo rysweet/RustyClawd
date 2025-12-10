@@ -2,6 +2,8 @@
 
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
+use crate::tui::app::App;
+
 /// Layout configuration based on visible panels
 pub struct LayoutConfig {
     /// Whether debug panel is visible
@@ -72,18 +74,27 @@ impl LayoutOrganizer {
         }
     }
 
-    /// Split main area into messages + input
-    pub fn split_main(main_area: Rect) -> (Rect, Rect) {
+    /// Split main area into messages + input (with dynamic input height)
+    pub fn split_main(main_area: Rect, app: &App) -> (Rect, Rect) {
+        let input_height = calculate_input_height(app);
+
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(0),     // Messages
-                Constraint::Length(3),  // Input
+                Constraint::Min(0),                 // Messages
+                Constraint::Length(input_height),   // Input (dynamic: 1-5 lines + 2 borders)
             ])
             .split(main_area);
 
         (chunks[0], chunks[1])
     }
+}
+
+/// Calculate dynamic input height based on line count (1-5 lines + 2 borders = 3-7 total)
+fn calculate_input_height(app: &App) -> u16 {
+    let line_count = app.input_line_count();
+    // Min 3 (1 line + 2 borders), Max 7 (5 lines + 2 borders)
+    (line_count as u16 + 2).clamp(3, 7)
 }
 
 #[cfg(test)]
@@ -120,9 +131,14 @@ mod tests {
 
     #[test]
     fn test_split_main() {
-        let main_area = Rect::new(0, 0, 80, 20);
-        let (messages, input) = LayoutOrganizer::split_main(main_area);
+        use crate::permission_mode::PermissionMode;
 
+        let main_area = Rect::new(0, 0, 80, 20);
+        let app = App::new(PermissionMode::default());
+
+        let (messages, input) = LayoutOrganizer::split_main(main_area, &app);
+
+        // With empty input (1 line), input height should be 3 (1 line + 2 borders)
         assert_eq!(input.height, 3);
         assert_eq!(messages.height, 17); // 20 - 3
     }

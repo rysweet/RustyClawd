@@ -7,6 +7,7 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
     Frame,
 };
+use unicode_width::UnicodeWidthStr;
 
 use crate::permission_mode::PermissionMode;
 use crate::tui::app::App;
@@ -19,6 +20,15 @@ const RUST_ORANGE: Color = Color::Rgb(222, 165, 132);
 /// Main render function - pure function, no state mutation
 /// Returns max_scroll value for app state update
 pub fn render(frame: &mut Frame, app: &App) -> usize {
+    // Calculate throbber frame ONCE per render to ensure synchronization
+    // across all UI components (status bar, streaming indicators, etc.)
+    const BRAILLE_FRAMES: [char; 8] = ['⠁', '⠂', '⠄', '⡀', '⢀', '⠠', '⠐', '⠈'];
+    let frame_idx = (std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() / 100) as usize % BRAILLE_FRAMES.len();
+    let throbber = BRAILLE_FRAMES[frame_idx];
+
     // Build layout configuration from app state
     let config = LayoutConfig {
         debug_visible: app.debug_visible(),
@@ -28,14 +38,14 @@ pub fn render(frame: &mut Frame, app: &App) -> usize {
     // Organize layout dynamically
     let layout = LayoutOrganizer::organize(frame.area(), &config);
 
-    // Render status bar
-    render_status_bar(frame, layout.status, app);
+    // Render status bar (pass throbber for synchronization)
+    render_status_bar(frame, layout.status, app, throbber);
 
-    // Split main area into messages + input
-    let (messages_area, input_area) = LayoutOrganizer::split_main(layout.main);
+    // Split main area into messages + input (dynamic input height based on line count)
+    let (messages_area, input_area) = LayoutOrganizer::split_main(layout.main, app);
 
-    // Render main content
-    let max_scroll = render_messages(frame, messages_area, app);
+    // Render main content (pass throbber for synchronization)
+    let max_scroll = render_messages(frame, messages_area, app, throbber);
     render_input(frame, input_area, app);
 
     // Render autocomplete popup if active (after input so it overlays)
@@ -57,16 +67,8 @@ pub fn render(frame: &mut Frame, app: &App) -> usize {
     max_scroll
 }
 
-fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
-    // BRAILLE_SIX throbber pattern (Unicode Braille)
-    const BRAILLE_FRAMES: &[&str] = &["⠁", "⠂", "⠄", "⡀", "⢀", "⠠", "⠐", "⠈"];
-
-    // Use system time to rotate throbber (simple, stateless)
-    let frame_idx = (std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() / 100) as usize % BRAILLE_FRAMES.len();
-    let throbber = BRAILLE_FRAMES[frame_idx];
+fn render_status_bar(frame: &mut Frame, area: Rect, app: &App, throbber: char) {
+    // Throbber is now passed in from render() to ensure synchronization
 
     let mode_text = format!(" {} ", app.permission_mode().status_indicator());
 
@@ -120,7 +122,7 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
         ]
     };
 
-    // Add debug indicator and menu hint on the right
+    // Add debug indicator, follow-bottom indicator, and menu hint on the right
     let debug_status = if app.debug_visible() { "Debug:ON" } else { "Debug:OFF" };
     let debug_style = if app.debug_visible() {
         Style::default().fg(Color::Green)
@@ -128,31 +130,32 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
         Style::default().fg(Color::Gray)
     };
 
-    // Calculate padding to right-align
-    let left_width: usize = status_spans.iter().map(|s| s.content.len()).sum();
-    let right_text = format!(" | {} | F1:Menu ", debug_status);
-    let padding_width = area.width.saturating_sub((left_width + right_text.len()) as u16);
+    // Follow-bottom indicator: show "📌 Pinned" when user has scrolled up (NOT following bottom)
+    let follow_indicator = if !app.follow_bottom() {
+        " | 📌 Pinned"
+    } else {
+        ""
+    };
+
+    // Calculate padding to right-align - Unicode display width
+    let left_width: usize = status_spans.iter().map(|s| s.content.width()).sum();
+    let right_text = format!(" | {}{} | F1:Menu ", debug_status, follow_indicator);
+    let padding_width = area.width.saturating_sub((left_width + right_text.width()) as u16);
 
     status_spans.push(Span::raw(" ".repeat(padding_width as usize)));
     status_spans.push(Span::raw(" | "));
     status_spans.push(Span::styled(debug_status, debug_style));
+    if !app.follow_bottom() {
+        status_spans.push(Span::styled(
+            " | 📌 Pinned",
+            Style::default().fg(Color::Yellow),
+        ));
+    }
     status_spans.push(Span::styled(" | F1:Menu ", Style::default().fg(Color::Gray)));
 
     let status = Paragraph::new(Line::from(status_spans)).style(Style::default().bg(Color::Black));
 
     frame.render_widget(status, area);
-}
-
-/// Generate animated throbber character (Braille patterns)
-fn generate_throbber() -> char {
-    const BRAILLE_FRAMES: [char; 8] = ['⠁', '⠂', '⠄', '⡀', '⢀', '⠠', '⠐', '⠈'];
-
-    let frame_idx = (std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() / 100) as usize % BRAILLE_FRAMES.len();
-
-    BRAILLE_FRAMES[frame_idx]
 }
 
 /// Format a tool call for display (compact JSON parameters)
@@ -194,7 +197,7 @@ fn truncate_output(output: &str, max_chars: usize) -> String {
     }
 }
 
-fn render_messages(frame: &mut Frame, area: Rect, app: &App) -> usize {
+fn render_messages(frame: &mut Frame, area: Rect, app: &App, throbber: char) -> usize {
     let messages = app.messages();
 
     let block = Block::default()
@@ -303,8 +306,7 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App) -> usize {
                         }
                     } else {
                         // Tool still running - show throbber + timer
-                        // Throbber is colored, rest is dark grey
-                        let throbber = generate_throbber();
+                        // Throbber is passed in from render() to ensure synchronization
                         let header_text = format!(
                             " {} {} ({}s)",
                             tool_state.tool_name,
@@ -377,8 +379,8 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App) -> usize {
         // Count actual rendered lines (accounting for wrapping)
         let mut content_height = 0;
         for line in &text_lines {
-            // Calculate how many screen lines this Line will take when wrapped
-            let line_width: usize = line.spans.iter().map(|span| span.content.len()).sum();
+            // Calculate how many screen lines this Line will take when wrapped - Unicode display width
+            let line_width: usize = line.spans.iter().map(|span| span.content.width()).sum();
             if line_width == 0 {
                 content_height += 1; // Empty line still takes 1 line
             } else {
@@ -441,55 +443,39 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App) -> usize {
     }
 }
 
-/// Get max scroll for messages (used by compat layer to update app state)
-pub fn get_max_scroll(app: &App, viewport_height: usize) -> usize {
-    let message_count = app.messages().len();
-    if message_count == 0 {
-        return 0;
-    }
-
-    // Approximate line count (this is a rough estimate)
-    // Each message has: 1 header + content lines + 1 separator
-    let mut total_lines = 0;
-    for msg in app.messages() {
-        total_lines += 1; // header
-        total_lines += msg.content.lines().count().max(1); // content
-        total_lines += 1; // separator
-    }
-
-    total_lines.saturating_sub(viewport_height)
-}
-
 fn render_input(frame: &mut Frame, area: Rect, app: &App) {
-    let input = app.input();
-    let cursor_pos = app.cursor_pos();
+    // CORRECT: Render TextArea directly with immutable borrow
+    // TextArea implements Widget trait
+    // Styling was configured once during initialization (App::new)
+    frame.render_widget(&app.input, area);
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(RUST_ORANGE))
-        .title(vec![
-            Span::styled("✏️  ", Style::default().fg(RUST_ORANGE)),
-            Span::styled(
-                "Input",
-                Style::default()
-                    .fg(RUST_ORANGE)
-                    .add_modifier(Modifier::BOLD),
-            ),
-        ]);
+    // Render scrollbar only when content exceeds viewport (> 5 lines)
+    let line_count = app.input_line_count();
+    if line_count > 5 {
+        // Calculate scrollbar state
+        let content_lines = line_count;
+        let viewport_lines = 5; // Max visible lines
+        let cursor_pos = app.cursor_pos().0; // Row position
 
-    let inner = block.inner(area);
+        let mut scrollbar_state = ScrollbarState::new(content_lines.saturating_sub(viewport_lines))
+            .position(cursor_pos.saturating_sub(viewport_lines / 2));
 
-    // Render block first
-    frame.render_widget(block, area);
+        // Render scrollbar on right edge of input area (inside the border)
+        let scrollbar = Scrollbar::default()
+            .orientation(ScrollbarOrientation::VerticalRight)
+            .style(Style::default().fg(RUST_ORANGE))
+            .begin_symbol(Some("▲"))
+            .end_symbol(Some("▼"));
 
-    // Simple input rendering - use terminal default colors
-    let paragraph = Paragraph::new(input);
+        frame.render_stateful_widget(
+            scrollbar,
+            area.inner(ratatui::layout::Margin { vertical: 1, horizontal: 1 }),
+            &mut scrollbar_state,
+        );
+    }
 
-    frame.render_widget(paragraph, inner);
-
-    // Set cursor position
-    let cursor_char_pos = input[..cursor_pos].chars().count();
-    frame.set_cursor_position((inner.x + cursor_char_pos as u16, inner.y));
+    // Cursor is handled automatically by TextArea
+    // No manual cursor positioning needed
 }
 
 fn render_autocomplete(frame: &mut Frame, input_area: Rect, app: &App) {
@@ -517,18 +503,14 @@ fn render_autocomplete(frame: &mut Frame, input_area: Rect, app: &App) {
         let total_items = autocomplete.items.len();
 
         // Calculate which items to show (scrolling window)
+        // Goal: Keep selected item in visible window [scroll_offset, scroll_offset + max_visible_items)
         let scroll_offset = if total_items <= max_visible_items {
             // All items fit, no scrolling needed
             0
-        } else if selected < max_visible_items / 2 {
-            // Near top, show from beginning
-            0
-        } else if selected >= total_items - max_visible_items / 2 {
-            // Near bottom, show last max_visible_items
-            total_items.saturating_sub(max_visible_items)
         } else {
-            // In middle, center the selection
+            // Center selection, clamped to valid range [0, total_items - max_visible_items]
             selected.saturating_sub(max_visible_items / 2)
+                .min(total_items.saturating_sub(max_visible_items))
         };
 
         let visible_end = (scroll_offset + max_visible_items).min(total_items);
@@ -630,18 +612,14 @@ fn render_memory_modal(frame: &mut Frame, input_area: Rect, app: &App) {
         let total_items = modal.destinations.len();
 
         // Calculate which items to show (scrolling window)
+        // Goal: Keep selected item in visible window [scroll_offset, scroll_offset + max_visible_items)
         let scroll_offset = if total_items <= max_visible_items {
             // All items fit, no scrolling needed
             0
-        } else if selected < max_visible_items / 2 {
-            // Near top, show from beginning
-            0
-        } else if selected >= total_items - max_visible_items / 2 {
-            // Near bottom, show last max_visible_items
-            total_items.saturating_sub(max_visible_items)
         } else {
-            // In middle, center the selection
+            // Center selection, clamped to valid range [0, total_items - max_visible_items]
             selected.saturating_sub(max_visible_items / 2)
+                .min(total_items.saturating_sub(max_visible_items))
         };
 
         let visible_end = (scroll_offset + max_visible_items).min(total_items);
@@ -722,14 +700,14 @@ fn build_memory_list_item(
     };
     spans.push(Span::styled(dest.name.clone(), name_style));
 
-    // Calculate used width (sum of all span widths)
+    // Calculate used width (sum of all span widths) - Unicode display width
     let left_width: usize = spans.iter()
-        .map(|s| s.content.chars().count()) // Unicode-safe width
+        .map(|s| s.content.width())
         .sum();
 
     // Get description/path for right side
     let right_text = dest.description.as_deref().unwrap_or("");
-    let right_width = right_text.chars().count();
+    let right_width = right_text.width();
 
     // Calculate padding (ensure at least 2 spaces between)
     let min_spacing = 2;
@@ -791,8 +769,7 @@ fn render_debug_panel(frame: &mut Frame, area: Rect, app: &App) {
 
     let text = Text::from(text_lines);
 
-    // Auto-scroll to bottom to show latest debug messages
-    // Show from top (scroll = 0) to let content fill naturally
+    // Show from top (scroll = 0) to let content fill naturally from oldest to newest
     let scroll_offset = 0;
 
     let paragraph = Paragraph::new(text)

@@ -1,7 +1,7 @@
 //! Event handling for TUI
 
 use anyhow::Result;
-use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use std::time::Duration;
 
 use crate::tui::app::App;
@@ -72,6 +72,22 @@ fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<EventResult> {
         return Ok(EventResult::Continue);
     }
 
+
+    // Special handling: backslash-escaped Enter inserts newline
+    // Check if Enter key pressed WITHOUT Shift modifier AND input ends with backslash
+    if matches!(key.code, KeyCode::Enter)
+        && !key.modifiers.contains(KeyModifiers::SHIFT)
+        && !app.is_streaming()
+    {
+        let input = app.input();
+        if input.ends_with('\\') {
+            // Remove trailing backslash and insert newline
+            app.backspace();
+            app.insert_newline();
+            return Ok(EventResult::Continue);
+        }
+    }
+
     // Get keybindings configuration
     let bindings = KeyBindings::default();
 
@@ -117,21 +133,27 @@ fn handle_key_action(app: &mut App, action: &KeyAction) -> Result<EventResult> {
             }
         }
         KeyAction::ScrollUp(n) => {
-            // Priority: memory modal > autocomplete > scrolling
+            // Priority: memory modal > autocomplete > multi-line input > message scrolling
             if app.memory_modal_active() {
                 app.memory_modal_prev();
             } else if app.autocomplete_active() {
                 app.autocomplete_prev();
+            } else if !app.is_streaming() && app.has_multi_line_input() {
+                // NEW: Move cursor up in multi-line input
+                app.move_cursor_up();
             } else {
                 app.scroll_up(*n);
             }
         }
         KeyAction::ScrollDown(n) => {
-            // Priority: memory modal > autocomplete > scrolling
+            // Priority: memory modal > autocomplete > multi-line input > message scrolling
             if app.memory_modal_active() {
                 app.memory_modal_next();
             } else if app.autocomplete_active() {
                 app.autocomplete_next();
+            } else if !app.is_streaming() && app.has_multi_line_input() {
+                // NEW: Move cursor down in multi-line input
+                app.move_cursor_down();
             } else {
                 app.scroll_down(*n);
             }
@@ -151,7 +173,7 @@ fn handle_key_action(app: &mut App, action: &KeyAction) -> Result<EventResult> {
         }
         KeyAction::ClearLine => {
             if !app.is_streaming() {
-                app.submit_input();
+                app.clear_input();
             }
         }
         KeyAction::Submit => {
@@ -203,6 +225,52 @@ fn handle_key_action(app: &mut App, action: &KeyAction) -> Result<EventResult> {
         KeyAction::CursorRight => {
             if !app.is_streaming() {
                 app.move_cursor_right();
+            }
+        }
+        // === NEW: Multi-line input navigation ===
+        KeyAction::CursorWordLeft => {
+            if !app.is_streaming() {
+                app.move_cursor_word_left();
+            }
+        }
+        KeyAction::CursorWordRight => {
+            if !app.is_streaming() {
+                app.move_cursor_word_right();
+            }
+        }
+        KeyAction::CursorAbsoluteStart => {
+            if !app.is_streaming() {
+                app.move_cursor_absolute_start();
+            }
+        }
+        KeyAction::CursorAbsoluteEnd => {
+            if !app.is_streaming() {
+                app.move_cursor_absolute_end();
+            }
+        }
+        KeyAction::InputPageUp => {
+            if !app.is_streaming() {
+                app.move_cursor_to_input_top();
+            }
+        }
+        KeyAction::InputPageDown => {
+            if !app.is_streaming() {
+                app.move_cursor_to_input_bottom();
+            }
+        }
+        KeyAction::InputScrollUp => {
+            if !app.is_streaming() {
+                app.scroll_input_viewport_up();
+            }
+        }
+        KeyAction::InputScrollDown => {
+            if !app.is_streaming() {
+                app.scroll_input_viewport_down();
+            }
+        }
+        KeyAction::InsertNewline => {
+            if !app.is_streaming() {
+                app.insert_newline();
             }
         }
     }
@@ -279,25 +347,25 @@ mod tests {
         app.insert_char('b');
         app.insert_char('c');
 
-        // Left
+        // Left - check column position (second element of tuple)
         let event = make_key_event(KeyCode::Left, KeyModifiers::NONE);
         handle_event(&mut app, event).unwrap();
-        assert_eq!(app.cursor_pos(), 2);
+        assert_eq!(app.cursor_pos().1, 2);
 
         // Right
         let event = make_key_event(KeyCode::Right, KeyModifiers::NONE);
         handle_event(&mut app, event).unwrap();
-        assert_eq!(app.cursor_pos(), 3);
+        assert_eq!(app.cursor_pos().1, 3);
 
         // Home
         let event = make_key_event(KeyCode::Home, KeyModifiers::NONE);
         handle_event(&mut app, event).unwrap();
-        assert_eq!(app.cursor_pos(), 0);
+        assert_eq!(app.cursor_pos().1, 0);
 
         // End
         let event = make_key_event(KeyCode::End, KeyModifiers::NONE);
         handle_event(&mut app, event).unwrap();
-        assert_eq!(app.cursor_pos(), 3);
+        assert_eq!(app.cursor_pos().1, 3);
     }
 
     #[test]
@@ -311,5 +379,61 @@ mod tests {
 
         // Input should still be empty
         assert_eq!(app.input(), "");
+    }
+
+    #[test]
+    fn test_shift_enter_inserts_newline() {
+        let mut app = App::new(PermissionMode::default());
+
+        // Type "line1"
+        for c in "line1".chars() {
+            app.insert_char(c);
+        }
+        assert_eq!(app.input(), "line1");
+
+        // Press Shift+Enter
+        let event = Event::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::SHIFT));
+        let result = handle_event(&mut app, event).unwrap();
+
+        // Should continue (not submit)
+        assert_eq!(result, EventResult::Continue);
+
+        // Type "line2"
+        for c in "line2".chars() {
+            app.insert_char(c);
+        }
+
+        // Input should be multi-line
+        assert_eq!(app.input(), "line1\nline2");
+        assert_eq!(app.input_line_count(), 2);
+    }
+
+    #[test]
+    fn test_backslash_escape_newline() {
+        let mut app = App::new(PermissionMode::default());
+
+        // Type "line1\"
+        for c in "line1\\".chars() {
+            app.insert_char(c);
+        }
+        assert_eq!(app.input(), "line1\\");
+
+        // Press Enter (without Shift)
+        let event = Event::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        let result = handle_event(&mut app, event).unwrap();
+
+        // Should continue (not submit) and insert newline
+        assert_eq!(result, EventResult::Continue);
+
+        // Backslash should be removed, newline inserted
+        assert_eq!(app.input(), "line1\n");
+
+        // Type "line2"
+        for c in "line2".chars() {
+            app.insert_char(c);
+        }
+
+        // Input should be multi-line
+        assert_eq!(app.input(), "line1\nline2");
     }
 }

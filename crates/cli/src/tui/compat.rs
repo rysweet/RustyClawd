@@ -162,13 +162,24 @@ impl TuiState {
     /// Returns Some(input) if user submitted, None otherwise
     pub fn handle_event(&mut self, event: crossterm::event::Event) -> Result<Option<String>> {
         use super::event::{handle_event, EventResult};
+        use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
+
+        // Check if this is a navigation key event before processing
+        let is_navigation_key = matches!(event,
+            crossterm::event::Event::Key(KeyEvent {
+                code: KeyCode::Up | KeyCode::Down | KeyCode::PageUp | KeyCode::PageDown | KeyCode::Home | KeyCode::End,
+                kind: KeyEventKind::Press,
+                ..
+            })
+        );
 
         let result = handle_event(&mut self.app, event)?;
 
-        // Only update autocomplete/memory modal if input actually changed
-        // This prevents resetting selection when navigating with arrow keys
+        // Only update autocomplete/memory modal if:
+        // 1. This was NOT a navigation key (prevents resetting selection during navigation)
+        // 2. AND input actually changed (prevents unnecessary updates)
         let current_input = self.app.input().to_string();
-        if current_input != self.last_input {
+        if !is_navigation_key && current_input != self.last_input {
             self.last_input = current_input;
             self.update_autocomplete_if_needed();
             self.update_memory_modal_if_needed();

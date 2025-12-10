@@ -38,6 +38,26 @@ pub enum KeyAction {
     CursorLeft,
     /// Move cursor right
     CursorRight,
+
+    // === Multi-line input navigation ===
+    /// Move cursor left by word
+    CursorWordLeft,
+    /// Move cursor right by word
+    CursorWordRight,
+    /// Jump to absolute start of all input text (Ctrl+Home)
+    CursorAbsoluteStart,
+    /// Jump to absolute end of all input text (Ctrl+End)
+    CursorAbsoluteEnd,
+    /// Jump to top of input area (PageUp)
+    InputPageUp,
+    /// Jump to bottom of input area (PageDown)
+    InputPageDown,
+    /// Scroll input viewport up (Ctrl+Up when > 5 lines)
+    InputScrollUp,
+    /// Scroll input viewport down (Ctrl+Down when > 5 lines)
+    InputScrollDown,
+    /// Insert newline (Shift+Enter)
+    InsertNewline,
 }
 
 /// A keybinding maps key events to actions
@@ -98,11 +118,19 @@ impl KeyPattern {
         }
     }
 
-    /// Convenience constructor for Ctrl+<keycode>
+    /// Convenience constructor for Ctrl+<key>
     pub fn ctrl(code: KeyCodePattern) -> Self {
         Self {
             code,
             modifiers: KeyModifiers::CONTROL,
+        }
+    }
+
+    /// Convenience constructor for Shift+<key>
+    pub fn shift(code: KeyCodePattern) -> Self {
+        Self {
+            code,
+            modifiers: KeyModifiers::SHIFT,
         }
     }
 
@@ -190,20 +218,16 @@ impl KeyBindings {
                 action: KeyAction::ScrollDown(1),
                 description: "Scroll down 1 line".to_string(),
             },
+            // PageUp/PageDown: Jump to input top/bottom (was scroll, now input navigation)
             KeyBinding {
                 key: KeyPattern::plain(KeyCodePattern::PageUp),
-                action: KeyAction::ScrollUp(10),
-                description: "Scroll up 10 lines".to_string(),
+                action: KeyAction::InputPageUp,
+                description: "Jump to top of input".to_string(),
             },
             KeyBinding {
                 key: KeyPattern::plain(KeyCodePattern::PageDown),
-                action: KeyAction::ScrollDown(10),
-                description: "Scroll down 10 lines".to_string(),
-            },
-            KeyBinding {
-                key: KeyPattern::ctrl(KeyCodePattern::End),
-                action: KeyAction::JumpToBottom,
-                description: "Jump to bottom (force follow mode)".to_string(),
+                action: KeyAction::InputPageDown,
+                description: "Jump to bottom of input".to_string(),
             },
             // Cursor movement (Emacs-style)
             KeyBinding {
@@ -221,6 +245,26 @@ impl KeyBindings {
                 key: KeyPattern::ctrl_char('u'),
                 action: KeyAction::ClearLine,
                 description: "Clear line".to_string(),
+            },
+            // Newline insertion (MUST come before plain Enter to match first)
+            // Note: Many terminals strip SHIFT from Enter, so we provide Alt+Enter as fallback
+            KeyBinding {
+                key: KeyPattern::shift(KeyCodePattern::Enter),
+                action: KeyAction::InsertNewline,
+                description: "Insert newline (Shift+Enter)".to_string(),
+            },
+            KeyBinding {
+                key: KeyPattern {
+                    code: KeyCodePattern::Enter,
+                    modifiers: KeyModifiers::ALT,
+                },
+                action: KeyAction::InsertNewline,
+                description: "Insert newline (Alt+Enter)".to_string(),
+            },
+            KeyBinding {
+                key: KeyPattern::ctrl_char('j'),
+                action: KeyAction::InsertNewline,
+                description: "Insert newline (Ctrl+J)".to_string(),
             },
             // Input submission
             KeyBinding {
@@ -258,6 +302,40 @@ impl KeyBindings {
                 key: KeyPattern::plain(KeyCodePattern::End),
                 action: KeyAction::CursorEnd,
                 description: "Move cursor to end".to_string(),
+            },
+            // === Multi-line input navigation ===
+            // Word navigation
+            KeyBinding {
+                key: KeyPattern::ctrl(KeyCodePattern::Left),
+                action: KeyAction::CursorWordLeft,
+                description: "Move cursor left by word".to_string(),
+            },
+            KeyBinding {
+                key: KeyPattern::ctrl(KeyCodePattern::Right),
+                action: KeyAction::CursorWordRight,
+                description: "Move cursor right by word".to_string(),
+            },
+            // Absolute navigation
+            KeyBinding {
+                key: KeyPattern::ctrl(KeyCodePattern::Home),
+                action: KeyAction::CursorAbsoluteStart,
+                description: "Jump to start of all input".to_string(),
+            },
+            KeyBinding {
+                key: KeyPattern::ctrl(KeyCodePattern::End),
+                action: KeyAction::CursorAbsoluteEnd,
+                description: "Jump to end of all input".to_string(),
+            },
+            // Viewport scrolling (when input > 5 lines)
+            KeyBinding {
+                key: KeyPattern::ctrl(KeyCodePattern::Up),
+                action: KeyAction::InputScrollUp,
+                description: "Scroll input viewport up".to_string(),
+            },
+            KeyBinding {
+                key: KeyPattern::ctrl(KeyCodePattern::Down),
+                action: KeyAction::InputScrollDown,
+                description: "Scroll input viewport down".to_string(),
             },
         ];
 

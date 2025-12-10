@@ -24,6 +24,12 @@ pub const DEFAULT_COMMANDS_DIR: &str = ".claude/commands";
 /// Maximum expanded prompt character budget
 pub const MAX_EXPANDED_CHARS: usize = 15_000;
 
+/// Maximum recursion depth for command discovery
+pub const MAX_RECURSION_DEPTH: usize = 3;
+
+/// Namespace separator for nested commands
+pub const NAMESPACE_SEPARATOR: char = ':';
+
 /// Command execution result
 #[derive(Debug, Clone)]
 pub struct CommandResult {
