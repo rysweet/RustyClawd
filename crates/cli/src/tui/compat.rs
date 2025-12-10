@@ -30,6 +30,9 @@ pub struct TuiState {
 
     /// Track if cleanup has been done (for idempotency)
     cleaned_up: bool,
+
+    /// Last input value (to detect changes for autocomplete updates)
+    last_input: String,
 }
 
 impl TuiState {
@@ -54,6 +57,7 @@ impl TuiState {
             terminal,
             completion_callback: None,
             cleaned_up: false,
+            last_input: String::new(),
         })
     }
 
@@ -154,13 +158,67 @@ impl TuiState {
     pub fn handle_event(&mut self, event: crossterm::event::Event) -> Result<Option<String>> {
         use super::event::{handle_event, EventResult};
 
-        match handle_event(&mut self.app, event)? {
+        let result = handle_event(&mut self.app, event)?;
+
+        // Only update autocomplete if input actually changed
+        // This prevents resetting selection when navigating with arrow keys
+        let current_input = self.app.input().to_string();
+        if current_input != self.last_input {
+            self.last_input = current_input;
+            self.update_autocomplete_if_needed();
+        }
+
+        match result {
             EventResult::Continue => Ok(None),
             EventResult::Submit(input) => Ok(Some(input)),
             EventResult::Exit => {
                 self.app.exit();
                 Ok(None)
             }
+        }
+    }
+
+    /// Update autocomplete based on current input
+    /// Called after any input change to refresh slash command completions
+    fn update_autocomplete_if_needed(&mut self) {
+        let input = self.app.input();
+
+        // Only show autocomplete for slash commands
+        if !input.starts_with('/') {
+            if self.app.autocomplete_active() {
+                self.app.clear_autocomplete();
+            }
+            return;
+        }
+
+        // Get completions from callback if available
+        if let Some(ref callback) = self.completion_callback {
+            // Strip the leading '/' before calling completion callback
+            // The registry expects command names without the slash prefix
+            let prefix = &input[1..]; // Skip the '/'
+            let completions = callback(prefix);
+
+            // Convert to CompletionItem format
+            let items: Vec<super::CompletionItem> = completions
+                .into_iter()
+                .map(|(command, desc_or_hint)| super::CompletionItem {
+                    command,
+                    description: desc_or_hint,
+                    argument_hint: None,
+                })
+                .collect();
+
+            // If we have exactly one match and it equals our input (minus the /),
+            // don't show autocomplete - user has completed their selection
+            if items.len() == 1 && items[0].command == prefix {
+                if self.app.autocomplete_active() {
+                    self.app.clear_autocomplete();
+                }
+                return;
+            }
+
+            // Activate autocomplete with filtered items
+            self.app.activate_autocomplete(items);
         }
     }
 
@@ -211,6 +269,21 @@ impl TuiState {
     /// Get name of active tool (for status bar compatibility)
     pub fn active_tool_name(&self) -> Option<String> {
         self.app.active_tool_name()
+    }
+
+    /// Activate autocomplete with given items
+    pub fn activate_autocomplete(&mut self, items: Vec<super::CompletionItem>) {
+        self.app.activate_autocomplete(items);
+    }
+
+    /// Clear autocomplete
+    pub fn clear_autocomplete(&mut self) {
+        self.app.clear_autocomplete();
+    }
+
+    /// Check if autocomplete is active
+    pub fn autocomplete_active(&self) -> bool {
+        self.app.autocomplete_active()
     }
 
     /// Cleanup terminal (idempotent - safe to call multiple times)

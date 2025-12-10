@@ -38,6 +38,11 @@ pub fn render(frame: &mut Frame, app: &App) -> usize {
     let max_scroll = render_messages(frame, messages_area, app);
     render_input(frame, input_area, app);
 
+    // Render autocomplete popup if active (after input so it overlays)
+    if app.autocomplete_active() {
+        render_autocomplete(frame, input_area, app);
+    }
+
     // Render debug panel if visible
     if let Some(debug_area) = layout.debug {
         render_debug_panel(frame, debug_area, app);
@@ -480,6 +485,110 @@ fn render_input(frame: &mut Frame, area: Rect, app: &App) {
     // Set cursor position
     let cursor_char_pos = input[..cursor_pos].chars().count();
     frame.set_cursor_position((inner.x + cursor_char_pos as u16, inner.y));
+}
+
+fn render_autocomplete(frame: &mut Frame, input_area: Rect, app: &App) {
+    if let Some(autocomplete) = app.autocomplete() {
+        // Calculate popup area - above input, max 10 items visible
+        let max_visible_items = 10;
+        let popup_height = (autocomplete.items.len().min(max_visible_items) + 2) as u16; // +2 for borders
+        let popup_width = 60; // Fixed width for now
+
+        // Position above input area
+        if input_area.y < popup_height {
+            // Not enough space above, skip rendering
+            return;
+        }
+
+        let popup_area = Rect {
+            x: input_area.x,
+            y: input_area.y.saturating_sub(popup_height),
+            width: popup_width.min(input_area.width),
+            height: popup_height,
+        };
+
+        // Calculate scroll offset to keep selected item visible
+        let selected = autocomplete.selected;
+        let total_items = autocomplete.items.len();
+
+        // Calculate which items to show (scrolling window)
+        let scroll_offset = if total_items <= max_visible_items {
+            // All items fit, no scrolling needed
+            0
+        } else if selected < max_visible_items / 2 {
+            // Near top, show from beginning
+            0
+        } else if selected >= total_items - max_visible_items / 2 {
+            // Near bottom, show last max_visible_items
+            total_items.saturating_sub(max_visible_items)
+        } else {
+            // In middle, center the selection
+            selected.saturating_sub(max_visible_items / 2)
+        };
+
+        let visible_end = (scroll_offset + max_visible_items).min(total_items);
+
+        // Build list items (only for visible window)
+        let items: Vec<ListItem> = autocomplete.items[scroll_offset..visible_end]
+            .iter()
+            .enumerate()
+            .map(|(window_idx, item)| {
+                let actual_idx = scroll_offset + window_idx;
+                let is_selected = actual_idx == selected;
+
+                // Format: /command - description
+                let mut line_spans = vec![
+                    Span::styled(
+                        format!("/{}", item.command),
+                        if is_selected {
+                            Style::default()
+                                .fg(Color::Black)
+                                .bg(RUST_ORANGE)
+                                .add_modifier(Modifier::BOLD)
+                        } else {
+                            Style::default().fg(RUST_ORANGE)
+                        },
+                    ),
+                ];
+
+                if let Some(ref desc) = item.description {
+                    if !desc.is_empty() {
+                        line_spans.push(Span::styled(
+                            format!(" - {}", desc),
+                            if is_selected {
+                                Style::default().fg(Color::Black).bg(RUST_ORANGE)
+                            } else {
+                                Style::default().fg(Color::Gray)
+                            },
+                        ));
+                    }
+                }
+
+                ListItem::new(Line::from(line_spans))
+            })
+            .collect();
+
+        let list = List::new(items).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(RUST_ORANGE))
+                .title(vec![
+                    Span::styled("🔍 ", Style::default().fg(RUST_ORANGE)),
+                    Span::styled(
+                        "Slash Commands",
+                        Style::default()
+                            .fg(RUST_ORANGE)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        format!(" ({}/{})", selected + 1, total_items),
+                        Style::default().fg(Color::Gray),
+                    ),
+                ]),
+        );
+
+        frame.render_widget(list, popup_area);
+    }
 }
 
 fn render_debug_panel(frame: &mut Frame, area: Rect, app: &App) {

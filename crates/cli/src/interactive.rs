@@ -166,7 +166,43 @@ impl InteractiveSession {
         // Wire up autocomplete callback
         let commands_for_completion = Arc::clone(&slash_commands);
         tui.set_completion_callback(Box::new(move |prefix| {
-            commands_for_completion.get_completions(prefix)
+            // Built-in commands that should appear in autocomplete
+            let built_in_commands = vec![
+                ("help", Some("Show available commands".to_string())),
+                ("exit", Some("Exit the session".to_string())),
+                ("quit", Some("Exit the session".to_string())),
+                ("clear", Some("Clear conversation history".to_string())),
+                ("compact", Some("Compact conversation history".to_string())),
+                ("stats", Some("Show session statistics".to_string())),
+                ("cost", Some("Show token usage and cost estimate".to_string())),
+                ("context", Some("Show context window usage".to_string())),
+                ("usage", Some("Show API usage and rate limits".to_string())),
+                ("bashes", Some("Show background shell processes".to_string())),
+                ("save", Some("[description] - Save checkpoint".to_string())),
+                ("load", Some("<checkpoint_id> - Load checkpoint".to_string())),
+                ("sessions", Some("List available checkpoints".to_string())),
+                ("mcp-list", Some("List all MCP servers".to_string())),
+                ("mcp-start", Some("<server-id> - Start MCP server".to_string())),
+                ("mcp-stop", Some("<server-id> - Stop MCP server".to_string())),
+                ("mcp-tools", Some("<server-id> - List server tools".to_string())),
+                ("mcp-status", Some("<server-id> - Show server status".to_string())),
+            ];
+
+            // Filter built-in commands by prefix
+            let mut results: Vec<(String, Option<String>)> = built_in_commands
+                .into_iter()
+                .filter(|(cmd, _)| cmd.starts_with(prefix))
+                .map(|(cmd, desc)| (cmd.to_string(), desc))
+                .collect();
+
+            // Add custom commands from registry
+            let mut custom = commands_for_completion.get_completions(prefix);
+            results.append(&mut custom);
+
+            // Sort by command name
+            results.sort_by(|a, b| a.0.cmp(&b.0));
+
+            results
         }));
 
         // Initialize session persistence
@@ -269,7 +305,43 @@ impl InteractiveSession {
             self.tui = TuiState::new()?;
             let commands_for_completion = Arc::clone(&self.slash_commands);
             self.tui.set_completion_callback(Box::new(move |prefix| {
-                commands_for_completion.get_completions(prefix)
+                // Built-in commands that should appear in autocomplete
+                let built_in_commands = vec![
+                    ("help", Some("Show available commands".to_string())),
+                    ("exit", Some("Exit the session".to_string())),
+                    ("quit", Some("Exit the session".to_string())),
+                    ("clear", Some("Clear conversation history".to_string())),
+                    ("compact", Some("Compact conversation history".to_string())),
+                    ("stats", Some("Show session statistics".to_string())),
+                    ("cost", Some("Show token usage and cost estimate".to_string())),
+                    ("context", Some("Show context window usage".to_string())),
+                    ("usage", Some("Show API usage and rate limits".to_string())),
+                    ("bashes", Some("Show background shell processes".to_string())),
+                    ("save", Some("[description] - Save checkpoint".to_string())),
+                    ("load", Some("<checkpoint_id> - Load checkpoint".to_string())),
+                    ("sessions", Some("List available checkpoints".to_string())),
+                    ("mcp-list", Some("List all MCP servers".to_string())),
+                    ("mcp-start", Some("<server-id> - Start MCP server".to_string())),
+                    ("mcp-stop", Some("<server-id> - Stop MCP server".to_string())),
+                    ("mcp-tools", Some("<server-id> - List server tools".to_string())),
+                    ("mcp-status", Some("<server-id> - Show server status".to_string())),
+                ];
+
+                // Filter built-in commands by prefix
+                let mut results: Vec<(String, Option<String>)> = built_in_commands
+                    .into_iter()
+                    .filter(|(cmd, _)| cmd.starts_with(prefix))
+                    .map(|(cmd, desc)| (cmd.to_string(), desc))
+                    .collect();
+
+                // Add custom commands from registry
+                let mut custom = commands_for_completion.get_completions(prefix);
+                results.append(&mut custom);
+
+                // Sort by command name
+                results.sort_by(|a, b| a.0.cmp(&b.0));
+
+                results
             }));
         }
 

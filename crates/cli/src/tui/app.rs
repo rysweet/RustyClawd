@@ -39,6 +39,26 @@ pub struct ToolResult {
     pub is_error: bool,
 }
 
+/// Completion item for slash command autocomplete
+#[derive(Clone, Debug)]
+pub struct CompletionItem {
+    /// Command name (without leading /)
+    pub command: String,
+    /// Optional description
+    pub description: Option<String>,
+    /// Optional argument hint
+    pub argument_hint: Option<String>,
+}
+
+/// Autocomplete state for slash commands
+#[derive(Clone, Debug)]
+pub struct AutocompleteState {
+    /// All available completions
+    pub items: Vec<CompletionItem>,
+    /// Currently selected index
+    pub selected: usize,
+}
+
 /// Main application state - single source of truth
 pub struct App {
     /// Message history (all messages in conversation)
@@ -59,6 +79,9 @@ pub struct App {
     /// Maximum valid scroll offset (updated by renderer each frame)
     /// Allows scroll operations to clamp properly without magic numbers
     max_scroll: usize,
+
+    /// Autocomplete state
+    autocomplete: Option<AutocompleteState>,
 
     /// Current permission mode
     permission_mode: PermissionMode,
@@ -112,6 +135,7 @@ impl App {
             scroll_offset: 0,
             follow_bottom: true, // Start in auto-follow mode
             max_scroll: 0, // Will be updated by renderer
+            autocomplete: None,
             permission_mode,
             streaming: None,
             tool_messages: HashMap::new(),
@@ -414,6 +438,11 @@ impl App {
         Some(input)
     }
 
+    pub fn set_input(&mut self, text: &str) {
+        self.input = text.to_string();
+        self.mark_dirty();
+    }
+
     pub fn scroll_up(&mut self, lines: usize) {
         // If we're in follow mode, transition to manual scroll mode
         if self.follow_bottom {
@@ -546,6 +575,68 @@ impl App {
     /// Check if currently in thinking mode (waiting for first token)
     pub fn is_thinking(&self) -> bool {
         self.streaming.as_ref().map(|s| s.thinking).unwrap_or(false)
+    }
+
+    // === Autocomplete management ===
+
+    /// Activate autocomplete with given completions
+    pub fn activate_autocomplete(&mut self, items: Vec<CompletionItem>) {
+        if items.is_empty() {
+            self.autocomplete = None;
+        } else {
+            self.autocomplete = Some(AutocompleteState {
+                items,
+                selected: 0,
+            });
+        }
+        self.mark_dirty();
+    }
+
+    /// Clear autocomplete
+    pub fn clear_autocomplete(&mut self) {
+        self.autocomplete = None;
+        self.mark_dirty();
+    }
+
+    /// Navigate autocomplete selection up
+    pub fn autocomplete_prev(&mut self) {
+        if let Some(ref mut ac) = self.autocomplete {
+            if ac.selected > 0 {
+                ac.selected -= 1;
+            } else {
+                // Wrap to bottom
+                ac.selected = ac.items.len().saturating_sub(1);
+            }
+            self.mark_dirty();
+        }
+    }
+
+    /// Navigate autocomplete selection down
+    pub fn autocomplete_next(&mut self) {
+        if let Some(ref mut ac) = self.autocomplete {
+            if ac.selected < ac.items.len().saturating_sub(1) {
+                ac.selected += 1;
+            } else {
+                // Wrap to top
+                ac.selected = 0;
+            }
+            self.mark_dirty();
+        }
+    }
+
+    /// Get selected autocomplete item
+    pub fn autocomplete_selected(&self) -> Option<&CompletionItem> {
+        self.autocomplete.as_ref().and_then(|ac| ac.items.get(ac.selected))
+    }
+
+    /// Check if autocomplete is active
+    pub fn autocomplete_active(&self) -> bool {
+        self.autocomplete.is_some()
+    }
+
+    /// Get autocomplete state (for rendering)
+    pub fn autocomplete(&self) -> Option<&AutocompleteState> {
+        self.autocomplete.as_ref()
     }
 }
 

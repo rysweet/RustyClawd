@@ -104,13 +104,27 @@ fn handle_key_action(app: &mut App, action: &KeyAction) -> Result<EventResult> {
             app.cycle_permission_mode();
         }
         KeyAction::ClearError => {
+            // Escape key clears both errors and autocomplete
             app.clear_error();
+            if app.autocomplete_active() {
+                app.clear_autocomplete();
+            }
         }
         KeyAction::ScrollUp(n) => {
-            app.scroll_up(*n);
+            // If autocomplete is active, navigate up in list instead of scrolling
+            if app.autocomplete_active() {
+                app.autocomplete_prev();
+            } else {
+                app.scroll_up(*n);
+            }
         }
         KeyAction::ScrollDown(n) => {
-            app.scroll_down(*n);
+            // If autocomplete is active, navigate down in list instead of scrolling
+            if app.autocomplete_active() {
+                app.autocomplete_next();
+            } else {
+                app.scroll_down(*n);
+            }
         }
         KeyAction::JumpToBottom => {
             app.scroll_to_bottom();
@@ -132,8 +146,20 @@ fn handle_key_action(app: &mut App, action: &KeyAction) -> Result<EventResult> {
         }
         KeyAction::Submit => {
             if !app.is_streaming() {
-                if let Some(input) = app.submit_input() {
-                    return Ok(EventResult::Submit(input));
+                // If autocomplete is active, select the highlighted item
+                if app.autocomplete_active() {
+                    if let Some(item) = app.autocomplete_selected() {
+                        // Replace input with selected command
+                        let command_text = format!("/{}", item.command);
+                        app.set_input(&command_text);
+                        app.move_cursor_to_end();
+                        app.clear_autocomplete();
+                    }
+                } else {
+                    // Normal submit
+                    if let Some(input) = app.submit_input() {
+                        return Ok(EventResult::Submit(input));
+                    }
                 }
             }
         }
