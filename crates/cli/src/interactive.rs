@@ -274,10 +274,18 @@ impl InteractiveSession {
         }
 
         loop {
-            // Render if dirty OR if streaming/executing (for throbber animation and timer updates)
-            if self.tui.is_dirty() || self.tui.is_streaming() || self.tui.has_active_tools() {
+            // ALWAYS render if animations are active (tools executing or streaming)
+            // This ensures continuous updates for throbbers and timers
+            let has_animations = self.tui.is_streaming() || self.tui.has_active_tools();
+
+            if self.tui.is_dirty() || has_animations {
                 self.tui.draw()?;
                 self.tui.clear_dirty();
+
+                // If animations are active, immediately mark dirty for next frame
+                if has_animations {
+                    self.tui.mark_dirty();
+                }
             }
 
             // Poll for streaming events from background task (non-blocking)
@@ -352,13 +360,25 @@ impl InteractiveSession {
                             }
                         }
                         ToolExecutionEvent::Complete { tool_id, result } => {
+                            self.tui.push_debug(format!("[TOOL] Complete event received for: {}", tool_id));
+
                             // Parse tool result
                             let tool_result = if let rustyclawd_core::client::types::ContentBlock::ToolResult { content, is_error, .. } = &result {
+                                // Debug: log the raw content
+                                self.tui.push_debug(format!("[TOOL] Result content: {}", content));
+
                                 // Try to parse as JSON (for bash tools)
                                 let (exit_code, stdout, stderr) = if let Ok(json) = serde_json::from_str::<serde_json::Value>(content) {
                                     let exit_code = json.get("exit_code").and_then(|v| v.as_i64()).map(|v| v as i32);
                                     let stdout = json.get("stdout").and_then(|v| v.as_str()).unwrap_or("").to_string();
                                     let stderr = json.get("stderr").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+                                    // Check for background process (has shell_id but no output)
+                                    let is_background = json.get("shell_id").is_some();
+                                    if is_background {
+                                        self.tui.push_debug(format!("[TOOL] Background process registered: shell_id={}", json.get("shell_id").unwrap()));
+                                    }
+
                                     (exit_code, stdout, stderr)
                                 } else {
                                     // Plain text result
@@ -383,10 +403,12 @@ impl InteractiveSession {
 
                             // Finalize tool message (updates UI with result)
                             self.tui.finalize_tool_message(&tool_id, tool_result);
+                            self.tui.push_debug(format!("[TOOL] Message finalized for: {}", tool_id));
 
                             // Store result for tool loop continuation
                             if let Some(_tool_name) = self.active_tools.remove(&tool_id) {
-                                self.tool_results.insert(tool_id, result);
+                                self.tool_results.insert(tool_id.clone(), result);
+                                self.tui.push_debug(format!("[TOOL] Result stored for tool loop: {}", tool_id));
                             }
                         }
                         ToolExecutionEvent::Error { tool_id, error } => {
@@ -495,11 +517,20 @@ impl InteractiveSession {
                 }
             }
 
-            // Poll for terminal events (16ms for 60 FPS responsiveness)
+            // Poll for terminal events
+            // Use shorter timeout when animations are active to ensure continuous updates
             use crossterm::event;
             use std::time::Duration;
 
-            if event::poll(Duration::from_millis(16))? {
+            let poll_timeout = if has_animations {
+                // Short timeout when animating (for smooth throbber/timer updates)
+                Duration::from_millis(100)
+            } else {
+                // Normal timeout when idle (for responsiveness without burning CPU)
+                Duration::from_millis(16)
+            };
+
+            if event::poll(poll_timeout)? {
                 let terminal_event = event::read()?;
 
                 // Handle terminal event

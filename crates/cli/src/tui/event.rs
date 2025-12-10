@@ -112,6 +112,9 @@ fn handle_key_action(app: &mut App, action: &KeyAction) -> Result<EventResult> {
         KeyAction::ScrollDown(n) => {
             app.scroll_down(*n);
         }
+        KeyAction::JumpToBottom => {
+            app.scroll_to_bottom();
+        }
         KeyAction::CursorStart => {
             if !app.is_streaming() {
                 app.move_cursor_to_start();

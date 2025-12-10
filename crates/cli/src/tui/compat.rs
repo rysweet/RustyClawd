@@ -90,6 +90,11 @@ impl TuiState {
         self.app.clear_dirty();
     }
 
+    /// Mark UI as needing redraw
+    pub fn mark_dirty(&mut self) {
+        self.app.mark_dirty();
+    }
+
     /// Check if application should exit
     pub fn should_exit(&self) -> bool {
         self.app.should_exit()
@@ -161,8 +166,15 @@ impl TuiState {
 
     /// Draw the TUI
     pub fn draw(&mut self) -> Result<()> {
-        // Render without spamming debug (renders happen at 60fps)
-        self.terminal.draw(|f| super::ui::render(f, &self.app))?;
+        // Render and capture max_scroll for app state update
+        let mut max_scroll = 0;
+        self.terminal.draw(|f| {
+            max_scroll = super::ui::render(f, &self.app);
+        })?;
+
+        // Update app's max_scroll so scroll operations can clamp properly
+        self.app.update_max_scroll(max_scroll);
+
         Ok(())
     }
 

@@ -80,8 +80,12 @@ where
     F: FnMut(&str) -> Result<()>,
 {
     loop {
-        // Render current state
-        terminal.draw(|f| render(f, app))?;
+        // Render current state and update max_scroll
+        let mut max_scroll = 0;
+        terminal.draw(|f| {
+            max_scroll = render(f, app);
+        })?;
+        app.update_max_scroll(max_scroll);
 
         // Poll for events (16ms for 60 FPS)
         if let Some(event) = poll_event(Duration::from_millis(16))? {

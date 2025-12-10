@@ -56,6 +56,10 @@ pub struct App {
     /// Auto-follow bottom (true = stick to bottom, false = manual scroll position)
     follow_bottom: bool,
 
+    /// Maximum valid scroll offset (updated by renderer each frame)
+    /// Allows scroll operations to clamp properly without magic numbers
+    max_scroll: usize,
+
     /// Current permission mode
     permission_mode: PermissionMode,
 
@@ -107,6 +111,7 @@ impl App {
             cursor_pos: 0,
             scroll_offset: 0,
             follow_bottom: true, // Start in auto-follow mode
+            max_scroll: 0, // Will be updated by renderer
             permission_mode,
             streaming: None,
             tool_messages: HashMap::new(),
@@ -241,6 +246,8 @@ impl App {
                 *msg = Message::assistant(state.accumulated);
             }
             self.push_debug_message(format!("[STREAM] Finished ({} total chars)", final_len));
+            // Maintain scroll position if at bottom
+            self.scroll_to_bottom_if_at_bottom();
             self.mark_dirty();
         }
     }
@@ -408,8 +415,14 @@ impl App {
     }
 
     pub fn scroll_up(&mut self, lines: usize) {
-        // Disable auto-follow when user scrolls manually
-        self.follow_bottom = false;
+        // If we're in follow mode, transition to manual scroll mode
+        if self.follow_bottom {
+            self.follow_bottom = false;
+            // Initialize scroll_offset to max_scroll so we're actually at the bottom
+            self.scroll_offset = self.max_scroll;
+        }
+
+        // Now scroll up from current position
         self.scroll_offset = self.scroll_offset.saturating_sub(lines);
         self.mark_dirty();
     }
@@ -421,13 +434,14 @@ impl App {
             return;
         }
 
-        // When scrolling down, we might reach bottom again
+        // Increment scroll offset and clamp to valid range
         self.scroll_offset = self.scroll_offset.saturating_add(lines);
 
-        // If we've scrolled to a very large offset, assume we're trying to reach bottom
-        // This handles the case where user presses "End" or scrolls down repeatedly
-        if self.scroll_offset > 100000 {
+        // Clamp to max_scroll to prevent phantom accumulation
+        if self.scroll_offset >= self.max_scroll {
+            // At or past the bottom - switch to follow mode
             self.follow_bottom = true;
+            self.scroll_offset = 0; // Renderer will set to max_scroll
         }
 
         self.mark_dirty();
@@ -437,6 +451,12 @@ impl App {
         self.follow_bottom = true;
         self.scroll_offset = 0; // Will be set to max_scroll during render
         self.mark_dirty();
+    }
+
+    /// Update max_scroll from renderer (called after content height calculation)
+    /// This allows scroll operations to clamp properly
+    pub fn update_max_scroll(&mut self, max_scroll: usize) {
+        self.max_scroll = max_scroll;
     }
 
     /// Scroll to bottom only if already following bottom (preserves manual scroll position)

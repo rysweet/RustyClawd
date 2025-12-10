@@ -20,6 +20,8 @@ pub enum KeyAction {
     ScrollUp(usize),
     /// Scroll down by N lines
     ScrollDown(usize),
+    /// Jump to bottom (force follow mode)
+    JumpToBottom,
     /// Move cursor to start of line
     CursorStart,
     /// Move cursor to end of line
@@ -93,6 +95,14 @@ impl KeyPattern {
         Self {
             code,
             modifiers: KeyModifiers::NONE,
+        }
+    }
+
+    /// Convenience constructor for Ctrl+<keycode>
+    pub fn ctrl(code: KeyCodePattern) -> Self {
+        Self {
+            code,
+            modifiers: KeyModifiers::CONTROL,
         }
     }
 
@@ -189,6 +199,11 @@ impl KeyBindings {
                 key: KeyPattern::plain(KeyCodePattern::PageDown),
                 action: KeyAction::ScrollDown(10),
                 description: "Scroll down 10 lines".to_string(),
+            },
+            KeyBinding {
+                key: KeyPattern::ctrl(KeyCodePattern::End),
+                action: KeyAction::JumpToBottom,
+                description: "Jump to bottom (force follow mode)".to_string(),
             },
             // Cursor movement (Emacs-style)
             KeyBinding {

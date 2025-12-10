@@ -17,7 +17,8 @@ use crate::tui::message::{Message, Role};
 const RUST_ORANGE: Color = Color::Rgb(222, 165, 132);
 
 /// Main render function - pure function, no state mutation
-pub fn render(frame: &mut Frame, app: &App) {
+/// Returns max_scroll value for app state update
+pub fn render(frame: &mut Frame, app: &App) -> usize {
     // Build layout configuration from app state
     let config = LayoutConfig {
         debug_visible: app.debug_visible(),
@@ -34,13 +35,16 @@ pub fn render(frame: &mut Frame, app: &App) {
     let (messages_area, input_area) = LayoutOrganizer::split_main(layout.main);
 
     // Render main content
-    render_messages(frame, messages_area, app);
+    let max_scroll = render_messages(frame, messages_area, app);
     render_input(frame, input_area, app);
 
     // Render debug panel if visible
     if let Some(debug_area) = layout.debug {
         render_debug_panel(frame, debug_area, app);
     }
+
+    // Return max_scroll for app state update
+    max_scroll
 }
 
 fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
@@ -180,7 +184,7 @@ fn truncate_output(output: &str, max_chars: usize) -> String {
     }
 }
 
-fn render_messages(frame: &mut Frame, area: Rect, app: &App) {
+fn render_messages(frame: &mut Frame, area: Rect, app: &App) -> usize {
     let messages = app.messages();
 
     let block = Block::default()
@@ -230,6 +234,9 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App) {
             .block(block);
 
         frame.render_widget(paragraph, area);
+
+        // No scrollable content on welcome screen
+        return 0;
     } else {
         // Build complete text content as styled text
         let mut text_lines = Vec::new();
@@ -248,23 +255,23 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App) {
                             let icon_color = if result.is_error { Color::Red } else { Color::Green };
 
                             // Header: "✓ Bash { command: "ls -la" } (2s)"
-                            let header = format!(
-                                "{} {} {} ({}s)",
-                                icon,
+                            // Icon is colored, rest is dark grey
+                            let header_text = format!(
+                                " {} {} ({}s)",
                                 tool_state.tool_name,
                                 format_tool_params(&tool_state.params),
                                 elapsed
                             );
-                            text_lines.push(Line::from(Span::styled(
-                                header,
-                                Style::default().fg(icon_color).add_modifier(Modifier::BOLD),
-                            )));
+                            text_lines.push(Line::from(vec![
+                                Span::styled(icon, Style::default().fg(icon_color).add_modifier(Modifier::BOLD)),
+                                Span::styled(header_text, Style::default().fg(Color::DarkGray)),
+                            ]));
 
                             // Result: exit code + stdout (truncated)
                             if let Some(exit_code) = result.exit_code {
                                 text_lines.push(Line::from(Span::styled(
                                     format!("    exit_code: {}", exit_code),
-                                    Style::default().fg(Color::Gray),
+                                    Style::default().fg(Color::DarkGray),
                                 )));
                             }
 
@@ -272,7 +279,7 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App) {
                                 let truncated = truncate_output(&result.stdout, 200);
                                 text_lines.push(Line::from(Span::styled(
                                     format!("    stdout: {}", truncated),
-                                    Style::default().fg(Color::Gray),
+                                    Style::default().fg(Color::DarkGray),
                                 )));
                             }
 
@@ -280,24 +287,27 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App) {
                                 let truncated = truncate_output(&result.stderr, 200);
                                 text_lines.push(Line::from(Span::styled(
                                     format!("    stderr: {}", truncated),
-                                    Style::default().fg(Color::Red),
+                                    Style::default().fg(Color::DarkGray),
                                 )));
                             }
                         }
                     } else {
                         // Tool still running - show throbber + timer
+                        // Throbber is colored, rest is dark grey
                         let throbber = generate_throbber();
-                        let header = format!(
-                            "{} {} {} ({}s)",
-                            throbber,
+                        let header_text = format!(
+                            " {} {} ({}s)",
                             tool_state.tool_name,
                             format_tool_params(&tool_state.params),
                             elapsed
                         );
-                        text_lines.push(Line::from(Span::styled(
-                            header,
-                            Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
-                        )));
+                        text_lines.push(Line::from(vec![
+                            Span::styled(
+                                throbber.to_string(),
+                                Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)
+                            ),
+                            Span::styled(header_text, Style::default().fg(Color::DarkGray)),
+                        ]));
                     }
 
                     // Blank separator
@@ -349,17 +359,42 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App) {
             text_lines.push(Line::from(""));
         }
 
-        // Calculate content height before converting to Text
-        let content_height = text_lines.len();
+        // Calculate ACTUAL content height accounting for line wrapping
+        // Ratatui's Paragraph with wrap() will wrap lines at widget width
+        // Subtract 2 for block borders to get actual content width
+        let content_width = area.width.saturating_sub(2) as usize;
+
+        // Count actual rendered lines (accounting for wrapping)
+        let mut content_height = 0;
+        for line in &text_lines {
+            // Calculate how many screen lines this Line will take when wrapped
+            let line_width: usize = line.spans.iter().map(|span| span.content.len()).sum();
+            if line_width == 0 {
+                content_height += 1; // Empty line still takes 1 line
+            } else {
+                // Calculate wrapped lines: ceil(line_width / content_width)
+                content_height += (line_width + content_width - 1) / content_width;
+            }
+        }
+
         let text = Text::from(text_lines);
 
         // Scroll handling: Calculate actual scroll position
         // Subtract 2 for block borders
         let viewport_height = area.height.saturating_sub(2) as usize;
-        let max_scroll = content_height.saturating_sub(viewport_height);
 
+        // Calculate max scroll with proper boundary check
+        // If content fits in viewport, max_scroll is 0 (no scrolling needed)
+        let max_scroll = if content_height > viewport_height {
+            content_height - viewport_height
+        } else {
+            0
+        };
+
+        // Determine scroll offset
         let scroll_offset = if app.follow_bottom() {
             // Auto-follow bottom - show last viewport worth of content
+            // CRITICAL: When following bottom, ALWAYS use max_scroll to show latest messages
             max_scroll.min(u16::MAX as usize) as u16
         } else {
             // Manual scroll - clamp to valid range [0, max_scroll]
@@ -390,6 +425,9 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App) {
                 &mut scrollbar_state,
             );
         }
+
+        // Return max_scroll for app state update
+        max_scroll
     }
 }
 
