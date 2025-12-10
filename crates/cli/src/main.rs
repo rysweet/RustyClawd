@@ -1081,7 +1081,9 @@ impl App {
         let session_id_for_tools = self.session.id.clone();
 
         // Parse permission mode from CLI
-        let permission_mode = self.cli.permission_mode
+        let permission_mode = self
+            .cli
+            .permission_mode
             .as_ref()
             .map(|s| match s.as_str() {
                 "plan" => permission_mode::PermissionMode::Plan,

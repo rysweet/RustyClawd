@@ -156,13 +156,11 @@ mod prompts_tests {
         let prompt = McpPromptDefinition {
             name: "test".to_string(),
             description: "Test prompt".to_string(),
-            arguments: vec![
-                McpPromptArgument {
-                    name: "arg1".to_string(),
-                    description: "First arg".to_string(),
-                    required: true,
-                },
-            ],
+            arguments: vec![McpPromptArgument {
+                name: "arg1".to_string(),
+                description: "First arg".to_string(),
+                required: true,
+            }],
         };
 
         let json = serde_json::to_string(&prompt).unwrap();
@@ -204,12 +202,10 @@ mod prompts_tests {
     fn test_prompt_result_json_serialization() {
         let result = McpPromptResult {
             description: Some("Test".to_string()),
-            messages: vec![
-                McpPromptMessage {
-                    role: "user".to_string(),
-                    content: serde_json::json!({"type": "text", "text": "Hi"}),
-                },
-            ],
+            messages: vec![McpPromptMessage {
+                role: "user".to_string(),
+                content: serde_json::json!({"type": "text", "text": "Hi"}),
+            }],
         };
 
         let json = serde_json::to_string(&result).unwrap();
@@ -260,7 +256,8 @@ mod prompts_tests {
                     }
                 ]
             }
-        }).to_string()
+        })
+        .to_string()
     }
 
     /// Creates a mock MCP server response for prompts/get
@@ -280,7 +277,8 @@ mod prompts_tests {
                     }
                 ]
             }
-        }).to_string()
+        })
+        .to_string()
     }
 
     /// Creates a mock error response for missing required argument
@@ -292,7 +290,8 @@ mod prompts_tests {
                 "code": -32602,
                 "message": "Missing required argument: code"
             }
-        }).to_string()
+        })
+        .to_string()
     }
 
     #[test]
