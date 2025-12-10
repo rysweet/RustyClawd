@@ -4,6 +4,7 @@ use crate::update::error::UpdateError;
 use crate::update::version::Version;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::process::Command;
 use std::time::Duration;
 
 /// GitHub release asset information
@@ -50,12 +51,61 @@ impl Release {
     }
 }
 
+/// Minimal release information from fallback sources (gh CLI or git)
+/// Contains only the tag name, which is sufficient for version checking
+#[derive(Debug, Clone)]
+struct MinimalRelease {
+    tag_name: String,
+}
+
+impl MinimalRelease {
+    /// Convert MinimalRelease to full Release struct with empty fields
+    fn into_release(self) -> Release {
+        Release {
+            tag_name: self.tag_name,
+            name: None,
+            body: None,
+            assets: vec![],
+            draft: false,
+            prerelease: false,
+            published_at: None,
+        }
+    }
+}
+
 /// GitHub client for interacting with the Releases API
 pub struct GitHubClient {
     client: Client,
     repo_owner: String,
     repo_name: String,
     api_base: String,
+}
+
+/// Check if a command is available in the system PATH
+fn command_available(cmd: &str) -> bool {
+    Command::new(cmd)
+        .arg("--version")
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
+/// Execute a command and return stdout as String if successful
+fn execute_command(cmd: &str, args: &[&str]) -> Result<String, UpdateError> {
+    let output = Command::new(cmd)
+        .args(args)
+        .output()
+        .map_err(|e| UpdateError::IoError(format!("Failed to execute {}: {}", cmd, e)))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(UpdateError::GitHubApiError(format!(
+            "{} command failed: {}",
+            cmd, stderr
+        )));
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
 impl GitHubClient {
@@ -73,12 +123,15 @@ impl GitHubClient {
         }
     }
 
-    /// Get the latest release for the configured repository
-    pub async fn get_latest_release(&self) -> Result<Release, UpdateError> {
+    /// Get the latest release from the GitHub API
+    /// Returns PrivateRepositoryAccess error for 401/403/404 status codes
+    async fn get_latest_release_from_api(&self) -> Result<Release, UpdateError> {
         let url = format!(
             "{}/repos/{}/{}/releases/latest",
             self.api_base, self.repo_owner, self.repo_name
         );
+
+        tracing::debug!("Fetching latest release from GitHub API: {}", url);
 
         let response = self
             .client
@@ -87,10 +140,23 @@ impl GitHubClient {
             .await
             .map_err(|e| UpdateError::GitHubApiError(e.to_string()))?;
 
-        if !response.status().is_success() {
+        let status = response.status();
+        if !status.is_success() {
+            // Detect private repository access errors
+            let status_code = status.as_u16();
+            if status_code == 401 || status_code == 403 || status_code == 404 {
+                tracing::warn!(
+                    "Private repository access detected (HTTP {}), will try fallback methods",
+                    status_code
+                );
+                return Err(UpdateError::PrivateRepositoryAccess {
+                    status: status_code,
+                });
+            }
+
             return Err(UpdateError::GitHubApiError(format!(
                 "GitHub API returned status: {}",
-                response.status()
+                status
             )));
         }
 
@@ -99,7 +165,24 @@ impl GitHubClient {
             .await
             .map_err(|e| UpdateError::GitHubResponseParseFailed(e.to_string()))?;
 
+        tracing::info!(
+            "Successfully fetched release {} from GitHub API",
+            release.tag_name
+        );
         Ok(release)
+    }
+
+    /// Get the latest release, trying API first, then fallback methods
+    pub async fn get_latest_release(&self) -> Result<Release, UpdateError> {
+        // Try API first
+        match self.get_latest_release_from_api().await {
+            Ok(release) => Ok(release),
+            Err(UpdateError::PrivateRepositoryAccess { .. }) => {
+                tracing::info!("Attempting fallback methods for private repository");
+                self.get_latest_release_fallback().await
+            }
+            Err(e) => Err(e),
+        }
     }
 
     /// Check if a new version is available
@@ -131,6 +214,108 @@ impl GitHubClient {
             assets: latest.assets.clone(),
             published_at: latest.published_at.clone(),
         }))
+    }
+
+    /// Try fallback methods to get latest release for private repositories
+    /// Returns Release with minimal information (tag_name only)
+    async fn get_latest_release_fallback(&self) -> Result<Release, UpdateError> {
+        // Try gh CLI first
+        if let Ok(release) = self.try_gh_cli() {
+            tracing::info!("Successfully fetched release from gh CLI");
+            return Ok(release.into_release());
+        }
+
+        // Fall back to git ls-remote
+        if let Ok(release) = self.try_git_ls_remote() {
+            tracing::info!("Successfully fetched release from git ls-remote");
+            return Ok(release.into_release());
+        }
+
+        Err(UpdateError::GitHubApiError(
+            "All fallback methods failed to fetch release information".to_string(),
+        ))
+    }
+
+    /// Try to get latest release using gh CLI
+    fn try_gh_cli(&self) -> Result<MinimalRelease, UpdateError> {
+        if !command_available("gh") {
+            tracing::debug!("gh CLI not available");
+            return Err(UpdateError::GitHubApiError(
+                "gh CLI not available".to_string(),
+            ));
+        }
+
+        tracing::info!("Trying gh CLI for release information");
+
+        let repo = format!("{}/{}", self.repo_owner, self.repo_name);
+        let output = execute_command(
+            "gh",
+            &[
+                "release", "list", "--repo", &repo, "--limit", "1", "--json", "tagName",
+            ],
+        )?;
+
+        // Parse JSON output: [{"tagName": "v1.2.3"}]
+        let releases: Vec<serde_json::Value> = serde_json::from_str(&output)
+            .map_err(|e| UpdateError::GitHubResponseParseFailed(e.to_string()))?;
+
+        if releases.is_empty() {
+            return Err(UpdateError::GitHubApiError(
+                "No releases found via gh CLI".to_string(),
+            ));
+        }
+
+        let tag_name = releases[0]["tagName"]
+            .as_str()
+            .ok_or_else(|| UpdateError::GitHubResponseParseFailed("Missing tagName".to_string()))?
+            .to_string();
+
+        Ok(MinimalRelease { tag_name })
+    }
+
+    /// Try to get latest release using git ls-remote
+    fn try_git_ls_remote(&self) -> Result<MinimalRelease, UpdateError> {
+        if !command_available("git") {
+            tracing::debug!("git not available");
+            return Err(UpdateError::GitHubApiError("git not available".to_string()));
+        }
+
+        tracing::info!("Trying git ls-remote for release information");
+
+        let repo_url = format!(
+            "https://github.com/{}/{}.git",
+            self.repo_owner, self.repo_name
+        );
+        let output = execute_command(
+            "git",
+            &[
+                "ls-remote",
+                "--tags",
+                "--refs",
+                "--sort=-v:refname",
+                &repo_url,
+            ],
+        )?;
+
+        // Parse output: each line is "commit_hash\trefs/tags/tagname"
+        // We want the first line (latest version)
+        for line in output.lines() {
+            if let Some(tag_ref) = line.split('\t').nth(1) {
+                if let Some(tag_name) = tag_ref.strip_prefix("refs/tags/") {
+                    // Validate it looks like a version tag
+                    let normalized = tag_name.trim_start_matches('v');
+                    if Version::parse(normalized).is_ok() {
+                        return Ok(MinimalRelease {
+                            tag_name: tag_name.to_string(),
+                        });
+                    }
+                }
+            }
+        }
+
+        Err(UpdateError::GitHubApiError(
+            "No valid version tags found via git ls-remote".to_string(),
+        ))
     }
 }
 
@@ -516,5 +701,145 @@ mod tests {
             assert!(_asset_url.is_some());
             assert!(_asset_url.unwrap().contains(".exe"));
         }
+    }
+
+    #[test]
+    fn test_minimal_release_to_release_conversion() {
+        let minimal = MinimalRelease {
+            tag_name: "v1.2.3".to_string(),
+        };
+
+        let release = minimal.into_release();
+        assert_eq!(release.tag_name, "v1.2.3");
+        assert_eq!(release.name, None);
+        assert_eq!(release.body, None);
+        assert!(release.assets.is_empty());
+        assert!(!release.draft);
+        assert!(!release.prerelease);
+        assert_eq!(release.published_at, None);
+    }
+
+    #[test]
+    fn test_minimal_release_version_parsing() {
+        let minimal = MinimalRelease {
+            tag_name: "v2.5.10".to_string(),
+        };
+
+        let release = minimal.into_release();
+        let version = release.version().unwrap();
+        assert_eq!(version.major, 2);
+        assert_eq!(version.minor, 5);
+        assert_eq!(version.patch, 10);
+    }
+
+    #[test]
+    fn test_command_available_nonexistent() {
+        // A command that definitely doesn't exist
+        let available = command_available("this-command-does-not-exist-xyz123");
+        assert!(!available);
+    }
+
+    #[test]
+    fn test_execute_command_success() {
+        // Test with a simple command that should work on all platforms
+        let result = execute_command("git", &["--version"]);
+        assert!(result.is_ok());
+        if let Ok(output) = result {
+            assert!(output.contains("git"));
+        }
+    }
+
+    #[test]
+    fn test_execute_command_failure() {
+        // Test with an invalid git command
+        let result = execute_command("git", &["this-is-not-a-valid-command"]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_execute_command_nonexistent() {
+        // Test with a command that doesn't exist
+        let result = execute_command("nonexistent-command-xyz", &[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_git_ls_remote_tag_parsing() {
+        // Simulate git ls-remote output
+        let output = r#"abc123	refs/tags/v1.0.0
+def456	refs/tags/v1.1.0
+ghi789	refs/tags/v1.2.3
+jkl012	refs/tags/invalid-tag
+mno345	refs/tags/2.0.0"#;
+
+        // Parse the first valid version tag
+        let mut found_tag = None;
+        for line in output.lines() {
+            if let Some(tag_ref) = line.split('\t').nth(1) {
+                if let Some(tag_name) = tag_ref.strip_prefix("refs/tags/") {
+                    let normalized = tag_name.trim_start_matches('v');
+                    if Version::parse(normalized).is_ok() {
+                        found_tag = Some(tag_name.to_string());
+                        break;
+                    }
+                }
+            }
+        }
+
+        assert_eq!(found_tag, Some("v1.0.0".to_string()));
+    }
+
+    #[test]
+    fn test_git_ls_remote_tag_parsing_without_v_prefix() {
+        // Test parsing tags without 'v' prefix
+        let output = "abc123\trefs/tags/2.5.3";
+
+        let mut found_tag = None;
+        for line in output.lines() {
+            if let Some(tag_ref) = line.split('\t').nth(1) {
+                if let Some(tag_name) = tag_ref.strip_prefix("refs/tags/") {
+                    let normalized = tag_name.trim_start_matches('v');
+                    if Version::parse(normalized).is_ok() {
+                        found_tag = Some(tag_name.to_string());
+                        break;
+                    }
+                }
+            }
+        }
+
+        assert_eq!(found_tag, Some("2.5.3".to_string()));
+    }
+
+    #[test]
+    fn test_gh_cli_json_parsing() {
+        // Simulate gh CLI JSON output
+        let json_output = r#"[{"tagName":"v1.2.3"}]"#;
+
+        let releases: Vec<serde_json::Value> = serde_json::from_str(json_output).unwrap();
+        assert!(!releases.is_empty());
+
+        let tag_name = releases[0]["tagName"].as_str().unwrap();
+        assert_eq!(tag_name, "v1.2.3");
+    }
+
+    #[test]
+    fn test_gh_cli_json_parsing_empty() {
+        // Simulate empty gh CLI output
+        let json_output = "[]";
+
+        let releases: Vec<serde_json::Value> = serde_json::from_str(json_output).unwrap();
+        assert!(releases.is_empty());
+    }
+
+    #[test]
+    fn test_gh_cli_json_parsing_multiple_releases() {
+        // Simulate gh CLI with multiple releases (we only use the first)
+        let json_output = r#"[{"tagName":"v2.0.0"},{"tagName":"v1.9.0"}]"#;
+
+        let releases: Vec<serde_json::Value> = serde_json::from_str(json_output).unwrap();
+        assert_eq!(releases.len(), 2);
+
+        let tag_name = releases[0]["tagName"].as_str().unwrap();
+        assert_eq!(tag_name, "v2.0.0");
     }
 }
