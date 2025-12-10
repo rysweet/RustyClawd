@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
     Frame,
 };
 
@@ -567,6 +567,9 @@ fn render_autocomplete(frame: &mut Frame, input_area: Rect, app: &App) {
                 ListItem::new(Line::from(line_spans))
             })
             .collect();
+
+        // Clear the area behind the popup first to prevent text bleed-through
+        frame.render_widget(Clear, popup_area);
 
         let list = List::new(items).block(
             Block::default()
