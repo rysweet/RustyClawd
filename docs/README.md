@@ -12,16 +12,21 @@ This directory contains comprehensive documentation for the RustyClawd project -
 - [Main Architecture](./ARCHITECTURE.md) - System overview and design
 - [E2E Testing Architecture](./architecture/e2e_testing_architecture.md) - Testing system design
 - [Architecture Summary](./architecture/ARCHITECTURE_SUMMARY.md) - Executive summary
+- [Design Specifications](./architecture/) - Design docs and specifications
 
 ### Testing Documentation
 - [E2E Testing Guide](./testing/E2E_TESTING.md) - How to run E2E tests
 - [E2E Test Development](./testing/E2E_TEST_DEVELOPMENT.md) - How to write new E2E tests
 - [Parity Validation Report](./testing/PARITY_VALIDATION.md) - TRUE 100% parity validation
 - [TRUE 100% Parity Validation](./TRUE_100_PARITY_VALIDATION.md) - Final 10% completion evidence
+- [Development Resources](./development/) - Test analysis and development documentation
 
 ### Implementation
 - [Implementation Plan](./implementation_plan.md) - Detailed task breakdown
 - [Implementation Reports](./implementation-reports/) - Progress reports
+
+### Archive
+- [Point-in-Time Reports](./archive/reports/) - Historical reports and summaries
 
 ### Specifications
 - [Module Specs](./specs/) - Detailed specifications for key modules
@@ -46,14 +51,19 @@ docs/
 ├── HTTP_MCP_TRANSPORT.md
 ├── MCP_PROMPTS.md
 │
-├── architecture/                # Architecture documents
+├── architecture/                # Architecture documents & design specs
 │   ├── ARCHITECTURE_SUMMARY.md
-│   └── e2e_testing_architecture.md
+│   ├── e2e_testing_architecture.md
+│   ├── DESIGN_SPECIFICATION.md
+│   └── REQUIREMENTS_CLARIFICATION_MCP_PROMPTS.md
 │
 ├── testing/                     # Testing documentation
 │   ├── E2E_TESTING.md          # User guide for running tests
 │   ├── E2E_TEST_DEVELOPMENT.md # Developer guide for writing tests
 │   └── PARITY_VALIDATION.md    # Parity validation report
+│
+├── development/                 # Development resources
+│   └── ...                     # Test analysis and dev documentation
 │
 ├── specs/                       # Module specifications
 │   ├── test_session_spec.md
@@ -62,6 +72,9 @@ docs/
 │
 ├── implementation-reports/      # Implementation progress reports
 │   └── ...
+│
+├── archive/                     # Historical records
+│   └── reports/                # Point-in-time reports
 │
 └── implementation_plan.md       # Detailed implementation plan
 ```
