@@ -60,7 +60,7 @@ mod unit_tests {
 
         let meta = metadata.unwrap();
         // Default should be true (local execution)
-        assert_eq!(meta.disable_model_invocation, true);
+        assert!(meta.disable_model_invocation);
     }
 
     #[test]
@@ -90,7 +90,7 @@ mod unit_tests {
         assert!(metadata.is_some());
 
         let meta = metadata.unwrap();
-        assert_eq!(meta.disable_model_invocation, false);
+        assert!(!meta.disable_model_invocation);
     }
 
     #[test]
@@ -120,7 +120,7 @@ mod unit_tests {
         assert!(metadata.is_some());
 
         let meta = metadata.unwrap();
-        assert_eq!(meta.disable_model_invocation, true);
+        assert!(meta.disable_model_invocation);
     }
 
     #[test]
@@ -255,8 +255,8 @@ mod integration_tests {
     #[tokio::test]
     async fn test_registry_discovery_preserves_disable_model_invocation() {
         // This test will fail until FrontMatter properly deserializes the field
-        use tokio::fs;
         use std::path::PathBuf;
+        use tokio::fs;
 
         let temp_dir = std::env::temp_dir().join("test_commands_126");
         fs::create_dir_all(&temp_dir).await.unwrap();
@@ -276,7 +276,7 @@ Test content
 
         // Verify the field was preserved
         let cmd = registry.get("test").unwrap();
-        assert_eq!(cmd.frontmatter.disable_model_invocation, Some(false));
+        assert!(matches!(cmd.frontmatter.disable_model_invocation, Some(false)));
 
         // Cleanup
         fs::remove_dir_all(&temp_dir).await.ok();
@@ -319,7 +319,7 @@ Please review the following code: $ARGUMENTS
 
         // Verify metadata
         let metadata = slash_commands.get_command_metadata("ai-review").unwrap();
-        assert_eq!(metadata.disable_model_invocation, false);
+        assert!(!metadata.disable_model_invocation);
 
         // Verify interception behavior
         let should_intercept = slash_commands.should_intercept_locally("ai-review");
@@ -357,7 +357,7 @@ Run tests locally: $ARGUMENTS
 
         // Verify metadata
         let metadata = slash_commands.get_command_metadata("local-test").unwrap();
-        assert_eq!(metadata.disable_model_invocation, true);
+        assert!(metadata.disable_model_invocation);
 
         // Verify interception behavior
         let should_intercept = slash_commands.should_intercept_locally("local-test");
@@ -392,7 +392,7 @@ This is a legacy command
 
         // Verify backward compatibility - should default to local execution
         let metadata = slash_commands.get_command_metadata("legacy").unwrap();
-        assert_eq!(metadata.disable_model_invocation, true); // Default
+        assert!(metadata.disable_model_invocation); // Default
 
         let should_intercept = slash_commands.should_intercept_locally("legacy");
         assert!(should_intercept); // Should intercept (backward compatible)
