@@ -276,7 +276,10 @@ Test content
 
         // Verify the field was preserved
         let cmd = registry.get("test").unwrap();
-        assert!(matches!(cmd.frontmatter.disable_model_invocation, Some(false)));
+        assert!(matches!(
+            cmd.frontmatter.disable_model_invocation,
+            Some(false)
+        ));
 
         // Cleanup
         fs::remove_dir_all(&temp_dir).await.ok();
