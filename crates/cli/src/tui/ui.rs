@@ -10,19 +10,20 @@ use ratatui::{
 use unicode_width::UnicodeWidthStr;
 
 use crate::permission_mode::PermissionMode;
-use crate::tui::app::App;
+use crate::tui::app::{App, LayoutCache};
 use crate::tui::layout::{LayoutConfig, LayoutOrganizer};
 use crate::tui::message::{Message, Role};
 
 /// Rust-themed colors for structural elements (borders, titles)
 const RUST_ORANGE: Color = Color::Rgb(222, 165, 132);
 
-/// Main render function - pure function, no state mutation
-/// Returns max_scroll value for app state update
-pub fn render(frame: &mut Frame, app: &App) -> usize {
+/// Main render function - updates TextArea block style for focus-aware rendering
+/// Returns (max_scroll, debug_max_scroll, layout_cache) tuple for app state update
+pub fn render(frame: &mut Frame, app: &mut App) -> (usize, usize, LayoutCache) {
     // Calculate throbber frame ONCE per render to ensure synchronization
     // across all UI components (status bar, streaming indicators, etc.)
-    const BRAILLE_FRAMES: [char; 8] = ['⠁', '⠂', '⠄', '⡀', '⢀', '⠠', '⠐', '⠈'];
+    // Inverted Braille pattern: all dots filled except one moving gap
+    const BRAILLE_FRAMES: [char; 8] = ['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'];
     let frame_idx = (std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -46,6 +47,14 @@ pub fn render(frame: &mut Frame, app: &App) -> usize {
 
     // Render main content (pass throbber for synchronization)
     let max_scroll = render_messages(frame, messages_area, app, throbber);
+
+    // Update TextArea block style for focus-aware border color
+    app.update_input_focus_style();
+
+    // Update soft wrap width based on input area (accounting for borders: -2)
+    let inner_width = input_area.width.saturating_sub(2);
+    app.update_soft_wrap_width(inner_width);
+
     render_input(frame, input_area, app);
 
     // Render autocomplete popup if active (after input so it overlays)
@@ -59,46 +68,64 @@ pub fn render(frame: &mut Frame, app: &App) -> usize {
     }
 
     // Render debug panel if visible
-    if let Some(debug_area) = layout.debug {
-        render_debug_panel(frame, debug_area, app);
-    }
+    let debug_max_scroll = if let Some(debug_area) = layout.debug {
+        render_debug_panel(frame, debug_area, app)
+    } else {
+        0
+    };
 
-    // Return max_scroll for app state update
-    max_scroll
+    // Build layout cache for focus hit testing
+    let cache = LayoutCache {
+        messages_area,
+        input_area,
+        debug_area: layout.debug,
+    };
+
+    // Return max_scroll, debug_max_scroll, and layout cache for app state update
+    (max_scroll, debug_max_scroll, cache)
 }
 
-fn render_status_bar(frame: &mut Frame, area: Rect, app: &App, throbber: char) {
+fn render_status_bar(frame: &mut Frame, area: Rect, app: &mut App, throbber: char) {
     // Throbber is now passed in from render() to ensure synchronization
 
+    // Read all app state FIRST before any mutations
     let mode_text = format!(" {} ", app.permission_mode().status_indicator());
+    let error = app.error().map(|s| s.to_string());
+    let has_active_tools = app.has_active_tools();
+    let active_tool_name = app.active_tool_name();
+    let is_streaming = app.is_streaming();
+    let is_thinking = app.is_thinking();
+    let token_count = app.token_count();
+    let debug_visible = app.debug_visible();
+    let follow_bottom = app.follow_bottom();
 
     let mode_style = Style::default()
         .fg(Color::Black)
         .bg(Color::Cyan)
         .add_modifier(Modifier::BOLD);
 
-    let mut status_spans = if let Some(error) = app.error() {
+    let mut status_spans = if let Some(error) = error {
         vec![
             Span::styled(mode_text, mode_style),
             Span::raw(" "),
             Span::styled(error, Style::default().fg(Color::Red)),
         ]
-    } else if app.has_active_tools() {
+    } else if has_active_tools {
         // Show throbber + tool name when tool is executing
-        let tool_name = app.active_tool_name().unwrap_or_else(|| "tool".to_string());
+        let tool_name = active_tool_name.unwrap_or_else(|| "tool".to_string());
         let status_text = format!("{} Executing: {}", throbber, tool_name);
 
         vec![
-            Span::styled(mode_text, mode_style),
+            Span::styled(mode_text.clone(), mode_style),
             Span::raw(" "),
             Span::styled(status_text, Style::default().fg(Color::Magenta)),
         ]
-    } else if app.is_streaming() {
+    } else if is_streaming {
         // Show throbber + token count when streaming
-        let status_text = if app.is_thinking() {
+        let status_text = if is_thinking {
             // Thinking mode - show throbber without token count
             format!("{} Thinking...", throbber)
-        } else if let Some(token_count) = app.token_count() {
+        } else if let Some(token_count) = token_count {
             // Streaming mode - show throbber with live token count
             format!("{} Streaming  {}", throbber, token_count.format_compact())
         } else {
@@ -107,7 +134,7 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App, throbber: char) {
         };
 
         vec![
-            Span::styled(mode_text, mode_style),
+            Span::styled(mode_text.clone(), mode_style),
             Span::raw(" "),
             Span::styled(status_text, Style::default().fg(Color::Yellow)),
         ]
@@ -123,15 +150,15 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App, throbber: char) {
     };
 
     // Add debug indicator, follow-bottom indicator, and menu hint on the right
-    let debug_status = if app.debug_visible() { "Debug:ON" } else { "Debug:OFF" };
-    let debug_style = if app.debug_visible() {
+    let debug_status = if debug_visible { "Debug:ON" } else { "Debug:OFF" };
+    let debug_style = if debug_visible {
         Style::default().fg(Color::Green)
     } else {
         Style::default().fg(Color::Gray)
     };
 
     // Follow-bottom indicator: show "📌 Pinned" when user has scrolled up (NOT following bottom)
-    let follow_indicator = if !app.follow_bottom() {
+    let follow_indicator = if !follow_bottom {
         " | 📌 Pinned"
     } else {
         ""
@@ -144,14 +171,37 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App, throbber: char) {
 
     status_spans.push(Span::raw(" ".repeat(padding_width as usize)));
     status_spans.push(Span::raw(" | "));
+
+    // Track debug button click region
+    let debug_x = left_width + padding_width as usize + 3; // " | " is 3 chars
+    let debug_rect = Rect {
+        x: area.x + debug_x as u16,
+        y: area.y,
+        width: debug_status.width() as u16,
+        height: 1,
+    };
+    app.click_regions.add_status_item("debug", debug_rect);
+
     status_spans.push(Span::styled(debug_status, debug_style));
-    if !app.follow_bottom() {
+    if !follow_bottom {
         status_spans.push(Span::styled(
             " | 📌 Pinned",
             Style::default().fg(Color::Yellow),
         ));
     }
-    status_spans.push(Span::styled(" | F1:Menu ", Style::default().fg(Color::Gray)));
+
+    // Track menu button click region
+    let menu_text = " | F1:Menu ";
+    let menu_x = area.width.saturating_sub(menu_text.width() as u16);
+    let menu_rect = Rect {
+        x: area.x + menu_x,
+        y: area.y,
+        width: menu_text.width() as u16,
+        height: 1,
+    };
+    app.click_regions.add_status_item("menu", menu_rect);
+
+    status_spans.push(Span::styled(menu_text, Style::default().fg(Color::Gray)));
 
     let status = Paragraph::new(Line::from(status_spans)).style(Style::default().bg(Color::Black));
 
@@ -197,18 +247,175 @@ fn truncate_output(output: &str, max_chars: usize) -> String {
     }
 }
 
-fn render_messages(frame: &mut Frame, area: Rect, app: &App, throbber: char) -> usize {
-    let messages = app.messages();
+/// Calculate visual height of lines accounting for wrapping
+/// This matches how ratatui's Paragraph widget wraps text
+fn calculate_wrapped_height(lines: &[Line], content_width: usize) -> usize {
+    let mut height = 0;
+    for line in lines {
+        let line_width: usize = line.spans.iter()
+            .map(|span| span.content.width())
+            .sum();
+        let wrapped_lines = if line_width == 0 {
+            1
+        } else {
+            (line_width + content_width - 1) / content_width
+        };
+        height += wrapped_lines;
+    }
+    height
+}
+
+/// Format user message (timestamp + terminal-style prompt)
+fn format_user_message(message: &Message) -> Vec<Line<'_>> {
+    // Split content by newlines to properly display multi-line messages
+    let content_lines: Vec<&str> = message.content.lines().collect();
+    let mut result = Vec::new();
+
+    if content_lines.is_empty() {
+        // Empty message - just show timestamp and prompt
+        result.push(Line::from(vec![
+            Span::styled(
+                format!("[{}] ", message.timestamp.format("%H:%M:%S")),
+                Style::default().fg(Color::DarkGray)
+            ),
+            Span::styled(
+                "$ ",
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+            ),
+        ]));
+    } else {
+        // First line: timestamp + prompt + content
+        result.push(Line::from(vec![
+            Span::styled(
+                format!("[{}] ", message.timestamp.format("%H:%M:%S")),
+                Style::default().fg(Color::DarkGray)
+            ),
+            Span::styled(
+                "$ ",
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+            ),
+            Span::raw(content_lines[0]),
+        ]));
+
+        // Subsequent lines: just content
+        for line_content in content_lines.iter().skip(1) {
+            result.push(Line::from(Span::raw(*line_content)));
+        }
+    }
+
+    result.push(Line::from(""));  // Blank separator
+    result
+}
+
+/// Format LLM/assistant message (timestamp + throbber or status dot)
+fn format_assistant_message(message: &Message, throbber: char) -> Vec<Line<'_>> {
+    let status_indicator = if message.streaming {
+        Span::styled(
+            format!("{} ", throbber),  // Orange throbber during streaming
+            Style::default()
+                .fg(RUST_ORANGE)
+                .add_modifier(Modifier::BOLD)
+        )
+    } else {
+        Span::styled(
+            "● ",  // Green dot when complete (U+25CF)
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD)
+        )
+    };
+
+    // Split content by newlines to properly display multi-line messages
+    let content_lines: Vec<&str> = message.content.lines().collect();
+    let mut result = Vec::new();
+
+    if content_lines.is_empty() {
+        // Empty message - just show timestamp and indicator
+        result.push(Line::from(vec![
+            Span::styled(
+                format!("[{}] ", message.timestamp.format("%H:%M:%S")),
+                Style::default().fg(Color::DarkGray)
+            ),
+            status_indicator,
+        ]));
+    } else {
+        // First line: timestamp + indicator + content
+        result.push(Line::from(vec![
+            Span::styled(
+                format!("[{}] ", message.timestamp.format("%H:%M:%S")),
+                Style::default().fg(Color::DarkGray)
+            ),
+            status_indicator,
+            Span::raw(content_lines[0]),
+        ]));
+
+        // Subsequent lines: just content
+        for line_content in content_lines.iter().skip(1) {
+            result.push(Line::from(Span::raw(*line_content)));
+        }
+    }
+
+    result.push(Line::from(""));  // Blank separator
+    result
+}
+
+/// Format system message (timestamp, muted colors, collapse indicator)
+fn format_system_message(message: &Message) -> Vec<Line<'_>> {
+    // Header line: timestamp and collapse indicator
+    let mut header_spans = vec![];
+
+    // Timestamp (muted)
+    header_spans.push(Span::styled(
+        format!("[{}] ", message.timestamp.format("%H:%M:%S")),
+        Style::default().fg(Color::DarkGray)
+    ));
+
+    // Collapse indicator (if collapsible)
+    if message.collapsible {
+        let collapse_icon = if message.collapsed { "▶" } else { "▼" };
+        header_spans.push(Span::styled(
+            collapse_icon,
+            Style::default().fg(Color::Gray)
+        ));
+    }
+
+    // Content line: arrow and message text
+    let content = message.display_content().replace('\n', " ");
+    let content_line = Line::from(Span::styled(
+        format!("→ {}", content),
+        Style::default()
+            .fg(Color::Gray)
+            .add_modifier(Modifier::ITALIC)
+    ));
+
+    vec![
+        Line::from(header_spans),  // [HH:MM:SS] ▶
+        content_line,              // → content
+        Line::from(""),            // Blank separator
+    ]
+}
+
+fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char) -> usize {
+    // Clear click regions at start of render
+    app.click_regions.clear();
+
+    // Clone messages and read scroll offset to avoid borrow conflicts
+    let messages = app.messages().to_vec();
+    let scroll_offset = app.scroll_offset();
+
+    // Focus-aware border styling
+    let is_focused = app.focus_messages().get();
+    let border_color = if is_focused { Color::White } else { RUST_ORANGE };
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(RUST_ORANGE))
+        .border_style(Style::default().fg(border_color))
         .title(vec![
-            Span::styled("💬 ", Style::default().fg(RUST_ORANGE)),
+            Span::styled("💬 ", Style::default().fg(border_color)),
             Span::styled(
                 "Messages",
                 Style::default()
-                    .fg(RUST_ORANGE)
+                    .fg(border_color)
                     .add_modifier(Modifier::BOLD),
             ),
         ]);
@@ -253,13 +460,33 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App, throbber: char) -> 
     } else {
         // Build complete text content as styled text
         let mut text_lines = Vec::new();
+        let inner_area = block.inner(area);
+
+        // Calculate content width BEFORE message loop (needed for wrapping calculations)
+        let content_width = area.width.saturating_sub(2) as usize;
+
+        // Track cumulative VISUAL position (accounting for wrapping)
+        let mut cumulative_visual_line = 0;
 
         for (msg_idx, message) in messages.iter().enumerate() {
+            // Skip hidden messages (slash command prompts) from UI display
+            if message.hidden {
+                continue;
+            }
+
+            // Track starting positions in BOTH coordinate spaces
+            let buffer_start = text_lines.len();
+            let viewport_start = cumulative_visual_line;
             // Check if this is a tool message (dynamic rendering)
             if message.role == Role::System {
                 if let Some((_tool_id, tool_state)) = app.tool_message_by_index(msg_idx) {
                     // This is a tool execution message - render dynamically
-                    let elapsed = tool_state.start_time.elapsed().as_secs();
+                    // Use stored elapsed_duration if completed, otherwise calculate real-time
+                    let elapsed = if tool_state.completed {
+                        tool_state.elapsed_duration.unwrap_or(0)
+                    } else {
+                        tool_state.start_time.elapsed().as_secs()
+                    };
 
                     if tool_state.completed {
                         // Tool completed - show final result
@@ -267,8 +494,8 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App, throbber: char) -> 
                             let icon = if result.is_error { "✗" } else { "✓" };
                             let icon_color = if result.is_error { Color::Red } else { Color::Green };
 
-                            // Header: "✓ Bash { command: "ls -la" } (2s)"
-                            // Icon is colored, rest is dark grey
+                            // Header: "[HH:MM:SS] ✓ Bash { command: "ls -la" } (2s)"
+                            // Timestamp and icon are colored, rest is dark grey
                             let header_text = format!(
                                 " {} {} ({}s)",
                                 tool_state.tool_name,
@@ -276,6 +503,10 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App, throbber: char) -> 
                                 elapsed
                             );
                             text_lines.push(Line::from(vec![
+                                Span::styled(
+                                    format!("[{}] ", message.timestamp.format("%H:%M:%S")),
+                                    Style::default().fg(Color::DarkGray)
+                                ),
                                 Span::styled(icon, Style::default().fg(icon_color).add_modifier(Modifier::BOLD)),
                                 Span::styled(header_text, Style::default().fg(Color::DarkGray)),
                             ]));
@@ -306,7 +537,8 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App, throbber: char) -> 
                         }
                     } else {
                         // Tool still running - show throbber + timer
-                        // Throbber is passed in from render() to ensure synchronization
+                        // Header: "[HH:MM:SS] ⣾ Bash { command: "ls -la" } (2s)"
+                        // Timestamp and throbber are colored, rest is dark grey
                         let header_text = format!(
                             " {} {} ({}s)",
                             tool_state.tool_name,
@@ -314,6 +546,10 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App, throbber: char) -> 
                             elapsed
                         );
                         text_lines.push(Line::from(vec![
+                            Span::styled(
+                                format!("[{}] ", message.timestamp.format("%H:%M:%S")),
+                                Style::default().fg(Color::DarkGray)
+                            ),
                             Span::styled(
                                 throbber.to_string(),
                                 Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)
@@ -324,70 +560,103 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App, throbber: char) -> 
 
                     // Blank separator
                     text_lines.push(Line::from(""));
+
+                    // Calculate visual height for this tool message (accounting for wrapping)
+                    let buffer_end = text_lines.len();
+                    let visual_height = calculate_wrapped_height(
+                        &text_lines[buffer_start..buffer_end],
+                        content_width
+                    );
+                    let viewport_end = cumulative_visual_line + visual_height;
+                    cumulative_visual_line = viewport_end;
+
+                    // Register clickable region for tool message (always collapsible)
+                    // Exclude the trailing blank separator line from click region (subtract 1 from viewport_end)
+                    let clickable_end = viewport_end.saturating_sub(1);
+
+                    // Check if any part of message is visible in viewport
+                    if clickable_end > scroll_offset {
+                        let visible_y = if viewport_start < scroll_offset {
+                            0  // Message partially scrolled off top
+                        } else {
+                            viewport_start - scroll_offset
+                        };
+
+                        let visible_height = clickable_end.saturating_sub(scroll_offset.max(viewport_start));
+
+                        // DEBUG: Log tool message click region registration
+                        app.push_debug_message(format!(
+                            "[CLICK] Register TOOL msg_idx={} role={:?} y={} h={} (vp_start={} vp_end={} clickable_end={} scroll={})",
+                            msg_idx, message.role, visible_y, visible_height,
+                            viewport_start, viewport_end, clickable_end, scroll_offset
+                        ));
+
+                        app.click_regions.add_message(msg_idx, Rect {
+                            x: 0,  // Relative to inner_area
+                            y: visible_y as u16,
+                            width: inner_area.width,
+                            height: visible_height as u16,
+                        });
+                    }
+
                     continue; // Skip normal message rendering
                 }
             }
 
             // Normal message rendering (non-tool messages)
-            let header_style = match message.role {
-                Role::User => Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-                Role::Assistant => Style::default()
-                    .fg(RUST_ORANGE)
-                    .add_modifier(Modifier::BOLD),
-                Role::System => Style::default()
-                    .fg(Color::Gray)
-                    .add_modifier(Modifier::ITALIC),
+            // Use new formatting functions based on message role
+            let message_lines = match message.role {
+                Role::User => format_user_message(message),
+                Role::Assistant => format_assistant_message(message, throbber),
+                Role::System => format_system_message(message),
             };
 
-            let mut header_spans = vec![Span::styled(message.format_header(), header_style)];
-            if message.streaming {
-                header_spans.push(Span::styled(
-                    " [streaming]",
-                    Style::default().fg(Color::Yellow),
-                ));
-            }
-            text_lines.push(Line::from(header_spans));
+            // Add formatted lines to buffer
+            text_lines.extend(message_lines);
 
-            // Add message content - preserve exact text structure
-            if !message.content.is_empty() {
-                // System messages: compact format
-                if message.role == Role::System {
-                    let content = message.content.replace('\n', " ");
-                    text_lines.push(Line::from(Span::styled(
-                        format!("    → {}", content),
-                        Style::default().fg(Color::Gray).add_modifier(Modifier::ITALIC),
-                    )));
-                } else {
-                    // Regular messages: preserve exact structure, plain text
-                    for line in message.content.lines() {
-                        text_lines.push(Line::from(line.to_string()));
-                    }
+            // Calculate visual height for this message (accounting for wrapping)
+            let buffer_end = text_lines.len();
+            let visual_height = calculate_wrapped_height(
+                &text_lines[buffer_start..buffer_end],
+                content_width
+            );
+            let viewport_end = cumulative_visual_line + visual_height;
+            cumulative_visual_line = viewport_end;
+
+            // Register clickable region if message is collapsible AND visible in viewport
+            if message.collapsible {
+                // Exclude the trailing blank separator line from click region (subtract 1 from viewport_end)
+                let clickable_end = viewport_end.saturating_sub(1);
+
+                // Check if any part of message is visible in viewport
+                if clickable_end > scroll_offset {
+                    let visible_y = if viewport_start < scroll_offset {
+                        0  // Message partially scrolled off top
+                    } else {
+                        viewport_start - scroll_offset
+                    };
+
+                    let visible_height = clickable_end.saturating_sub(scroll_offset.max(viewport_start));
+
+                    // DEBUG: Log click region registration
+                    app.push_debug_message(format!(
+                        "[CLICK] Register msg_idx={} role={:?} collapsible={} y={} h={} (vp_start={} vp_end={} clickable_end={} scroll={})",
+                        msg_idx, message.role, message.collapsible, visible_y, visible_height,
+                        viewport_start, viewport_end, clickable_end, scroll_offset
+                    ));
+
+                    app.click_regions.add_message(msg_idx, Rect {
+                        x: 0,  // Relative to inner_area
+                        y: visible_y as u16,
+                        width: inner_area.width,
+                        height: visible_height as u16,
+                    });
                 }
             }
-
-            // Blank separator
-            text_lines.push(Line::from(""));
         }
 
-        // Calculate ACTUAL content height accounting for line wrapping
-        // Ratatui's Paragraph with wrap() will wrap lines at widget width
-        // Subtract 2 for block borders to get actual content width
-        let content_width = area.width.saturating_sub(2) as usize;
-
-        // Count actual rendered lines (accounting for wrapping)
-        let mut content_height = 0;
-        for line in &text_lines {
-            // Calculate how many screen lines this Line will take when wrapped - Unicode display width
-            let line_width: usize = line.spans.iter().map(|span| span.content.width()).sum();
-            if line_width == 0 {
-                content_height += 1; // Empty line still takes 1 line
-            } else {
-                // Calculate wrapped lines: ceil(line_width / content_width)
-                content_height += (line_width + content_width - 1) / content_width;
-            }
-        }
+        // Content height already calculated as cumulative_visual_line
+        let content_height = cumulative_visual_line;
 
         let text = Text::from(text_lines);
 
@@ -444,9 +713,14 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &App, throbber: char) -> 
 }
 
 fn render_input(frame: &mut Frame, area: Rect, app: &App) {
+    // Focus-aware styling (scrollbar only for now - TextArea block styling requires mutable access)
+    let is_focused = app.focus_input().get();
+    let scrollbar_color = if is_focused { Color::White } else { RUST_ORANGE };
+
     // CORRECT: Render TextArea directly with immutable borrow
     // TextArea implements Widget trait
     // Styling was configured once during initialization (App::new)
+    // TODO: Update TextArea's block style dynamically based on focus
     frame.render_widget(&app.input, area);
 
     // Render scrollbar only when content exceeds viewport (> 5 lines)
@@ -463,7 +737,7 @@ fn render_input(frame: &mut Frame, area: Rect, app: &App) {
         // Render scrollbar on right edge of input area (inside the border)
         let scrollbar = Scrollbar::default()
             .orientation(ScrollbarOrientation::VerticalRight)
-            .style(Style::default().fg(RUST_ORANGE))
+            .style(Style::default().fg(scrollbar_color))
             .begin_symbol(Some("▲"))
             .end_symbol(Some("▼"));
 
@@ -578,6 +852,24 @@ fn render_autocomplete(frame: &mut Frame, input_area: Rect, app: &App) {
         );
 
         frame.render_widget(list, popup_area);
+
+        // Render scrollbar if there are more items than visible
+        if total_items > max_visible_items {
+            let max_scroll = total_items.saturating_sub(max_visible_items);
+            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("↑"))
+                .end_symbol(Some("↓"))
+                .style(Style::default().fg(RUST_ORANGE));
+
+            let mut scrollbar_state = ScrollbarState::new(max_scroll)
+                .position(scroll_offset);
+
+            frame.render_stateful_widget(
+                scrollbar,
+                popup_area,
+                &mut scrollbar_state,
+            );
+        }
     }
 }
 
@@ -738,18 +1030,22 @@ fn build_memory_list_item(
     ListItem::new(Line::from(spans))
 }
 
-fn render_debug_panel(frame: &mut Frame, area: Rect, app: &App) {
+fn render_debug_panel(frame: &mut Frame, area: Rect, app: &App) -> usize {
     let messages = app.debug_messages();
+
+    // Focus-aware border styling
+    let is_focused = app.focus_debug().get();
+    let border_color = if is_focused { Color::White } else { Color::Yellow };
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Yellow))
+        .border_style(Style::default().fg(border_color))
         .title(vec![
-            Span::styled("🔍 ", Style::default().fg(Color::Yellow)),
+            Span::styled("🔍 ", Style::default().fg(border_color)),
             Span::styled(
                 "Debug Panel",
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(border_color)
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
@@ -767,10 +1063,30 @@ fn render_debug_panel(frame: &mut Frame, area: Rect, app: &App) {
         )));
     }
 
+    // Calculate content height accounting for wrapping
+    let content_width = area.width.saturating_sub(2) as usize; // Subtract borders
+    let content_height = calculate_wrapped_height(&text_lines, content_width);
+
     let text = Text::from(text_lines);
 
-    // Show from top (scroll = 0) to let content fill naturally from oldest to newest
-    let scroll_offset = 0;
+    // Calculate viewport height and max_scroll
+    let viewport_height = area.height.saturating_sub(2) as usize; // Subtract borders
+    let max_scroll = if content_height > viewport_height {
+        content_height - viewport_height
+    } else {
+        0
+    };
+
+    // Determine scroll offset based on follow_bottom mode (same as message panel)
+    let scroll_offset = if app.debug_follow_bottom() {
+        // Auto-follow bottom - show last viewport worth of content
+        // CRITICAL: When following bottom, ALWAYS use max_scroll to show latest debug messages
+        max_scroll.min(u16::MAX as usize) as u16
+    } else {
+        // Manual scroll - clamp to valid range [0, max_scroll]
+        let clamped = app.debug_scroll_offset().min(max_scroll);
+        clamped.min(u16::MAX as usize) as u16
+    };
 
     let paragraph = Paragraph::new(text)
         .block(block)
@@ -778,4 +1094,23 @@ fn render_debug_panel(frame: &mut Frame, area: Rect, app: &App) {
         .scroll((scroll_offset, 0));
 
     frame.render_widget(paragraph, area);
+
+    // Render scrollbar if content overflows
+    if content_height > viewport_height {
+        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+            .begin_symbol(Some("↑"))
+            .end_symbol(Some("↓"))
+            .style(Style::default().fg(Color::Yellow));
+
+        let mut scrollbar_state = ScrollbarState::new(max_scroll)
+            .position(scroll_offset as usize);
+
+        frame.render_stateful_widget(
+            scrollbar,
+            area,
+            &mut scrollbar_state,
+        );
+    }
+
+    max_scroll
 }

@@ -82,7 +82,7 @@ impl LayoutOrganizer {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Min(0),                 // Messages
-                Constraint::Length(input_height),   // Input (dynamic: 1-5 lines + 2 borders)
+                Constraint::Length(input_height),   // Input (dynamic: 1-10 lines + 2 borders)
             ])
             .split(main_area);
 
@@ -90,11 +90,11 @@ impl LayoutOrganizer {
     }
 }
 
-/// Calculate dynamic input height based on line count (1-5 lines + 2 borders = 3-7 total)
+/// Calculate dynamic input height based on line count (1-10 lines + 2 borders = 3-12 total)
 fn calculate_input_height(app: &App) -> u16 {
     let line_count = app.input_line_count();
-    // Min 3 (1 line + 2 borders), Max 7 (5 lines + 2 borders)
-    (line_count as u16 + 2).clamp(3, 7)
+    // Min 3 (1 line + 2 borders), Max 12 (10 lines + 2 borders)
+    (line_count as u16 + 2).clamp(3, 12)
 }
 
 #[cfg(test)]

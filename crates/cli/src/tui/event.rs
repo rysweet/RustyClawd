@@ -3,9 +3,15 @@
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use std::time::Duration;
+use rat_focus::{FocusBuilder, Focus, HasFocus};
+use rat_event::Outcome;
 
-use crate::tui::app::App;
+use crate::tui::app::{
+    App, MessagesPaneWrapper, InputPaneWrapper, DebugPaneWrapper,
+    AutocompletePopupWrapper, MemoryModalWrapper,
+};
 use crate::tui::keybindings::{KeyAction, KeyBindings};
+use crate::tui::click_region::ClickTarget;
 
 /// Result of event handling
 #[derive(Debug, PartialEq, Eq)]
@@ -21,6 +27,15 @@ pub enum EventResult {
 
     /// Exit application
     Exit,
+
+    /// Toggle message expand/collapse (message index)
+    ToggleMessage { index: usize },
+
+    /// Toggle debug pane visibility
+    ToggleDebugPane,
+
+    /// Open menu (future implementation)
+    OpenMenu,
 }
 
 /// Poll for events with timeout
@@ -34,6 +49,85 @@ pub fn poll_event(timeout: Duration) -> Result<Option<Event>> {
 
 /// Handle a single event, mutating app state
 pub fn handle_event(app: &mut App, event: Event) -> Result<EventResult> {
+    // Build focus structure BEFORE processing events (for Tab/mouse focus handling)
+    // Extract data from app first to avoid borrowing conflicts
+    let cache = app.layout_cache().clone();
+
+    // Only handle focus if layout cache is initialized (non-zero area)
+    // This avoids issues in tests where layout isn't set up
+    if cache.messages_area.width > 0 && cache.messages_area.height > 0 {
+        let focus_messages = app.focus_messages();
+        let focus_input = app.focus_input();
+        let focus_debug = app.focus_debug();
+        let focus_autocomplete = app.focus_autocomplete();
+        let focus_memory_modal = app.focus_memory_modal();
+        let autocomplete_active = app.autocomplete_active();
+        let memory_modal_active = app.memory_modal_active();
+
+        let mut builder = FocusBuilder::default();
+
+        // Add panes in z-order (bottom to top)
+        let messages_wrapper = MessagesPaneWrapper {
+            focus: focus_messages,
+            area: cache.messages_area,
+        };
+        messages_wrapper.build(&mut builder);
+
+        let input_wrapper = InputPaneWrapper {
+            focus: focus_input,
+            area: cache.input_area,
+        };
+        input_wrapper.build(&mut builder);
+
+        if let Some(debug_area) = cache.debug_area {
+            let debug_wrapper = DebugPaneWrapper {
+                focus: focus_debug,
+                area: debug_area,
+            };
+            debug_wrapper.build(&mut builder);
+        }
+
+        // Add overlays on top (highest z-order)
+        if autocomplete_active {
+            let autocomplete_wrapper = AutocompletePopupWrapper {
+                focus: focus_autocomplete,
+                // Autocomplete area is calculated in render, use input area as approximation
+                area: cache.input_area,
+            };
+            autocomplete_wrapper.build(&mut builder);
+        }
+
+        if memory_modal_active {
+            let memory_modal_wrapper = MemoryModalWrapper {
+                focus: focus_memory_modal,
+                // Memory modal area is calculated in render, use input area as approximation
+                area: cache.input_area,
+            };
+            memory_modal_wrapper.build(&mut builder);
+        }
+
+        let mut focus = builder.build();
+
+        // Handle focus events (Tab navigation, mouse clicks) with rat-focus
+        // This processes focus changes BEFORE other event handling
+        // The FocusFlags will update automatically based on focus changes
+        let focus_outcome = rat_focus::handle_focus(&mut focus, &event);
+
+        // CRITICAL: Check if rat-focus consumed the event
+        // If it did (Tab/mouse click for focus), don't process further
+        if matches!(focus_outcome, Outcome::Changed) {
+            // rat-focus handled this event (Tab or mouse click for focus)
+            let msg = format!("🎯 Focus changed: msg={} inp={} dbg={}",
+                            app.focus_messages().get(), app.focus_input().get(), app.focus_debug().get());
+            app.push_debug_message(msg);
+            // Don't pass it to our handlers - return early
+            return Ok(EventResult::Continue);
+        }
+    }
+
+    // Continue with regular event processing
+    // Note: The focus state is now updated and will be reflected in the next render
+    // We only reach here if rat-focus didn't consume the event (Outcome::NotUsed or Outcome::Unchanged)
     match event {
         Event::Key(key) => handle_key_event(app, key),
         Event::Mouse(mouse) => handle_mouse_event(app, mouse),
@@ -46,19 +140,87 @@ pub fn handle_event(app: &mut App, event: Event) -> Result<EventResult> {
 }
 
 fn handle_mouse_event(app: &mut App, mouse: event::MouseEvent) -> Result<EventResult> {
-    use event::MouseEventKind;
+    use event::{MouseEventKind, MouseButton};
 
     match mouse.kind {
         MouseEventKind::ScrollUp => {
-            // Scroll up 3 lines (smooth scrolling)
-            app.scroll_up(3);
+            // Route scroll to focused panel
+            // If input focused, scroll message panel (input doesn't have meaningful scroll)
+            // If debug focused, scroll debug panel
+            // Otherwise, scroll message panel (default)
+            if app.focus_debug().get() {
+                app.scroll_debug_up(3);
+            } else {
+                // Input or message focus -> scroll message panel
+                app.scroll_up(3);
+            }
         }
         MouseEventKind::ScrollDown => {
-            // Scroll down 3 lines (smooth scrolling)
-            app.scroll_down(3);
+            // Route scroll to focused panel (same logic as ScrollUp)
+            if app.focus_debug().get() {
+                app.scroll_debug_down(3);
+            } else {
+                // Input or message focus -> scroll message panel
+                app.scroll_down(3);
+            }
+        }
+        MouseEventKind::Down(MouseButton::Left) => {
+            // Left-click: check what was clicked using hit-testing
+            // hit_test() automatically translates coordinates for each panel
+            app.push_debug_message(format!(
+                "[CLICK] Raw mouse=({}, {})",
+                mouse.column, mouse.row
+            ));
+
+            let target = app.click_regions.hit_test(mouse.column, mouse.row, app.layout_cache());
+
+            match target {
+                ClickTarget::Message { index } => {
+                    // DEBUG: Log click hit and extract message data first (avoid borrow conflicts)
+                    let msg_info = app.messages().get(index).map(|m| {
+                        (m.role, m.collapsible, m.collapsed)
+                    });
+
+                    app.push_debug_message(format!(
+                        "[CLICK] Hit msg_idx={} at screen=({}, {})",
+                        index, mouse.column, mouse.row
+                    ));
+
+                    if let Some((role, collapsible, collapsed)) = msg_info {
+                        app.push_debug_message(format!(
+                            "[CLICK] Message role={:?} collapsible={} collapsed={}",
+                            role, collapsible, collapsed
+                        ));
+                    }
+
+                    // Toggle message expand/collapse
+                    if let Some(message) = app.messages_mut().get_mut(index) {
+                        message.toggle_collapse();
+                    }
+                    // Return Continue - message state already updated
+                }
+                ClickTarget::DebugMessage { index } => {
+                    // Future: Handle debug message clicks (collapsible debug entries)
+                    app.push_debug_message(format!(
+                        "[CLICK] Hit debug msg_idx={} (not yet implemented)",
+                        index
+                    ));
+                }
+                ClickTarget::StatusBarItem { id } => {
+                    // Route status bar clicks to appropriate actions
+                    match id.as_str() {
+                        "debug" => return Ok(EventResult::ToggleDebugPane),
+                        "menu" => return Ok(EventResult::OpenMenu),
+                        _ => {} // Unknown status bar item, ignore
+                    }
+                }
+                ClickTarget::Background => {
+                    // Clicked empty space, nothing to do
+                }
+            }
         }
         _ => {
-            // Ignore other mouse events (clicks, drags, etc.)
+            // Ignore other mouse events (right-click, drags, etc.)
         }
     }
 
@@ -71,7 +233,6 @@ fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<EventResult> {
     if key.kind != KeyEventKind::Press {
         return Ok(EventResult::Continue);
     }
-
 
     // Special handling: backslash-escaped Enter inserts newline
     // Check if Enter key pressed WITHOUT Shift modifier AND input ends with backslash
@@ -97,7 +258,10 @@ fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<EventResult> {
     }
 
     // If no binding found AND it's a printable character AND not streaming, insert it
-    if bindings.is_printable_char(&key) && !app.is_streaming() {
+    let is_printable = bindings.is_printable_char(&key);
+    let is_streaming = app.is_streaming();
+
+    if is_printable && !is_streaming {
         if let crossterm::event::KeyCode::Char(c) = key.code {
             app.insert_char(c);
         }

@@ -20,6 +20,7 @@
 //! ```
 
 mod app;
+mod click_region;
 mod compat;
 mod event;
 mod keybindings;
@@ -29,9 +30,9 @@ mod token_counter;
 mod ui;
 
 // Re-export for backward compatibility with existing code
-pub use app::{App, ToolResult, ToolMessageState, CompletionItem, AutocompleteState, MemoryDestination, MemoryModalState};
+pub use app::{App, LayoutCache, ToolResult, ToolMessageState, CompletionItem, AutocompleteState, MemoryDestination, MemoryModalState};
 pub use event::{handle_event, poll_event, EventResult};
-pub use message::{Message, Role};
+pub use message::{Message, Role, MessageStatus};
 pub use ui::render;
 
 // Legacy exports (kept for compatibility with interactive.rs)
@@ -79,21 +80,35 @@ pub fn run_event_loop<F>(
 where
     F: FnMut(&str) -> Result<()>,
 {
-    loop {
-        // Render current state and update max_scroll
+    // Helper function to render and update app state
+    let do_render = |terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>, app: &mut App| -> Result<()> {
         let mut max_scroll = 0;
+        let mut debug_max_scroll = 0;
+        let mut layout_cache = LayoutCache::default();
         terminal.draw(|f| {
-            max_scroll = render(f, app);
+            let (scroll, debug_scroll, cache) = render(f, app);
+            max_scroll = scroll;
+            debug_max_scroll = debug_scroll;
+            layout_cache = cache;
         })?;
         app.update_max_scroll(max_scroll);
+        app.update_debug_max_scroll(debug_max_scroll);
+        app.update_layout_cache(layout_cache);
+        Ok(())
+    };
+
+    loop {
+        // Render current state
+        do_render(terminal, app)?;
 
         // Poll for events (16ms for 60 FPS)
         if let Some(event) = poll_event(Duration::from_millis(16))? {
-            match handle_event(app, event)? {
-                EventResult::Continue => {}
+            let state_changed = match handle_event(app, event)? {
+                EventResult::Continue => true,  // Assume state changed (typing, navigation, etc.)
                 EventResult::Submit(input) => {
                     app.add_message(Message::user(input.clone()));
                     on_submit(&input)?;
+                    true
                 }
                 EventResult::SaveMemory(memory_text, file_path) => {
                     // Save memory to file
@@ -106,10 +121,31 @@ where
                         .append(true)
                         .open(&file_path)?;
                     file.write_all(memory_entry.as_bytes())?;
+                    true
+                }
+                EventResult::ToggleDebugPane => {
+                    // Toggle debug pane visibility
+                    app.toggle_debug();
+                    true
+                }
+                EventResult::ToggleMessage { index: _ } => {
+                    // Message collapse state already updated in handle_mouse_event
+                    // Just need to trigger repaint
+                    true
+                }
+                EventResult::OpenMenu => {
+                    // Menu functionality not yet implemented
+                    // For now, just continue (placeholder for future)
+                    true
                 }
                 EventResult::Exit => {
                     break;
                 }
+            };
+
+            // CRITICAL: Render immediately after state change for instant feedback
+            if state_changed {
+                do_render(terminal, app)?;
             }
         }
 

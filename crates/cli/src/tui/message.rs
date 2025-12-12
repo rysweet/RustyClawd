@@ -9,6 +9,16 @@ pub struct Message {
     pub content: String,
     pub timestamp: DateTime<Local>,
     pub streaming: bool,
+    pub status: MessageStatus,    // Completion status for rendering indicators
+
+    // Expand/collapse state for system messages and tool calls
+    pub collapsible: bool,       // Can this message be collapsed?
+    pub collapsed: bool,          // Is it currently collapsed?
+    pub collapsed_preview: String, // Text shown when collapsed
+
+    // UI visibility (false = visible, true = hidden)
+    // Used to hide slash command injected prompts from UI while keeping them in conversation
+    pub hidden: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,40 +28,142 @@ pub enum Role {
     System,
 }
 
+/// Message completion status for rendering status indicators
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MessageStatus {
+    Streaming,  // Message is currently being generated
+    Complete,   // Message generation complete
+    Error,      // Message generation failed
+}
+
 impl Message {
+    /// Create a standard (non-collapsible) user message
     pub fn user(content: String) -> Self {
         Self {
             role: Role::User,
             content,
             timestamp: Local::now(),
             streaming: false,
+            status: MessageStatus::Complete,  // User messages start complete
+            collapsible: false,
+            collapsed: false,
+            collapsed_preview: String::new(),
+            hidden: false,
         }
     }
 
+    /// Create a hidden user message (for slash command injected prompts)
+    /// These are kept in conversation history but not displayed in the UI
+    pub fn user_hidden(content: String) -> Self {
+        Self {
+            role: Role::User,
+            content,
+            timestamp: Local::now(),
+            streaming: false,
+            status: MessageStatus::Complete,
+            collapsible: false,
+            collapsed: false,
+            collapsed_preview: String::new(),
+            hidden: true,
+        }
+    }
+
+    /// Create a standard (non-collapsible) assistant message
     pub fn assistant(content: String) -> Self {
         Self {
             role: Role::Assistant,
             content,
             timestamp: Local::now(),
             streaming: false,
+            status: MessageStatus::Complete,  // Non-streaming messages start complete
+            collapsible: false,
+            collapsed: false,
+            collapsed_preview: String::new(),
+            hidden: false,
         }
     }
 
+    /// Create a partial (streaming) assistant message
     pub fn assistant_partial(content: String) -> Self {
         Self {
             role: Role::Assistant,
             content,
             timestamp: Local::now(),
             streaming: true,
+            status: MessageStatus::Streaming,  // Streaming messages start in Streaming status
+            collapsible: false,
+            collapsed: false,
+            collapsed_preview: String::new(),
+            hidden: false,
         }
     }
 
+    /// Create a collapsible system message (starts collapsed)
     pub fn system(content: String) -> Self {
+        let preview = if content.len() > 60 {
+            format!("{}...", &content[..60])
+        } else {
+            content.clone()
+        };
+
         Self {
             role: Role::System,
             content,
             timestamp: Local::now(),
             streaming: false,
+            status: MessageStatus::Complete,  // System messages start complete
+            collapsible: true,
+            collapsed: true,
+            collapsed_preview: preview,
+            hidden: false,
+        }
+    }
+
+    /// Create a collapsible message with custom preview
+    pub fn collapsible(role: Role, content: String, preview: String) -> Self {
+        Self {
+            role,
+            content,
+            timestamp: Local::now(),
+            streaming: false,
+            status: MessageStatus::Complete,  // Collapsible messages start complete
+            collapsible: true,
+            collapsed: true,
+            collapsed_preview: preview,
+            hidden: false,
+        }
+    }
+
+    /// Toggle collapse state (only works if collapsible)
+    pub fn toggle_collapse(&mut self) {
+        if self.collapsible {
+            self.collapsed = !self.collapsed;
+        }
+    }
+
+    /// Mark message as streaming complete
+    pub fn complete_streaming(&mut self) {
+        self.status = MessageStatus::Complete;
+        self.streaming = false;
+    }
+
+    /// Mark message as error
+    pub fn mark_error(&mut self) {
+        self.status = MessageStatus::Error;
+        self.streaming = false;
+    }
+
+    /// Check if this is a tool message (system message that's collapsible)
+    pub fn is_tool_message(&self) -> bool {
+        self.role == Role::System && self.collapsible
+    }
+
+    /// Get display content based on collapse state
+    pub fn display_content(&self) -> &str {
+        if self.collapsible && self.collapsed {
+            &self.collapsed_preview
+        } else {
+            &self.content
         }
     }
 

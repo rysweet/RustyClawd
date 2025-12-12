@@ -151,6 +151,18 @@ impl TuiState {
                     self.save_memory_to_file(&memory_text, &file_path)?;
                     Ok(None)
                 }
+                EventResult::ToggleDebugPane => {
+                    // Debug pane already toggled in event handler
+                    Ok(None)
+                }
+                EventResult::ToggleMessage { index: _ } => {
+                    // Message collapse state already toggled in event handler
+                    Ok(None)
+                }
+                EventResult::OpenMenu => {
+                    // Menu functionality not yet implemented
+                    Ok(None)
+                }
                 EventResult::Exit => Ok(Some("/exit".to_string())),
             }
         } else {
@@ -201,6 +213,18 @@ impl TuiState {
                 let confirmation = format!("💾 Memory saved: \"{}\" → {}", truncated, file_path);
                 self.app.add_message(super::Message::system(confirmation));
 
+                Ok(None)
+            }
+            EventResult::ToggleDebugPane => {
+                // Debug pane already toggled in event handler
+                Ok(None)
+            }
+            EventResult::ToggleMessage { index: _ } => {
+                // Message collapse state already toggled in event handler
+                Ok(None)
+            }
+            EventResult::OpenMenu => {
+                // Menu functionality not yet implemented
                 Ok(None)
             }
             EventResult::Exit => {
@@ -355,14 +379,22 @@ impl TuiState {
 
     /// Draw the TUI
     pub fn draw(&mut self) -> Result<()> {
-        // Render and capture max_scroll for app state update
+        // Render and capture max_scroll and layout_cache for app state update
         let mut max_scroll = 0;
+        let mut debug_max_scroll = 0;
+        let mut layout_cache = super::app::LayoutCache::default();
         self.terminal.draw(|f| {
-            max_scroll = super::ui::render(f, &self.app);
+            let (scroll, debug_scroll, cache) = super::ui::render(f, &mut self.app);
+            max_scroll = scroll;
+            debug_max_scroll = debug_scroll;
+            layout_cache = cache;
         })?;
 
-        // Update app's max_scroll so scroll operations can clamp properly
+        // Update app's max_scroll, debug_max_scroll, and layout_cache so scroll operations can clamp properly
+        // and focus system can perform hit testing
         self.app.update_max_scroll(max_scroll);
+        self.app.update_debug_max_scroll(debug_max_scroll);
+        self.app.update_layout_cache(layout_cache);
 
         Ok(())
     }

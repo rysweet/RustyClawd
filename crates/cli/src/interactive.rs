@@ -641,7 +641,7 @@ impl InteractiveSession {
                     }
 
                     // Process user message and get Claude's response
-                    if let Err(e) = self.process_user_message(input).await {
+                    if let Err(e) = self.process_user_message(input, false).await {
                         self.tui.add_message(ChatMessage::system(format!("Error: {}", e)));
                         self.tui.set_status(format!("Error: {}", e));
                     }
@@ -873,8 +873,8 @@ impl InteractiveSession {
 
                     match self.slash_commands.execute(input).await {
                         Ok(result) => {
-                            // Add expanded prompt as user message
-                            self.tui.add_message(ChatMessage::user(format!("{}\n\n[Command expanded to:]", input)));
+                            // Add slash command invocation as user message
+                            self.tui.add_message(ChatMessage::user(input.to_string()));
 
                             self.tui.add_message(ChatMessage::system(result.expanded_prompt.clone(),));
 
@@ -883,7 +883,8 @@ impl InteractiveSession {
                                 .add_message(Message::user(result.expanded_prompt.clone()));
 
                             // Process the expanded prompt as if user typed it
-                            if let Err(e) = self.process_user_message(&result.expanded_prompt).await
+                            // Skip TUI display since we already showed it as a collapsed system message
+                            if let Err(e) = self.process_user_message(&result.expanded_prompt, true).await
                             {
                                 self.tui.add_message(ChatMessage::system(format!("Error processing command: {}", e)));
                             }
@@ -1002,7 +1003,7 @@ impl InteractiveSession {
     }
 
     /// Process a user message with streaming and tool support
-    async fn process_user_message(&mut self, user_input: &str) -> Result<()> {
+    async fn process_user_message(&mut self, user_input: &str, skip_tui_display: bool) -> Result<()> {
         self.tui.push_debug("[PROCESS] Starting process_user_message".to_string());
 
         // Execute UserPromptSubmit hook BEFORE adding prompt to context
@@ -1043,8 +1044,10 @@ impl InteractiveSession {
 
         self.tui.push_debug("[PROCESS] Adding user message to TUI".to_string());
 
-        // Add user message to TUI and context
-        self.tui.add_message(ChatMessage::user(user_input.to_string(),));
+        // Add user message to TUI (unless skipped for slash commands) and context
+        if !skip_tui_display {
+            self.tui.add_message(ChatMessage::user(user_input.to_string(),));
+        }
         self.context
             .add_message(Message::user(user_input.to_string()));
 
