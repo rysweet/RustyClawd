@@ -1,8 +1,9 @@
 //! Event handling for TUI
 
 use anyhow::Result;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, EnableMouseCapture, DisableMouseCapture};
 use std::time::Duration;
+use std::io;
 use rat_focus::{FocusBuilder, Focus, HasFocus};
 use rat_event::Outcome;
 
@@ -286,6 +287,19 @@ fn handle_key_action(app: &mut App, action: &KeyAction) -> Result<EventResult> {
         KeyAction::ToggleDebug => {
             app.toggle_debug();
         }
+        KeyAction::ToggleMouseMode => {
+            // Toggle mouse mode and update crossterm capture state
+            let new_mode = !app.mouse_mode_enabled();
+            app.set_mouse_mode(new_mode);
+
+            if new_mode {
+                // Enable mouse capture (clicks go to app, terminal selection blocked)
+                crossterm::execute!(io::stdout(), EnableMouseCapture)?;
+            } else {
+                // Disable mouse capture (terminal selection works, no app clicks)
+                crossterm::execute!(io::stdout(), DisableMouseCapture)?;
+            }
+        }
         KeyAction::CyclePermissionMode => {
             app.cycle_permission_mode();
         }
@@ -469,7 +483,6 @@ mod tests {
         assert_eq!(app.input(), "hello");
 
         // Simulate Enter
-        let event = make_key_event(KeyCode::Char('\r'), KeyModifiers::NONE);
         match handle_event(&mut app, Event::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))).unwrap() {
             EventResult::Submit(input) => {
                 assert_eq!(input, "hello");

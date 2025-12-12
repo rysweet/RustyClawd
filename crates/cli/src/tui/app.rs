@@ -45,12 +45,14 @@ pub struct ToolMessageState {
 pub struct ToolResult {
     /// Exit code (for bash tools) or success indicator
     pub exit_code: Option<i32>,
-    /// Stdout output
+    /// Primary output (stdout for Bash, content for other tools)
     pub stdout: String,
-    /// Stderr output
+    /// Error output (stderr for Bash, empty for other tools)
     pub stderr: String,
     /// Whether this was an error
     pub is_error: bool,
+    /// Raw content (for expanded view - shows full API response)
+    pub raw_content: String,
 }
 
 /// Completion item for slash command autocomplete
@@ -262,6 +264,9 @@ pub struct App {
 
     /// Soft wrap state for input text wrapping
     soft_wrap: SoftWrapState,
+
+    /// Mouse mode enabled (when false, allows terminal text selection)
+    mouse_mode_enabled: bool,
 }
 
 /// State for active streaming response
@@ -328,6 +333,7 @@ impl App {
             layout_cache: LayoutCache::default(),
             click_regions: crate::tui::click_region::ClickableRegions::new(),
             soft_wrap: SoftWrapState::default(),
+            mouse_mode_enabled: true, // Start with mouse mode ON
         }
     }
 
@@ -444,6 +450,28 @@ impl App {
             "[MSG] {:?}: {} chars",
             message.role, message.content.len()
         ));
+
+        // DEBUG: Log first 300 chars of content with escaped newlines
+        let debug_sample = message.content.chars().take(300).collect::<String>();
+        let escaped = debug_sample.replace('\n', "\\n").replace('\r', "\\r").replace('\t', "\\t");
+        self.push_debug_message(format!("[MSG CONTENT] {}", escaped));
+
+        // DEBUG: Show how .lines() will parse this
+        let paragraphs: Vec<&str> = message.content.lines().collect();
+        self.push_debug_message(format!("[LINES] .lines() produced {} paragraphs", paragraphs.len()));
+        for (idx, para) in paragraphs.iter().enumerate() {
+            if para.is_empty() {
+                self.push_debug_message(format!("[LINES] Para {}: <EMPTY>", idx));
+            } else {
+                let preview = if para.len() > 30 {
+                    format!("{}...", &para[..30])
+                } else {
+                    para.to_string()
+                };
+                self.push_debug_message(format!("[LINES] Para {}: {:?} (len={})", idx, preview, para.len()));
+            }
+        }
+
         self.messages.push(message);
         self.scroll_to_bottom();
         self.mark_dirty();
@@ -1163,6 +1191,17 @@ impl App {
 
     pub fn toggle_menu(&mut self) {
         self.menu_open = !self.menu_open;
+        self.mark_dirty();
+    }
+
+    pub fn mouse_mode_enabled(&self) -> bool {
+        self.mouse_mode_enabled
+    }
+
+    pub fn set_mouse_mode(&mut self, enabled: bool) {
+        self.mouse_mode_enabled = enabled;
+        let status = if enabled { "ON" } else { "OFF" };
+        self.push_debug_message(format!("=== Mouse Mode {} ===", status));
         self.mark_dirty();
     }
 

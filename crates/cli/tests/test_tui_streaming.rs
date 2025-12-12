@@ -44,28 +44,11 @@ fn test_streaming_single_chunk() {
 
 #[test]
 fn test_streaming_multiple_chunks() {
-    use chrono::Local;
-
     // Test that multiple chunks are accumulated correctly
     let messages = [
-        ChatMessage {
-            role: MessageRole::Assistant,
-            content: "This is ".to_string(),
-            timestamp: Local::now(),
-            streaming: false,
-        },
-        ChatMessage {
-            role: MessageRole::Assistant,
-            content: "a test ".to_string(),
-            timestamp: Local::now(),
-            streaming: false,
-        },
-        ChatMessage {
-            role: MessageRole::Assistant,
-            content: "message.".to_string(),
-            timestamp: Local::now(),
-            streaming: false,
-        },
+        ChatMessage::assistant("This is ".to_string()),
+        ChatMessage::assistant("a test ".to_string()),
+        ChatMessage::assistant("message.".to_string()),
     ];
 
     // Verify chunks can be combined
@@ -152,28 +135,11 @@ fn test_streaming_long_content() {
 
 #[test]
 fn test_streaming_message_roles() {
-    use chrono::Local;
-
     // Test that different message roles are handled during streaming
     let messages = [
-        ChatMessage {
-            role: MessageRole::User,
-            content: "User message".to_string(),
-            timestamp: Local::now(),
-            streaming: false,
-        },
-        ChatMessage {
-            role: MessageRole::Assistant,
-            content: "Assistant message".to_string(),
-            timestamp: Local::now(),
-            streaming: false,
-        },
-        ChatMessage {
-            role: MessageRole::System,
-            content: "System message".to_string(),
-            timestamp: Local::now(),
-            streaming: false,
-        },
+        ChatMessage::user("User message".to_string()),
+        ChatMessage::assistant("Assistant message".to_string()),
+        ChatMessage::system("System message".to_string()),
     ];
 
     assert_eq!(messages.len(), 3);

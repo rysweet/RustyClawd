@@ -98,6 +98,7 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &mut App, throbber: cha
     let token_count = app.token_count();
     let debug_visible = app.debug_visible();
     let follow_bottom = app.follow_bottom();
+    let mouse_mode_enabled = app.mouse_mode_enabled();
 
     let mode_style = Style::default()
         .fg(Color::Black)
@@ -165,15 +166,25 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &mut App, throbber: cha
     };
 
     // Calculate padding to right-align - Unicode display width
+    let mouse_status = if mouse_mode_enabled { "Mouse:ON" } else { "Mouse:OFF" };
     let left_width: usize = status_spans.iter().map(|s| s.content.width()).sum();
-    let right_text = format!(" | {}{} | F1:Menu ", debug_status, follow_indicator);
+    let right_text = format!(" | {} | {}{} | F1:Menu ", mouse_status, debug_status, follow_indicator);
     let padding_width = area.width.saturating_sub((left_width + right_text.width()) as u16);
 
     status_spans.push(Span::raw(" ".repeat(padding_width as usize)));
     status_spans.push(Span::raw(" | "));
 
+    // Mouse mode indicator
+    let mouse_style = if mouse_mode_enabled {
+        Style::default().fg(Color::Green)
+    } else {
+        Style::default().fg(Color::Red)
+    };
+    status_spans.push(Span::styled(mouse_status, mouse_style));
+    status_spans.push(Span::raw(" | "));
+
     // Track debug button click region
-    let debug_x = left_width + padding_width as usize + 3; // " | " is 3 chars
+    let debug_x = left_width + padding_width as usize + 3 + mouse_status.width() + 3; // " | " is 3 chars each
     let debug_rect = Rect {
         x: area.x + debug_x as u16,
         y: area.y,
@@ -209,9 +220,10 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &mut App, throbber: cha
 }
 
 /// Format a tool call for display (compact JSON parameters)
-fn format_tool_params(params: &serde_json::Value) -> String {
-    match params {
-        serde_json::Value::Object(map) if map.is_empty() => "{}".to_string(),
+/// Max width parameter controls truncation to fit header
+fn format_tool_params(params: &serde_json::Value, max_width: usize) -> String {
+    let formatted = match params {
+        serde_json::Value::Object(map) if map.is_empty() => "()".to_string(),
         serde_json::Value::Object(map) => {
             let items: Vec<String> = map
                 .iter()
@@ -229,13 +241,297 @@ fn format_tool_params(params: &serde_json::Value) -> String {
                 .collect();
 
             if map.len() > 3 {
-                format!("{{ {}, ... }}", items.join(", "))
+                format!("({}, ...)", items.join(", "))
             } else {
-                format!("{{ {} }}", items.join(", "))
+                format!("({})", items.join(", "))
             }
         }
-        _ => params.to_string(),
+        _ => format!("({})", params.to_string()),
+    };
+
+    // Truncate to max_width if needed
+    if formatted.len() > max_width {
+        format!("{}...)", &formatted[..max_width.saturating_sub(4)])
+    } else {
+        formatted
     }
+}
+
+/// Recursively format a JSON value with tree structure
+/// Returns formatted lines with proper indentation
+fn format_json_value(
+    value: &serde_json::Value,
+    parent_bar: &str,
+    tree_char: &str,
+    continuation_char: &str,
+    key: Option<&str>,
+    content_width: usize,
+    depth: usize,
+) -> Vec<Line<'static>> {
+    let mut lines = Vec::new();
+
+    // Safety limit for recursion depth
+    if depth > 10 {
+        let label = key.map(|k| format!("{}: ", k)).unwrap_or_default();
+        lines.push(Line::from(Span::styled(
+            format!("{} {} {}[max depth exceeded]", parent_bar, tree_char, label),
+            Style::default().fg(Color::DarkGray),
+        )));
+        return lines;
+    }
+
+    match value {
+        serde_json::Value::Object(map) => {
+            // Object - show as nested structure
+            let label = key.map(|k| format!("{}: ", k)).unwrap_or_default();
+            lines.push(Line::from(Span::styled(
+                format!("{} {} {}", parent_bar, tree_char, label),
+                Style::default().fg(Color::DarkGray),
+            )));
+
+            // Nested items
+            let nested_parent_bar = format!("{} {} ", parent_bar, continuation_char);
+            for (idx, (nested_key, nested_value)) in map.iter().enumerate() {
+                let is_last = idx == map.len() - 1;
+                let nested_tree_char = if is_last { "└─" } else { "├─" };
+                let nested_continuation_char = if is_last { "  " } else { "│ " };
+
+                let nested_lines = format_json_value(
+                    nested_value,
+                    &nested_parent_bar.trim_end(),
+                    nested_tree_char,
+                    nested_continuation_char,
+                    Some(nested_key),
+                    content_width,
+                    depth + 1,
+                );
+                lines.extend(nested_lines);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            // Array - show as indexed items
+            let label = key.map(|k| format!("{}: ", k)).unwrap_or_default();
+            lines.push(Line::from(Span::styled(
+                format!("{} {} {}[{} items]", parent_bar, tree_char, label, arr.len()),
+                Style::default().fg(Color::DarkGray),
+            )));
+
+            // Array items
+            let nested_parent_bar = format!("{} {} ", parent_bar, continuation_char);
+            for (idx, item) in arr.iter().enumerate() {
+                let is_last = idx == arr.len() - 1;
+                let nested_tree_char = if is_last { "└─" } else { "├─" };
+                let nested_continuation_char = if is_last { "  " } else { "│ " };
+                let item_key = format!("[{}]", idx);
+
+                let nested_lines = format_json_value(
+                    item,
+                    &nested_parent_bar.trim_end(),
+                    nested_tree_char,
+                    nested_continuation_char,
+                    Some(&item_key),
+                    content_width,
+                    depth + 1,
+                );
+                lines.extend(nested_lines);
+            }
+        }
+        _ => {
+            // Primitive value - format with wrapping
+            let value_str = match value {
+                serde_json::Value::String(s) => s.clone(),
+                serde_json::Value::Number(n) => n.to_string(),
+                serde_json::Value::Bool(b) => b.to_string(),
+                serde_json::Value::Null => "null".to_string(),
+                _ => unreachable!(),
+            };
+
+            let label = key.map(|k| format!("{}: ", k)).unwrap_or_default();
+            let first_line_prefix = format!("{} {} {}", parent_bar, tree_char, label);
+            let continuation_prefix = format!("{} {}  ", parent_bar, continuation_char);
+            let wrapped_lines = wrap_value_with_indent(&value_str, &first_line_prefix, &continuation_prefix, content_width);
+
+            for wrapped_line in wrapped_lines {
+                lines.push(Line::from(Span::styled(
+                    wrapped_line,
+                    Style::default().fg(Color::DarkGray),
+                )));
+            }
+        }
+    }
+
+    lines
+}
+
+/// Wrap text with proper indentation for continuation lines
+/// Used for long parameter/response values that need to wrap
+fn wrap_value_with_indent(text: &str, first_line_prefix: &str, continuation_prefix: &str, max_width: usize) -> Vec<String> {
+    use textwrap::{wrap, Options};
+
+    if text.is_empty() {
+        return vec![format!("{}", first_line_prefix)];
+    }
+
+    // Calculate available width for first line
+    let first_width = max_width.saturating_sub(first_line_prefix.len()).max(20);
+    // Continuation lines get full continuation_prefix width
+    let cont_width = max_width.saturating_sub(continuation_prefix.len()).max(20);
+
+    let mut result = Vec::new();
+    let words: Vec<&str> = text.split_whitespace().collect();
+
+    if words.is_empty() {
+        result.push(format!("{}", first_line_prefix));
+        return result;
+    }
+
+    let mut current_line = String::new();
+    let mut is_first = true;
+
+    for word in words {
+        let test_line = if current_line.is_empty() {
+            word.to_string()
+        } else {
+            format!("{} {}", current_line, word)
+        };
+
+        let width_limit = if is_first { first_width } else { cont_width };
+
+        if test_line.len() <= width_limit {
+            current_line = test_line;
+        } else {
+            // Current line is full, push it
+            if !current_line.is_empty() {
+                let prefix = if is_first { first_line_prefix } else { continuation_prefix };
+                result.push(format!("{}{}", prefix, current_line));
+                is_first = false;
+            }
+            current_line = word.to_string();
+        }
+    }
+
+    // Push final line
+    if !current_line.is_empty() {
+        let prefix = if is_first { first_line_prefix } else { continuation_prefix };
+        result.push(format!("{}{}", prefix, current_line));
+    }
+
+    result
+}
+
+/// Format tool parameters in a clean, readable way (not raw JSON)
+/// Returns tree-structured lines with proper indentation
+/// `parent_has_more` indicates if there are more items after parameters (response, exit_code)
+fn format_tool_parameters(params: &serde_json::Value, prefix: &str, parent_has_more: bool, content_width: usize) -> Vec<Line<'static>> {
+    let mut lines = Vec::new();
+
+    match params {
+        serde_json::Value::Object(map) if map.is_empty() => {
+            lines.push(Line::from(Span::styled(
+                format!("{} parameters: (none)", prefix),
+                Style::default().fg(Color::DarkGray),
+            )));
+        }
+        serde_json::Value::Object(map) => {
+            // First line: parameters label
+            lines.push(Line::from(Span::styled(
+                format!("{} parameters:", prefix),
+                Style::default().fg(Color::DarkGray),
+            )));
+
+            // Parent vertical bar if there are more items after parameters
+            let parent_bar = if parent_has_more { "│" } else { " " };
+
+            // Each parameter on its own line with proper indentation
+            for (idx, (key, value)) in map.iter().enumerate() {
+                let is_last_param = idx == map.len() - 1;
+                let tree_char = if is_last_param { "└─" } else { "├─" };
+                let continuation_char = if is_last_param { "  " } else { "│ " };
+
+                // Use recursive formatter for all value types
+                let value_lines = format_json_value(
+                    value,
+                    parent_bar,
+                    tree_char,
+                    continuation_char,
+                    Some(key),
+                    content_width,
+                    0, // Start at depth 0
+                );
+                lines.extend(value_lines);
+            }
+        }
+        _ => {
+            lines.push(Line::from(Span::styled(
+                format!("{} parameters: {}", prefix, params),
+                Style::default().fg(Color::DarkGray),
+            )));
+        }
+    }
+
+    lines
+}
+
+/// Format response content as JSON key-values (just like parameters)
+/// Returns tree-structured lines with proper indentation
+fn format_response_content(content: &str, prefix: &str, parent_has_more: bool, content_width: usize) -> Vec<Line<'static>> {
+    let mut lines = Vec::new();
+
+    if content.is_empty() {
+        lines.push(Line::from(Span::styled(
+            format!("{} response: (empty)", prefix),
+            Style::default().fg(Color::DarkGray),
+        )));
+        return lines;
+    }
+
+    // Try to parse as JSON
+    if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(content) {
+        // Response is JSON - format like parameters
+        lines.push(Line::from(Span::styled(
+            format!("{} response:", prefix),
+            Style::default().fg(Color::DarkGray),
+        )));
+
+        // Parent vertical bar if there are more items after response
+        let parent_bar = if parent_has_more { "│" } else { " " };
+
+        // Format each JSON field using recursive formatter
+        if let serde_json::Value::Object(map) = json_value {
+            for (idx, (key, value)) in map.iter().enumerate() {
+                let is_last_field = idx == map.len() - 1;
+                let tree_char = if is_last_field { "└─" } else { "├─" };
+                let continuation_char = if is_last_field { "  " } else { "│ " };
+
+                // Use recursive formatter for all value types (handles nested objects/arrays)
+                let value_lines = format_json_value(
+                    value,
+                    parent_bar,
+                    tree_char,
+                    continuation_char,
+                    Some(key),
+                    content_width,
+                    0, // Start at depth 0
+                );
+                lines.extend(value_lines);
+            }
+        }
+    } else {
+        // Plain text response - show as-is with wrapping
+        let parent_bar = if parent_has_more { "│" } else { " " };
+        let first_line_prefix = format!("{} ", prefix);
+        let continuation_prefix = format!("{}   ", parent_bar);
+        let wrapped_lines = wrap_value_with_indent(content, &first_line_prefix, &continuation_prefix, content_width);
+
+        for wrapped_line in wrapped_lines {
+            lines.push(Line::from(Span::styled(
+                wrapped_line,
+                Style::default().fg(Color::DarkGray),
+            )));
+        }
+    }
+
+    lines
 }
 
 /// Truncate output for display (keep last N chars)
@@ -245,6 +541,14 @@ fn truncate_output(output: &str, max_chars: usize) -> String {
     } else {
         format!("...{}", &output[output.len() - max_chars..])
     }
+}
+
+/// Normalize line endings to Unix style (\n only)
+/// Converts Windows (\r\n) and old Mac (\r) line endings to Unix (\n)
+fn normalize_line_endings(text: &str) -> String {
+    // Replace \r\n with \n first (Windows style)
+    // Then replace any remaining \r with \n (old Mac style)
+    text.replace("\r\n", "\n").replace('\r', "\n")
 }
 
 /// Wrap text content with proper indentation for continuation lines
@@ -310,18 +614,18 @@ fn format_user_message(message: &Message, content_width: usize) -> Vec<Line<'sta
         return result;
     }
 
+    // Normalize line endings first to handle \r\n and bare \r
+    let normalized_content = normalize_line_endings(&message.content);
+
     // Handle each paragraph (newline-separated) separately
     let mut is_first_line_overall = true;
-    let paragraphs: Vec<&str> = message.content.split('\n').collect();
+    let paragraphs: Vec<&str> = normalized_content.lines().collect();
 
-    for (para_idx, paragraph) in paragraphs.iter().enumerate() {
-        // Skip trailing empty paragraph (from trailing \n in content)
-        let is_last = para_idx == paragraphs.len() - 1;
+    for (_para_idx, paragraph) in paragraphs.iter().enumerate() {
+        // Empty paragraphs represent blank lines (from \n\n in content)
+        // Push an empty Line to create visual blank line
         if paragraph.is_empty() {
-            // Only preserve internal blank lines, not trailing ones
-            if !is_last {
-                result.push(Line::from(INDENT.to_string()));
-            }
+            result.push(Line::from(""));
             continue;
         }
 
@@ -346,7 +650,7 @@ fn format_user_message(message: &Message, content_width: usize) -> Vec<Line<'sta
         }
     }
 
-    result.push(Line::from(""));  // Blank separator
+    // No trailing separator - messages end naturally
     result
 }
 
@@ -369,18 +673,18 @@ fn format_assistant_message(message: &Message, throbber: char, content_width: us
         return result;
     }
 
+    // Normalize line endings first to handle \r\n and bare \r
+    let normalized_content = normalize_line_endings(&message.content);
+
     // Handle each paragraph (newline-separated) separately
     let mut is_first_line_overall = true;
-    let paragraphs: Vec<&str> = message.content.split('\n').collect();
+    let paragraphs: Vec<&str> = normalized_content.lines().collect();
 
-    for (para_idx, paragraph) in paragraphs.iter().enumerate() {
-        // Skip trailing empty paragraph (from trailing \n in content)
-        let is_last = para_idx == paragraphs.len() - 1;
+    for (_para_idx, paragraph) in paragraphs.iter().enumerate() {
+        // Empty paragraphs represent blank lines (from \n\n in content)
+        // Push an empty Line to create visual blank line
         if paragraph.is_empty() {
-            // Only preserve internal blank lines, not trailing ones
-            if !is_last {
-                result.push(Line::from(INDENT.to_string()));
-            }
+            result.push(Line::from(""));
             continue;
         }
 
@@ -405,7 +709,7 @@ fn format_assistant_message(message: &Message, throbber: char, content_width: us
         }
     }
 
-    result.push(Line::from(""));  // Blank separator
+    // No trailing separator - messages end naturally
     result
 }
 
@@ -431,18 +735,18 @@ fn format_system_message(message: &Message, content_width: usize) -> Vec<Line<'s
         return result;
     }
 
+    // Normalize line endings first to handle \r\n and bare \r
+    let normalized_content = normalize_line_endings(&content);
+
     // Handle each paragraph (newline-separated) separately
     let mut is_first_line_overall = true;
-    let paragraphs: Vec<&str> = content.split('\n').collect();
+    let paragraphs: Vec<&str> = normalized_content.lines().collect();
 
-    for (para_idx, paragraph) in paragraphs.iter().enumerate() {
-        // Skip trailing empty paragraph (from trailing \n in content)
-        let is_last = para_idx == paragraphs.len() - 1;
+    for (_para_idx, paragraph) in paragraphs.iter().enumerate() {
+        // Empty paragraphs represent blank lines (from \n\n in content)
+        // Push an empty Line to create visual blank line
         if paragraph.is_empty() {
-            // Only preserve internal blank lines, not trailing ones
-            if !is_last {
-                result.push(Line::from(Span::styled(INDENT, style)));
-            }
+            result.push(Line::from(""));
             continue;
         }
 
@@ -467,7 +771,7 @@ fn format_system_message(message: &Message, content_width: usize) -> Vec<Line<'s
         }
     }
 
-    result.push(Line::from(""));  // Blank separator
+    // No trailing separator - messages end naturally
     result
 }
 
@@ -475,9 +779,8 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
     // Clear click regions at start of render
     app.click_regions.clear();
 
-    // Clone messages and read scroll offset to avoid borrow conflicts
+    // Clone messages to avoid borrow conflicts
     let messages = app.messages().to_vec();
-    let scroll_offset = app.scroll_offset();
 
     // Focus-aware border styling
     let is_focused = app.focus_messages().get();
@@ -541,8 +844,24 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
         // Calculate content width BEFORE message loop (needed for wrapping calculations)
         let content_width = area.width.saturating_sub(2) as usize;
 
+        // Calculate viewport height for scroll offset calculation
+        let viewport_height = area.height.saturating_sub(2) as usize;
+
+        // DEFENSIVE: Ensure viewport has minimum height
+        if viewport_height == 0 {
+            // Terminal too small - render without scrolling
+            let paragraph = Paragraph::new(Text::from(vec![]))
+                .block(block)
+                .wrap(Wrap { trim: false });
+            frame.render_widget(paragraph, area);
+            return 0;
+        }
+
         // Track cumulative VISUAL position (accounting for wrapping)
         let mut cumulative_visual_line = 0;
+
+        // Store message positions for click region creation AFTER we calculate final scroll_offset
+        let mut message_positions: Vec<(usize, usize, usize)> = Vec::new(); // (msg_idx, viewport_start, clickable_end)
 
         for (msg_idx, message) in messages.iter().enumerate() {
             // Skip hidden messages (slash command prompts) from UI display
@@ -572,78 +891,78 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
                     if tool_state.completed {
                         // Tool completed - show final result
                         if let Some(ref result) = tool_state.result {
-                            let icon = if result.is_error { "✗" } else { "✓" };
-                            let icon_color = if result.is_error { Color::Red } else { Color::Green };
+                            let status_dot = if result.is_error { "●" } else { "●" };
+                            let dot_color = if result.is_error { Color::Red } else { Color::Green };
+                            let collapse_arrow = if message.collapsed { "▶" } else { "▼" };
 
-                            // Collapse indicator (always show for tool messages)
-                            let collapse_icon = if message.collapsed { "▶ " } else { "▼ " };
+                            // Calculate available width for header
+                            // Format: "▼ ● Bash(params) (9999s)"
+                            // Components: arrow(1) + space(1) + dot(1) + space(1) + tool_name + params + space(1) + timer(7)
+                            let timer_text = format!("({}s)", elapsed.min(9999));
+                            let fixed_width = 1 + 1 + 1 + 1 + tool_state.tool_name.len() + 1 + timer_text.len();
+                            let available_for_params = content_width.saturating_sub(fixed_width);
 
-                            // Header: "▼ ✓ Bash { command: "ls -la" } (2s)"
-                            // Icon and collapse indicator are colored, rest is dark grey
-                            let header_text = format!(
-                                "{} {} ({}s)",
-                                tool_state.tool_name,
-                                format_tool_params(&tool_state.params),
-                                elapsed
-                            );
+                            let params_text = format_tool_params(&tool_state.params, available_for_params);
+                            let header_text = format!("{}{} {}", tool_state.tool_name, params_text, timer_text);
+
+                            // Header line: "▼ ● Bash(sleep 20) (  12s)"
                             text_lines.push(Line::from(vec![
-                                Span::styled(
-                                    collapse_icon,
-                                    Style::default().fg(Color::Gray)
-                                ),
-                                Span::styled(format!("{} ", icon), Style::default().fg(icon_color).add_modifier(Modifier::BOLD)),
+                                Span::styled(collapse_arrow, Style::default().fg(Color::Gray)),
+                                Span::raw(" "),
+                                Span::styled(status_dot, Style::default().fg(dot_color).add_modifier(Modifier::BOLD)),
+                                Span::raw(" "),
                                 Span::styled(header_text, Style::default().fg(Color::DarkGray)),
                             ]));
 
-                            // Only show details if NOT collapsed
-                            if !message.collapsed {
-                                // Result: exit code + stdout (truncated) with 2-space indent
-                                if let Some(exit_code) = result.exit_code {
-                                    text_lines.push(Line::from(Span::styled(
-                                        format!("  exit_code: {}", exit_code),
-                                        Style::default().fg(Color::DarkGray),
-                                    )));
-                                }
-
+                            if message.collapsed {
+                                // COLLAPSED: Show only stdout truncated to one line
                                 if !result.stdout.is_empty() {
-                                    let truncated = truncate_output(&result.stdout, 200);
+                                    let first_line = result.stdout.lines().next().unwrap_or("");
+                                    // Calculate max width for stdout: content_width - "└─ " (3 chars)
+                                    let max_stdout_width = content_width.saturating_sub(3);
+                                    let truncated = if first_line.len() > max_stdout_width {
+                                        format!("{}...", &first_line[..max_stdout_width.saturating_sub(3)])
+                                    } else {
+                                        first_line.to_string()
+                                    };
                                     text_lines.push(Line::from(Span::styled(
-                                        format!("  stdout: {}", truncated),
+                                        format!("└─ {}", truncated),
                                         Style::default().fg(Color::DarkGray),
                                     )));
                                 }
+                            } else {
+                                // EXPANDED: Show full details with clean formatting
 
-                                if !result.stderr.is_empty() {
-                                    let truncated = truncate_output(&result.stderr, 200);
-                                    text_lines.push(Line::from(Span::styled(
-                                        format!("  stderr: {}", truncated),
-                                        Style::default().fg(Color::DarkGray),
-                                    )));
-                                }
+                                // Show parameters (with clean formatting, not raw JSON)
+                                let params_prefix = "├─"; // Parameters always has items after it (response)
+                                let parent_has_more = true; // Always true - there's always response and possibly exit_code after
+                                let params_lines = format_tool_parameters(&tool_state.params, params_prefix, parent_has_more, content_width);
+                                text_lines.extend(params_lines);
+
+                                // Show response content (parse as JSON and format like parameters)
+                                let response_prefix = "└─"; // Response is always last
+                                let response_has_more = false; // Response is always last item
+                                let response_lines = format_response_content(&result.raw_content, response_prefix, response_has_more, content_width);
+                                text_lines.extend(response_lines);
                             }
                         }
                     } else {
                         // Tool still running - show throbber + timer
-                        // Collapse indicator (always show for tool messages)
-                        let collapse_icon = if message.collapsed { "▶ " } else { "▼ " };
+                        let collapse_arrow = if message.collapsed { "▶" } else { "▼" };
 
-                        // Header: "▼ ⣾ Bash { command: "ls -la" } (2s)"
-                        // Collapse indicator and throbber are colored, rest is dark grey
-                        let header_text = format!(
-                            "{} {} ({}s)",
-                            tool_state.tool_name,
-                            format_tool_params(&tool_state.params),
-                            elapsed
-                        );
+                        // Calculate available width for header (same as completed)
+                        let timer_text = format!("({}s)", elapsed.min(9999));
+                        let fixed_width = 1 + 1 + 1 + 1 + tool_state.tool_name.len() + 1 + timer_text.len();
+                        let available_for_params = content_width.saturating_sub(fixed_width);
+
+                        let params_text = format_tool_params(&tool_state.params, available_for_params);
+                        let header_text = format!("{}{} {}", tool_state.tool_name, params_text, timer_text);
+
+                        // Header: "▼ ⣾ Bash(ls -la) (  12s)"
                         text_lines.push(Line::from(vec![
-                            Span::styled(
-                                collapse_icon,
-                                Style::default().fg(Color::Gray)
-                            ),
-                            Span::styled(
-                                format!("{} ", throbber),
-                                Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)
-                            ),
+                            Span::styled(collapse_arrow, Style::default().fg(Color::Gray)),
+                            Span::raw(" "),
+                            Span::styled(format!("{} ", throbber), Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
                             Span::styled(header_text, Style::default().fg(Color::DarkGray)),
                         ]));
                     }
@@ -660,27 +979,10 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
                     let viewport_end = cumulative_visual_line + visual_height;
                     cumulative_visual_line = viewport_end;
 
-                    // Register clickable region for tool message (always collapsible)
+                    // Store position for click region creation later (after we know final scroll_offset)
                     // Exclude the trailing blank separator line from click region (subtract 1 from viewport_end)
                     let clickable_end = viewport_end.saturating_sub(1);
-
-                    // Check if any part of message is visible in viewport
-                    if clickable_end > scroll_offset {
-                        let visible_y = if viewport_start < scroll_offset {
-                            0  // Message partially scrolled off top
-                        } else {
-                            viewport_start - scroll_offset
-                        };
-
-                        let visible_height = clickable_end.saturating_sub(scroll_offset.max(viewport_start));
-
-                        app.click_regions.add_message(msg_idx, Rect {
-                            x: 0,  // Relative to inner_area
-                            y: visible_y as u16,
-                            width: inner_area.width,
-                            height: visible_height as u16,
-                        });
-                    }
+                    message_positions.push((msg_idx, viewport_start, clickable_end));
 
                     continue; // Skip normal message rendering
                 }
@@ -707,28 +1009,11 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
             let viewport_end = cumulative_visual_line + visual_height;
             cumulative_visual_line = viewport_end;
 
-            // Register clickable region if message is collapsible AND visible in viewport
+            // Store position for click region creation if message is collapsible
             if message.collapsible {
                 // Exclude the trailing blank separator line from click region (subtract 1 from viewport_end)
                 let clickable_end = viewport_end.saturating_sub(1);
-
-                // Check if any part of message is visible in viewport
-                if clickable_end > scroll_offset {
-                    let visible_y = if viewport_start < scroll_offset {
-                        0  // Message partially scrolled off top
-                    } else {
-                        viewport_start - scroll_offset
-                    };
-
-                    let visible_height = clickable_end.saturating_sub(scroll_offset.max(viewport_start));
-
-                    app.click_regions.add_message(msg_idx, Rect {
-                        x: 0,  // Relative to inner_area
-                        y: visible_y as u16,
-                        width: inner_area.width,
-                        height: visible_height as u16,
-                    });
-                }
+                message_positions.push((msg_idx, viewport_start, clickable_end));
             }
         }
 
@@ -803,6 +1088,29 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
                 clamped as u16
             }
         };
+
+        // NOW create click regions using the FINAL scroll_offset (not the initial app.scroll_offset())
+        // This ensures click regions match the actual rendered positions
+        let scroll_offset_usize = scroll_offset as usize;
+        for (msg_idx, viewport_start, clickable_end) in message_positions {
+            // Check if any part of message is visible in viewport
+            if clickable_end > scroll_offset_usize {
+                let visible_y = if viewport_start < scroll_offset_usize {
+                    0  // Message partially scrolled off top
+                } else {
+                    viewport_start - scroll_offset_usize
+                };
+
+                let visible_height = clickable_end.saturating_sub(scroll_offset_usize.max(viewport_start));
+
+                app.click_regions.add_message(msg_idx, Rect {
+                    x: 0,  // Relative to inner_area
+                    y: visible_y as u16,
+                    width: inner_area.width,
+                    height: visible_height as u16,
+                });
+            }
+        }
 
         let paragraph = Paragraph::new(text)
             .block(block)
