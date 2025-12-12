@@ -163,6 +163,13 @@ impl TuiState {
                     // Menu functionality not yet implemented
                     Ok(None)
                 }
+                EventResult::Resize => {
+                    // Terminal resized - update internal buffers and force full redraw
+                    self.terminal.autoresize()?;
+                    self.terminal.clear()?;
+                    self.app.mark_dirty(); // Trigger immediate repaint
+                    Ok(None)
+                }
                 EventResult::Exit => Ok(Some("/exit".to_string())),
             }
         } else {
@@ -225,6 +232,13 @@ impl TuiState {
             }
             EventResult::OpenMenu => {
                 // Menu functionality not yet implemented
+                Ok(None)
+            }
+            EventResult::Resize => {
+                // Terminal resized - update internal buffers and force full redraw
+                self.terminal.autoresize()?;
+                self.terminal.clear()?;
+                self.app.mark_dirty(); // Trigger immediate repaint
                 Ok(None)
             }
             EventResult::Exit => {

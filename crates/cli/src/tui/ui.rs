@@ -844,15 +844,17 @@ fn render_input(frame: &mut Frame, area: Rect, app: &App) {
     // TODO: Update TextArea's block style dynamically based on focus
     frame.render_widget(&app.input, area);
 
-    // Render scrollbar only when content exceeds viewport (> 5 lines)
-    let line_count = app.input_line_count();
-    if line_count > 5 {
-        // Calculate scrollbar state
-        let content_lines = line_count;
-        let viewport_lines = 5; // Max visible lines
-        let cursor_pos = app.cursor_pos().0; // Row position
+    // Render scrollbar only when content actually exceeds viewport
+    let content_lines = app.input_line_count();
+    // Calculate actual viewport height (area height - 2 for borders)
+    let viewport_lines = area.height.saturating_sub(2) as usize;
 
-        let mut scrollbar_state = ScrollbarState::new(content_lines.saturating_sub(viewport_lines))
+    // Only show scrollbar if content overflows viewport
+    if content_lines > viewport_lines {
+        let cursor_pos = app.cursor_pos().0; // Row position
+        let max_scroll = content_lines.saturating_sub(viewport_lines);
+
+        let mut scrollbar_state = ScrollbarState::new(max_scroll)
             .position(cursor_pos.saturating_sub(viewport_lines / 2));
 
         // Render scrollbar on right edge of input area (inside the border)

@@ -31,6 +31,9 @@ pub struct LayoutAreas {
     pub debug: Option<Rect>,
 }
 
+/// Minimum width for main content area (messages + input)
+const MIN_MAIN_WIDTH: u16 = 40;
+
 /// Dynamic layout organizer - adapts to visible panels
 pub struct LayoutOrganizer;
 
@@ -49,8 +52,13 @@ impl LayoutOrganizer {
         let status = vertical[0];
         let content_area = vertical[1];
 
-        // If debug is visible, split content horizontally
-        if config.debug_visible {
+        // DEFENSIVE: Auto-hide debug panel if terminal too narrow
+        // This prevents zero-width main area which causes rendering errors
+        let effective_debug_visible = config.debug_visible
+            && content_area.width >= (MIN_MAIN_WIDTH + config.debug_width);
+
+        // If debug is visible AND there's enough space, split content horizontally
+        if effective_debug_visible {
             let horizontal = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints([
@@ -65,7 +73,7 @@ impl LayoutOrganizer {
                 debug: Some(horizontal[1]),
             }
         } else {
-            // Full width for main content
+            // Full width for main content (debug hidden or insufficient space)
             LayoutAreas {
                 status,
                 main: content_area,

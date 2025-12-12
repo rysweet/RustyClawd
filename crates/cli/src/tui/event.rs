@@ -36,6 +36,9 @@ pub enum EventResult {
 
     /// Open menu (future implementation)
     OpenMenu,
+
+    /// Terminal resized - need to call autoresize() and clear()
+    Resize,
 }
 
 /// Poll for events with timeout
@@ -132,8 +135,8 @@ pub fn handle_event(app: &mut App, event: Event) -> Result<EventResult> {
         Event::Key(key) => handle_key_event(app, key),
         Event::Mouse(mouse) => handle_mouse_event(app, mouse),
         Event::Resize(_, _) => {
-            // Terminal resized - will be handled in next render
-            Ok(EventResult::Continue)
+            // Terminal resized - signal main loop to call autoresize() and clear()
+            Ok(EventResult::Resize)
         }
         _ => Ok(EventResult::Continue),
     }

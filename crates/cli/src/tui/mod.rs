@@ -138,6 +138,12 @@ where
                     // For now, just continue (placeholder for future)
                     true
                 }
+                EventResult::Resize => {
+                    // Terminal resized - update internal buffers and force full redraw
+                    terminal.autoresize()?;
+                    terminal.clear()?;
+                    true  // Force immediate repaint
+                }
                 EventResult::Exit => {
                     break;
                 }

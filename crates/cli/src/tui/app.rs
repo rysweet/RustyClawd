@@ -1056,8 +1056,16 @@ impl App {
 
     /// Update max_scroll from renderer (called after content height calculation)
     /// This allows scroll operations to clamp properly
+    /// IMPORTANT: Also clamps scroll_offset to prevent invalid state after terminal resize
     pub fn update_max_scroll(&mut self, max_scroll: usize) {
         self.max_scroll = max_scroll;
+
+        // Clamp scroll_offset when max_scroll changes (e.g., after terminal resize)
+        // Only clamp if NOT in follow_bottom mode (which uses max_scroll directly in render)
+        if !self.follow_bottom && self.scroll_offset > max_scroll {
+            self.scroll_offset = max_scroll;
+        }
+
         self.mark_dirty(); // Trigger UI refresh when max_scroll changes
     }
 
@@ -1098,6 +1106,13 @@ impl App {
 
     pub fn update_debug_max_scroll(&mut self, max_scroll: usize) {
         self.debug_max_scroll = max_scroll;
+
+        // Clamp debug_scroll_offset when max_scroll changes (e.g., after terminal resize)
+        // Only clamp if NOT in follow_bottom mode (which uses max_scroll directly in render)
+        if !self.debug_follow_bottom && self.debug_scroll_offset > max_scroll {
+            self.debug_scroll_offset = max_scroll;
+        }
+
         self.mark_dirty();
     }
 
