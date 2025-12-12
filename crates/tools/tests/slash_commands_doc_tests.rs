@@ -1116,8 +1116,8 @@ mod error_handling {
 
         let result = execute_command("broken").await;
         // Should either parse gracefully or return clear error
-        if result.is_err() {
-            assert!(result.unwrap_err().contains("frontmatter"));
+        if let Err(e) = result {
+            assert!(e.contains("frontmatter"));
         } else {
             assert!(result.is_ok());
         }
@@ -1242,8 +1242,8 @@ mod error_handling {
 
         let result = execute_command("cmd-a").await;
         // Should detect circular reference or hit recursion limit
-        if result.is_ok() {
-            assert!(!result.unwrap().output.is_empty());
+        if let Ok(output) = result {
+            assert!(!output.output.is_empty());
         } else {
             assert!(result.is_err());
         }
