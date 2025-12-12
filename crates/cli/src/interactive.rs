@@ -868,7 +868,13 @@ impl InteractiveSession {
                 let command_name = input[1..].split_whitespace().next().unwrap_or("");
 
                 if self.slash_commands.has_command(command_name) {
-                    // Execute custom command
+                    // Check if command should be intercepted locally
+                    if !self.slash_commands.should_intercept_locally(command_name) {
+                        // Pass through to Claude for model invocation
+                        return Ok(false);
+                    }
+
+                    // Execute custom command locally
                     self.tui.set_status(format!("Executing command: {}", input));
 
                     match self.slash_commands.execute(input).await {
@@ -896,12 +902,9 @@ impl InteractiveSession {
                     return Ok(true);
                 }
 
-                // Unknown command
-                self.tui.add_message(ChatMessage::system(format!(
-                        "Unknown command: {}\nType /help for available commands",
-                        input
-                    )));
-                return Ok(true);
+                // Unknown command - pass through to Claude
+                // Claude may handle it via SlashCommand tool or provide appropriate error
+                return Ok(false);
             }
             _ => {}
         }

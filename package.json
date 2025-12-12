@@ -6,7 +6,7 @@
     "claude": "./bin.js"
   },
   "scripts": {
-    "postinstall": "node install.js",
+    "postinstall": "node scripts/install.js",
     "test": "cargo test --workspace"
   },
   "keywords": ["claude", "rust", "cli", "ai", "anthropic"],

@@ -1083,18 +1083,31 @@ impl App {
         }
 
         // Use the tool execution loop (tools always enabled in official spec)
-        // Pass hooks and session ID to tool executor
+        // Pass hooks, session ID, and permission mode to tool executor
         let hooks_for_tools = std::sync::Arc::new(self.hooks.clone());
         let session_id_for_tools = self.session.id.clone();
+
+        // Parse permission mode from CLI
+        let permission_mode = self
+            .cli
+            .permission_mode
+            .as_ref()
+            .map(|s| match s.as_str() {
+                "plan" => permission_mode::PermissionMode::Plan,
+                "auto-accept" | "auto" => permission_mode::PermissionMode::AutoAccept,
+                _ => permission_mode::PermissionMode::Ask,
+            })
+            .unwrap_or(permission_mode::PermissionMode::Ask);
 
         let response = match client
             .execute_with_tools(request.clone(), |tool_name, tool_input| {
                 let hooks = hooks_for_tools.clone();
                 let session_id = session_id_for_tools.clone();
                 async move {
-                    tool_executor::execute_tool_with_hooks(
+                    tool_executor::execute_tool_with_permission(
                         tool_name,
                         tool_input,
+                        permission_mode,
                         Some(hooks),
                         Some(session_id),
                         None, // No notification manager in non-interactive mode
@@ -1134,9 +1147,10 @@ impl App {
                             let hooks = hooks_fallback.clone();
                             let session_id = session_id_fallback.clone();
                             async move {
-                                tool_executor::execute_tool_with_hooks(
+                                tool_executor::execute_tool_with_permission(
                                     tool_name,
                                     tool_input,
+                                    permission_mode,
                                     Some(hooks),
                                     Some(session_id),
                                     None, // No notification manager in non-interactive mode

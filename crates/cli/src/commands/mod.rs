@@ -30,6 +30,14 @@ pub const MAX_RECURSION_DEPTH: usize = 3;
 /// Namespace separator for nested commands
 pub const NAMESPACE_SEPARATOR: char = ':';
 
+/// Lightweight metadata for command introspection
+#[derive(Debug, Clone)]
+pub struct CommandMetadata {
+    pub name: String,
+    pub description: Option<String>,
+    pub disable_model_invocation: bool,
+}
+
 /// Command execution result
 #[derive(Debug, Clone)]
 pub struct CommandResult {
@@ -120,7 +128,39 @@ impl SlashCommands {
     pub fn get_completions(&self, prefix: &str) -> Vec<(String, Option<String>)> {
         self.registry.get_completions(prefix)
     }
+
+    /// Get command metadata for a specific command
+    ///
+    /// Returns None if the command does not exist in the registry.
+    /// For existing commands, returns metadata including the disable_model_invocation flag,
+    /// which defaults to true (local execution) for backward compatibility.
+    pub fn get_command_metadata(&self, name: &str) -> Option<CommandMetadata> {
+        let cmd = self.registry.get(name).ok()?;
+        Some(CommandMetadata {
+            name: cmd.name.clone(),
+            description: cmd.frontmatter.description.clone(),
+            disable_model_invocation: cmd.frontmatter.disable_model_invocation.unwrap_or(true),
+        })
+    }
+
+    /// Check if command should be intercepted and executed locally
+    ///
+    /// Returns true if the command should be intercepted locally (default behavior).
+    /// Returns false if the command should be passed through to Claude for model invocation.
+    ///
+    /// For unknown commands, returns false (pass through to model) to allow Claude
+    /// to handle them or provide appropriate error messages.
+    pub fn should_intercept_locally(&self, command_name: &str) -> bool {
+        let cmd = match self.registry.get(command_name) {
+            Ok(cmd) => cmd,
+            Err(_) => return false, // Unknown commands pass through to model
+        };
+        cmd.frontmatter.disable_model_invocation.unwrap_or(true)
+    }
 }
+
+#[cfg(test)]
+mod tests_model_invocation;
 
 #[cfg(test)]
 mod tests {

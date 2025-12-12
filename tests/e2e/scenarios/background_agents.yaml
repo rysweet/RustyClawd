@@ -1,0 +1,129 @@
+# YAML Scenario: Background Agent Execution
+#
+# Tests Task run_in_background parameter (Issue #109)
+# Validates async agent spawning and AgentOutputTool monitoring
+
+scenario:
+  name: "Background Agent Execution"
+  description: "Validate Task run_in_background and AgentOutputTool"
+  type: tui
+  tags: [background-agents, async, agent-output]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 90s
+
+  steps:
+    # Startup
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin claude"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for ready"
+      contains: "System>"
+      timeout: 5s
+
+    # Test 1: Spawn background agent
+    - action: send_input
+      description: "Request analyzer agent in background"
+      text: "Use the analyzer agent to analyze crates/cli/src in the background"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should return agent ID immediately"
+      contains: "agent"
+      timeout: 10s
+
+    # Test 2: Continue working while agent runs
+    - action: send_input
+      description: "Do other work while background agent runs"
+      text: "What is the version in Cargo.toml?"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should get response without waiting for background agent"
+      contains: "0.1.0"
+      timeout: 15s
+
+    # Test 3: Check background agent status
+    - action: send_input
+      description: "Check background agent output"
+      text: "Check the status of the background analyzer agent"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should show agent output via AgentOutputTool"
+      contains: "analyzer"
+      timeout: 20s
+
+    # Test 4: Verify agent completed
+    - action: wait_for_text
+      description: "Agent should complete analysis"
+      contains: "complete"
+      timeout: 30s
+
+    # Capture final state
+    - action: capture_screenshot
+      description: "Capture background agent workflow"
+      filename: "background_agents_result.txt"
+
+    # Exit
+    - action: send_input
+      description: "Exit"
+      text: "/exit"
+      submit: true
+
+  assertions:
+    - type: text_present
+      value: "agent"
+      description: "Background agent spawned"
+
+    - type: text_present
+      value: "0.1.0"
+      description: "Other work continued while agent ran"
+
+    - type: text_present
+      value: "analyzer"
+      description: "AgentOutputTool retrieved results"
+
+    - type: text_present
+      value: "complete"
+      description: "Background agent completed successfully"
+
+    - type: exit_clean
+      description: "Background workflow completes cleanly"
+
+  cleanup:
+    - action: none
+      description: "No files created"
+
+  notes: |
+    This scenario validates Issue #109: Task run_in_background
+
+    Key behaviors tested:
+    1. Task tool accepts run_in_background=true parameter
+    2. Agent spawns asynchronously
+    3. Returns agent_id immediately (non-blocking)
+    4. User can continue working while agent runs
+    5. AgentOutputTool checks agent status
+    6. Agent completes and returns results
+
+    Matches Claude Code v2.0.60+ behavior:
+    - Async agent execution
+    - Non-blocking user experience
+    - AgentRegistry tracks active agents
+    - AgentOutputTool provides status/results
+
+    **Implementation Details**:
+    - AgentRegistry: crates/tools/src/agent_registry.rs
+    - AgentOutputTool: crates/tools/src/agent_output.rs
+    - Backend: tokio::spawn for async execution
+
+    **Sources**:
+    - [Background Commands](https://claudelog.com/faqs/what-are-background-commands/)
+    - [Feature Request #9905](https://github.com/anthropics/claude-code/issues/9905)

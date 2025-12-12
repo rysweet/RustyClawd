@@ -20,6 +20,7 @@ pub fn get_all_tool_definitions() -> Vec<ToolDefinition> {
         skill_tool_definition(),
         slash_command_tool_definition(),
         task_tool_definition(),
+        agent_output_tool_definition(),
         todowrite_tool_definition(),
     ]
 }
@@ -365,9 +366,44 @@ fn task_tool_definition() -> ToolDefinition {
                 "resume": {
                     "type": "string",
                     "description": "Optional agent ID to resume a previous execution"
+                },
+                "run_in_background": {
+                    "type": "boolean",
+                    "description": "Run agent in background and return immediately with agent ID",
+                    "default": false
                 }
             },
             "required": ["subagent_type", "prompt", "description"]
+        }),
+    }
+}
+
+/// AgentOutput tool definition
+fn agent_output_tool_definition() -> ToolDefinition {
+    ToolDefinition {
+        name: "AgentOutput".to_string(),
+        description: "Retrieve output from a background agent execution".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "agentId": {
+                    "type": "string",
+                    "description": "The agent ID to retrieve results for"
+                },
+                "block": {
+                    "type": "boolean",
+                    "description": "Whether to block until results are ready",
+                    "default": true
+                },
+                "wait_up_to": {
+                    "type": "number",
+                    "description": "Maximum time to wait in seconds",
+                    "default": 150,
+                    "minimum": 0,
+                    "maximum": 300
+                }
+            },
+            "required": ["agentId"]
         }),
     }
 }
