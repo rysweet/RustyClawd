@@ -44,6 +44,7 @@ tui-scrollview = "0.4"
 tui-textarea = "0.7"
 rat-focus = "1.6"
 rat-event = "1.4"
+textwrap = "0.16"
 
 # Slash command support
 serde_yaml = "0.9"

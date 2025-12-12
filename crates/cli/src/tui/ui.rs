@@ -247,6 +247,34 @@ fn truncate_output(output: &str, max_chars: usize) -> String {
     }
 }
 
+/// Wrap text content with proper indentation for continuation lines
+/// Returns a vector of strings, each representing a wrapped line
+fn wrap_with_indent(
+    content: &str,
+    icon_width: usize,
+    content_width: usize,
+    subsequent_indent: &str,
+) -> Vec<String> {
+    use textwrap::{wrap, Options};
+
+    if content.is_empty() {
+        return vec![];
+    }
+
+    // Content width available (accounting for icon on first line)
+    let effective_width = content_width.saturating_sub(icon_width).max(10);
+
+    let options = Options::new(effective_width)
+        .initial_indent("")
+        .subsequent_indent(subsequent_indent)
+        .break_words(true);
+
+    wrap(content, options)
+        .into_iter()
+        .map(|cow| cow.into_owned())
+        .collect()
+}
+
 /// Calculate visual height of lines accounting for wrapping
 /// This matches how ratatui's Paragraph widget wraps text
 fn calculate_wrapped_height(lines: &[Line], content_width: usize) -> usize {
@@ -265,41 +293,51 @@ fn calculate_wrapped_height(lines: &[Line], content_width: usize) -> usize {
     height
 }
 
-/// Format user message (timestamp + terminal-style prompt)
-fn format_user_message(message: &Message) -> Vec<Line<'_>> {
-    // Split content by newlines to properly display multi-line messages
-    let content_lines: Vec<&str> = message.content.lines().collect();
+/// Format user message (icon column + continuation indent)
+fn format_user_message(message: &Message, content_width: usize) -> Vec<Line<'static>> {
+    const ICON: &str = "$ ";
+    const INDENT: &str = "  ";
+
     let mut result = Vec::new();
 
-    if content_lines.is_empty() {
-        // Empty message - just show timestamp and prompt
-        result.push(Line::from(vec![
-            Span::styled(
-                format!("[{}] ", message.timestamp.format("%H:%M:%S")),
-                Style::default().fg(Color::DarkGray)
-            ),
-            Span::styled(
-                "$ ",
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
-            ),
-        ]));
-    } else {
-        // First line: timestamp + prompt + content
-        result.push(Line::from(vec![
-            Span::styled(
-                format!("[{}] ", message.timestamp.format("%H:%M:%S")),
-                Style::default().fg(Color::DarkGray)
-            ),
-            Span::styled(
-                "$ ",
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
-            ),
-            Span::raw(content_lines[0]),
-        ]));
+    if message.content.is_empty() {
+        // Empty message - just show icon
+        result.push(Line::from(Span::styled(
+            ICON,
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+        )));
+        result.push(Line::from(""));
+        return result;
+    }
 
-        // Subsequent lines: just content
-        for line_content in content_lines.iter().skip(1) {
-            result.push(Line::from(Span::raw(*line_content)));
+    // Handle each paragraph (newline-separated) separately
+    let mut is_first_line_overall = true;
+
+    for paragraph in message.content.split('\n') {
+        if paragraph.is_empty() {
+            // Preserve blank lines with indent
+            result.push(Line::from(INDENT.to_string()));
+            continue;
+        }
+
+        // Wrap this paragraph with proper indentation
+        let wrapped = wrap_with_indent(paragraph, ICON.len(), content_width, INDENT);
+
+        for (line_idx, line_content) in wrapped.iter().enumerate() {
+            if is_first_line_overall && line_idx == 0 {
+                // Very first line: icon + content
+                result.push(Line::from(vec![
+                    Span::styled(ICON, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                    Span::raw(line_content.clone()),
+                ]));
+                is_first_line_overall = false;
+            } else if line_idx == 0 {
+                // First line of non-first paragraph: needs indent
+                result.push(Line::from(format!("{}{}", INDENT, line_content)));
+            } else {
+                // Continuation: already indented by wrap_with_indent
+                result.push(Line::from(line_content.clone()));
+            }
         }
     }
 
@@ -307,51 +345,53 @@ fn format_user_message(message: &Message) -> Vec<Line<'_>> {
     result
 }
 
-/// Format LLM/assistant message (timestamp + throbber or status dot)
-fn format_assistant_message(message: &Message, throbber: char) -> Vec<Line<'_>> {
-    let status_indicator = if message.streaming {
-        Span::styled(
-            format!("{} ", throbber),  // Orange throbber during streaming
-            Style::default()
-                .fg(RUST_ORANGE)
-                .add_modifier(Modifier::BOLD)
-        )
+/// Format LLM/assistant message (icon column + continuation indent)
+fn format_assistant_message(message: &Message, throbber: char, content_width: usize) -> Vec<Line<'static>> {
+    const INDENT: &str = "  ";
+
+    let (icon, icon_style) = if message.streaming {
+        (format!("{} ", throbber), Style::default().fg(RUST_ORANGE).add_modifier(Modifier::BOLD))
     } else {
-        Span::styled(
-            "● ",  // Green dot when complete (U+25CF)
-            Style::default()
-                .fg(Color::Green)
-                .add_modifier(Modifier::BOLD)
-        )
+        ("● ".to_string(), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
     };
 
-    // Split content by newlines to properly display multi-line messages
-    let content_lines: Vec<&str> = message.content.lines().collect();
     let mut result = Vec::new();
 
-    if content_lines.is_empty() {
-        // Empty message - just show timestamp and indicator
-        result.push(Line::from(vec![
-            Span::styled(
-                format!("[{}] ", message.timestamp.format("%H:%M:%S")),
-                Style::default().fg(Color::DarkGray)
-            ),
-            status_indicator,
-        ]));
-    } else {
-        // First line: timestamp + indicator + content
-        result.push(Line::from(vec![
-            Span::styled(
-                format!("[{}] ", message.timestamp.format("%H:%M:%S")),
-                Style::default().fg(Color::DarkGray)
-            ),
-            status_indicator,
-            Span::raw(content_lines[0]),
-        ]));
+    if message.content.is_empty() {
+        // Empty message - just show icon
+        result.push(Line::from(Span::styled(icon, icon_style)));
+        result.push(Line::from(""));
+        return result;
+    }
 
-        // Subsequent lines: just content
-        for line_content in content_lines.iter().skip(1) {
-            result.push(Line::from(Span::raw(*line_content)));
+    // Handle each paragraph (newline-separated) separately
+    let mut is_first_line_overall = true;
+
+    for paragraph in message.content.split('\n') {
+        if paragraph.is_empty() {
+            // Preserve blank lines with indent
+            result.push(Line::from(INDENT.to_string()));
+            continue;
+        }
+
+        // Wrap this paragraph with proper indentation
+        let wrapped = wrap_with_indent(paragraph, icon.len(), content_width, INDENT);
+
+        for (line_idx, line_content) in wrapped.iter().enumerate() {
+            if is_first_line_overall && line_idx == 0 {
+                // Very first line: icon + content
+                result.push(Line::from(vec![
+                    Span::styled(icon.clone(), icon_style),
+                    Span::raw(line_content.clone()),
+                ]));
+                is_first_line_overall = false;
+            } else if line_idx == 0 {
+                // First line of non-first paragraph: needs indent
+                result.push(Line::from(format!("{}{}", INDENT, line_content)));
+            } else {
+                // Continuation: already indented by wrap_with_indent
+                result.push(Line::from(line_content.clone()));
+            }
         }
     }
 
@@ -359,40 +399,61 @@ fn format_assistant_message(message: &Message, throbber: char) -> Vec<Line<'_>> 
     result
 }
 
-/// Format system message (timestamp, muted colors, collapse indicator)
-fn format_system_message(message: &Message) -> Vec<Line<'_>> {
-    // Header line: timestamp and collapse indicator
-    let mut header_spans = vec![];
+/// Format system message (icon column + continuation indent)
+fn format_system_message(message: &Message, content_width: usize) -> Vec<Line<'static>> {
+    const INDENT: &str = "  ";
 
-    // Timestamp (muted)
-    header_spans.push(Span::styled(
-        format!("[{}] ", message.timestamp.format("%H:%M:%S")),
-        Style::default().fg(Color::DarkGray)
-    ));
+    let icon = if message.collapsible {
+        if message.collapsed { "▶ " } else { "▼ " }
+    } else {
+        "→ "
+    };
 
-    // Collapse indicator (if collapsible)
-    if message.collapsible {
-        let collapse_icon = if message.collapsed { "▶" } else { "▼" };
-        header_spans.push(Span::styled(
-            collapse_icon,
-            Style::default().fg(Color::Gray)
-        ));
+    let content = message.display_content();
+    let style = Style::default().fg(Color::Gray).add_modifier(Modifier::ITALIC);
+
+    let mut result = Vec::new();
+
+    if content.is_empty() {
+        // Empty message - just show icon
+        result.push(Line::from(Span::styled(icon, Style::default().fg(Color::Gray))));
+        result.push(Line::from(""));
+        return result;
     }
 
-    // Content line: arrow and message text
-    let content = message.display_content().replace('\n', " ");
-    let content_line = Line::from(Span::styled(
-        format!("→ {}", content),
-        Style::default()
-            .fg(Color::Gray)
-            .add_modifier(Modifier::ITALIC)
-    ));
+    // Handle each paragraph (newline-separated) separately
+    let mut is_first_line_overall = true;
 
-    vec![
-        Line::from(header_spans),  // [HH:MM:SS] ▶
-        content_line,              // → content
-        Line::from(""),            // Blank separator
-    ]
+    for paragraph in content.split('\n') {
+        if paragraph.is_empty() {
+            // Preserve blank lines with indent
+            result.push(Line::from(Span::styled(INDENT, style)));
+            continue;
+        }
+
+        // Wrap this paragraph with proper indentation
+        let wrapped = wrap_with_indent(paragraph, icon.len(), content_width, INDENT);
+
+        for (line_idx, line_content) in wrapped.iter().enumerate() {
+            if is_first_line_overall && line_idx == 0 {
+                // Very first line: icon + content
+                result.push(Line::from(vec![
+                    Span::styled(icon, Style::default().fg(Color::Gray)),
+                    Span::styled(line_content.clone(), style),
+                ]));
+                is_first_line_overall = false;
+            } else if line_idx == 0 {
+                // First line of non-first paragraph: needs indent
+                result.push(Line::from(Span::styled(format!("{}{}", INDENT, line_content), style)));
+            } else {
+                // Continuation: already indented by wrap_with_indent
+                result.push(Line::from(Span::styled(line_content.clone(), style)));
+            }
+        }
+    }
+
+    result.push(Line::from(""));  // Blank separator
+    result
 }
 
 fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char) -> usize {
@@ -474,6 +535,11 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
                 continue;
             }
 
+            // Skip empty assistant messages (tool-only responses show green dot with no content)
+            if message.role == Role::Assistant && message.content.trim().is_empty() {
+                continue;
+            }
+
             // Track starting positions in BOTH coordinate spaces
             let buffer_start = text_lines.len();
             let viewport_start = cumulative_visual_line;
@@ -494,64 +560,73 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
                             let icon = if result.is_error { "✗" } else { "✓" };
                             let icon_color = if result.is_error { Color::Red } else { Color::Green };
 
-                            // Header: "[HH:MM:SS] ✓ Bash { command: "ls -la" } (2s)"
-                            // Timestamp and icon are colored, rest is dark grey
+                            // Collapse indicator (always show for tool messages)
+                            let collapse_icon = if message.collapsed { "▶ " } else { "▼ " };
+
+                            // Header: "▼ ✓ Bash { command: "ls -la" } (2s)"
+                            // Icon and collapse indicator are colored, rest is dark grey
                             let header_text = format!(
-                                " {} {} ({}s)",
+                                "{} {} ({}s)",
                                 tool_state.tool_name,
                                 format_tool_params(&tool_state.params),
                                 elapsed
                             );
                             text_lines.push(Line::from(vec![
                                 Span::styled(
-                                    format!("[{}] ", message.timestamp.format("%H:%M:%S")),
-                                    Style::default().fg(Color::DarkGray)
+                                    collapse_icon,
+                                    Style::default().fg(Color::Gray)
                                 ),
-                                Span::styled(icon, Style::default().fg(icon_color).add_modifier(Modifier::BOLD)),
+                                Span::styled(format!("{} ", icon), Style::default().fg(icon_color).add_modifier(Modifier::BOLD)),
                                 Span::styled(header_text, Style::default().fg(Color::DarkGray)),
                             ]));
 
-                            // Result: exit code + stdout (truncated)
-                            if let Some(exit_code) = result.exit_code {
-                                text_lines.push(Line::from(Span::styled(
-                                    format!("    exit_code: {}", exit_code),
-                                    Style::default().fg(Color::DarkGray),
-                                )));
-                            }
+                            // Only show details if NOT collapsed
+                            if !message.collapsed {
+                                // Result: exit code + stdout (truncated) with 2-space indent
+                                if let Some(exit_code) = result.exit_code {
+                                    text_lines.push(Line::from(Span::styled(
+                                        format!("  exit_code: {}", exit_code),
+                                        Style::default().fg(Color::DarkGray),
+                                    )));
+                                }
 
-                            if !result.stdout.is_empty() {
-                                let truncated = truncate_output(&result.stdout, 200);
-                                text_lines.push(Line::from(Span::styled(
-                                    format!("    stdout: {}", truncated),
-                                    Style::default().fg(Color::DarkGray),
-                                )));
-                            }
+                                if !result.stdout.is_empty() {
+                                    let truncated = truncate_output(&result.stdout, 200);
+                                    text_lines.push(Line::from(Span::styled(
+                                        format!("  stdout: {}", truncated),
+                                        Style::default().fg(Color::DarkGray),
+                                    )));
+                                }
 
-                            if !result.stderr.is_empty() {
-                                let truncated = truncate_output(&result.stderr, 200);
-                                text_lines.push(Line::from(Span::styled(
-                                    format!("    stderr: {}", truncated),
-                                    Style::default().fg(Color::DarkGray),
-                                )));
+                                if !result.stderr.is_empty() {
+                                    let truncated = truncate_output(&result.stderr, 200);
+                                    text_lines.push(Line::from(Span::styled(
+                                        format!("  stderr: {}", truncated),
+                                        Style::default().fg(Color::DarkGray),
+                                    )));
+                                }
                             }
                         }
                     } else {
                         // Tool still running - show throbber + timer
-                        // Header: "[HH:MM:SS] ⣾ Bash { command: "ls -la" } (2s)"
-                        // Timestamp and throbber are colored, rest is dark grey
+                        // Collapse indicator (always show for tool messages)
+                        let collapse_icon = if message.collapsed { "▶ " } else { "▼ " };
+
+                        // Header: "▼ ⣾ Bash { command: "ls -la" } (2s)"
+                        // Collapse indicator and throbber are colored, rest is dark grey
                         let header_text = format!(
-                            " {} {} ({}s)",
+                            "{} {} ({}s)",
                             tool_state.tool_name,
                             format_tool_params(&tool_state.params),
                             elapsed
                         );
                         text_lines.push(Line::from(vec![
                             Span::styled(
-                                format!("[{}] ", message.timestamp.format("%H:%M:%S")),
-                                Style::default().fg(Color::DarkGray)
+                                collapse_icon,
+                                Style::default().fg(Color::Gray)
                             ),
                             Span::styled(
-                                throbber.to_string(),
+                                format!("{} ", throbber),
                                 Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)
                             ),
                             Span::styled(header_text, Style::default().fg(Color::DarkGray)),
@@ -584,13 +659,6 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
 
                         let visible_height = clickable_end.saturating_sub(scroll_offset.max(viewport_start));
 
-                        // DEBUG: Log tool message click region registration
-                        app.push_debug_message(format!(
-                            "[CLICK] Register TOOL msg_idx={} role={:?} y={} h={} (vp_start={} vp_end={} clickable_end={} scroll={})",
-                            msg_idx, message.role, visible_y, visible_height,
-                            viewport_start, viewport_end, clickable_end, scroll_offset
-                        ));
-
                         app.click_regions.add_message(msg_idx, Rect {
                             x: 0,  // Relative to inner_area
                             y: visible_y as u16,
@@ -606,12 +674,13 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
             // Normal message rendering (non-tool messages)
             // Use new formatting functions based on message role
             let message_lines = match message.role {
-                Role::User => format_user_message(message),
-                Role::Assistant => format_assistant_message(message, throbber),
-                Role::System => format_system_message(message),
+                Role::User => format_user_message(message, content_width),
+                Role::Assistant => format_assistant_message(message, throbber, content_width),
+                Role::System => format_system_message(message, content_width),
             };
 
             // Add formatted lines to buffer
+            // Trailing blank separator will be removed globally after loop
             text_lines.extend(message_lines);
 
             // Calculate visual height for this message (accounting for wrapping)
@@ -638,19 +707,25 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
 
                     let visible_height = clickable_end.saturating_sub(scroll_offset.max(viewport_start));
 
-                    // DEBUG: Log click region registration
-                    app.push_debug_message(format!(
-                        "[CLICK] Register msg_idx={} role={:?} collapsible={} y={} h={} (vp_start={} vp_end={} clickable_end={} scroll={})",
-                        msg_idx, message.role, message.collapsible, visible_y, visible_height,
-                        viewport_start, viewport_end, clickable_end, scroll_offset
-                    ));
-
                     app.click_regions.add_message(msg_idx, Rect {
                         x: 0,  // Relative to inner_area
                         y: visible_y as u16,
                         width: inner_area.width,
                         height: visible_height as u16,
                     });
+                }
+            }
+        }
+
+        // DEFENSIVE: Remove any trailing blank separator to prevent overflow
+        // This handles both regular messages and tool messages
+        if !text_lines.is_empty() {
+            if let Some(last_line) = text_lines.last() {
+                if last_line.spans.is_empty() ||
+                   (last_line.spans.len() == 1 && last_line.spans[0].content.is_empty()) {
+                    text_lines.pop();
+                    // Adjust content height since we removed a line
+                    cumulative_visual_line = cumulative_visual_line.saturating_sub(1);
                 }
             }
         }
