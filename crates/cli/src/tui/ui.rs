@@ -312,11 +312,16 @@ fn format_user_message(message: &Message, content_width: usize) -> Vec<Line<'sta
 
     // Handle each paragraph (newline-separated) separately
     let mut is_first_line_overall = true;
+    let paragraphs: Vec<&str> = message.content.split('\n').collect();
 
-    for paragraph in message.content.split('\n') {
+    for (para_idx, paragraph) in paragraphs.iter().enumerate() {
+        // Skip trailing empty paragraph (from trailing \n in content)
+        let is_last = para_idx == paragraphs.len() - 1;
         if paragraph.is_empty() {
-            // Preserve blank lines with indent
-            result.push(Line::from(INDENT.to_string()));
+            // Only preserve internal blank lines, not trailing ones
+            if !is_last {
+                result.push(Line::from(INDENT.to_string()));
+            }
             continue;
         }
 
@@ -366,11 +371,16 @@ fn format_assistant_message(message: &Message, throbber: char, content_width: us
 
     // Handle each paragraph (newline-separated) separately
     let mut is_first_line_overall = true;
+    let paragraphs: Vec<&str> = message.content.split('\n').collect();
 
-    for paragraph in message.content.split('\n') {
+    for (para_idx, paragraph) in paragraphs.iter().enumerate() {
+        // Skip trailing empty paragraph (from trailing \n in content)
+        let is_last = para_idx == paragraphs.len() - 1;
         if paragraph.is_empty() {
-            // Preserve blank lines with indent
-            result.push(Line::from(INDENT.to_string()));
+            // Only preserve internal blank lines, not trailing ones
+            if !is_last {
+                result.push(Line::from(INDENT.to_string()));
+            }
             continue;
         }
 
@@ -423,11 +433,16 @@ fn format_system_message(message: &Message, content_width: usize) -> Vec<Line<'s
 
     // Handle each paragraph (newline-separated) separately
     let mut is_first_line_overall = true;
+    let paragraphs: Vec<&str> = content.split('\n').collect();
 
-    for paragraph in content.split('\n') {
+    for (para_idx, paragraph) in paragraphs.iter().enumerate() {
+        // Skip trailing empty paragraph (from trailing \n in content)
+        let is_last = para_idx == paragraphs.len() - 1;
         if paragraph.is_empty() {
-            // Preserve blank lines with indent
-            result.push(Line::from(Span::styled(INDENT, style)));
+            // Only preserve internal blank lines, not trailing ones
+            if !is_last {
+                result.push(Line::from(Span::styled(INDENT, style)));
+            }
             continue;
         }
 
@@ -739,6 +754,17 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
         // Subtract 2 for block borders
         let viewport_height = area.height.saturating_sub(2) as usize;
 
+        // DEFENSIVE: Ensure viewport has minimum height to prevent calculation issues
+        // If terminal is too small, viewport_height could be 0, causing max_scroll overflow
+        if viewport_height == 0 {
+            // Terminal too small to show content - render without scrolling
+            let paragraph = Paragraph::new(text)
+                .block(block)
+                .wrap(Wrap { trim: false });
+            frame.render_widget(paragraph, area);
+            return 0;
+        }
+
         // Calculate max scroll with proper boundary check
         // If content fits in viewport, max_scroll is 0 (no scrolling needed)
         let max_scroll = if content_height > viewport_height {
@@ -748,14 +774,34 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
         };
 
         // Determine scroll offset
+        // DEFENSIVE: Handle very large content (>65535 lines) by capping scroll_offset type
+        // but warning if we're hitting the limit
         let scroll_offset = if app.follow_bottom() {
             // Auto-follow bottom - show last viewport worth of content
             // CRITICAL: When following bottom, ALWAYS use max_scroll to show latest messages
-            max_scroll.min(u16::MAX as usize) as u16
+            if max_scroll > u16::MAX as usize {
+                // Content exceeds u16 limit - scroll as far as possible and log warning
+                tracing::warn!(
+                    "Content height {} exceeds scroll limit, bottom may be cut off",
+                    content_height
+                );
+                u16::MAX
+            } else {
+                max_scroll as u16
+            }
         } else {
             // Manual scroll - clamp to valid range [0, max_scroll]
             let clamped = app.scroll_offset().min(max_scroll);
-            clamped.min(u16::MAX as usize) as u16
+            if clamped > u16::MAX as usize {
+                tracing::warn!(
+                    "Scroll offset {} exceeds u16 limit, clamping to {}",
+                    clamped,
+                    u16::MAX
+                );
+                u16::MAX
+            } else {
+                clamped as u16
+            }
         };
 
         let paragraph = Paragraph::new(text)
@@ -1146,6 +1192,15 @@ fn render_debug_panel(frame: &mut Frame, area: Rect, app: &App) -> usize {
 
     // Calculate viewport height and max_scroll
     let viewport_height = area.height.saturating_sub(2) as usize; // Subtract borders
+    // DEFENSIVE: Ensure viewport has minimum height
+    if viewport_height == 0 {
+        let paragraph = Paragraph::new(text)
+            .block(block)
+            .wrap(Wrap { trim: false });
+        frame.render_widget(paragraph, area);
+        return 0;
+    }
+
     let max_scroll = if content_height > viewport_height {
         content_height - viewport_height
     } else {
@@ -1153,14 +1208,31 @@ fn render_debug_panel(frame: &mut Frame, area: Rect, app: &App) -> usize {
     };
 
     // Determine scroll offset based on follow_bottom mode (same as message panel)
+    // DEFENSIVE: Handle very large content (>65535 lines)
     let scroll_offset = if app.debug_follow_bottom() {
         // Auto-follow bottom - show last viewport worth of content
-        // CRITICAL: When following bottom, ALWAYS use max_scroll to show latest debug messages
-        max_scroll.min(u16::MAX as usize) as u16
+        if max_scroll > u16::MAX as usize {
+            tracing::warn!(
+                "Debug content height {} exceeds scroll limit, bottom may be cut off",
+                content_height
+            );
+            u16::MAX
+        } else {
+            max_scroll as u16
+        }
     } else {
         // Manual scroll - clamp to valid range [0, max_scroll]
         let clamped = app.debug_scroll_offset().min(max_scroll);
-        clamped.min(u16::MAX as usize) as u16
+        if clamped > u16::MAX as usize {
+            tracing::warn!(
+                "Debug scroll offset {} exceeds u16 limit, clamping to {}",
+                clamped,
+                u16::MAX
+            );
+            u16::MAX
+        } else {
+            clamped as u16
+        }
     };
 
     let paragraph = Paragraph::new(text)
