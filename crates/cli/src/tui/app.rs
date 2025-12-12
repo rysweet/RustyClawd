@@ -13,6 +13,7 @@ use rat_focus::FocusFlag;
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 use tui_textarea::TextArea;
+use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthChar;
 
 /// Maximum debug messages to keep in buffer
@@ -673,7 +674,92 @@ impl App {
     }
 
     pub fn backspace(&mut self) {
-        self.input.delete_char();  // Backspace key: delete char BEFORE cursor
+        // Delete grapheme cluster (handles emojis with modifiers correctly)
+        let (row, col) = self.input.cursor();
+
+        // Clone lines to avoid borrow issues
+        let lines: Vec<String> = self.input.lines().iter().map(|s| s.to_string()).collect();
+
+        if row >= lines.len() {
+            return;
+        }
+
+        let line = lines[row].clone();
+
+        // Debug logging
+        self.push_debug_message(format!(
+            "[BACKSPACE] cursor=({},{}), line_len={}, line={:?}",
+            row, col, line.len(), line
+        ));
+
+        if col == 0 {
+            // At start of line - use default behavior to merge with previous line
+            self.input.delete_char();
+        } else {
+            // Delete the grapheme cluster before cursor
+            let graphemes: Vec<String> = line.graphemes(true).map(|s| s.to_string()).collect();
+
+            self.push_debug_message(format!(
+                "[BACKSPACE] grapheme_count={}, first_10={:?}",
+                graphemes.len(),
+                graphemes.iter().take(10).collect::<Vec<_>>()
+            ));
+
+            // Find grapheme index by counting characters
+            // TextArea's col is in CHARACTER positions, not display width
+            let mut char_count = 0;
+            let mut grapheme_idx = 0;
+
+            for (idx, g) in graphemes.iter().enumerate() {
+                let g_char_count = g.chars().count();
+                if char_count >= col {
+                    break;
+                }
+                char_count += g_char_count;
+                grapheme_idx = idx + 1;
+            }
+
+            self.push_debug_message(format!(
+                "[BACKSPACE] char_count={}, grapheme_idx={}",
+                char_count, grapheme_idx
+            ));
+
+            if grapheme_idx > 0 {
+                let deleted_grapheme = graphemes.get(grapheme_idx - 1).cloned().unwrap_or_default();
+                let deleted_char_count = deleted_grapheme.chars().count();
+
+                self.push_debug_message(format!(
+                    "[BACKSPACE] deleting grapheme_idx={}, content={:?}, char_len={}",
+                    grapheme_idx - 1,
+                    deleted_grapheme,
+                    deleted_char_count
+                ));
+
+                // Build new line without the previous grapheme
+                let mut new_line = String::new();
+                for (idx, g) in graphemes.iter().enumerate() {
+                    if idx != grapheme_idx - 1 {
+                        new_line.push_str(g);
+                    }
+                }
+
+                // Replace the line
+                let mut new_lines = lines.clone();
+                new_lines[row] = new_line;
+
+                // Calculate new cursor position (in characters)
+                let new_col = col.saturating_sub(deleted_char_count);
+
+                self.push_debug_message(format!(
+                    "[BACKSPACE] new_col={}, deleted_char_count={}",
+                    new_col, deleted_char_count
+                ));
+
+                // Update textarea
+                self.input = TextArea::from(new_lines);
+                self.input.move_cursor(tui_textarea::CursorMove::Jump(row as u16, new_col as u16));
+            }
+        }
 
         // Reflow to potentially merge lines that are now shorter
         self.reflow_input_content();

@@ -391,7 +391,7 @@ impl KeyBindings {
 
     /// Check if a character should be inserted as text
     pub fn is_printable_char(&self, event: &KeyEvent) -> bool {
-        matches!(event.code, KeyCode::Char(c) if c.is_ascii_graphic() || c.is_whitespace())
+        matches!(event.code, KeyCode::Char(c) if !c.is_control())
             && !event.modifiers.contains(KeyModifiers::CONTROL)
             && !event.modifiers.contains(KeyModifiers::ALT)
     }
