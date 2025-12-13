@@ -4,7 +4,10 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
+    widgets::{
+        Block, Borders, Clear, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation,
+        ScrollbarState, Wrap,
+    },
     Frame,
 };
 use unicode_width::UnicodeWidthStr;
@@ -27,7 +30,9 @@ pub fn render(frame: &mut Frame, app: &mut App) -> (usize, usize, LayoutCache) {
     let frame_idx = (std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
-        .as_millis() / 100) as usize % BRAILLE_FRAMES.len();
+        .as_millis()
+        / 100) as usize
+        % BRAILLE_FRAMES.len();
     let throbber = BRAILLE_FRAMES[frame_idx];
 
     // Build layout configuration from app state
@@ -145,13 +150,19 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &mut App, throbber: cha
             Span::raw(" "),
             Span::styled(
                 "🦀 RustyClawd",
-                Style::default().fg(RUST_ORANGE).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(RUST_ORANGE)
+                    .add_modifier(Modifier::BOLD),
             ),
         ]
     };
 
     // Add debug indicator, follow-bottom indicator, and menu hint on the right
-    let debug_status = if debug_visible { "Debug:ON" } else { "Debug:OFF" };
+    let debug_status = if debug_visible {
+        "Debug:ON"
+    } else {
+        "Debug:OFF"
+    };
     let debug_style = if debug_visible {
         Style::default().fg(Color::Green)
     } else {
@@ -159,17 +170,22 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &mut App, throbber: cha
     };
 
     // Follow-bottom indicator: show "📌 Pinned" when user has scrolled up (NOT following bottom)
-    let follow_indicator = if !follow_bottom {
-        " | 📌 Pinned"
-    } else {
-        ""
-    };
+    let follow_indicator = if !follow_bottom { " | 📌 Pinned" } else { "" };
 
     // Calculate padding to right-align - Unicode display width
-    let mouse_status = if mouse_mode_enabled { "Mouse:ON" } else { "Mouse:OFF" };
+    let mouse_status = if mouse_mode_enabled {
+        "Mouse:ON"
+    } else {
+        "Mouse:OFF"
+    };
     let left_width: usize = status_spans.iter().map(|s| s.content.width()).sum();
-    let right_text = format!(" | {} | {}{} | F1:Menu ", mouse_status, debug_status, follow_indicator);
-    let padding_width = area.width.saturating_sub((left_width + right_text.width()) as u16);
+    let right_text = format!(
+        " | {} | {}{} | F1:Menu ",
+        mouse_status, debug_status, follow_indicator
+    );
+    let padding_width = area
+        .width
+        .saturating_sub((left_width + right_text.width()) as u16);
 
     status_spans.push(Span::raw(" ".repeat(padding_width as usize)));
     status_spans.push(Span::raw(" | "));
@@ -246,7 +262,7 @@ fn format_tool_params(params: &serde_json::Value, max_width: usize) -> String {
                 format!("({})", items.join(", "))
             }
         }
-        _ => format!("({})", params.to_string()),
+        _ => format!("({})", params),
     };
 
     // Truncate to max_width if needed
@@ -298,7 +314,7 @@ fn format_json_value(
 
                 let nested_lines = format_json_value(
                     nested_value,
-                    &nested_parent_bar.trim_end(),
+                    nested_parent_bar.trim_end(),
                     nested_tree_char,
                     nested_continuation_char,
                     Some(nested_key),
@@ -312,7 +328,13 @@ fn format_json_value(
             // Array - show as indexed items
             let label = key.map(|k| format!("{}: ", k)).unwrap_or_default();
             lines.push(Line::from(Span::styled(
-                format!("{} {} {}[{} items]", parent_bar, tree_char, label, arr.len()),
+                format!(
+                    "{} {} {}[{} items]",
+                    parent_bar,
+                    tree_char,
+                    label,
+                    arr.len()
+                ),
                 Style::default().fg(Color::DarkGray),
             )));
 
@@ -326,7 +348,7 @@ fn format_json_value(
 
                 let nested_lines = format_json_value(
                     item,
-                    &nested_parent_bar.trim_end(),
+                    nested_parent_bar.trim_end(),
                     nested_tree_char,
                     nested_continuation_char,
                     Some(&item_key),
@@ -349,7 +371,12 @@ fn format_json_value(
             let label = key.map(|k| format!("{}: ", k)).unwrap_or_default();
             let first_line_prefix = format!("{} {} {}", parent_bar, tree_char, label);
             let continuation_prefix = format!("{} {}  ", parent_bar, continuation_char);
-            let wrapped_lines = wrap_value_with_indent(&value_str, &first_line_prefix, &continuation_prefix, content_width);
+            let wrapped_lines = wrap_value_with_indent(
+                &value_str,
+                &first_line_prefix,
+                &continuation_prefix,
+                content_width,
+            );
 
             for wrapped_line in wrapped_lines {
                 lines.push(Line::from(Span::styled(
@@ -365,7 +392,12 @@ fn format_json_value(
 
 /// Wrap text with proper indentation for continuation lines
 /// Used for long parameter/response values that need to wrap
-fn wrap_value_with_indent(text: &str, first_line_prefix: &str, continuation_prefix: &str, max_width: usize) -> Vec<String> {
+fn wrap_value_with_indent(
+    text: &str,
+    first_line_prefix: &str,
+    continuation_prefix: &str,
+    max_width: usize,
+) -> Vec<String> {
     use textwrap::{wrap, Options};
 
     if text.is_empty() {
@@ -381,7 +413,7 @@ fn wrap_value_with_indent(text: &str, first_line_prefix: &str, continuation_pref
     let words: Vec<&str> = text.split_whitespace().collect();
 
     if words.is_empty() {
-        result.push(format!("{}", first_line_prefix));
+        result.push(first_line_prefix.to_string());
         return result;
     }
 
@@ -402,7 +434,11 @@ fn wrap_value_with_indent(text: &str, first_line_prefix: &str, continuation_pref
         } else {
             // Current line is full, push it
             if !current_line.is_empty() {
-                let prefix = if is_first { first_line_prefix } else { continuation_prefix };
+                let prefix = if is_first {
+                    first_line_prefix
+                } else {
+                    continuation_prefix
+                };
                 result.push(format!("{}{}", prefix, current_line));
                 is_first = false;
             }
@@ -412,7 +448,11 @@ fn wrap_value_with_indent(text: &str, first_line_prefix: &str, continuation_pref
 
     // Push final line
     if !current_line.is_empty() {
-        let prefix = if is_first { first_line_prefix } else { continuation_prefix };
+        let prefix = if is_first {
+            first_line_prefix
+        } else {
+            continuation_prefix
+        };
         result.push(format!("{}{}", prefix, current_line));
     }
 
@@ -422,7 +462,12 @@ fn wrap_value_with_indent(text: &str, first_line_prefix: &str, continuation_pref
 /// Format tool parameters in a clean, readable way (not raw JSON)
 /// Returns tree-structured lines with proper indentation
 /// `parent_has_more` indicates if there are more items after parameters (response, exit_code)
-fn format_tool_parameters(params: &serde_json::Value, prefix: &str, parent_has_more: bool, content_width: usize) -> Vec<Line<'static>> {
+fn format_tool_parameters(
+    params: &serde_json::Value,
+    prefix: &str,
+    parent_has_more: bool,
+    content_width: usize,
+) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
 
     match params {
@@ -474,7 +519,12 @@ fn format_tool_parameters(params: &serde_json::Value, prefix: &str, parent_has_m
 
 /// Format response content as JSON key-values (just like parameters)
 /// Returns tree-structured lines with proper indentation
-fn format_response_content(content: &str, prefix: &str, parent_has_more: bool, content_width: usize) -> Vec<Line<'static>> {
+fn format_response_content(
+    content: &str,
+    prefix: &str,
+    parent_has_more: bool,
+    content_width: usize,
+) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
 
     if content.is_empty() {
@@ -521,7 +571,12 @@ fn format_response_content(content: &str, prefix: &str, parent_has_more: bool, c
         let parent_bar = if parent_has_more { "│" } else { " " };
         let first_line_prefix = format!("{} ", prefix);
         let continuation_prefix = format!("{}   ", parent_bar);
-        let wrapped_lines = wrap_value_with_indent(content, &first_line_prefix, &continuation_prefix, content_width);
+        let wrapped_lines = wrap_value_with_indent(
+            content,
+            &first_line_prefix,
+            &continuation_prefix,
+            content_width,
+        );
 
         for wrapped_line in wrapped_lines {
             lines.push(Line::from(Span::styled(
@@ -584,13 +639,11 @@ fn wrap_with_indent(
 fn calculate_wrapped_height(lines: &[Line], content_width: usize) -> usize {
     let mut height = 0;
     for line in lines {
-        let line_width: usize = line.spans.iter()
-            .map(|span| span.content.width())
-            .sum();
+        let line_width: usize = line.spans.iter().map(|span| span.content.width()).sum();
         let wrapped_lines = if line_width == 0 {
             1
         } else {
-            (line_width + content_width - 1) / content_width
+            line_width.div_ceil(content_width)
         };
         height += wrapped_lines;
     }
@@ -608,7 +661,9 @@ fn format_user_message(message: &Message, content_width: usize) -> Vec<Line<'sta
         // Empty message - just show icon
         result.push(Line::from(Span::styled(
             ICON,
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )));
         result.push(Line::from(""));
         return result;
@@ -621,7 +676,7 @@ fn format_user_message(message: &Message, content_width: usize) -> Vec<Line<'sta
     let mut is_first_line_overall = true;
     let paragraphs: Vec<&str> = normalized_content.lines().collect();
 
-    for (_para_idx, paragraph) in paragraphs.iter().enumerate() {
+    for paragraph in paragraphs.iter() {
         // Empty paragraphs represent blank lines (from \n\n in content)
         // Push an empty Line to create visual blank line
         if paragraph.is_empty() {
@@ -636,7 +691,12 @@ fn format_user_message(message: &Message, content_width: usize) -> Vec<Line<'sta
             if is_first_line_overall && line_idx == 0 {
                 // Very first line: icon + content
                 result.push(Line::from(vec![
-                    Span::styled(ICON, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                    Span::styled(
+                        ICON,
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
+                    ),
                     Span::raw(line_content.clone()),
                 ]));
                 is_first_line_overall = false;
@@ -655,13 +715,27 @@ fn format_user_message(message: &Message, content_width: usize) -> Vec<Line<'sta
 }
 
 /// Format LLM/assistant message (icon column + continuation indent)
-fn format_assistant_message(message: &Message, throbber: char, content_width: usize) -> Vec<Line<'static>> {
+fn format_assistant_message(
+    message: &Message,
+    throbber: char,
+    content_width: usize,
+) -> Vec<Line<'static>> {
     const INDENT: &str = "  ";
 
     let (icon, icon_style) = if message.streaming {
-        (format!("{} ", throbber), Style::default().fg(RUST_ORANGE).add_modifier(Modifier::BOLD))
+        (
+            format!("{} ", throbber),
+            Style::default()
+                .fg(RUST_ORANGE)
+                .add_modifier(Modifier::BOLD),
+        )
     } else {
-        ("● ".to_string(), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
+        (
+            "● ".to_string(),
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        )
     };
 
     let mut result = Vec::new();
@@ -680,7 +754,7 @@ fn format_assistant_message(message: &Message, throbber: char, content_width: us
     let mut is_first_line_overall = true;
     let paragraphs: Vec<&str> = normalized_content.lines().collect();
 
-    for (_para_idx, paragraph) in paragraphs.iter().enumerate() {
+    for paragraph in paragraphs.iter() {
         // Empty paragraphs represent blank lines (from \n\n in content)
         // Push an empty Line to create visual blank line
         if paragraph.is_empty() {
@@ -718,31 +792,40 @@ fn format_system_message(message: &Message, content_width: usize) -> Vec<Line<'s
     const INDENT: &str = "  ";
 
     let icon = if message.collapsible {
-        if message.collapsed { "▶ " } else { "▼ " }
+        if message.collapsed {
+            "▶ "
+        } else {
+            "▼ "
+        }
     } else {
         "→ "
     };
 
     let content = message.display_content();
-    let style = Style::default().fg(Color::Gray).add_modifier(Modifier::ITALIC);
+    let style = Style::default()
+        .fg(Color::Gray)
+        .add_modifier(Modifier::ITALIC);
 
     let mut result = Vec::new();
 
     if content.is_empty() {
         // Empty message - just show icon
-        result.push(Line::from(Span::styled(icon, Style::default().fg(Color::Gray))));
+        result.push(Line::from(Span::styled(
+            icon,
+            Style::default().fg(Color::Gray),
+        )));
         result.push(Line::from(""));
         return result;
     }
 
     // Normalize line endings first to handle \r\n and bare \r
-    let normalized_content = normalize_line_endings(&content);
+    let normalized_content = normalize_line_endings(content);
 
     // Handle each paragraph (newline-separated) separately
     let mut is_first_line_overall = true;
     let paragraphs: Vec<&str> = normalized_content.lines().collect();
 
-    for (_para_idx, paragraph) in paragraphs.iter().enumerate() {
+    for paragraph in paragraphs.iter() {
         // Empty paragraphs represent blank lines (from \n\n in content)
         // Push an empty Line to create visual blank line
         if paragraph.is_empty() {
@@ -763,7 +846,10 @@ fn format_system_message(message: &Message, content_width: usize) -> Vec<Line<'s
                 is_first_line_overall = false;
             } else if line_idx == 0 {
                 // First line of non-first paragraph: needs indent
-                result.push(Line::from(Span::styled(format!("{}{}", INDENT, line_content), style)));
+                result.push(Line::from(Span::styled(
+                    format!("{}{}", INDENT, line_content),
+                    style,
+                )));
             } else {
                 // Continuation: already indented by wrap_with_indent
                 result.push(Line::from(Span::styled(line_content.clone(), style)));
@@ -784,7 +870,11 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
 
     // Focus-aware border styling
     let is_focused = app.focus_messages().get();
-    let border_color = if is_focused { Color::White } else { RUST_ORANGE };
+    let border_color = if is_focused {
+        Color::White
+    } else {
+        RUST_ORANGE
+    };
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -829,13 +919,12 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
             ]),
         ]);
 
-        let paragraph = Paragraph::new(welcome_text)
-            .block(block);
+        let paragraph = Paragraph::new(welcome_text).block(block);
 
         frame.render_widget(paragraph, area);
 
         // No scrollable content on welcome screen
-        return 0;
+        0
     } else {
         // Build complete text content as styled text
         let mut text_lines = Vec::new();
@@ -891,25 +980,35 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
                     if tool_state.completed {
                         // Tool completed - show final result
                         if let Some(ref result) = tool_state.result {
-                            let status_dot = if result.is_error { "●" } else { "●" };
-                            let dot_color = if result.is_error { Color::Red } else { Color::Green };
+                            let status_dot = "●";
+                            let dot_color = if result.is_error {
+                                Color::Red
+                            } else {
+                                Color::Green
+                            };
                             let collapse_arrow = if message.collapsed { "▶" } else { "▼" };
 
                             // Calculate available width for header
                             // Format: "▼ ● Bash(params) (9999s)"
                             // Components: arrow(1) + space(1) + dot(1) + space(1) + tool_name + params + space(1) + timer(7)
                             let timer_text = format!("({}s)", elapsed.min(9999));
-                            let fixed_width = 1 + 1 + 1 + 1 + tool_state.tool_name.len() + 1 + timer_text.len();
+                            let fixed_width =
+                                1 + 1 + 1 + 1 + tool_state.tool_name.len() + 1 + timer_text.len();
                             let available_for_params = content_width.saturating_sub(fixed_width);
 
-                            let params_text = format_tool_params(&tool_state.params, available_for_params);
-                            let header_text = format!("{}{} {}", tool_state.tool_name, params_text, timer_text);
+                            let params_text =
+                                format_tool_params(&tool_state.params, available_for_params);
+                            let header_text =
+                                format!("{}{} {}", tool_state.tool_name, params_text, timer_text);
 
                             // Header line: "▼ ● Bash(sleep 20) (  12s)"
                             text_lines.push(Line::from(vec![
                                 Span::styled(collapse_arrow, Style::default().fg(Color::Gray)),
                                 Span::raw(" "),
-                                Span::styled(status_dot, Style::default().fg(dot_color).add_modifier(Modifier::BOLD)),
+                                Span::styled(
+                                    status_dot,
+                                    Style::default().fg(dot_color).add_modifier(Modifier::BOLD),
+                                ),
                                 Span::raw(" "),
                                 Span::styled(header_text, Style::default().fg(Color::DarkGray)),
                             ]));
@@ -921,7 +1020,10 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
                                     // Calculate max width for stdout: content_width - "└─ " (3 chars)
                                     let max_stdout_width = content_width.saturating_sub(3);
                                     let truncated = if first_line.len() > max_stdout_width {
-                                        format!("{}...", &first_line[..max_stdout_width.saturating_sub(3)])
+                                        format!(
+                                            "{}...",
+                                            &first_line[..max_stdout_width.saturating_sub(3)]
+                                        )
                                     } else {
                                         first_line.to_string()
                                     };
@@ -936,13 +1038,23 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
                                 // Show parameters (with clean formatting, not raw JSON)
                                 let params_prefix = "├─"; // Parameters always has items after it (response)
                                 let parent_has_more = true; // Always true - there's always response and possibly exit_code after
-                                let params_lines = format_tool_parameters(&tool_state.params, params_prefix, parent_has_more, content_width);
+                                let params_lines = format_tool_parameters(
+                                    &tool_state.params,
+                                    params_prefix,
+                                    parent_has_more,
+                                    content_width,
+                                );
                                 text_lines.extend(params_lines);
 
                                 // Show response content (parse as JSON and format like parameters)
                                 let response_prefix = "└─"; // Response is always last
                                 let response_has_more = false; // Response is always last item
-                                let response_lines = format_response_content(&result.raw_content, response_prefix, response_has_more, content_width);
+                                let response_lines = format_response_content(
+                                    &result.raw_content,
+                                    response_prefix,
+                                    response_has_more,
+                                    content_width,
+                                );
                                 text_lines.extend(response_lines);
                             }
                         }
@@ -952,17 +1064,25 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
 
                         // Calculate available width for header (same as completed)
                         let timer_text = format!("({}s)", elapsed.min(9999));
-                        let fixed_width = 1 + 1 + 1 + 1 + tool_state.tool_name.len() + 1 + timer_text.len();
+                        let fixed_width =
+                            1 + 1 + 1 + 1 + tool_state.tool_name.len() + 1 + timer_text.len();
                         let available_for_params = content_width.saturating_sub(fixed_width);
 
-                        let params_text = format_tool_params(&tool_state.params, available_for_params);
-                        let header_text = format!("{}{} {}", tool_state.tool_name, params_text, timer_text);
+                        let params_text =
+                            format_tool_params(&tool_state.params, available_for_params);
+                        let header_text =
+                            format!("{}{} {}", tool_state.tool_name, params_text, timer_text);
 
                         // Header: "▼ ⣾ Bash(ls -la) (  12s)"
                         text_lines.push(Line::from(vec![
                             Span::styled(collapse_arrow, Style::default().fg(Color::Gray)),
                             Span::raw(" "),
-                            Span::styled(format!("{} ", throbber), Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+                            Span::styled(
+                                format!("{} ", throbber),
+                                Style::default()
+                                    .fg(Color::Magenta)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
                             Span::styled(header_text, Style::default().fg(Color::DarkGray)),
                         ]));
                     }
@@ -974,7 +1094,7 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
                     let buffer_end = text_lines.len();
                     let visual_height = calculate_wrapped_height(
                         &text_lines[buffer_start..buffer_end],
-                        content_width
+                        content_width,
                     );
                     let viewport_end = cumulative_visual_line + visual_height;
                     cumulative_visual_line = viewport_end;
@@ -1002,10 +1122,8 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
 
             // Calculate visual height for this message (accounting for wrapping)
             let buffer_end = text_lines.len();
-            let visual_height = calculate_wrapped_height(
-                &text_lines[buffer_start..buffer_end],
-                content_width
-            );
+            let visual_height =
+                calculate_wrapped_height(&text_lines[buffer_start..buffer_end], content_width);
             let viewport_end = cumulative_visual_line + visual_height;
             cumulative_visual_line = viewport_end;
 
@@ -1021,8 +1139,9 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
         // This handles both regular messages and tool messages
         if !text_lines.is_empty() {
             if let Some(last_line) = text_lines.last() {
-                if last_line.spans.is_empty() ||
-                   (last_line.spans.len() == 1 && last_line.spans[0].content.is_empty()) {
+                if last_line.spans.is_empty()
+                    || (last_line.spans.len() == 1 && last_line.spans[0].content.is_empty())
+                {
                     text_lines.pop();
                     // Adjust content height since we removed a line
                     cumulative_visual_line = cumulative_visual_line.saturating_sub(1);
@@ -1043,20 +1162,14 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
         // If terminal is too small, viewport_height could be 0, causing max_scroll overflow
         if viewport_height == 0 {
             // Terminal too small to show content - render without scrolling
-            let paragraph = Paragraph::new(text)
-                .block(block)
-                .wrap(Wrap { trim: false });
+            let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: false });
             frame.render_widget(paragraph, area);
             return 0;
         }
 
         // Calculate max scroll with proper boundary check
         // If content fits in viewport, max_scroll is 0 (no scrolling needed)
-        let max_scroll = if content_height > viewport_height {
-            content_height - viewport_height
-        } else {
-            0
-        };
+        let max_scroll = content_height.saturating_sub(viewport_height);
 
         // Determine scroll offset
         // DEFENSIVE: Handle very large content (>65535 lines) by capping scroll_offset type
@@ -1095,26 +1208,26 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
         for (msg_idx, viewport_start, clickable_end) in message_positions {
             // Check if any part of message is visible in viewport
             if clickable_end > scroll_offset_usize {
-                let visible_y = if viewport_start < scroll_offset_usize {
-                    0  // Message partially scrolled off top
-                } else {
-                    viewport_start - scroll_offset_usize
-                };
+                let visible_y = viewport_start.saturating_sub(scroll_offset_usize);
 
-                let visible_height = clickable_end.saturating_sub(scroll_offset_usize.max(viewport_start));
+                let visible_height =
+                    clickable_end.saturating_sub(scroll_offset_usize.max(viewport_start));
 
-                app.click_regions.add_message(msg_idx, Rect {
-                    x: 0,  // Relative to inner_area
-                    y: visible_y as u16,
-                    width: inner_area.width,
-                    height: visible_height as u16,
-                });
+                app.click_regions.add_message(
+                    msg_idx,
+                    Rect {
+                        x: 0, // Relative to inner_area
+                        y: visible_y as u16,
+                        width: inner_area.width,
+                        height: visible_height as u16,
+                    },
+                );
             }
         }
 
         let paragraph = Paragraph::new(text)
             .block(block)
-            .wrap(Wrap { trim: false })  // Wraps at widget's inner width automatically
+            .wrap(Wrap { trim: false }) // Wraps at widget's inner width automatically
             .scroll((scroll_offset, 0));
 
         frame.render_widget(paragraph, area);
@@ -1126,14 +1239,10 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
                 .end_symbol(Some("↓"))
                 .style(Style::default().fg(RUST_ORANGE));
 
-            let mut scrollbar_state = ScrollbarState::new(max_scroll)
-                .position(scroll_offset as usize);
+            let mut scrollbar_state =
+                ScrollbarState::new(max_scroll).position(scroll_offset as usize);
 
-            frame.render_stateful_widget(
-                scrollbar,
-                area,
-                &mut scrollbar_state,
-            );
+            frame.render_stateful_widget(scrollbar, area, &mut scrollbar_state);
         }
 
         // Return max_scroll for app state update
@@ -1144,7 +1253,11 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
 fn render_input(frame: &mut Frame, area: Rect, app: &App) {
     // Focus-aware styling (scrollbar only for now - TextArea block styling requires mutable access)
     let is_focused = app.focus_input().get();
-    let scrollbar_color = if is_focused { Color::White } else { RUST_ORANGE };
+    let scrollbar_color = if is_focused {
+        Color::White
+    } else {
+        RUST_ORANGE
+    };
 
     // CORRECT: Render TextArea directly with immutable borrow
     // TextArea implements Widget trait
@@ -1162,8 +1275,8 @@ fn render_input(frame: &mut Frame, area: Rect, app: &App) {
         let cursor_pos = app.cursor_pos().0; // Row position
         let max_scroll = content_lines.saturating_sub(viewport_lines);
 
-        let mut scrollbar_state = ScrollbarState::new(max_scroll)
-            .position(cursor_pos.saturating_sub(viewport_lines / 2));
+        let mut scrollbar_state =
+            ScrollbarState::new(max_scroll).position(cursor_pos.saturating_sub(viewport_lines / 2));
 
         // Render scrollbar on right edge of input area (inside the border)
         let scrollbar = Scrollbar::default()
@@ -1174,7 +1287,10 @@ fn render_input(frame: &mut Frame, area: Rect, app: &App) {
 
         frame.render_stateful_widget(
             scrollbar,
-            area.inner(ratatui::layout::Margin { vertical: 1, horizontal: 1 }),
+            area.inner(ratatui::layout::Margin {
+                vertical: 1,
+                horizontal: 1,
+            }),
             &mut scrollbar_state,
         );
     }
@@ -1214,7 +1330,8 @@ fn render_autocomplete(frame: &mut Frame, input_area: Rect, app: &App) {
             0
         } else {
             // Center selection, clamped to valid range [0, total_items - max_visible_items]
-            selected.saturating_sub(max_visible_items / 2)
+            selected
+                .saturating_sub(max_visible_items / 2)
                 .min(total_items.saturating_sub(max_visible_items))
         };
 
@@ -1229,19 +1346,17 @@ fn render_autocomplete(frame: &mut Frame, input_area: Rect, app: &App) {
                 let is_selected = actual_idx == selected;
 
                 // Format: /command - description
-                let mut line_spans = vec![
-                    Span::styled(
-                        format!("/{}", item.command),
-                        if is_selected {
-                            Style::default()
-                                .fg(Color::Black)
-                                .bg(RUST_ORANGE)
-                                .add_modifier(Modifier::BOLD)
-                        } else {
-                            Style::default().fg(RUST_ORANGE)
-                        },
-                    ),
-                ];
+                let mut line_spans = vec![Span::styled(
+                    format!("/{}", item.command),
+                    if is_selected {
+                        Style::default()
+                            .fg(Color::Black)
+                            .bg(RUST_ORANGE)
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default().fg(RUST_ORANGE)
+                    },
+                )];
 
                 if let Some(ref desc) = item.description {
                     if !desc.is_empty() {
@@ -1292,14 +1407,9 @@ fn render_autocomplete(frame: &mut Frame, input_area: Rect, app: &App) {
                 .end_symbol(Some("↓"))
                 .style(Style::default().fg(RUST_ORANGE));
 
-            let mut scrollbar_state = ScrollbarState::new(max_scroll)
-                .position(scroll_offset);
+            let mut scrollbar_state = ScrollbarState::new(max_scroll).position(scroll_offset);
 
-            frame.render_stateful_widget(
-                scrollbar,
-                popup_area,
-                &mut scrollbar_state,
-            );
+            frame.render_stateful_widget(scrollbar, popup_area, &mut scrollbar_state);
         }
     }
 }
@@ -1341,7 +1451,8 @@ fn render_memory_modal(frame: &mut Frame, input_area: Rect, app: &App) {
             0
         } else {
             // Center selection, clamped to valid range [0, total_items - max_visible_items]
-            selected.saturating_sub(max_visible_items / 2)
+            selected
+                .saturating_sub(max_visible_items / 2)
                 .min(total_items.saturating_sub(max_visible_items))
         };
 
@@ -1397,7 +1508,10 @@ fn build_memory_list_item(
         Style::default()
     };
 
-    spans.push(Span::styled(selection_indicator.to_string(), selection_style));
+    spans.push(Span::styled(
+        selection_indicator.to_string(),
+        selection_style,
+    ));
 
     // Tree indicator for imported files ("└ " = 2 chars)
     let tree_indicator = if dest.is_imported { "└ " } else { "" };
@@ -1424,9 +1538,7 @@ fn build_memory_list_item(
     spans.push(Span::styled(dest.name.clone(), name_style));
 
     // Calculate used width (sum of all span widths) - Unicode display width
-    let left_width: usize = spans.iter()
-        .map(|s| s.content.width())
-        .sum();
+    let left_width: usize = spans.iter().map(|s| s.content.width()).sum();
 
     // Get description/path for right side
     let right_text = dest.description.as_deref().unwrap_or("");
@@ -1466,7 +1578,11 @@ fn render_debug_panel(frame: &mut Frame, area: Rect, app: &App) -> usize {
 
     // Focus-aware border styling
     let is_focused = app.focus_debug().get();
-    let border_color = if is_focused { Color::White } else { Color::Yellow };
+    let border_color = if is_focused {
+        Color::White
+    } else {
+        Color::Yellow
+    };
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -1502,20 +1618,14 @@ fn render_debug_panel(frame: &mut Frame, area: Rect, app: &App) -> usize {
 
     // Calculate viewport height and max_scroll
     let viewport_height = area.height.saturating_sub(2) as usize; // Subtract borders
-    // DEFENSIVE: Ensure viewport has minimum height
+                                                                  // DEFENSIVE: Ensure viewport has minimum height
     if viewport_height == 0 {
-        let paragraph = Paragraph::new(text)
-            .block(block)
-            .wrap(Wrap { trim: false });
+        let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: false });
         frame.render_widget(paragraph, area);
         return 0;
     }
 
-    let max_scroll = if content_height > viewport_height {
-        content_height - viewport_height
-    } else {
-        0
-    };
+    let max_scroll = content_height.saturating_sub(viewport_height);
 
     // Determine scroll offset based on follow_bottom mode (same as message panel)
     // DEFENSIVE: Handle very large content (>65535 lines)
@@ -1547,7 +1657,7 @@ fn render_debug_panel(frame: &mut Frame, area: Rect, app: &App) -> usize {
 
     let paragraph = Paragraph::new(text)
         .block(block)
-        .wrap(Wrap { trim: false })  // Wrap at widget's inner width
+        .wrap(Wrap { trim: false }) // Wrap at widget's inner width
         .scroll((scroll_offset, 0));
 
     frame.render_widget(paragraph, area);
@@ -1559,14 +1669,9 @@ fn render_debug_panel(frame: &mut Frame, area: Rect, app: &App) -> usize {
             .end_symbol(Some("↓"))
             .style(Style::default().fg(Color::Yellow));
 
-        let mut scrollbar_state = ScrollbarState::new(max_scroll)
-            .position(scroll_offset as usize);
+        let mut scrollbar_state = ScrollbarState::new(max_scroll).position(scroll_offset as usize);
 
-        frame.render_stateful_widget(
-            scrollbar,
-            area,
-            &mut scrollbar_state,
-        );
+        frame.render_stateful_widget(scrollbar, area, &mut scrollbar_state);
     }
 
     max_scroll

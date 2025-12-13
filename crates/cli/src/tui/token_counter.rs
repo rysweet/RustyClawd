@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn test_saturation() {
         let mut count = TokenCount::new(u32::MAX - 10, 0);
-        count.add(20, 0);  // Should saturate at u32::MAX
+        count.add(20, 0); // Should saturate at u32::MAX
         assert_eq!(count.input, u32::MAX);
     }
 }

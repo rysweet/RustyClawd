@@ -1,18 +1,21 @@
 //! Event handling for TUI
 
 use anyhow::Result;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, EnableMouseCapture, DisableMouseCapture};
-use std::time::Duration;
-use std::io;
-use rat_focus::{FocusBuilder, Focus, HasFocus};
+use crossterm::event::{
+    self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
+    KeyModifiers,
+};
 use rat_event::Outcome;
+use rat_focus::{Focus, FocusBuilder, HasFocus};
+use std::io;
+use std::time::Duration;
 
 use crate::tui::app::{
-    App, MessagesPaneWrapper, InputPaneWrapper, DebugPaneWrapper,
-    AutocompletePopupWrapper, MemoryModalWrapper,
+    App, AutocompletePopupWrapper, DebugPaneWrapper, InputPaneWrapper, MemoryModalWrapper,
+    MessagesPaneWrapper,
 };
-use crate::tui::keybindings::{KeyAction, KeyBindings};
 use crate::tui::click_region::ClickTarget;
+use crate::tui::keybindings::{KeyAction, KeyBindings};
 
 /// Result of event handling
 #[derive(Debug, PartialEq, Eq)]
@@ -121,8 +124,12 @@ pub fn handle_event(app: &mut App, event: Event) -> Result<EventResult> {
         // If it did (Tab/mouse click for focus), don't process further
         if matches!(focus_outcome, Outcome::Changed) {
             // rat-focus handled this event (Tab or mouse click for focus)
-            let msg = format!("🎯 Focus changed: msg={} inp={} dbg={}",
-                            app.focus_messages().get(), app.focus_input().get(), app.focus_debug().get());
+            let msg = format!(
+                "🎯 Focus changed: msg={} inp={} dbg={}",
+                app.focus_messages().get(),
+                app.focus_input().get(),
+                app.focus_debug().get()
+            );
             app.push_debug_message(msg);
             // Don't pass it to our handlers - return early
             return Ok(EventResult::Continue);
@@ -144,7 +151,7 @@ pub fn handle_event(app: &mut App, event: Event) -> Result<EventResult> {
 }
 
 fn handle_mouse_event(app: &mut App, mouse: event::MouseEvent) -> Result<EventResult> {
-    use event::{MouseEventKind, MouseButton};
+    use event::{MouseButton, MouseEventKind};
 
     match mouse.kind {
         MouseEventKind::ScrollUp => {
@@ -176,14 +183,17 @@ fn handle_mouse_event(app: &mut App, mouse: event::MouseEvent) -> Result<EventRe
                 mouse.column, mouse.row
             ));
 
-            let target = app.click_regions.hit_test(mouse.column, mouse.row, app.layout_cache());
+            let target = app
+                .click_regions
+                .hit_test(mouse.column, mouse.row, app.layout_cache());
 
             match target {
                 ClickTarget::Message { index } => {
                     // DEBUG: Log click hit and extract message data first (avoid borrow conflicts)
-                    let msg_info = app.messages().get(index).map(|m| {
-                        (m.role, m.collapsible, m.collapsed)
-                    });
+                    let msg_info = app
+                        .messages()
+                        .get(index)
+                        .map(|m| (m.role, m.collapsible, m.collapsed));
 
                     app.push_debug_message(format!(
                         "[CLICK] Hit msg_idx={} at screen=({}, {})",
@@ -483,7 +493,12 @@ mod tests {
         assert_eq!(app.input(), "hello");
 
         // Simulate Enter
-        match handle_event(&mut app, Event::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))).unwrap() {
+        match handle_event(
+            &mut app,
+            Event::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)),
+        )
+        .unwrap()
+        {
             EventResult::Submit(input) => {
                 assert_eq!(input, "hello");
                 assert_eq!(app.input(), ""); // Input cleared

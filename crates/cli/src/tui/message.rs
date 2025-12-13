@@ -9,11 +9,11 @@ pub struct Message {
     pub content: String,
     pub timestamp: DateTime<Local>,
     pub streaming: bool,
-    pub status: MessageStatus,    // Completion status for rendering indicators
+    pub status: MessageStatus, // Completion status for rendering indicators
 
     // Expand/collapse state for system messages and tool calls
-    pub collapsible: bool,       // Can this message be collapsed?
-    pub collapsed: bool,          // Is it currently collapsed?
+    pub collapsible: bool,         // Can this message be collapsed?
+    pub collapsed: bool,           // Is it currently collapsed?
     pub collapsed_preview: String, // Text shown when collapsed
 
     // UI visibility (false = visible, true = hidden)
@@ -31,9 +31,9 @@ pub enum Role {
 /// Message completion status for rendering status indicators
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MessageStatus {
-    Streaming,  // Message is currently being generated
-    Complete,   // Message generation complete
-    Error,      // Message generation failed
+    Streaming, // Message is currently being generated
+    Complete,  // Message generation complete
+    Error,     // Message generation failed
 }
 
 impl Message {
@@ -44,7 +44,7 @@ impl Message {
             content,
             timestamp: Local::now(),
             streaming: false,
-            status: MessageStatus::Complete,  // User messages start complete
+            status: MessageStatus::Complete, // User messages start complete
             collapsible: false,
             collapsed: false,
             collapsed_preview: String::new(),
@@ -75,7 +75,7 @@ impl Message {
             content,
             timestamp: Local::now(),
             streaming: false,
-            status: MessageStatus::Complete,  // Non-streaming messages start complete
+            status: MessageStatus::Complete, // Non-streaming messages start complete
             collapsible: false,
             collapsed: false,
             collapsed_preview: String::new(),
@@ -90,7 +90,7 @@ impl Message {
             content,
             timestamp: Local::now(),
             streaming: true,
-            status: MessageStatus::Streaming,  // Streaming messages start in Streaming status
+            status: MessageStatus::Streaming, // Streaming messages start in Streaming status
             collapsible: false,
             collapsed: false,
             collapsed_preview: String::new(),
@@ -111,7 +111,7 @@ impl Message {
             content,
             timestamp: Local::now(),
             streaming: false,
-            status: MessageStatus::Complete,  // System messages start complete
+            status: MessageStatus::Complete, // System messages start complete
             collapsible: true,
             collapsed: true,
             collapsed_preview: preview,
@@ -126,7 +126,7 @@ impl Message {
             content,
             timestamp: Local::now(),
             streaming: false,
-            status: MessageStatus::Complete,  // Collapsible messages start complete
+            status: MessageStatus::Complete, // Collapsible messages start complete
             collapsible: true,
             collapsed: true,
             collapsed_preview: preview,
@@ -192,7 +192,7 @@ impl Message {
                 if line.is_empty() {
                     1
                 } else {
-                    (line.len() + width - 1) / width
+                    line.len().div_ceil(width)
                 }
             })
             .sum::<usize>();

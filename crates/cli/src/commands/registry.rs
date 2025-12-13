@@ -98,89 +98,93 @@ impl Registry {
         depth: usize,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + 'a>> {
         Box::pin(async move {
-        use crate::commands::{MAX_RECURSION_DEPTH, NAMESPACE_SEPARATOR};
+            use crate::commands::{MAX_RECURSION_DEPTH, NAMESPACE_SEPARATOR};
 
-        // Check depth limit
-        if depth > MAX_RECURSION_DEPTH {
-            tracing::warn!(
-                "Reached max recursion depth ({}) at {}",
-                MAX_RECURSION_DEPTH,
-                dir.display()
-            );
-            return Ok(());
-        }
-
-        // Create directory if it doesn't exist
-        if let Err(e) = fs::create_dir_all(dir).await {
-            tracing::debug!(
-                "Could not create commands directory {}: {}",
-                dir.display(),
-                e
-            );
-            return Ok(()); // Not an error if personal dir doesn't exist
-        }
-
-        // Scan for .md files and subdirectories
-        let mut entries = match fs::read_dir(dir).await {
-            Ok(e) => e,
-            Err(e) => {
-                tracing::debug!("Could not read commands directory {}: {}", dir.display(), e);
-                return Ok(()); // Not an error if directory isn't readable
+            // Check depth limit
+            if depth > MAX_RECURSION_DEPTH {
+                tracing::warn!(
+                    "Reached max recursion depth ({}) at {}",
+                    MAX_RECURSION_DEPTH,
+                    dir.display()
+                );
+                return Ok(());
             }
-        };
 
-        while let Some(entry) = entries.next_entry().await? {
-            let path = entry.path();
+            // Create directory if it doesn't exist
+            if let Err(e) = fs::create_dir_all(dir).await {
+                tracing::debug!(
+                    "Could not create commands directory {}: {}",
+                    dir.display(),
+                    e
+                );
+                return Ok(()); // Not an error if personal dir doesn't exist
+            }
 
-            if path.is_file() && path.extension().map(|e| e == "md").unwrap_or(false) {
-                // Load command file
-                match self.loader.load_command(&path).await {
-                    Ok(mut cmd) => {
-                        // Build namespaced command name
-                        let base_name = cmd.name.clone();
-                        let namespaced_name = if let Some(ref ns) = namespace {
-                            format!("{}{}{}", ns, NAMESPACE_SEPARATOR, base_name)
-                        } else {
-                            base_name
+            // Scan for .md files and subdirectories
+            let mut entries = match fs::read_dir(dir).await {
+                Ok(e) => e,
+                Err(e) => {
+                    tracing::debug!("Could not read commands directory {}: {}", dir.display(), e);
+                    return Ok(()); // Not an error if directory isn't readable
+                }
+            };
+
+            while let Some(entry) = entries.next_entry().await? {
+                let path = entry.path();
+
+                if path.is_file() && path.extension().map(|e| e == "md").unwrap_or(false) {
+                    // Load command file
+                    match self.loader.load_command(&path).await {
+                        Ok(mut cmd) => {
+                            // Build namespaced command name
+                            let base_name = cmd.name.clone();
+                            let namespaced_name = if let Some(ref ns) = namespace {
+                                format!("{}{}{}", ns, NAMESPACE_SEPARATOR, base_name)
+                            } else {
+                                base_name
+                            };
+
+                            cmd.name = namespaced_name.clone();
+
+                            self.commands.insert(
+                                namespaced_name.clone(),
+                                ScopedCommand {
+                                    command: cmd,
+                                    scope,
+                                },
+                            );
+                            tracing::debug!(
+                                "Loaded command '{}' from {:?} scope",
+                                namespaced_name,
+                                scope
+                            );
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to load command from {}: {}", path.display(), e);
+                        }
+                    }
+                } else if path.is_dir() {
+                    // Recurse into subdirectory
+                    if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
+                        // Skip hidden directories
+                        if dir_name.starts_with('.') {
+                            continue;
+                        }
+
+                        // Build namespace for subdirectory
+                        let subdir_namespace = match &namespace {
+                            Some(ns) => format!("{}{}{}", ns, NAMESPACE_SEPARATOR, dir_name),
+                            None => dir_name.to_string(),
                         };
 
-                        cmd.name = namespaced_name.clone();
-
-                        self.commands.insert(
-                            namespaced_name.clone(),
-                            ScopedCommand {
-                                command: cmd,
-                                scope,
-                            },
-                        );
-                        tracing::debug!("Loaded command '{}' from {:?} scope", namespaced_name, scope);
+                        // Recursive call
+                        self.load_from_directory(&path, scope, Some(subdir_namespace), depth + 1)
+                            .await?;
                     }
-                    Err(e) => {
-                        tracing::warn!("Failed to load command from {}: {}", path.display(), e);
-                    }
-                }
-            } else if path.is_dir() {
-                // Recurse into subdirectory
-                if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
-                    // Skip hidden directories
-                    if dir_name.starts_with('.') {
-                        continue;
-                    }
-
-                    // Build namespace for subdirectory
-                    let subdir_namespace = match &namespace {
-                        Some(ns) => format!("{}{}{}", ns, NAMESPACE_SEPARATOR, dir_name),
-                        None => dir_name.to_string(),
-                    };
-
-                    // Recursive call
-                    self.load_from_directory(&path, scope, Some(subdir_namespace), depth + 1)
-                        .await?;
                 }
             }
-        }
 
-        Ok(())
+            Ok(())
         })
     }
 

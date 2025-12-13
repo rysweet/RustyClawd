@@ -46,7 +46,7 @@ impl TuiState {
         execute!(stdout, EnterAlternateScreen)?;
 
         // Enable mouse capture for scrolling
-        use crossterm::event::{EnableMouseCapture};
+        use crossterm::event::EnableMouseCapture;
         execute!(stdout, EnableMouseCapture)?;
 
         let backend = CrosstermBackend::new(stdout);
@@ -184,9 +184,15 @@ impl TuiState {
         use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
 
         // Check if this is a navigation key event before processing
-        let is_navigation_key = matches!(event,
+        let is_navigation_key = matches!(
+            event,
             crossterm::event::Event::Key(KeyEvent {
-                code: KeyCode::Up | KeyCode::Down | KeyCode::PageUp | KeyCode::PageDown | KeyCode::Home | KeyCode::End,
+                code: KeyCode::Up
+                    | KeyCode::Down
+                    | KeyCode::PageUp
+                    | KeyCode::PageDown
+                    | KeyCode::Home
+                    | KeyCode::End,
                 kind: KeyEventKind::Press,
                 ..
             })
@@ -325,7 +331,10 @@ impl TuiState {
         let mut destinations = Vec::new();
 
         // 1. User memory (~/.claude/CLAUDE.md)
-        if let Some(home) = std::env::var("HOME").ok().or_else(|| std::env::var("USERPROFILE").ok()) {
+        if let Some(home) = std::env::var("HOME")
+            .ok()
+            .or_else(|| std::env::var("USERPROFILE").ok())
+        {
             let user_memory_path = format!("{}/.claude/CLAUDE.md", home);
             destinations.push(super::MemoryDestination {
                 name: "User memory".to_string(),
@@ -429,7 +438,12 @@ impl TuiState {
     }
 
     /// Begin a new tool execution message
-    pub fn begin_tool_message(&mut self, tool_id: String, tool_name: String, params: serde_json::Value) -> usize {
+    pub fn begin_tool_message(
+        &mut self,
+        tool_id: String,
+        tool_name: String,
+        params: serde_json::Value,
+    ) -> usize {
         self.app.begin_tool_message(tool_id, tool_name, params)
     }
 
@@ -465,9 +479,9 @@ impl TuiState {
 
     /// Cleanup terminal (idempotent - safe to call multiple times)
     pub fn cleanup(&mut self) -> Result<()> {
+        use crossterm::event::DisableMouseCapture;
         use crossterm::terminal::Clear;
         use crossterm::terminal::ClearType;
-        use crossterm::event::DisableMouseCapture;
 
         // Idempotent - only cleanup once
         if self.cleaned_up {

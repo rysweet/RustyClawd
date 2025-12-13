@@ -72,20 +72,14 @@ enum ToolExecutionEvent {
         params: serde_json::Value,
     },
     /// Tool execution progress (optional)
-    Progress {
-        tool_id: String,
-        message: String,
-    },
+    Progress { tool_id: String, message: String },
     /// Tool execution completed successfully
     Complete {
         tool_id: String,
         result: rustyclawd_core::client::types::ContentBlock,
     },
     /// Tool execution failed
-    Error {
-        tool_id: String,
-        error: String,
-    },
+    Error { tool_id: String, error: String },
 }
 
 /// Helper function to get current working directory as string
@@ -174,18 +168,39 @@ impl InteractiveSession {
                 ("clear", Some("Clear conversation history".to_string())),
                 ("compact", Some("Compact conversation history".to_string())),
                 ("stats", Some("Show session statistics".to_string())),
-                ("cost", Some("Show token usage and cost estimate".to_string())),
+                (
+                    "cost",
+                    Some("Show token usage and cost estimate".to_string()),
+                ),
                 ("context", Some("Show context window usage".to_string())),
                 ("usage", Some("Show API usage and rate limits".to_string())),
-                ("bashes", Some("Show background shell processes".to_string())),
+                (
+                    "bashes",
+                    Some("Show background shell processes".to_string()),
+                ),
                 ("save", Some("[description] - Save checkpoint".to_string())),
-                ("load", Some("<checkpoint_id> - Load checkpoint".to_string())),
+                (
+                    "load",
+                    Some("<checkpoint_id> - Load checkpoint".to_string()),
+                ),
                 ("sessions", Some("List available checkpoints".to_string())),
                 ("mcp-list", Some("List all MCP servers".to_string())),
-                ("mcp-start", Some("<server-id> - Start MCP server".to_string())),
-                ("mcp-stop", Some("<server-id> - Stop MCP server".to_string())),
-                ("mcp-tools", Some("<server-id> - List server tools".to_string())),
-                ("mcp-status", Some("<server-id> - Show server status".to_string())),
+                (
+                    "mcp-start",
+                    Some("<server-id> - Start MCP server".to_string()),
+                ),
+                (
+                    "mcp-stop",
+                    Some("<server-id> - Stop MCP server".to_string()),
+                ),
+                (
+                    "mcp-tools",
+                    Some("<server-id> - List server tools".to_string()),
+                ),
+                (
+                    "mcp-status",
+                    Some("<server-id> - Show server status".to_string()),
+                ),
             ];
 
             // Filter built-in commands by prefix
@@ -289,10 +304,10 @@ impl InteractiveSession {
                             }
 
                             self.tui.add_message(ChatMessage::system(format!(
-                                    "Session resumed ({} messages, {})",
-                                    session_info.message_count,
-                                    session_info.format_age()
-                                )));
+                                "Session resumed ({} messages, {})",
+                                session_info.message_count,
+                                session_info.format_age()
+                            )));
                         }
                         Err(e) => {
                             eprintln!("Warning: Failed to resume session: {}", e);
@@ -313,18 +328,39 @@ impl InteractiveSession {
                     ("clear", Some("Clear conversation history".to_string())),
                     ("compact", Some("Compact conversation history".to_string())),
                     ("stats", Some("Show session statistics".to_string())),
-                    ("cost", Some("Show token usage and cost estimate".to_string())),
+                    (
+                        "cost",
+                        Some("Show token usage and cost estimate".to_string()),
+                    ),
                     ("context", Some("Show context window usage".to_string())),
                     ("usage", Some("Show API usage and rate limits".to_string())),
-                    ("bashes", Some("Show background shell processes".to_string())),
+                    (
+                        "bashes",
+                        Some("Show background shell processes".to_string()),
+                    ),
                     ("save", Some("[description] - Save checkpoint".to_string())),
-                    ("load", Some("<checkpoint_id> - Load checkpoint".to_string())),
+                    (
+                        "load",
+                        Some("<checkpoint_id> - Load checkpoint".to_string()),
+                    ),
                     ("sessions", Some("List available checkpoints".to_string())),
                     ("mcp-list", Some("List all MCP servers".to_string())),
-                    ("mcp-start", Some("<server-id> - Start MCP server".to_string())),
-                    ("mcp-stop", Some("<server-id> - Stop MCP server".to_string())),
-                    ("mcp-tools", Some("<server-id> - List server tools".to_string())),
-                    ("mcp-status", Some("<server-id> - Show server status".to_string())),
+                    (
+                        "mcp-start",
+                        Some("<server-id> - Start MCP server".to_string()),
+                    ),
+                    (
+                        "mcp-stop",
+                        Some("<server-id> - Stop MCP server".to_string()),
+                    ),
+                    (
+                        "mcp-tools",
+                        Some("<server-id> - List server tools".to_string()),
+                    ),
+                    (
+                        "mcp-status",
+                        Some("<server-id> - Show server status".to_string()),
+                    ),
                 ];
 
                 // Filter built-in commands by prefix
@@ -376,7 +412,10 @@ impl InteractiveSession {
                             // Thinking mode updated - token counter will reflect this
                             if !thinking {
                                 // First token received - no longer thinking
-                                self.tui.push_debug("[STREAMING] First token received - thinking complete".to_string());
+                                self.tui.push_debug(
+                                    "[STREAMING] First token received - thinking complete"
+                                        .to_string(),
+                                );
                             }
                         }
                         StreamingChannelEvent::Complete { response } => {
@@ -399,7 +438,8 @@ impl InteractiveSession {
                         }
                         StreamingChannelEvent::Error { message } => {
                             // Streaming failed
-                            self.tui.add_message(ChatMessage::system(format!("Error: {}", message)));
+                            self.tui
+                                .add_message(ChatMessage::system(format!("Error: {}", message)));
                             self.tui.set_status(format!("Error: {}", message));
                             self.streaming_rx = None;
                             self.streaming_message_index = None;
@@ -410,7 +450,9 @@ impl InteractiveSession {
                     }
                     Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => {
                         // Channel closed unexpectedly
-                        self.tui.push_debug("[STREAMING] Channel disconnected unexpectedly".to_string());
+                        self.tui.push_debug(
+                            "[STREAMING] Channel disconnected unexpectedly".to_string(),
+                        );
                         self.streaming_rx = None;
                         self.streaming_message_index = None;
                     }
@@ -420,22 +462,27 @@ impl InteractiveSession {
             // Poll for tool execution events from background tasks (non-blocking)
             if let Some(ref mut rx) = self.tool_rx {
                 match rx.try_recv() {
-                    Ok(event) => match event {
-                        ToolExecutionEvent::Started { .. } => {
-                            // Started events no longer used - messages created synchronously in spawn_tools()
-                            // Keeping this variant for backward compatibility
-                        }
-                        ToolExecutionEvent::Progress { tool_id, message } => {
-                            // Optional: show progress updates
-                            if let Some(tool_name) = self.active_tools.get(&tool_id) {
-                                self.tui.push_debug(format!("[TOOL:{}] {}", tool_name, message));
+                    Ok(event) => {
+                        match event {
+                            ToolExecutionEvent::Started { .. } => {
+                                // Started events no longer used - messages created synchronously in spawn_tools()
+                                // Keeping this variant for backward compatibility
                             }
-                        }
-                        ToolExecutionEvent::Complete { tool_id, result } => {
-                            self.tui.push_debug(format!("[TOOL] Complete event received for: {}", tool_id));
+                            ToolExecutionEvent::Progress { tool_id, message } => {
+                                // Optional: show progress updates
+                                if let Some(tool_name) = self.active_tools.get(&tool_id) {
+                                    self.tui
+                                        .push_debug(format!("[TOOL:{}] {}", tool_name, message));
+                                }
+                            }
+                            ToolExecutionEvent::Complete { tool_id, result } => {
+                                self.tui.push_debug(format!(
+                                    "[TOOL] Complete event received for: {}",
+                                    tool_id
+                                ));
 
-                            // Parse tool result
-                            let tool_result = if let rustyclawd_core::client::types::ContentBlock::ToolResult { content, is_error, .. } = &result {
+                                // Parse tool result
+                                let tool_result = if let rustyclawd_core::client::types::ContentBlock::ToolResult { content, is_error, .. } = &result {
                                 // Debug: log the raw content
                                 self.tui.push_debug(format!("[TOOL] Result content: {}", content));
 
@@ -475,40 +522,48 @@ impl InteractiveSession {
                                 }
                             };
 
-                            // Finalize tool message (updates UI with result)
-                            self.tui.finalize_tool_message(&tool_id, tool_result);
-                            self.tui.push_debug(format!("[TOOL] Message finalized for: {}", tool_id));
+                                // Finalize tool message (updates UI with result)
+                                self.tui.finalize_tool_message(&tool_id, tool_result);
+                                self.tui.push_debug(format!(
+                                    "[TOOL] Message finalized for: {}",
+                                    tool_id
+                                ));
 
-                            // Store result for tool loop continuation
-                            if let Some(_tool_name) = self.active_tools.remove(&tool_id) {
-                                self.tool_results.insert(tool_id.clone(), result);
-                                self.tui.push_debug(format!("[TOOL] Result stored for tool loop: {}", tool_id));
+                                // Store result for tool loop continuation
+                                if let Some(_tool_name) = self.active_tools.remove(&tool_id) {
+                                    self.tool_results.insert(tool_id.clone(), result);
+                                    self.tui.push_debug(format!(
+                                        "[TOOL] Result stored for tool loop: {}",
+                                        tool_id
+                                    ));
+                                }
                             }
-                        }
-                        ToolExecutionEvent::Error { tool_id, error } => {
-                            // Tool failed - create error result
-                            let tool_result = crate::tui::ToolResult {
-                                exit_code: Some(1), // Generic error exit code
-                                stdout: String::new(),
-                                stderr: error.clone(),
-                                is_error: true,
-                                raw_content: format!("Tool execution error: {}", error),
-                            };
-
-                            // Finalize tool message with error
-                            self.tui.finalize_tool_message(&tool_id, tool_result);
-
-                            // Store error as tool result for tool loop continuation
-                            if let Some(_tool_name) = self.active_tools.remove(&tool_id) {
-                                let error_result = rustyclawd_core::client::types::ContentBlock::ToolResult {
-                                    tool_use_id: tool_id.clone(),
-                                    content: format!("Tool execution error: {}", error),
-                                    is_error: Some(true),
+                            ToolExecutionEvent::Error { tool_id, error } => {
+                                // Tool failed - create error result
+                                let tool_result = crate::tui::ToolResult {
+                                    exit_code: Some(1), // Generic error exit code
+                                    stdout: String::new(),
+                                    stderr: error.clone(),
+                                    is_error: true,
+                                    raw_content: format!("Tool execution error: {}", error),
                                 };
-                                self.tool_results.insert(tool_id, error_result);
+
+                                // Finalize tool message with error
+                                self.tui.finalize_tool_message(&tool_id, tool_result);
+
+                                // Store error as tool result for tool loop continuation
+                                if let Some(_tool_name) = self.active_tools.remove(&tool_id) {
+                                    let error_result =
+                                        rustyclawd_core::client::types::ContentBlock::ToolResult {
+                                            tool_use_id: tool_id.clone(),
+                                            content: format!("Tool execution error: {}", error),
+                                            is_error: Some(true),
+                                        };
+                                    self.tool_results.insert(tool_id, error_result);
+                                }
                             }
                         }
-                    },
+                    }
                     Err(tokio::sync::mpsc::error::TryRecvError::Empty) => {
                         // No events available - this is normal
                     }
@@ -521,12 +576,14 @@ impl InteractiveSession {
 
             // Check if all expected tools have completed
             if !self.expected_tool_ids.is_empty() {
-                let all_tools_complete = self.expected_tool_ids
+                let all_tools_complete = self
+                    .expected_tool_ids
                     .iter()
                     .all(|id| self.tool_results.contains_key(id));
 
                 if all_tools_complete {
-                    self.tui.push_debug("[TOOLS] All tools complete, continuing tool loop".to_string());
+                    self.tui
+                        .push_debug("[TOOLS] All tools complete, continuing tool loop".to_string());
 
                     // Collect results in order
                     let mut tool_result_blocks = Vec::new();
@@ -554,8 +611,11 @@ impl InteractiveSession {
                         ));
 
                         // Continue to next turn (spawn new streaming task)
-                        self.tui.push_debug("[TOOL_LOOP] Starting next turn after tools".to_string());
-                        let _ = self.stream_single_turn_with_messages(&self.api_messages.clone()).await;
+                        self.tui
+                            .push_debug("[TOOL_LOOP] Starting next turn after tools".to_string());
+                        let _ = self
+                            .stream_single_turn_with_messages(&self.api_messages.clone())
+                            .await;
                     }
                 }
             }
@@ -565,7 +625,8 @@ impl InteractiveSession {
                 match rx.try_recv() {
                     Ok(response) => {
                         // Response complete - store for processing
-                        self.tui.push_debug("[RESPONSE] Streaming response complete".to_string());
+                        self.tui
+                            .push_debug("[RESPONSE] Streaming response complete".to_string());
                         self.pending_response = Some(response);
                         self.response_rx = None;
                     }
@@ -574,7 +635,8 @@ impl InteractiveSession {
                     }
                     Err(tokio::sync::oneshot::error::TryRecvError::Closed) => {
                         // Channel closed unexpectedly
-                        self.tui.push_debug("[RESPONSE] Channel closed unexpectedly".to_string());
+                        self.tui
+                            .push_debug("[RESPONSE] Channel closed unexpectedly".to_string());
                         self.response_rx = None;
                     }
                 }
@@ -582,7 +644,9 @@ impl InteractiveSession {
 
             // Process pending response if ready (continue tool use loop)
             if let Some(response) = self.pending_response.take() {
-                self.tui.push_debug("[RESPONSE] Processing pending response for tool use loop".to_string());
+                self.tui.push_debug(
+                    "[RESPONSE] Processing pending response for tool use loop".to_string(),
+                );
 
                 // Continue tool use loop with this response
                 if let Err(e) = self.process_response_in_tool_loop(response).await {
@@ -617,7 +681,9 @@ impl InteractiveSession {
                         continue;
                     }
 
-                    self.tui.push_debug("[SUBMIT] Input received, firing IdlePrompt notification".to_string());
+                    self.tui.push_debug(
+                        "[SUBMIT] Input received, firing IdlePrompt notification".to_string(),
+                    );
 
                     // Fire IdlePrompt notification
                     if let Some(ref notification_mgr) = self.notification_manager {
@@ -630,11 +696,15 @@ impl InteractiveSession {
                             .await;
                     }
 
-                    self.tui.push_debug("[SUBMIT] IdlePrompt notification complete".to_string());
+                    self.tui
+                        .push_debug("[SUBMIT] IdlePrompt notification complete".to_string());
 
                     // Handle permission mode change event (from Shift+Tab)
                     if let Some(mode_name) = input.strip_prefix("__permission_mode_changed:") {
-                        self.tui.add_message(ChatMessage::system(format!("Permission mode changed to: {}", mode_name)));
+                        self.tui.add_message(ChatMessage::system(format!(
+                            "Permission mode changed to: {}",
+                            mode_name
+                        )));
                         continue;
                     }
 
@@ -645,7 +715,8 @@ impl InteractiveSession {
 
                     // Process user message and get Claude's response
                     if let Err(e) = self.process_user_message(input, false).await {
-                        self.tui.add_message(ChatMessage::system(format!("Error: {}", e)));
+                        self.tui
+                            .add_message(ChatMessage::system(format!("Error: {}", e)));
                         self.tui.set_status(format!("Error: {}", e));
                     }
                 }
@@ -676,7 +747,9 @@ impl InteractiveSession {
         if let Some(stripped) = input.strip_prefix('!') {
             let command = stripped.trim();
             if command.is_empty() {
-                self.tui.add_message(ChatMessage::system("Error: No command specified after '!'".to_string(),));
+                self.tui.add_message(ChatMessage::system(
+                    "Error: No command specified after '!'".to_string(),
+                ));
                 return Ok(true);
             }
 
@@ -706,7 +779,10 @@ impl InteractiveSession {
                                             let reason = output.reason.unwrap_or_else(|| {
                                                 "Stop blocked by hook".to_string()
                                             });
-                                            self.tui.add_message(ChatMessage::system(format!("Exit blocked: {}", reason)));
+                                            self.tui.add_message(ChatMessage::system(format!(
+                                                "Exit blocked: {}",
+                                                reason
+                                            )));
                                             return Ok(true); // Continue session
                                         }
                                     }
@@ -732,7 +808,9 @@ impl InteractiveSession {
             }
             "/clear" => {
                 self.context = Context::new();
-                self.tui.add_message(ChatMessage::system("Conversation history cleared".to_string(),));
+                self.tui.add_message(ChatMessage::system(
+                    "Conversation history cleared".to_string(),
+                ));
                 self.tui.set_status("Conversation cleared".to_string());
                 return Ok(true);
             }
@@ -755,16 +833,19 @@ impl InteractiveSession {
                             for result in results {
                                 if !result.is_success() {
                                     self.tui.add_message(ChatMessage::system(format!(
-                                            "⚠️  PreCompact hook failed: {}",
-                                            result.stderr
-                                        )));
+                                        "⚠️  PreCompact hook failed: {}",
+                                        result.stderr
+                                    )));
                                     return Ok(true);
                                 }
                             }
                         }
                         Err(e) => {
                             tracing::error!("PreCompact hook execution failed: {:?}", e);
-                            self.tui.add_message(ChatMessage::system(format!("⚠️  Failed to execute PreCompact hooks: {}", e)));
+                            self.tui.add_message(ChatMessage::system(format!(
+                                "⚠️  Failed to execute PreCompact hooks: {}",
+                                e
+                            )));
                             return Ok(true);
                         }
                     }
@@ -788,7 +869,7 @@ impl InteractiveSession {
 
                 help_text.push_str("\nPress Ctrl+C or Ctrl+D to exit.");
 
-                self.tui.add_message(ChatMessage::system(help_text,));
+                self.tui.add_message(ChatMessage::system(help_text));
                 return Ok(true);
             }
             "/stats" => {
@@ -814,7 +895,7 @@ impl InteractiveSession {
                     self.model,
                     self.stats.duration_seconds
                 );
-                self.tui.add_message(ChatMessage::system(stats,));
+                self.tui.add_message(ChatMessage::system(stats));
                 return Ok(true);
             }
             "/cost" => {
@@ -855,11 +936,12 @@ impl InteractiveSession {
                         .await
                     {
                         Ok(output) => {
-                            self.tui.add_message(ChatMessage::system(output,));
+                            self.tui.add_message(ChatMessage::system(output));
                             self.tui.set_status("Ready".to_string());
                         }
                         Err(e) => {
-                            self.tui.add_message(ChatMessage::system(format!("Error: {}", e)));
+                            self.tui
+                                .add_message(ChatMessage::system(format!("Error: {}", e)));
                             self.tui.set_status(format!("Error: {}", e));
                         }
                     }
@@ -885,7 +967,8 @@ impl InteractiveSession {
                             // Add slash command invocation as user message
                             self.tui.add_message(ChatMessage::user(input.to_string()));
 
-                            self.tui.add_message(ChatMessage::system(result.expanded_prompt.clone(),));
+                            self.tui
+                                .add_message(ChatMessage::system(result.expanded_prompt.clone()));
 
                             // Add to conversation context
                             self.context
@@ -893,13 +976,21 @@ impl InteractiveSession {
 
                             // Process the expanded prompt as if user typed it
                             // Skip TUI display since we already showed it as a collapsed system message
-                            if let Err(e) = self.process_user_message(&result.expanded_prompt, true).await
+                            if let Err(e) = self
+                                .process_user_message(&result.expanded_prompt, true)
+                                .await
                             {
-                                self.tui.add_message(ChatMessage::system(format!("Error processing command: {}", e)));
+                                self.tui.add_message(ChatMessage::system(format!(
+                                    "Error processing command: {}",
+                                    e
+                                )));
                             }
                         }
                         Err(e) => {
-                            self.tui.add_message(ChatMessage::system(format!("Error executing command: {}", e)));
+                            self.tui.add_message(ChatMessage::system(format!(
+                                "Error executing command: {}",
+                                e
+                            )));
                         }
                     }
                     return Ok(true);
@@ -967,7 +1058,8 @@ impl InteractiveSession {
                     success = output.success;
                 }
                 ToolEvent::Error { message } => {
-                    self.tui.add_message(ChatMessage::system(format!("Error: {}", message)));
+                    self.tui
+                        .add_message(ChatMessage::system(format!("Error: {}", message)));
                     return Err(anyhow::anyhow!("Command execution failed: {}", message));
                 }
             }
@@ -989,7 +1081,8 @@ impl InteractiveSession {
         }
 
         // Add to TUI
-        self.tui.add_message(ChatMessage::system(result_msg.clone(),));
+        self.tui
+            .add_message(ChatMessage::system(result_msg.clone()));
 
         // Add to context as a user message (tool use result)
         self.context.add_message(Message::user(result_msg));
@@ -1009,12 +1102,18 @@ impl InteractiveSession {
     }
 
     /// Process a user message with streaming and tool support
-    async fn process_user_message(&mut self, user_input: &str, skip_tui_display: bool) -> Result<()> {
-        self.tui.push_debug("[PROCESS] Starting process_user_message".to_string());
+    async fn process_user_message(
+        &mut self,
+        user_input: &str,
+        skip_tui_display: bool,
+    ) -> Result<()> {
+        self.tui
+            .push_debug("[PROCESS] Starting process_user_message".to_string());
 
         // Execute UserPromptSubmit hook BEFORE adding prompt to context
         if let Some(ref hooks) = self.hooks {
-            self.tui.push_debug("[PROCESS] Executing UserPromptSubmit hook".to_string());
+            self.tui
+                .push_debug("[PROCESS] Executing UserPromptSubmit hook".to_string());
 
             let context = hooks::HookContext::for_user_prompt(
                 self.session_id.clone(),
@@ -1029,10 +1128,14 @@ impl InteractiveSession {
                 .await
             {
                 Ok(results) => {
-                    self.tui.push_debug("[PROCESS] UserPromptSubmit hook complete".to_string());
+                    self.tui
+                        .push_debug("[PROCESS] UserPromptSubmit hook complete".to_string());
                     for result in results {
                         if result.is_blocking() {
-                            self.tui.add_message(ChatMessage::assistant(format!("⚠️  Prompt blocked by hook: {}", result.stderr)));
+                            self.tui.add_message(ChatMessage::assistant(format!(
+                                "⚠️  Prompt blocked by hook: {}",
+                                result.stderr
+                            )));
                             return Ok(());
                         }
                         if !result.is_success() {
@@ -1041,28 +1144,33 @@ impl InteractiveSession {
                     }
                 }
                 Err(e) => {
-                    self.tui.push_debug(format!("[PROCESS] UserPromptSubmit hook error: {}", e));
+                    self.tui
+                        .push_debug(format!("[PROCESS] UserPromptSubmit hook error: {}", e));
                     tracing::warn!("Failed to execute UserPromptSubmit hooks: {}", e);
                     // Non-blocking - continue even if hook fails
                 }
             }
         }
 
-        self.tui.push_debug("[PROCESS] Adding user message to TUI".to_string());
+        self.tui
+            .push_debug("[PROCESS] Adding user message to TUI".to_string());
 
         // Add user message to TUI (unless skipped for slash commands) and context
         if !skip_tui_display {
-            self.tui.add_message(ChatMessage::user(user_input.to_string(),));
+            self.tui
+                .add_message(ChatMessage::user(user_input.to_string()));
         }
         self.context
             .add_message(Message::user(user_input.to_string()));
 
-        self.tui.push_debug("[PROCESS] Starting stream_with_tools".to_string());
+        self.tui
+            .push_debug("[PROCESS] Starting stream_with_tools".to_string());
 
         // Stream response with tool use loop
         self.stream_with_tools().await?;
 
-        self.tui.push_debug("[PROCESS] Completed process_user_message".to_string());
+        self.tui
+            .push_debug("[PROCESS] Completed process_user_message".to_string());
 
         Ok(())
     }
@@ -1079,7 +1187,9 @@ impl InteractiveSession {
         self.tui.set_status("Streaming...".to_string());
 
         // Stream the first turn (returns immediately, response processed via polling)
-        let _ = self.stream_single_turn_with_messages(&self.api_messages.clone()).await;
+        let _ = self
+            .stream_single_turn_with_messages(&self.api_messages.clone())
+            .await;
 
         // The rest of the tool loop happens in the main event loop via response polling
         // See process_response_in_tool_loop() for continuation logic
@@ -1099,8 +1209,7 @@ impl InteractiveSession {
         // Check if response contains tool use
         let mut tool_use_blocks = Vec::new();
         for block in &response.content {
-            if let rustyclawd_core::client::types::ContentBlock::ToolUse { id, name, input } =
-                block
+            if let rustyclawd_core::client::types::ContentBlock::ToolUse { id, name, input } = block
             {
                 tool_use_blocks.push((id.clone(), name.clone(), input.clone()));
             }
@@ -1145,7 +1254,8 @@ impl InteractiveSession {
         }
 
         // Tool use present - spawn tool execution (non-blocking)
-        self.tui.push_debug("[TOOL_LOOP] Spawning tool execution".to_string());
+        self.tui
+            .push_debug("[TOOL_LOOP] Spawning tool execution".to_string());
 
         // Store response for continuation after tools complete
         self.pending_tool_response = Some(response);
@@ -1164,13 +1274,15 @@ impl InteractiveSession {
         &mut self,
         api_messages: &[ApiMessage],
     ) -> Result<rustyclawd_core::client::MessageResponse> {
-        self.tui.push_debug("[STREAM] Starting stream_single_turn_with_messages".to_string());
+        self.tui
+            .push_debug("[STREAM] Starting stream_single_turn_with_messages".to_string());
 
         // Create channels for communication with background task
         let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
         let (response_tx, response_rx) = tokio::sync::oneshot::channel();
 
-        self.tui.push_debug("[STREAM] Channels created, preparing background task".to_string());
+        self.tui
+            .push_debug("[STREAM] Channels created, preparing background task".to_string());
 
         // Get tool definitions
         let tools = crate::tool_definitions::get_all_tool_definitions();
@@ -1184,7 +1296,13 @@ impl InteractiveSession {
 
         // Clone client data needed for background task
         let api_url = self.client.api_url().to_string();
-        let api_key = self.client.config().api_key.expose_secret().expose().to_string();
+        let api_key = self
+            .client
+            .config()
+            .api_key
+            .expose_secret()
+            .expose()
+            .to_string();
         let api_version = self.client.api_version().to_string();
         let http_client = self.client.http_client().clone();
         let model = self.model.clone();
@@ -1276,118 +1394,123 @@ impl InteractiveSession {
                             ..
                         } => {
                             // Send text delta to main loop for display
-                            let _ = event_tx.send(StreamingChannelEvent::TextDelta {
-                                text: text.clone()
-                            });
+                            let _ = event_tx
+                                .send(StreamingChannelEvent::TextDelta { text: text.clone() });
 
                             // First text received - no longer thinking
                             if thinking {
                                 thinking = false;
-                                let _ = event_tx.send(StreamingChannelEvent::ThinkingUpdate { thinking: false });
+                                let _ = event_tx.send(StreamingChannelEvent::ThinkingUpdate {
+                                    thinking: false,
+                                });
                             }
 
                             current_text.push_str(&text);
                         }
-                    StreamEvent::ContentBlockDelta {
-                        delta:
-                            rustyclawd_core::client::types::ContentDelta::InputJsonDelta {
-                                partial_json,
-                            },
-                        ..
-                    } => {
-                        // Accumulate tool input JSON
-                        if let Some((_, _, ref mut json)) = current_tool_use {
-                            json.push_str(&partial_json);
-                        }
-                    }
-                    StreamEvent::ContentBlockStop { .. } => {
-                        // Finalize current block
-                        if !current_text.is_empty() {
-                            response_content.push(
-                                rustyclawd_core::client::types::ContentBlock::Text {
-                                    text: current_text.clone(),
+                        StreamEvent::ContentBlockDelta {
+                            delta:
+                                rustyclawd_core::client::types::ContentDelta::InputJsonDelta {
+                                    partial_json,
                                 },
-                            );
-                            current_text.clear();
+                            ..
+                        } => {
+                            // Accumulate tool input JSON
+                            if let Some((_, _, ref mut json)) = current_tool_use {
+                                json.push_str(&partial_json);
+                            }
                         }
+                        StreamEvent::ContentBlockStop { .. } => {
+                            // Finalize current block
+                            if !current_text.is_empty() {
+                                response_content.push(
+                                    rustyclawd_core::client::types::ContentBlock::Text {
+                                        text: current_text.clone(),
+                                    },
+                                );
+                                current_text.clear();
+                            }
 
-                        if let Some((id, name, json)) = current_tool_use.take() {
-                            // Parse tool input
-                            match serde_json::from_str(&json) {
-                                Ok(input) => {
-                                    response_content.push(
-                                        rustyclawd_core::client::types::ContentBlock::ToolUse {
-                                            id,
-                                            name,
-                                            input,
-                                        },
-                                    );
-                                }
-                                Err(e) => {
-                                    let _ = event_tx.send(StreamingChannelEvent::Error {
-                                        message: format!("Failed to parse tool input JSON: {}", e),
-                                    });
-                                    return;
+                            if let Some((id, name, json)) = current_tool_use.take() {
+                                // Parse tool input
+                                match serde_json::from_str(&json) {
+                                    Ok(input) => {
+                                        response_content.push(
+                                            rustyclawd_core::client::types::ContentBlock::ToolUse {
+                                                id,
+                                                name,
+                                                input,
+                                            },
+                                        );
+                                    }
+                                    Err(e) => {
+                                        let _ = event_tx.send(StreamingChannelEvent::Error {
+                                            message: format!(
+                                                "Failed to parse tool input JSON: {}",
+                                                e
+                                            ),
+                                        });
+                                        return;
+                                    }
                                 }
                             }
                         }
-                    }
-                    StreamEvent::MessageDelta {
-                        delta,
-                        usage: usage_delta,
-                    } => {
-                        stop_reason = delta.stop_reason.clone();
-                        usage = usage_delta.clone();
+                        StreamEvent::MessageDelta {
+                            delta,
+                            usage: usage_delta,
+                        } => {
+                            stop_reason = delta.stop_reason.clone();
+                            usage = usage_delta.clone();
 
-                        // Send updated token count
-                        let _ = event_tx.send(StreamingChannelEvent::TokenUpdate {
-                            input: usage.input_tokens,
-                            output: usage.output_tokens,
-                        });
-                    }
-                    StreamEvent::MessageStop => {
-                        // Stream complete
-                        break;
-                    }
-                    StreamEvent::Ping => {
-                        // Keep-alive, ignore
-                    }
-                    StreamEvent::Error { error } => {
+                            // Send updated token count
+                            let _ = event_tx.send(StreamingChannelEvent::TokenUpdate {
+                                input: usage.input_tokens,
+                                output: usage.output_tokens,
+                            });
+                        }
+                        StreamEvent::MessageStop => {
+                            // Stream complete
+                            break;
+                        }
+                        StreamEvent::Ping => {
+                            // Keep-alive, ignore
+                        }
+                        StreamEvent::Error { error } => {
+                            let _ = event_tx.send(StreamingChannelEvent::Error {
+                                message: format!("API error: {}", error.message),
+                            });
+                            return;
+                        }
+                    },
+                    Err(e) => {
                         let _ = event_tx.send(StreamingChannelEvent::Error {
-                            message: format!("API error: {}", error.message),
+                            message: format!("Stream error: {}", e),
                         });
                         return;
                     }
-                },
-                Err(e) => {
-                    let _ = event_tx.send(StreamingChannelEvent::Error {
-                        message: format!("Stream error: {}", e),
-                    });
-                    return;
                 }
             }
-        }
 
-        // Build complete response
-        let response = rustyclawd_core::client::MessageResponse {
-            id: message_id,
-            type_field: "message".to_string(),
-            role: rustyclawd_core::client::Role::Assistant,
-            content: response_content,
-            model,
-            stop_reason,
-            stop_sequence: None,
-            usage,
-        };
+            // Build complete response
+            let response = rustyclawd_core::client::MessageResponse {
+                id: message_id,
+                type_field: "message".to_string(),
+                role: rustyclawd_core::client::Role::Assistant,
+                content: response_content,
+                model,
+                stop_reason,
+                stop_sequence: None,
+                usage,
+            };
 
-        // Send complete response via oneshot channel
-        let _ = response_tx.send(response.clone());
+            // Send complete response via oneshot channel
+            let _ = response_tx.send(response.clone());
 
-        // Send completion event via unbounded channel
-        let _ = event_tx.send(StreamingChannelEvent::Complete { response });
-    });
+            // Send completion event via unbounded channel
+            let _ = event_tx.send(StreamingChannelEvent::Complete { response });
+        });
 
-        self.tui.push_debug("[STREAM] Background task spawned, setting up TUI".to_string());
+        self.tui
+            .push_debug("[STREAM] Background task spawned, setting up TUI".to_string());
 
         // Begin streaming message in TUI
         let message_index = self.tui.begin_streaming_message();
@@ -1396,7 +1519,8 @@ impl InteractiveSession {
         self.streaming_rx = Some(event_rx);
         self.streaming_message_index = Some(message_index);
 
-        self.tui.push_debug("[STREAM] Storing response receiver for polling".to_string());
+        self.tui
+            .push_debug("[STREAM] Storing response receiver for polling".to_string());
 
         // Store response receiver for non-blocking polling in main event loop
         // DO NOT AWAIT HERE - this would block the main thread!
@@ -1404,11 +1528,14 @@ impl InteractiveSession {
 
         // Return immediately - response will be processed via polling
         // The main event loop will detect completion and continue tool use loop
-        self.tui.push_debug("[STREAM] Background task spawned, returning immediately".to_string());
+        self.tui
+            .push_debug("[STREAM] Background task spawned, returning immediately".to_string());
 
         // Return a placeholder - actual response processed via polling
         // This is a temporary hack until we refactor the return type
-        Err(anyhow::anyhow!("Response pending - will be processed via polling"))
+        Err(anyhow::anyhow!(
+            "Response pending - will be processed via polling"
+        ))
     }
 
     /// Spawn tools in background tasks (non-blocking)
@@ -1433,18 +1560,21 @@ impl InteractiveSession {
         // Clear any previous tool results and store expected IDs
         self.tool_results.clear();
         self.active_tools.clear();
-        self.expected_tool_ids = tool_use_blocks.iter().map(|(id, _, _)| id.clone()).collect();
+        self.expected_tool_ids = tool_use_blocks
+            .iter()
+            .map(|(id, _, _)| id.clone())
+            .collect();
 
         // Create tool messages FIRST (synchronously) to avoid race conditions
         for (id, name, input) in &tool_use_blocks {
-            self.tui.begin_tool_message(id.clone(), name.clone(), input.clone());
+            self.tui
+                .begin_tool_message(id.clone(), name.clone(), input.clone());
             self.active_tools.insert(id.clone(), name.clone());
             self.stats.add_tool_call();
         }
 
         // Spawn background task for each tool
         for (id, name, input) in tool_use_blocks {
-
             // Clone data for background task
             let hooks = self.hooks.as_ref().map(Arc::clone);
             let session_id = Some(self.session_id.clone());
@@ -1552,14 +1682,22 @@ impl InteractiveSession {
 
             match persistence.save_checkpoint(&messages, description.clone()) {
                 Ok(checkpoint_id) => {
-                    self.tui.add_message(ChatMessage::system(format!("Checkpoint saved: {} ({})", checkpoint_id, description)));
+                    self.tui.add_message(ChatMessage::system(format!(
+                        "Checkpoint saved: {} ({})",
+                        checkpoint_id, description
+                    )));
                 }
                 Err(e) => {
-                    self.tui.add_message(ChatMessage::system(format!("Failed to save checkpoint: {}", e)));
+                    self.tui.add_message(ChatMessage::system(format!(
+                        "Failed to save checkpoint: {}",
+                        e
+                    )));
                 }
             }
         } else {
-            self.tui.add_message(ChatMessage::system("Session persistence not available".to_string(),));
+            self.tui.add_message(ChatMessage::system(
+                "Session persistence not available".to_string(),
+            ));
         }
 
         Ok(())
@@ -1572,8 +1710,10 @@ impl InteractiveSession {
             let checkpoint_id = input.strip_prefix("/load").unwrap_or("").trim();
 
             if checkpoint_id.is_empty() {
-                self.tui.add_message(ChatMessage::system("Usage: /load <checkpoint_id>\nUse /sessions to list available checkpoints"
-                            .to_string(),));
+                self.tui.add_message(ChatMessage::system(
+                    "Usage: /load <checkpoint_id>\nUse /sessions to list available checkpoints"
+                        .to_string(),
+                ));
                 return Ok(());
             }
 
@@ -1596,17 +1736,22 @@ impl InteractiveSession {
                     }
 
                     self.tui.add_message(ChatMessage::system(format!(
-                            "Checkpoint loaded: {} ({} messages)",
-                            checkpoint_id,
-                            messages.len()
-                        )));
+                        "Checkpoint loaded: {} ({} messages)",
+                        checkpoint_id,
+                        messages.len()
+                    )));
                 }
                 Err(e) => {
-                    self.tui.add_message(ChatMessage::system(format!("Failed to load checkpoint: {}", e)));
+                    self.tui.add_message(ChatMessage::system(format!(
+                        "Failed to load checkpoint: {}",
+                        e
+                    )));
                 }
             }
         } else {
-            self.tui.add_message(ChatMessage::system("Session persistence not available".to_string(),));
+            self.tui.add_message(ChatMessage::system(
+                "Session persistence not available".to_string(),
+            ));
         }
 
         Ok(())
@@ -1649,7 +1794,7 @@ impl InteractiveSession {
             total_cost
         );
 
-        self.tui.add_message(ChatMessage::system(cost_display,));
+        self.tui.add_message(ChatMessage::system(cost_display));
     }
 
     /// Handle /context command
@@ -1685,7 +1830,7 @@ impl InteractiveSession {
             self.model
         );
 
-        self.tui.add_message(ChatMessage::system(context_display,));
+        self.tui.add_message(ChatMessage::system(context_display));
     }
 
     /// Handle /sessions command
@@ -1694,7 +1839,9 @@ impl InteractiveSession {
             match persistence.list_checkpoints() {
                 Ok(checkpoints) => {
                     if checkpoints.is_empty() {
-                        self.tui.add_message(ChatMessage::system("No checkpoints found for current session".to_string(),));
+                        self.tui.add_message(ChatMessage::system(
+                            "No checkpoints found for current session".to_string(),
+                        ));
                     } else {
                         let mut output =
                             format!("Available checkpoints ({}):\n", checkpoints.len());
@@ -1709,15 +1856,20 @@ impl InteractiveSession {
                         }
                         output.push_str("\nUse /load <checkpoint_id> to restore a checkpoint");
 
-                        self.tui.add_message(ChatMessage::system(output,));
+                        self.tui.add_message(ChatMessage::system(output));
                     }
                 }
                 Err(e) => {
-                    self.tui.add_message(ChatMessage::system(format!("Failed to list checkpoints: {}", e)));
+                    self.tui.add_message(ChatMessage::system(format!(
+                        "Failed to list checkpoints: {}",
+                        e
+                    )));
                 }
             }
         } else {
-            self.tui.add_message(ChatMessage::system("Session persistence not available".to_string(),));
+            self.tui.add_message(ChatMessage::system(
+                "Session persistence not available".to_string(),
+            ));
         }
 
         Ok(())
@@ -1803,7 +1955,7 @@ impl InteractiveSession {
             }
         }
 
-        self.tui.add_message(ChatMessage::system(output,));
+        self.tui.add_message(ChatMessage::system(output));
     }
 
     /// Handle /bashes command - Display background shell information
@@ -1857,7 +2009,7 @@ impl InteractiveSession {
              Example: Ask Claude to check output from a specific shell ID",
         );
 
-        self.tui.add_message(ChatMessage::system(output,));
+        self.tui.add_message(ChatMessage::system(output));
 
         Ok(())
     }

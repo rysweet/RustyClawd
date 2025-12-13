@@ -37,7 +37,7 @@ impl NotificationManager {
         &self,
         session_id: &str,
         notification_type: NotificationType,
-        _message: &str,  // Unused in TUI mode - status shown via status bar
+        _message: &str, // Unused in TUI mode - status shown via status bar
     ) {
         // Create hook context
         let context = HookContext::for_notification(

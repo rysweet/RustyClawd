@@ -114,9 +114,7 @@ impl ClickableRegions {
         if let Some(debug_area) = layout.debug_area {
             if debug_area.contains(mouse_pos) {
                 // Use Block::inner() to properly account for borders
-                let inner = Block::default()
-                    .borders(Borders::ALL)
-                    .inner(debug_area);
+                let inner = Block::default().borders(Borders::ALL).inner(debug_area);
 
                 let inner_x = mouse_x.saturating_sub(inner.x);
                 let inner_y = mouse_y.saturating_sub(inner.y);
@@ -160,10 +158,7 @@ mod tests {
         );
 
         // Click outside message area
-        assert_eq!(
-            regions.hit_test(10, 50, &layout),
-            ClickTarget::Background
-        );
+        assert_eq!(regions.hit_test(10, 50, &layout), ClickTarget::Background);
     }
 
     #[test]
@@ -181,12 +176,16 @@ mod tests {
 
         assert_eq!(
             regions.hit_test(5, 0, &layout),
-            ClickTarget::StatusBarItem { id: "menu".to_string() }
+            ClickTarget::StatusBarItem {
+                id: "menu".to_string()
+            }
         );
 
         assert_eq!(
             regions.hit_test(75, 0, &layout),
-            ClickTarget::StatusBarItem { id: "debug".to_string() }
+            ClickTarget::StatusBarItem {
+                id: "debug".to_string()
+            }
         );
     }
 
@@ -221,10 +220,7 @@ mod tests {
             debug_area: None,
         };
 
-        assert_eq!(
-            regions.hit_test(50, 50, &layout),
-            ClickTarget::Background
-        );
+        assert_eq!(regions.hit_test(50, 50, &layout), ClickTarget::Background);
     }
 
     #[test]
@@ -250,9 +246,6 @@ mod tests {
 
         // Click at absolute screen (11, 14)
         // Translates to inner (10, 12) which is outside the message rect (y=12 > 10+2)
-        assert_eq!(
-            regions.hit_test(11, 14, &layout),
-            ClickTarget::Background
-        );
+        assert_eq!(regions.hit_test(11, 14, &layout), ClickTarget::Background);
     }
 }

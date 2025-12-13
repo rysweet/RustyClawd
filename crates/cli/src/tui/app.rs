@@ -3,13 +3,13 @@
 use crate::permission_mode::PermissionMode;
 use crate::tui::message::Message;
 use crate::tui::token_counter::TokenCount;
+use rat_focus::FocusFlag;
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::Span,
     widgets::{Block, Borders},
 };
-use rat_focus::FocusFlag;
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 use tui_textarea::TextArea;
@@ -130,7 +130,7 @@ impl Default for SoftWrapState {
         Self {
             soft_break_lines: HashSet::new(),
             inner_width: 80, // Default, will be updated from layout
-            tab_width: 4, // Match TextArea default
+            tab_width: 4,    // Match TextArea default
         }
     }
 }
@@ -311,7 +311,7 @@ impl App {
             input,
             scroll_offset: 0,
             follow_bottom: true, // Start in auto-follow mode
-            max_scroll: 0, // Will be updated by renderer
+            max_scroll: 0,       // Will be updated by renderer
             autocomplete: None,
             memory_modal: None,
             permission_mode,
@@ -368,7 +368,11 @@ impl App {
     /// Must be called before rendering to show focus-aware border colors
     pub fn update_input_focus_style(&mut self) {
         let is_focused = self.focus_input.get();
-        let border_color = if is_focused { Color::White } else { RUST_ORANGE };
+        let border_color = if is_focused {
+            Color::White
+        } else {
+            RUST_ORANGE
+        };
 
         self.input.set_block(
             Block::default()
@@ -449,17 +453,24 @@ impl App {
     pub fn add_message(&mut self, message: Message) {
         self.push_debug_message(format!(
             "[MSG] {:?}: {} chars",
-            message.role, message.content.len()
+            message.role,
+            message.content.len()
         ));
 
         // DEBUG: Log first 300 chars of content with escaped newlines
         let debug_sample = message.content.chars().take(300).collect::<String>();
-        let escaped = debug_sample.replace('\n', "\\n").replace('\r', "\\r").replace('\t', "\\t");
+        let escaped = debug_sample
+            .replace('\n', "\\n")
+            .replace('\r', "\\r")
+            .replace('\t', "\\t");
         self.push_debug_message(format!("[MSG CONTENT] {}", escaped));
 
         // DEBUG: Show how .lines() will parse this
         let paragraphs: Vec<&str> = message.content.lines().collect();
-        self.push_debug_message(format!("[LINES] .lines() produced {} paragraphs", paragraphs.len()));
+        self.push_debug_message(format!(
+            "[LINES] .lines() produced {} paragraphs",
+            paragraphs.len()
+        ));
         for (idx, para) in paragraphs.iter().enumerate() {
             if para.is_empty() {
                 self.push_debug_message(format!("[LINES] Para {}: <EMPTY>", idx));
@@ -469,7 +480,12 @@ impl App {
                 } else {
                     para.to_string()
                 };
-                self.push_debug_message(format!("[LINES] Para {}: {:?} (len={})", idx, preview, para.len()));
+                self.push_debug_message(format!(
+                    "[LINES] Para {}: {:?} (len={})",
+                    idx,
+                    preview,
+                    para.len()
+                ));
             }
         }
 
@@ -487,7 +503,7 @@ impl App {
             message_index: index,
             accumulated: String::new(),
             token_count: TokenCount::default(),
-            thinking: true,  // Start in thinking mode
+            thinking: true, // Start in thinking mode
         });
         self.scroll_to_bottom();
         self.mark_dirty();
@@ -501,7 +517,8 @@ impl App {
                 let new_len = state.accumulated.len() + content.len();
                 self.push_debug_message(format!(
                     "[STREAM] +{} chars (total: {})",
-                    content.len(), new_len
+                    content.len(),
+                    new_len
                 ));
             }
         }
@@ -554,7 +571,12 @@ impl App {
     // === Tool execution state ===
 
     /// Begin a new tool execution message (creates placeholder that will be updated dynamically)
-    pub fn begin_tool_message(&mut self, tool_id: String, tool_name: String, params: serde_json::Value) -> usize {
+    pub fn begin_tool_message(
+        &mut self,
+        tool_id: String,
+        tool_name: String,
+        params: serde_json::Value,
+    ) -> usize {
         self.push_debug_message(format!("[TOOL] Started: {} (id: {})", tool_name, tool_id));
 
         // Create a placeholder message (collapsible tool message)
@@ -592,14 +614,20 @@ impl App {
 
     /// Get all active (non-completed) tool messages
     pub fn active_tool_messages(&self) -> impl Iterator<Item = (&String, &ToolMessageState)> {
-        self.tool_messages.iter().filter(|(_, state)| !state.completed)
+        self.tool_messages
+            .iter()
+            .filter(|(_, state)| !state.completed)
     }
 
     /// Finalize a tool execution message with result
     pub fn finalize_tool_message(&mut self, tool_id: &str, result: ToolResult) {
         // Get tool info for debug message before mutation
         let debug_info = self.tool_messages.get(tool_id).map(|state| {
-            (state.tool_name.clone(), state.start_time.elapsed().as_secs(), state.message_index)
+            (
+                state.tool_name.clone(),
+                state.start_time.elapsed().as_secs(),
+                state.message_index,
+            )
         });
 
         // Update tool state
@@ -624,9 +652,7 @@ impl App {
         if let Some((tool_name, elapsed, _)) = debug_info {
             self.push_debug_message(format!(
                 "[TOOL] Finished: {} ({}s, exit_code: {:?})",
-                tool_name,
-                elapsed,
-                result.exit_code
+                tool_name, elapsed, result.exit_code
             ));
         }
     }
@@ -645,7 +671,10 @@ impl App {
     }
 
     /// Find tool state by message index (for rendering)
-    pub fn tool_message_by_index(&self, message_index: usize) -> Option<(&String, &ToolMessageState)> {
+    pub fn tool_message_by_index(
+        &self,
+        message_index: usize,
+    ) -> Option<(&String, &ToolMessageState)> {
         self.tool_messages
             .iter()
             .find(|(_, state)| state.message_index == message_index)
@@ -665,7 +694,7 @@ impl App {
     }
 
     pub fn delete_char(&mut self) {
-        self.input.delete_next_char();  // Delete key: delete char AT cursor
+        self.input.delete_next_char(); // Delete key: delete char AT cursor
 
         // Reflow to potentially merge lines that are now shorter
         self.reflow_input_content();
@@ -689,7 +718,10 @@ impl App {
         // Debug logging
         self.push_debug_message(format!(
             "[BACKSPACE] cursor=({},{}), line_len={}, line={:?}",
-            row, col, line.len(), line
+            row,
+            col,
+            line.len(),
+            line
         ));
 
         if col == 0 {
@@ -757,7 +789,8 @@ impl App {
 
                 // Update textarea
                 self.input = TextArea::from(new_lines);
-                self.input.move_cursor(tui_textarea::CursorMove::Jump(row as u16, new_col as u16));
+                self.input
+                    .move_cursor(tui_textarea::CursorMove::Jump(row as u16, new_col as u16));
             }
         }
 
@@ -810,7 +843,8 @@ impl App {
     }
 
     pub fn move_cursor_word_right(&mut self) {
-        self.input.move_cursor(tui_textarea::CursorMove::WordForward);
+        self.input
+            .move_cursor(tui_textarea::CursorMove::WordForward);
         self.mark_dirty();
     }
 
@@ -1050,7 +1084,10 @@ impl App {
         }
 
         // Move cursor to restored position
-        new_input.move_cursor(tui_textarea::CursorMove::Jump(target_row as u16, target_col as u16));
+        new_input.move_cursor(tui_textarea::CursorMove::Jump(
+            target_row as u16,
+            target_col as u16,
+        ));
 
         self.input = new_input;
         self.soft_wrap.soft_break_lines = new_soft_breaks;
@@ -1310,7 +1347,9 @@ impl App {
         format!(
             "messages={}, first_content={:?}, scroll={}, streaming={}",
             self.messages.len(),
-            self.messages.first().map(|m| &m.content[..m.content.len().min(50)]),
+            self.messages
+                .first()
+                .map(|m| &m.content[..m.content.len().min(50)]),
             self.scroll_offset,
             self.streaming.is_some()
         )
@@ -1345,10 +1384,7 @@ impl App {
         if items.is_empty() {
             self.autocomplete = None;
         } else {
-            self.autocomplete = Some(AutocompleteState {
-                items,
-                selected: 0,
-            });
+            self.autocomplete = Some(AutocompleteState { items, selected: 0 });
         }
         self.mark_dirty();
     }
@@ -1387,7 +1423,9 @@ impl App {
 
     /// Get selected autocomplete item
     pub fn autocomplete_selected(&self) -> Option<&CompletionItem> {
-        self.autocomplete.as_ref().and_then(|ac| ac.items.get(ac.selected))
+        self.autocomplete
+            .as_ref()
+            .and_then(|ac| ac.items.get(ac.selected))
     }
 
     /// Check if autocomplete is active
@@ -1403,7 +1441,11 @@ impl App {
     // === Memory modal management ===
 
     /// Activate memory modal with destinations
-    pub fn activate_memory_modal(&mut self, memory_text: String, destinations: Vec<MemoryDestination>) {
+    pub fn activate_memory_modal(
+        &mut self,
+        memory_text: String,
+        destinations: Vec<MemoryDestination>,
+    ) {
         if destinations.is_empty() {
             self.memory_modal = None;
         } else {
@@ -1458,7 +1500,9 @@ impl App {
 
     /// Get selected memory destination
     pub fn memory_modal_selected(&self) -> Option<&MemoryDestination> {
-        self.memory_modal.as_ref().and_then(|modal| modal.destinations.get(modal.selected))
+        self.memory_modal
+            .as_ref()
+            .and_then(|modal| modal.destinations.get(modal.selected))
     }
 
     /// Check if memory modal is active

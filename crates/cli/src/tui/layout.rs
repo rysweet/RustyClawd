@@ -44,8 +44,8 @@ impl LayoutOrganizer {
         let vertical = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(1),  // Status bar
-                Constraint::Min(0),     // Content area
+                Constraint::Length(1), // Status bar
+                Constraint::Min(0),    // Content area
             ])
             .split(area);
 
@@ -54,8 +54,8 @@ impl LayoutOrganizer {
 
         // DEFENSIVE: Auto-hide debug panel if terminal too narrow
         // This prevents zero-width main area which causes rendering errors
-        let effective_debug_visible = config.debug_visible
-            && content_area.width >= (MIN_MAIN_WIDTH + config.debug_width);
+        let effective_debug_visible =
+            config.debug_visible && content_area.width >= (MIN_MAIN_WIDTH + config.debug_width);
 
         // If debug is visible AND there's enough space, split content horizontally
         if effective_debug_visible {
@@ -89,8 +89,8 @@ impl LayoutOrganizer {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(0),                 // Messages
-                Constraint::Length(input_height),   // Input (dynamic: 1-10 lines + 2 borders)
+                Constraint::Min(0),               // Messages
+                Constraint::Length(input_height), // Input (dynamic: 1-10 lines + 2 borders)
             ])
             .split(main_area);
 
