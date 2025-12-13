@@ -341,7 +341,7 @@ fn test_content_block_tool_use() {
 fn test_content_block_tool_result() {
     let block = ContentBlock::ToolResult {
         tool_use_id: "toolu_123".to_string(),
-        content: "Temperature: 72°F".to_string(),
+        content: vec![ContentBlock::Text { text: "Temperature: 72°F".to_string() }],
         is_error: None,
     };
 
@@ -352,7 +352,11 @@ fn test_content_block_tool_result() {
             is_error,
         } => {
             assert_eq!(tool_use_id, "toolu_123");
-            assert_eq!(content, "Temperature: 72°F");
+            assert_eq!(content.len(), 1);
+            match &content[0] {
+                ContentBlock::Text { text } => assert_eq!(text, "Temperature: 72°F"),
+                _ => panic!("Expected Text content block"),
+            }
             assert!(is_error.is_none());
         }
         _ => panic!("Expected ToolResult block"),
@@ -363,7 +367,7 @@ fn test_content_block_tool_result() {
 fn test_content_block_tool_result_with_error() {
     let block = ContentBlock::ToolResult {
         tool_use_id: "toolu_456".to_string(),
-        content: "API rate limit exceeded".to_string(),
+        content: vec![ContentBlock::Text { text: "API rate limit exceeded".to_string() }],
         is_error: Some(true),
     };
 
@@ -450,7 +454,7 @@ fn test_message_with_tool_use_blocks() {
 fn test_message_with_tool_result_blocks() {
     let blocks = vec![ContentBlock::ToolResult {
         tool_use_id: "toolu_1".to_string(),
-        content: "4".to_string(),
+        content: vec![ContentBlock::Text { text: "4".to_string() }],
         is_error: None,
     }];
 
@@ -474,7 +478,7 @@ fn test_message_alternating_roles() {
             Role::User,
             vec![ContentBlock::ToolResult {
                 tool_use_id: "t1".to_string(),
-                content: "8".to_string(),
+                content: vec![ContentBlock::Text { text: "8".to_string() }],
                 is_error: None,
             }],
         ),
@@ -878,17 +882,17 @@ fn test_parallel_tool_use_multiple_results_in_one_message() {
     let results = vec![
         ContentBlock::ToolResult {
             tool_use_id: "toolu_1".to_string(),
-            content: "NYC: 70°F".to_string(),
+            content: vec![ContentBlock::Text { text: "NYC: 70°F".to_string() }],
             is_error: None,
         },
         ContentBlock::ToolResult {
             tool_use_id: "toolu_2".to_string(),
-            content: "SF: 65°F".to_string(),
+            content: vec![ContentBlock::Text { text: "SF: 65°F".to_string() }],
             is_error: None,
         },
         ContentBlock::ToolResult {
             tool_use_id: "toolu_3".to_string(),
-            content: "News: Sunny today".to_string(),
+            content: vec![ContentBlock::Text { text: "News: Sunny today".to_string() }],
             is_error: None,
         },
     ];
@@ -910,7 +914,7 @@ fn test_parallel_tool_use_matching_ids() {
 
     let tool_result = ContentBlock::ToolResult {
         tool_use_id: tool_use_id.clone(),
-        content: "result".to_string(),
+        content: vec![ContentBlock::Text { text: "result".to_string() }],
         is_error: None,
     };
 
@@ -934,7 +938,7 @@ fn test_parallel_tool_use_matching_ids() {
 fn test_tool_result_with_is_error_flag() {
     let error_result = ContentBlock::ToolResult {
         tool_use_id: "toolu_1".to_string(),
-        content: "Connection timeout".to_string(),
+        content: vec![ContentBlock::Text { text: "Connection timeout".to_string() }],
         is_error: Some(true),
     };
 
@@ -950,7 +954,7 @@ fn test_tool_result_with_is_error_flag() {
 fn test_tool_result_success_no_error_flag() {
     let success_result = ContentBlock::ToolResult {
         tool_use_id: "toolu_1".to_string(),
-        content: "Success".to_string(),
+        content: vec![ContentBlock::Text { text: "Success".to_string() }],
         is_error: None,
     };
 
@@ -966,7 +970,7 @@ fn test_tool_result_success_no_error_flag() {
 fn test_tool_result_with_error_message() {
     let error_result = ContentBlock::ToolResult {
         tool_use_id: "toolu_1".to_string(),
-        content: "FileNotFoundError: /path/to/file does not exist".to_string(),
+        content: vec![ContentBlock::Text { text: "FileNotFoundError: /path/to/file does not exist".to_string() }],
         is_error: Some(true),
     };
 
@@ -974,7 +978,11 @@ fn test_tool_result_with_error_message() {
         ContentBlock::ToolResult {
             content, is_error, ..
         } => {
-            assert!(content.contains("FileNotFoundError"));
+            assert_eq!(content.len(), 1);
+            match &content[0] {
+                ContentBlock::Text { text } => assert!(text.contains("FileNotFoundError")),
+                _ => panic!("Expected Text content block"),
+            }
             assert_eq!(is_error, Some(true));
         }
         _ => panic!("Expected ToolResult"),
@@ -1239,7 +1247,7 @@ fn test_tool_execution_conversation_flow() {
         Role::User,
         vec![ContentBlock::ToolResult {
             tool_use_id: "toolu_1".to_string(),
-            content: "72°F, sunny".to_string(),
+            content: vec![ContentBlock::Text { text: "72°F, sunny".to_string() }],
             is_error: None,
         }],
     ));
@@ -1484,7 +1492,7 @@ fn test_content_block_tool_use_serialization() {
 fn test_content_block_tool_result_serialization() {
     let block = ContentBlock::ToolResult {
         tool_use_id: "toolu_abc".to_string(),
-        content: "result data".to_string(),
+        content: vec![ContentBlock::Text { text: "result data".to_string() }],
         is_error: None,
     };
 
@@ -1519,13 +1527,17 @@ fn test_empty_tool_input() {
 fn test_tool_result_empty_content() {
     let block = ContentBlock::ToolResult {
         tool_use_id: "t1".to_string(),
-        content: "".to_string(),
+        content: vec![ContentBlock::Text { text: "".to_string() }],
         is_error: None,
     };
 
     match block {
         ContentBlock::ToolResult { content, .. } => {
-            assert_eq!(content, "");
+            assert_eq!(content.len(), 1);
+            match &content[0] {
+                ContentBlock::Text { text } => assert_eq!(text, ""),
+                _ => panic!("Expected Text content block"),
+            }
         }
         _ => panic!("Expected ToolResult"),
     }
@@ -1752,7 +1764,7 @@ fn test_sequential_tool_calls_conversation() {
             Role::User,
             vec![ContentBlock::ToolResult {
                 tool_use_id: "t1".to_string(),
-                content: "app.config".to_string(),
+                content: vec![ContentBlock::Text { text: "app.config".to_string() }],
                 is_error: None,
             }],
         ),
@@ -1770,7 +1782,7 @@ fn test_sequential_tool_calls_conversation() {
             Role::User,
             vec![ContentBlock::ToolResult {
                 tool_use_id: "t2".to_string(),
-                content: "port=8080".to_string(),
+                content: vec![ContentBlock::Text { text: "port=8080".to_string() }],
                 is_error: None,
             }],
         ),

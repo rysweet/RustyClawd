@@ -1028,7 +1028,9 @@ impl InteractiveSession {
                     tool_result_blocks.push(
                         rustyclawd_core::client::types::ContentBlock::ToolResult {
                             tool_use_id: id,
-                            content: result.to_string(),
+                            content: vec![rustyclawd_core::client::types::ContentBlock::Text {
+                                text: result.to_string(),
+                            }],
                             is_error: None,
                         },
                     );
@@ -1044,7 +1046,9 @@ impl InteractiveSession {
                     tool_result_blocks.push(
                         rustyclawd_core::client::types::ContentBlock::ToolResult {
                             tool_use_id: id,
-                            content: format!("Tool execution error: {}", e),
+                            content: vec![rustyclawd_core::client::types::ContentBlock::Text {
+                                text: format!("Tool execution error: {}", e),
+                            }],
                             is_error: Some(true),
                         },
                     );
