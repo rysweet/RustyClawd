@@ -710,7 +710,8 @@ fn format_user_message(message: &Message, content_width: usize) -> Vec<Line<'sta
         }
     }
 
-    // No trailing separator - messages end naturally
+    // Add blank line separator between messages
+    result.push(Line::from(""));
     result
 }
 
@@ -783,7 +784,8 @@ fn format_assistant_message(
         }
     }
 
-    // No trailing separator - messages end naturally
+    // Add blank line separator between messages
+    result.push(Line::from(""));
     result
 }
 
@@ -857,7 +859,8 @@ fn format_system_message(message: &Message, content_width: usize) -> Vec<Line<'s
         }
     }
 
-    // No trailing separator - messages end naturally
+    // Add blank line separator between messages
+    result.push(Line::from(""));
     result
 }
 
