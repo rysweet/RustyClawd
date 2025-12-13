@@ -1,8 +1,8 @@
 # RustyClawd Feature Inventory
 # This file tracks which Claude Code features are implemented in RustyClawd
-# Last updated: 2025-12-08
+# Last updated: 2025-12-13
 
-last_updated: "2025-12-08T00:00:00Z"
+last_updated: "2025-12-13T00:00:00Z"
 
 features:
   # Core Tools
@@ -86,6 +86,22 @@ features:
     status: complete
     notes: "Web search capability (Phase 1 & 2)"
 
+  # Tool Use API Features
+  - name: "tools parameter"
+    category: "tools"
+    status: complete
+    notes: "API supports tools parameter with ToolDefinition schema (types.rs:135)"
+
+  - name: "Multiple Tools"
+    category: "tools"
+    status: complete
+    notes: "API supports multiple tools, tested in test_request_builder_multiple_tools"
+
+  - name: "Single Tool Examples"
+    category: "tools"
+    status: complete
+    notes: "Multiple examples including JSON mode pattern (test_json_mode_single_tool_forced)"
+
   # UI Features
   - name: "Inline Diffs"
     category: "ui"
@@ -133,6 +149,27 @@ features:
     status: partial
     notes: "Basic error handling, could be enhanced"
 
+  # Tool Use Capabilities
+  - name: "Parallel Tool Use"
+    category: "capabilities"
+    status: complete
+    notes: "3 comprehensive tests in SECTION 8 of SDK compliance tests (sdk_compliance_tests.rs:834-913)"
+
+  - name: "Sequential Tool Execution"
+    category: "capabilities"
+    status: complete
+    notes: "Conversation flow test in SECTION 22 demonstrating tool dependencies (sdk_compliance_tests.rs:1732-1781)"
+
+  - name: "Tool Choice Modes"
+    category: "capabilities"
+    status: complete
+    notes: "All 3 modes implemented and tested: auto, any, tool (types.rs:79-110)"
+
+  - name: "Stop Reason Field"
+    category: "capabilities"
+    status: complete
+    notes: "All 4 stop reasons tested: end_turn, tool_use, max_tokens, stop_sequence (sdk_compliance_tests.rs:1106-1188)"
+
   # Integrations
   - name: "GitHub Integration"
     category: "integrations"
@@ -154,8 +191,3 @@ features:
     category: "performance"
     status: partial
     notes: "Limited caching for web fetch/search"
-
-  - name: "Parallel Execution"
-    category: "performance"
-    status: missing
-    notes: "No parallel tool execution yet"
