@@ -493,9 +493,8 @@ impl InteractiveSession {
                                     let stderr = json.get("stderr").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
                                     // Check for background process (has shell_id but no output)
-                                    let is_background = json.get("shell_id").is_some();
-                                    if is_background {
-                                        self.tui.push_debug(format!("[TOOL] Background process registered: shell_id={}", json.get("shell_id").unwrap()));
+                                    if let Some(shell_id) = json.get("shell_id").and_then(|v| v.as_str()) {
+                                        self.tui.push_debug(format!("[TOOL] Background process registered: shell_id={}", shell_id));
                                     }
 
                                     (exit_code, stdout, stderr)

@@ -29,7 +29,7 @@ pub fn render(frame: &mut Frame, app: &mut App) -> (usize, usize, LayoutCache) {
     const BRAILLE_FRAMES: [char; 8] = ['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'];
     let frame_idx = (std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default() // OK to use default: system time always available on supported platforms
         .as_millis()
         / 100) as usize
         % BRAILLE_FRAMES.len();
