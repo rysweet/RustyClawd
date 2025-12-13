@@ -1014,6 +1014,7 @@ impl InteractiveSession {
                 hooks,
                 session_id,
                 notification_mgr,
+                Some(id.clone()),
             )
             .await
             {

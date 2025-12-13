@@ -270,6 +270,8 @@ pub struct HookContext {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_use_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_params: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_result: Option<serde_json::Value>,
@@ -294,6 +296,7 @@ impl HookContext {
         permission_mode: String,
         event: HookEvent,
         tool_name: String,
+        tool_use_id: Option<String>,
     ) -> Self {
         Self {
             session_id,
@@ -302,6 +305,7 @@ impl HookContext {
             permission_mode,
             hook_event_name: event.as_str().to_string(),
             tool_name: Some(tool_name),
+            tool_use_id,
             tool_params: None,
             tool_result: None,
             session_start_matcher: None,
@@ -327,6 +331,7 @@ impl HookContext {
             permission_mode,
             hook_event_name: event.as_str().to_string(),
             tool_name: None,
+            tool_use_id: None,
             tool_params: None,
             tool_result: None,
             session_start_matcher: None,
@@ -352,6 +357,7 @@ impl HookContext {
             permission_mode,
             hook_event_name: HookEvent::SessionStart.as_str().to_string(),
             tool_name: None,
+            tool_use_id: None,
             tool_params: None,
             tool_result: None,
             session_start_matcher: Some(matcher),
@@ -377,6 +383,7 @@ impl HookContext {
             permission_mode,
             hook_event_name: HookEvent::SessionEnd.as_str().to_string(),
             tool_name: None,
+            tool_use_id: None,
             tool_params: None,
             tool_result: None,
             session_start_matcher: None,
@@ -402,6 +409,7 @@ impl HookContext {
             permission_mode,
             hook_event_name: HookEvent::Notification.as_str().to_string(),
             tool_name: None,
+            tool_use_id: None,
             tool_params: None,
             tool_result: None,
             session_start_matcher: None,
@@ -427,6 +435,7 @@ impl HookContext {
             permission_mode,
             hook_event_name: HookEvent::UserPromptSubmit.as_str().to_string(),
             tool_name: None,
+            tool_use_id: None,
             tool_params: None,
             tool_result: None,
             session_start_matcher: None,

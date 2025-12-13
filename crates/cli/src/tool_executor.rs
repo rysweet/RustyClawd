@@ -201,7 +201,7 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
 /// This function takes the tool name and input from Claude's API response,
 /// executes the corresponding internal tool, and returns the result as JSON.
 pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value, ClientError> {
-    execute_tool_with_hooks(tool_name, tool_input, None, None, None).await
+    execute_tool_with_hooks(tool_name, tool_input, None, None, None, None).await
 }
 
 /// Execute a tool with permission mode checking
@@ -214,6 +214,7 @@ pub async fn execute_tool_with_permission(
     hooks: Option<Arc<hooks::HooksSystem>>,
     session_id: Option<String>,
     notification_manager: Option<&NotificationManager>,
+    tool_use_id: Option<String>,
 ) -> Result<Value, ClientError> {
     // Check permission mode first
     if !permission_mode.allows_tool(&tool_name) {
@@ -229,6 +230,7 @@ pub async fn execute_tool_with_permission(
         hooks,
         session_id,
         notification_manager,
+        tool_use_id,
     )
     .await
 }
@@ -244,6 +246,7 @@ pub async fn execute_tool_with_hooks(
     hooks: Option<Arc<hooks::HooksSystem>>,
     session_id: Option<String>,
     notification_manager: Option<&NotificationManager>,
+    tool_use_id: Option<String>,
 ) -> Result<Value, ClientError> {
     // Create tool context with execution context from global state
     use crate::terminal_guard::{get_execution_context, ExecutionContext as GuardContext};
@@ -268,6 +271,7 @@ pub async fn execute_tool_with_hooks(
             "ask".to_string(),
             hooks::HookEvent::PreToolUse,
             tool_name.clone(),
+            tool_use_id.clone(),
         )
         .with_tool_params(tool_input.clone());
 
@@ -352,6 +356,7 @@ pub async fn execute_tool_with_hooks(
             "ask".to_string(),
             hooks::HookEvent::PostToolUse,
             tool_name.clone(),
+            tool_use_id.clone(),
         )
         .with_tool_params(tool_input.clone())
         .with_tool_result(result_value);
