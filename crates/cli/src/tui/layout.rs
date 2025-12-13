@@ -125,9 +125,10 @@ mod tests {
     #[test]
     fn test_layout_with_debug() {
         let area = Rect::new(0, 0, 100, 30);
-        let mut config = LayoutConfig::default();
-        config.debug_visible = true;
-        config.debug_width = 40;
+        let config = LayoutConfig {
+            debug_visible: true,
+            debug_width: 40,
+        };
 
         let layout = LayoutOrganizer::organize(area, &config);
 
