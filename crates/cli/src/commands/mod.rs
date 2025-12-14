@@ -205,6 +205,11 @@ mod tests {
     #[tokio::test]
     async fn test_get_completions_empty_prefix() {
         let slash_commands = SlashCommands::new().await.unwrap();
+
+        // Small delay to ensure full initialization in CI environments
+        // where timing may differ from local development
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
         let completions = slash_commands.get_completions("");
 
         // With empty prefix, should return all commands
