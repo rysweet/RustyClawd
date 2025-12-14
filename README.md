@@ -14,45 +14,45 @@ cd RustyClawd
 cargo build --release
 
 # Add to PATH or create alias
-alias rusty="$PWD/target/release/rusty"
+alias rustyclawd="$PWD/target/release/rustyclawd"
 
 # Then use:
-rusty "your prompt"
+rustyclawd "your prompt"
 ```
 
 ### Option 2: Cargo Install
 
 ```bash
-cargo install --git https://github.com/rysweet/RustyClawd --bin rusty
-rusty "your prompt"
+cargo install --git https://github.com/rysweet/RustyClawd --bin rustyclawd
+rustyclawd "your prompt"
 ```
 
 ## Usage
 
 ```bash
 # Interactive chat
-rusty
+rustyclawd
 
 # Direct prompt
-rusty "what is rust?"
+rustyclawd "what is rust?"
 
 # Print mode
-rusty -p "calculate 2+2"
+rustyclawd -p "calculate 2+2"
 
 # With model
-rusty --model haiku "count to 5"
+rustyclawd --model haiku "count to 5"
 
 # Tool execution (automatic)
-rusty -p "create file test.txt with 'hello'"
-rusty -p "run: ls -la"
+rustyclawd -p "create file test.txt with 'hello'"
+rustyclawd -p "run: ls -la"
 
 # Other features
-rusty --verbose -p "debug this"                    # Verbose logging
-rusty --system-prompt-file ./prompt.txt "query"    # Custom system prompt
-rusty --add-dir ./src --add-dir ./tests "analyze"  # Multiple directories
-rusty --allowedTools Read --allowedTools Grep "search only"  # Tool control
-rusty update                                       # Update CLI
-rusty mcp                                          # Configure MCP servers
+rustyclawd --verbose -p "debug this"                    # Verbose logging
+rustyclawd --system-prompt-file ./prompt.txt "query"    # Custom system prompt
+rustyclawd --add-dir ./src --add-dir ./tests "analyze"  # Multiple directories
+rustyclawd --allowedTools Read --allowedTools Grep "search only"  # Tool control
+rustyclawd update                                       # Update CLI
+rustyclawd mcp                                          # Configure MCP servers
 ```
 
 ## Amplihack Integration
