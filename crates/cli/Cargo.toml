@@ -10,7 +10,7 @@ name = "rustyclawd"
 path = "src/lib.rs"
 
 [[bin]]
-name = "rustyclawd"
+name = "rusty"
 path = "src/main.rs"
 
 [dependencies]
