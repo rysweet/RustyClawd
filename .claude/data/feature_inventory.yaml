@@ -86,6 +86,16 @@ features:
     status: complete
     notes: "Web search capability (Phase 1 & 2)"
 
+  - name: "Task/Agent"
+    category: "tools"
+    status: complete
+    notes: "Agent orchestration with background execution, model selection, resume capability. Agents have full tool access including Write and Bash (agent.rs). Exceeds Claude Code parity."
+
+  - name: "AgentOutput"
+    category: "tools"
+    status: complete
+    notes: "Retrieve output from background agent executions (agent_output.rs)"
+
   # Tool Use API Features
   - name: "tools parameter"
     category: "tools"
