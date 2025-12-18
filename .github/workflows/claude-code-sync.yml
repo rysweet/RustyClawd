@@ -1,0 +1,50 @@
+name: Claude Code Sync Monitor
+
+on:
+  # Run weekly on Monday at 9 AM UTC
+  schedule:
+    - cron: '0 9 * * 1'
+
+  # Allow manual triggering
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  sync-monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build sync monitor
+        run: cargo build --release --package rustyclawd-tools
+
+      - name: Run sync monitor
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INVENTORY_PATH: .claude/data/feature_inventory.yaml
+          LEDGER_PATH: .claude/data/sync_ledger.json
+        run: |
+          cargo run --package rustyclawd-tools --example claude_code_sync_cli -- \
+            --inventory "$INVENTORY_PATH" \
+            --ledger "$LEDGER_PATH" \
+            --token "$GITHUB_TOKEN" \
+            --repo "$GITHUB_REPOSITORY"
+
+      - name: Upload ledger artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sync-ledger
+          path: .claude/data/sync_ledger.json
+          if-no-files-found: ignore

@@ -2,16 +2,23 @@
 //!
 //! This module bridges between Anthropic API tool calls and our internal tool implementations.
 
+use crate::hooks;
+use crate::permission_mode::PermissionMode;
 use crate::terminal_guard::TerminalGuard;
+
+// Import notification types
+use crate::hooks::NotificationType;
+use crate::notification::NotificationManager;
 use anyhow::Result;
 use futures::StreamExt;
 use rustyclawd_core::client::ClientError;
 use rustyclawd_tools::{
-    AgentTool, AskUserQuestionTool, BashOutputTool, BashTool, EditTool, GlobTool, GrepTool,
-    KillShellTool, ReadTool, SkillTool, SlashCommandTool, TodoWriteTool, Tool, ToolContext,
-    ToolEvent, WriteTool,
+    AgentOutputTool, AgentTool, AskUserQuestionTool, BashOutputTool, BashTool, EditTool, GlobTool,
+    GrepTool, KillShellTool, ReadTool, SkillTool, SlashCommandTool, TodoWriteTool, Tool,
+    ToolContext, ToolEvent, WriteTool,
 };
 use serde_json::{json, Value};
+use std::sync::Arc;
 
 /// Create an educational error message that teaches Claude the correct schema
 fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
@@ -134,12 +141,20 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
         ),
         "Task" => (
             vec!["subagent_type", "prompt", "description"],
-            vec!["model", "resume"],
+            vec!["model", "resume", "run_in_background"],
             json!({
                 "subagent_type": "agent_name",
                 "prompt": "Full task description for the agent",
                 "description": "Brief task summary",
-                "model": "sonnet"
+                "model": "sonnet",
+                "run_in_background": false
+            }),
+        ),
+        "AgentOutput" => (
+            vec!["agent_id"],
+            vec![],
+            json!({
+                "agent_id": "agent_builder_t1234567890"
             }),
         ),
         "TodoWrite" => (
@@ -186,6 +201,50 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
 /// This function takes the tool name and input from Claude's API response,
 /// executes the corresponding internal tool, and returns the result as JSON.
 pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value, ClientError> {
+    execute_tool_with_hooks(tool_name, tool_input, None, None, None).await
+}
+
+/// Execute a tool with permission mode checking
+///
+/// Checks permission mode before execution and blocks tools in Plan mode.
+pub async fn execute_tool_with_permission(
+    tool_name: String,
+    tool_input: Value,
+    permission_mode: PermissionMode,
+    hooks: Option<Arc<hooks::HooksSystem>>,
+    session_id: Option<String>,
+    notification_manager: Option<&NotificationManager>,
+) -> Result<Value, ClientError> {
+    // Check permission mode first
+    if !permission_mode.allows_tool(&tool_name) {
+        return Err(ClientError::Api(
+            permission_mode.blocked_tool_error(&tool_name),
+        ));
+    }
+
+    // Proceed with normal execution
+    execute_tool_with_hooks(
+        tool_name,
+        tool_input,
+        hooks,
+        session_id,
+        notification_manager,
+    )
+    .await
+}
+
+/// Execute a tool with optional hooks system and session context
+///
+/// Hooks are executed before and after tool execution:
+/// - PreToolUse: Can block execution with "deny" decision
+/// - PostToolUse: Non-blocking, for logging/monitoring
+pub async fn execute_tool_with_hooks(
+    tool_name: String,
+    tool_input: Value,
+    hooks: Option<Arc<hooks::HooksSystem>>,
+    session_id: Option<String>,
+    notification_manager: Option<&NotificationManager>,
+) -> Result<Value, ClientError> {
     // Create tool context with execution context from global state
     use crate::terminal_guard::{get_execution_context, ExecutionContext as GuardContext};
 
@@ -200,29 +259,130 @@ pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value,
         },
     };
 
-    match tool_name.as_str() {
-        "Bash" => execute_bash_tool(tool_input, &ctx).await,
-        "BashOutput" => execute_bash_output_tool(tool_input, &ctx).await,
-        "KillShell" => execute_kill_shell_tool(tool_input, &ctx).await,
-        "Read" => execute_read_tool(tool_input, &ctx).await,
-        "Write" => execute_write_tool(tool_input, &ctx).await,
-        "Edit" => execute_edit_tool(tool_input, &ctx).await,
-        "Glob" => execute_glob_tool(tool_input, &ctx).await,
-        "Grep" => execute_grep_tool(tool_input, &ctx).await,
-        "AskUserQuestion" => execute_ask_user_question_tool(tool_input, &ctx).await,
-        "Skill" => execute_skill_tool(tool_input, &ctx).await,
-        "SlashCommand" => execute_slash_command_tool(tool_input, &ctx).await,
-        "Task" => execute_agent_tool(tool_input, &ctx).await,
-        "TodoWrite" => execute_todowrite_tool(tool_input, &ctx).await,
-        _ => Err(ClientError::Api(format!("Unknown tool: {}", tool_name))),
+    // Execute PreToolUse hook (BLOCKING - can deny execution)
+    if let (Some(ref hooks_system), Some(ref sess_id)) = (&hooks, &session_id) {
+        let hook_context = hooks::HookContext::for_tool(
+            sess_id.clone(),
+            format!(".claude/sessions/{}/transcript.json", sess_id),
+            ctx.cwd.to_string_lossy().to_string(),
+            "ask".to_string(),
+            hooks::HookEvent::PreToolUse,
+            tool_name.clone(),
+        )
+        .with_tool_params(tool_input.clone());
+
+        match hooks_system
+            .execute_hooks(hooks::HookEvent::PreToolUse, &hook_context)
+            .await
+        {
+            Ok(results) => {
+                for result in results {
+                    if let Some(output) = result.parse_output() {
+                        // Check permission decision
+                        if let Some(decision) = output.permission_decision {
+                            // Fire PermissionPrompt notification when Ask decision is detected
+                            if decision == hooks::types::PermissionDecision::Ask {
+                                if let (Some(notification_mgr), Some(ref sess_id)) =
+                                    (notification_manager, &session_id)
+                                {
+                                    notification_mgr
+                                        .notify(
+                                            sess_id,
+                                            NotificationType::PermissionPrompt,
+                                            &format!("Permission required for tool: {}", tool_name),
+                                        )
+                                        .await;
+                                }
+                            }
+
+                            if decision == hooks::types::PermissionDecision::Deny {
+                                let reason = output
+                                    .permission_decision_reason
+                                    .unwrap_or_else(|| "Permission denied by hook".to_string());
+                                return Err(ClientError::Api(format!(
+                                    "Tool execution blocked: {}",
+                                    reason
+                                )));
+                            }
+                        }
+                    }
+                    if !result.is_success() {
+                        tracing::warn!("PreToolUse hook failed: {}", result.stderr);
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to execute PreToolUse hooks: {}", e);
+                // Non-blocking - continue with execution even if hook fails
+            }
+        }
     }
+
+    // Execute the tool
+    let result = match tool_name.as_str() {
+        "Bash" => execute_bash_tool(tool_input.clone(), &ctx).await,
+        "BashOutput" => execute_bash_output_tool(tool_input.clone(), &ctx).await,
+        "KillShell" => execute_kill_shell_tool(tool_input.clone(), &ctx).await,
+        "Read" => execute_read_tool(tool_input.clone(), &ctx).await,
+        "Write" => execute_write_tool(tool_input.clone(), &ctx).await,
+        "Edit" => execute_edit_tool(tool_input.clone(), &ctx).await,
+        "Glob" => execute_glob_tool(tool_input.clone(), &ctx).await,
+        "Grep" => execute_grep_tool(tool_input.clone(), &ctx).await,
+        "AskUserQuestion" => execute_ask_user_question_tool(tool_input.clone(), &ctx).await,
+        "Skill" => execute_skill_tool(tool_input.clone(), &ctx).await,
+        "SlashCommand" => execute_slash_command_tool(tool_input.clone(), &ctx).await,
+        "Task" => execute_agent_tool(tool_input.clone(), &ctx).await,
+        "AgentOutput" => execute_agent_output_tool(tool_input.clone(), &ctx).await,
+        "TodoWrite" => execute_todowrite_tool(tool_input.clone(), &ctx).await,
+        _ => Err(ClientError::Api(format!("Unknown tool: {}", tool_name))),
+    };
+
+    // Execute PostToolUse hook (NON-BLOCKING - for logging/monitoring)
+    if let (Some(ref hooks_system), Some(ref sess_id)) = (&hooks, &session_id) {
+        // Convert result to JSON value for hook context
+        let result_value = match &result {
+            Ok(val) => val.clone(),
+            Err(e) => json!({"error": e.to_string()}),
+        };
+
+        let hook_context = hooks::HookContext::for_tool(
+            sess_id.clone(),
+            format!(".claude/sessions/{}/transcript.json", sess_id),
+            ctx.cwd.to_string_lossy().to_string(),
+            "ask".to_string(),
+            hooks::HookEvent::PostToolUse,
+            tool_name.clone(),
+        )
+        .with_tool_params(tool_input.clone())
+        .with_tool_result(result_value);
+
+        match hooks_system
+            .execute_hooks(hooks::HookEvent::PostToolUse, &hook_context)
+            .await
+        {
+            Ok(results) => {
+                for hook_result in results {
+                    if !hook_result.is_success() {
+                        tracing::warn!("PostToolUse hook failed: {}", hook_result.stderr);
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to execute PostToolUse hooks: {}", e);
+                // Non-blocking - don't affect tool execution result
+            }
+        }
+    }
+
+    result
 }
 
 /// Execute Bash tool
 async fn execute_bash_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    // Protect terminal state during bash execution
-    let _guard = TerminalGuard::new()
-        .map_err(|e| ClientError::Api(format!("Failed to create terminal guard: {}", e)))?;
+    // NOTE: TerminalGuard is NOT used here because bash tools now execute in background tasks
+    // during TUI mode. Suspending terminal state would black out the TUI and break interactivity.
+    // Instead, bash subprocesses are isolated from terminal via proper stdio redirection
+    // (stdin redirected to /dev/null, stdout/stderr captured).
 
     let params: rustyclawd_tools::bash::BashParams =
         serde_json::from_value(input).map_err(|e| create_schema_error("Bash", &e.to_string()))?;
@@ -253,7 +413,6 @@ async fn execute_bash_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
     Err(ClientError::Api(
         "Bash tool completed without result".to_string(),
     ))
-    // Guard is automatically dropped here, restoring terminal state
 }
 
 /// Execute Read tool
@@ -644,6 +803,40 @@ async fn execute_agent_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cl
 
     Err(ClientError::Api(
         "Task tool completed without result".to_string(),
+    ))
+}
+
+/// Execute AgentOutput tool
+async fn execute_agent_output_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
+    let params: rustyclawd_tools::agent_output::AgentOutputParams =
+        serde_json::from_value(input)
+            .map_err(|e| create_schema_error("AgentOutput", &e.to_string()))?;
+
+    let tool = AgentOutputTool;
+    let mut stream = tool
+        .execute(params, ctx)
+        .await
+        .map_err(|e| ClientError::Api(format!("AgentOutput tool execution failed: {}", e)))?;
+
+    while let Some(event) = stream.next().await {
+        match event {
+            ToolEvent::Result(output) => {
+                return serde_json::to_value(&output).map_err(|e| {
+                    ClientError::Api(format!("Failed to serialize AgentOutput output: {}", e))
+                });
+            }
+            ToolEvent::Error { message } => {
+                return Err(ClientError::Api(format!(
+                    "AgentOutput tool error: {}",
+                    message
+                )));
+            }
+            ToolEvent::Progress { .. } => {}
+        }
+    }
+
+    Err(ClientError::Api(
+        "AgentOutput tool completed without result".to_string(),
     ))
 }
 

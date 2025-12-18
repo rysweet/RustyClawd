@@ -1,0 +1,87 @@
+# YAML Scenario: Slash Command Full Workflow
+#
+# **Status:** Pending - Waiting for scenario runner implementation
+#
+# This scenario validates complete slash command workflow from user input
+# through command expansion, execution, and result display.
+
+scenario:
+  name: "Slash Command Full Workflow"
+  description: "Validate /analyze command from user input to completion"
+  type: tui
+  tags: [slash-command, analyze, core-workflow]
+  status: "pending_implementation"
+
+  environment:
+    terminal_size:
+      width: 100
+      height: 30
+    timeout: 45s
+
+  steps:
+    # Startup
+    - action: launch
+      description: "Start RustyClawd TUI"
+      target: "cargo run --bin rustyclawd"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for welcome message"
+      contains: "System>"
+      timeout: 5s
+
+    # Execute slash command
+    - action: send_input
+      description: "Type /analyze slash command"
+      text: "/analyze src/"
+      submit: true
+
+    - action: wait_for_text
+      description: "Command should be processing"
+      contains: "Analyzing"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Should show analysis results"
+      contains: "codebase"
+      timeout: 25s
+
+    # Capture final state
+    - action: capture_screenshot
+      description: "Save final TUI state"
+      filename: "slash_command_result.txt"
+
+    # Exit
+    - action: send_input
+      description: "Exit cleanly"
+      text: "/exit"
+      submit: true
+
+  assertions:
+    - type: text_present
+      value: "System>"
+      description: "TUI shows prompt on startup"
+
+    - type: text_present
+      value: "/analyze"
+      description: "Command echoed in TUI conversation"
+
+    - type: text_present
+      value: "codebase"
+      description: "Analysis results displayed"
+
+    - type: exit_clean
+      description: "Session exits without errors"
+
+  notes: |
+    This scenario will FAIL until the scenario runner is implemented.
+
+    Expected behavior:
+    1. RustyClawd starts successfully
+    2. User types /analyze src/
+    3. SlashCommandTool invoked
+    4. Command expanded and sent to LLM
+    5. Analysis performed and results shown
+    6. Clean exit
+
+    See: docs/architecture/e2e_testing_architecture.md

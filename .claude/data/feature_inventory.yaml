@@ -1,0 +1,203 @@
+# RustyClawd Feature Inventory
+# This file tracks which Claude Code features are implemented in RustyClawd
+# Last updated: 2025-12-13
+
+last_updated: "2025-12-13T00:00:00Z"
+
+features:
+  # Core Tools
+  - name: "Bash"
+    category: "tools"
+    status: complete
+    notes: "Fully implemented with subprocess management and isolation"
+
+  - name: "Read"
+    category: "tools"
+    status: complete
+    notes: "File reading with support for offsets and limits"
+
+  - name: "Write"
+    category: "tools"
+    status: complete
+    notes: "File writing with backup support"
+
+  - name: "Edit"
+    category: "tools"
+    status: complete
+    notes: "In-place file editing"
+
+  - name: "Glob"
+    category: "tools"
+    status: complete
+    notes: "Pattern-based file search"
+
+  - name: "Grep"
+    category: "tools"
+    status: complete
+    notes: "Content search with regex support"
+
+  - name: "Agent"
+    category: "tools"
+    status: complete
+    notes: "Task delegation to specialized agents"
+
+  - name: "AskUserQuestion"
+    category: "tools"
+    status: complete
+    notes: "Interactive user input"
+
+  - name: "BashOutput"
+    category: "tools"
+    status: complete
+    notes: "Retrieve output from background bash processes"
+
+  - name: "KillShell"
+    category: "tools"
+    status: complete
+    notes: "Terminate background shell processes"
+
+  - name: "NotebookEdit"
+    category: "tools"
+    status: complete
+    notes: "Jupyter notebook editing"
+
+  - name: "Skill"
+    category: "tools"
+    status: complete
+    notes: "Execute Claude Code skills"
+
+  - name: "SlashCommand"
+    category: "tools"
+    status: complete
+    notes: "Execute slash commands"
+
+  - name: "TodoWrite"
+    category: "tools"
+    status: complete
+    notes: "Task management"
+
+  - name: "WebFetch"
+    category: "tools"
+    status: complete
+    notes: "HTTP requests with content extraction (Phase 1 & 2)"
+
+  - name: "WebSearch"
+    category: "tools"
+    status: complete
+    notes: "Web search capability (Phase 1 & 2)"
+
+  - name: "Task/Agent"
+    category: "tools"
+    status: complete
+    notes: "Agent orchestration with background execution, model selection, resume capability. Agents have full tool access including Write and Bash (agent.rs). Exceeds Claude Code parity."
+
+  - name: "AgentOutput"
+    category: "tools"
+    status: complete
+    notes: "Retrieve output from background agent executions (agent_output.rs)"
+
+  # Tool Use API Features
+  - name: "tools parameter"
+    category: "tools"
+    status: complete
+    notes: "API supports tools parameter with ToolDefinition schema (types.rs:135)"
+
+  - name: "Multiple Tools"
+    category: "tools"
+    status: complete
+    notes: "API supports multiple tools, tested in test_request_builder_multiple_tools"
+
+  - name: "Single Tool Examples"
+    category: "tools"
+    status: complete
+    notes: "Multiple examples including JSON mode pattern (test_json_mode_single_tool_forced)"
+
+  # UI Features
+  - name: "Inline Diffs"
+    category: "ui"
+    status: notapplicable
+    notes: "CLI doesn't have UI diff rendering"
+
+  - name: "Syntax Highlighting"
+    category: "ui"
+    status: notapplicable
+    notes: "Terminal-based output, no rich syntax highlighting"
+
+  - name: "File Tree View"
+    category: "ui"
+    status: notapplicable
+    notes: "CLI doesn't have visual file tree"
+
+  # Advanced Features
+  - name: "Permission Mode"
+    category: "capabilities"
+    status: complete
+    notes: "Permissions system with approval gates"
+
+  - name: "Hooks System"
+    category: "capabilities"
+    status: complete
+    notes: "Pre/post hook infrastructure"
+
+  - name: "Process Isolation"
+    category: "capabilities"
+    status: complete
+    notes: "Unix process isolation with seccomp/landlock"
+
+  - name: "Multi-turn Conversations"
+    category: "capabilities"
+    status: complete
+    notes: "Session management with history"
+
+  - name: "Context Management"
+    category: "capabilities"
+    status: complete
+    notes: "Conversation checkpointing and restoration"
+
+  - name: "Error Recovery"
+    category: "capabilities"
+    status: partial
+    notes: "Basic error handling, could be enhanced"
+
+  # Tool Use Capabilities
+  - name: "Parallel Tool Use"
+    category: "capabilities"
+    status: complete
+    notes: "3 comprehensive tests in SECTION 8 of SDK compliance tests (sdk_compliance_tests.rs:834-913)"
+
+  - name: "Sequential Tool Execution"
+    category: "capabilities"
+    status: complete
+    notes: "Conversation flow test in SECTION 22 demonstrating tool dependencies (sdk_compliance_tests.rs:1732-1781)"
+
+  - name: "Tool Choice Modes"
+    category: "capabilities"
+    status: complete
+    notes: "All 3 modes implemented and tested: auto, any, tool (types.rs:79-110)"
+
+  - name: "Stop Reason Field"
+    category: "capabilities"
+    status: complete
+    notes: "All 4 stop reasons tested: end_turn, tool_use, max_tokens, stop_sequence (sdk_compliance_tests.rs:1106-1188)"
+
+  # Integrations
+  - name: "GitHub Integration"
+    category: "integrations"
+    status: partial
+    notes: "Basic GitHub API support, not comprehensive"
+
+  - name: "MCP Support"
+    category: "integrations"
+    status: missing
+    notes: "Model Context Protocol not yet implemented"
+
+  # Performance Features
+  - name: "Streaming Responses"
+    category: "performance"
+    status: complete
+    notes: "Full streaming support for all tools"
+
+  - name: "Caching"
+    category: "performance"
+    status: partial
+    notes: "Limited caching for web fetch/search"

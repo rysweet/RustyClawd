@@ -1,0 +1,120 @@
+# YAML Scenario: Error Handling and Recovery
+#
+# **Status:** Pending - Waiting for scenario runner implementation
+#
+# This scenario validates graceful error handling and recovery,
+# ensuring the system remains functional after errors.
+
+scenario:
+  name: "Error Handling and Recovery"
+  description: "Validate graceful error handling and system recovery"
+  type: tui
+  tags: [error-handling, recovery, robustness]
+  status: "pending_implementation"
+
+  environment:
+    terminal_size:
+      width: 100
+      height: 30
+    timeout: 45s
+
+  steps:
+    # Startup
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin rustyclawd"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for ready state"
+      contains: "System>"
+      timeout: 5s
+
+    # Error 1: Invalid slash command
+    - action: send_input
+      description: "Send invalid slash command"
+      text: "/nonexistent"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should show error message"
+      contains: "Unknown command"
+      timeout: 5s
+
+    # Recovery 1: Valid command after error
+    - action: send_input
+      description: "Send valid command after error"
+      text: "/help"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should show help (recovery successful)"
+      contains: "Available commands"
+      timeout: 5s
+
+    # Error 2: Tool failure (nonexistent file)
+    - action: send_input
+      description: "Request nonexistent file"
+      text: "Read the file /nonexistent/path.txt"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should show tool error"
+      contains: "not found"
+      timeout: 10s
+
+    # Recovery 2: Normal operation after tool error
+    - action: send_input
+      description: "Normal request after tool error"
+      text: "What's 2+2?"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should respond normally (recovery successful)"
+      contains: "4"
+      timeout: 10s
+
+    # Capture final state
+    - action: capture_screenshot
+      description: "Capture final state showing recovery"
+      filename: "error_handling_result.txt"
+
+    # Exit
+    - action: send_input
+      description: "Exit"
+      text: "/exit"
+      submit: true
+
+  assertions:
+    - type: text_present
+      value: "Unknown command"
+      description: "Invalid command error shown"
+
+    - type: text_present
+      value: "Available commands"
+      description: "Recovered from command error (help works)"
+
+    - type: text_present
+      value: "not found"
+      description: "Tool error shown"
+
+    - type: text_present
+      value: "4"
+      description: "Recovered from tool error (normal operation)"
+
+    - type: exit_clean
+      description: "Session still functional after multiple errors"
+
+  notes: |
+    This scenario will FAIL until the scenario runner is implemented.
+
+    Expected behavior:
+    1. Invalid slash command → Error message
+    2. Valid command works after error (recovery)
+    3. Tool failure → Error message
+    4. Normal operation works after tool error (recovery)
+    5. System remains stable throughout
+
+    Key validation: Error handling doesn't break the session.
+
+    See: docs/architecture/e2e_testing_architecture.md

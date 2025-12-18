@@ -34,6 +34,7 @@ serde_yaml = "0.9"
 rand = "0.8"
 moka = { version = "0.12", features = ["future"] }
 bytes = "1.5"
+chrono = { version = "0.4", features = ["serde"] }
 
 # Process isolation (Unix-specific)
 [target.'cfg(unix)'.dependencies]

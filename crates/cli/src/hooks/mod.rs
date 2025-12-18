@@ -22,11 +22,12 @@ pub mod types;
 pub use executor::HookExecutor;
 pub use loader::HookLoader;
 pub use registry::HookRegistry;
-pub use types::{HookContext, HookEvent, HookResult};
+pub use types::{HookContext, HookEvent, HookResult, NotificationType};
 
 use anyhow::Result;
 
 /// Main hooks system interface
+#[derive(Clone)]
 pub struct HooksSystem {
     registry: HookRegistry,
     executor: HookExecutor,

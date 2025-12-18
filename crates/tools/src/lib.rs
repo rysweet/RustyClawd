@@ -4,9 +4,12 @@
 //! Tools execute operations (file I/O, shell commands, etc.) and stream results.
 
 pub mod agent;
+pub mod agent_output;
+pub mod agent_registry;
 pub mod ask_user_question;
 pub mod bash;
 pub mod bash_output;
+pub mod claude_code_sync;
 pub mod edit;
 pub mod error;
 pub mod glob_tool;
@@ -27,6 +30,8 @@ pub mod web_search_phase2;
 pub mod write;
 
 pub use agent::AgentTool;
+pub use agent_output::AgentOutputTool;
+pub use agent_registry::{global_agent_registry, AgentHandle, AgentRegistry, AgentStatus};
 pub use ask_user_question::AskUserQuestionTool;
 pub use bash::BashTool;
 pub use bash_output::BashOutputTool;

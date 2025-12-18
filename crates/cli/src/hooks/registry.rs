@@ -3,6 +3,7 @@
 use crate::hooks::types::{Hook, HookConfig, HookContext, HookEvent, HooksConfiguration};
 
 /// Hook registry manages hook configurations and lookups
+#[derive(Clone)]
 pub struct HookRegistry {
     configuration: HooksConfiguration,
 }

@@ -1,0 +1,133 @@
+# YAML Scenario: Complex Agentic Task Workflow
+#
+# **Status:** Pending - Waiting for scenario runner implementation
+#
+# This scenario validates complex multi-agent workflows with tool use,
+# context preservation, and multi-step reasoning.
+
+scenario:
+  name: "Complex Agentic Task Workflow"
+  description: "Validate multi-step agentic workflow with context and tools"
+  type: tui
+  tags: [agentic, multi-step, complex, tools]
+  status: "pending_implementation"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 90s
+
+  steps:
+    # Startup
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin rustyclawd"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for ready"
+      contains: "System>"
+      timeout: 5s
+
+    # Step 1: Initial analysis request
+    - action: send_input
+      description: "Request codebase analysis"
+      text: "Analyze the crates/cli/src directory and summarize the architecture"
+      submit: true
+
+    - action: wait_for_text
+      description: "Wait for Read tool execution (multiple files)"
+      contains: "crates/cli"
+      timeout: 30s
+
+    # Step 2: Follow-up based on analysis
+    - action: send_input
+      description: "Ask follow-up based on analysis"
+      text: "Based on that analysis, what are the main components?"
+      submit: true
+
+    - action: wait_for_text
+      description: "Wait for summary using prior context"
+      contains: "components"
+      timeout: 15s
+
+    # Step 3: Action based on understanding
+    - action: send_input
+      description: "Request document creation based on understanding"
+      text: "Create a SUMMARY.md file documenting those components"
+      submit: true
+
+    - action: wait_for_text
+      description: "Wait for Write tool execution"
+      contains: "Created"
+      timeout: 20s
+
+    # Step 4: Verification
+    - action: send_input
+      description: "Verify the created file"
+      text: "Read SUMMARY.md to confirm it was created correctly"
+      submit: true
+
+    - action: wait_for_text
+      description: "Wait for Read tool to show file contents"
+      contains: "components"
+      timeout: 15s
+
+    # Capture final state
+    - action: capture_screenshot
+      description: "Capture complete workflow"
+      filename: "agentic_task_result.txt"
+
+    # Exit
+    - action: send_input
+      description: "Exit"
+      text: "/exit"
+      submit: true
+
+  assertions:
+    - type: text_present
+      value: "crates/cli"
+      description: "Analysis performed on target directory"
+
+    - type: text_present
+      value: "components"
+      description: "Summary uses context from analysis"
+
+    - type: text_present
+      value: "Created"
+      description: "Document created based on understanding"
+
+    - type: file_exists
+      path: "SUMMARY.md"
+      description: "Output file actually created"
+
+    - type: text_present
+      value: "components"
+      description: "Verification shows file contains expected content"
+
+    - type: exit_clean
+      description: "Complex workflow completes successfully"
+
+  cleanup:
+    - action: remove_file
+      path: "SUMMARY.md"
+      description: "Clean up created test file"
+
+  notes: |
+    This scenario will FAIL until the scenario runner is implemented.
+
+    Expected behavior:
+    1. User requests analysis → Multiple Read tools
+    2. User asks follow-up → LLM uses analysis context
+    3. User requests document → Write tool with context
+    4. User verifies → Read tool confirms creation
+    5. All context flows correctly through multi-step workflow
+
+    This tests TRUE agentic behavior:
+    - Multi-step reasoning
+    - Tool use at each step
+    - Context preservation throughout
+    - Task decomposition and execution
+
+    See: docs/architecture/e2e_testing_architecture.md

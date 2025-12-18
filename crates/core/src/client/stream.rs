@@ -31,6 +31,8 @@ pub struct SseStream<S> {
     #[pin]
     inner: S,
     buffer: String,
+    /// Queue of parsed events waiting to be returned
+    event_queue: Vec<SseEvent>,
 }
 
 impl<S> SseStream<S>
@@ -41,6 +43,7 @@ where
         Self {
             inner: stream,
             buffer: String::new(),
+            event_queue: Vec::new(),
         }
     }
 }
@@ -102,10 +105,18 @@ where
         let mut this = self.project();
 
         loop {
-            // Try to parse events from buffer first
+            // First, check if we have queued events to return
+            if !this.event_queue.is_empty() {
+                return Poll::Ready(Some(Ok(this.event_queue.remove(0))));
+            }
+
+            // Try to parse events from buffer
             let events = parse_sse_events(this.buffer);
             if !events.is_empty() {
-                return Poll::Ready(Some(Ok(events.into_iter().next().unwrap())));
+                // Add ALL parsed events to the queue
+                this.event_queue.extend(events);
+                // Continue loop to return the first queued event
+                continue;
             }
 
             // Need more data, poll the inner stream
@@ -126,7 +137,7 @@ where
                     }
                 }
                 Poll::Ready(Some(Err(e))) => {
-                    return Poll::Ready(Some(Err(ClientError::Request(e))));
+                    return Poll::Ready(Some(Err(e.into())));
                 }
                 Poll::Ready(None) => {
                     // Stream ended, check if there's remaining data
@@ -207,7 +218,7 @@ where
                 chunks.push(text);
             }
             StreamEvent::Error { error } => {
-                return Err(ClientError::Api(error.message));
+                return Err(ClientError::Unknown(error.message));
             }
             _ => {
                 // Ignore other event types for text collection

@@ -1,4 +1,8 @@
-//! Hook configuration loader from .claude/hooks/config.json
+//! Hook configuration loader
+//!
+//! Loads hooks configuration from:
+//! - .claude/settings.json (priority 1, amplihack standard)
+//! - .claude/hooks/config.json (priority 2, legacy location)
 
 use crate::hooks::types::HooksConfiguration;
 use anyhow::{Context, Result};
@@ -31,14 +35,32 @@ impl HookLoader {
     }
 
     /// Load hooks configuration from the default location
+    ///
+    /// Checks for configuration files in the following priority order:
+    /// 1. .claude/settings.json (amplihack standard location)
+    /// 2. .claude/hooks/config.json (legacy location for backward compatibility)
+    ///
+    /// Searches in current directory and walks up parent directories.
+    /// Returns empty configuration if no config file is found.
     pub async fn load_default() -> Result<HooksConfiguration> {
-        // Try to find .claude/hooks/config.json in current directory or parent directories
+        // Try to find config in current directory or parent directories
         let mut current_dir = std::env::current_dir()?;
 
         loop {
-            let config_path = current_dir.join(".claude/hooks/config.json");
-            if config_path.exists() {
-                return Self::load_from_file(config_path.to_str().unwrap()).await;
+            // Priority 1: Check .claude/settings.json first (amplihack standard)
+            let settings_path = current_dir.join(".claude/settings.json");
+            if settings_path.exists() {
+                if let Some(path_str) = settings_path.to_str() {
+                    return Self::load_from_file(path_str).await;
+                }
+            }
+
+            // Priority 2: Fallback to .claude/hooks/config.json (legacy location)
+            let legacy_path = current_dir.join(".claude/hooks/config.json");
+            if legacy_path.exists() {
+                if let Some(path_str) = legacy_path.to_str() {
+                    return Self::load_from_file(path_str).await;
+                }
             }
 
             // Move to parent directory
@@ -222,5 +244,248 @@ mod tests {
         let config = HookLoader::load_from_string(json).unwrap();
         assert_eq!(config.session_start.len(), 1);
         assert_eq!(config.session_start[0].hooks.len(), 2);
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn test_load_default_with_settings_json() {
+        // Test that settings.json is preferred over hooks/config.json
+        use tempfile::TempDir;
+        use tokio::fs;
+
+        let temp_dir = TempDir::new().unwrap();
+        let test_dir = temp_dir.path().to_path_buf();
+
+        // Create .claude directory
+        let claude_dir = test_dir.join(".claude");
+        fs::create_dir(&claude_dir).await.unwrap();
+
+        // Create both config files
+        let settings_json = r#"{
+            "SessionStart": [
+                {
+                    "matcher": "*",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": "echo settings.json"
+                        }
+                    ]
+                }
+            ]
+        }"#;
+
+        let hooks_config_json = r#"{
+            "SessionStart": [
+                {
+                    "matcher": "*",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": "echo hooks/config.json"
+                        }
+                    ]
+                }
+            ]
+        }"#;
+
+        // Write settings.json
+        fs::write(claude_dir.join("settings.json"), settings_json)
+            .await
+            .unwrap();
+
+        // Write hooks/config.json
+        let hooks_dir = claude_dir.join("hooks");
+        fs::create_dir(&hooks_dir).await.unwrap();
+        fs::write(hooks_dir.join("config.json"), hooks_config_json)
+            .await
+            .unwrap();
+
+        // Change to test directory with proper error handling
+        let original_dir = std::env::current_dir().unwrap().canonicalize().unwrap();
+
+        // Ensure cleanup happens even if test panics
+        struct DirGuard(std::path::PathBuf);
+        impl Drop for DirGuard {
+            fn drop(&mut self) {
+                let _ = std::env::set_current_dir(&self.0);
+            }
+        }
+        let _guard = DirGuard(original_dir);
+
+        std::env::set_current_dir(&test_dir).unwrap();
+
+        // Load config - should prefer settings.json
+        let config = HookLoader::load_default().await.unwrap();
+
+        // Verify it loaded from settings.json (has the "echo settings.json" command)
+        assert_eq!(config.session_start.len(), 1);
+        assert_eq!(config.session_start[0].hooks.len(), 1);
+        if let crate::hooks::types::HookType::Command = config.session_start[0].hooks[0].hook_type {
+            assert_eq!(
+                config.session_start[0].hooks[0].command.as_ref().unwrap(),
+                "echo settings.json"
+            );
+        } else {
+            panic!("Expected Command hook type");
+        }
+
+        // DirGuard will restore directory automatically
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn test_load_default_fallback_to_hooks_config() {
+        // Test that hooks/config.json is used when settings.json doesn't exist
+        use tempfile::TempDir;
+        use tokio::fs;
+
+        let temp_dir = TempDir::new().unwrap();
+        let test_dir = temp_dir.path().to_path_buf();
+
+        // Create .claude/hooks directory
+        let claude_dir = test_dir.join(".claude");
+        let hooks_dir = claude_dir.join("hooks");
+        fs::create_dir_all(&hooks_dir).await.unwrap();
+
+        // Only create hooks/config.json (no settings.json)
+        let hooks_config_json = r#"{
+            "SessionStart": [
+                {
+                    "matcher": "*",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": "echo legacy"
+                        }
+                    ]
+                }
+            ]
+        }"#;
+
+        fs::write(hooks_dir.join("config.json"), hooks_config_json)
+            .await
+            .unwrap();
+
+        // Change to test directory with guard
+        let original_dir = std::env::current_dir().unwrap().canonicalize().unwrap();
+        struct DirGuard(std::path::PathBuf);
+        impl Drop for DirGuard {
+            fn drop(&mut self) {
+                let _ = std::env::set_current_dir(&self.0);
+            }
+        }
+        let _guard = DirGuard(original_dir);
+
+        std::env::set_current_dir(&test_dir).unwrap();
+
+        // Load config - should fallback to hooks/config.json
+        let config = HookLoader::load_default().await.unwrap();
+
+        // Verify it loaded from hooks/config.json
+        assert_eq!(config.session_start.len(), 1);
+        assert_eq!(config.session_start[0].hooks.len(), 1);
+        if let crate::hooks::types::HookType::Command = config.session_start[0].hooks[0].hook_type {
+            assert_eq!(
+                config.session_start[0].hooks[0].command.as_ref().unwrap(),
+                "echo legacy"
+            );
+        } else {
+            panic!("Expected Command hook type");
+        }
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn test_load_default_no_config_files() {
+        // Test that empty config is returned when no files exist
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let test_dir = temp_dir.path().to_path_buf();
+
+        // Change to test directory (no .claude directory at all)
+        let original_dir = std::env::current_dir().unwrap().canonicalize().unwrap();
+        struct DirGuard(std::path::PathBuf);
+        impl Drop for DirGuard {
+            fn drop(&mut self) {
+                let _ = std::env::set_current_dir(&self.0);
+            }
+        }
+        let _guard = DirGuard(original_dir);
+
+        std::env::set_current_dir(&test_dir).unwrap();
+
+        // Load config - should return empty default
+        let config = HookLoader::load_default().await.unwrap();
+
+        // Verify empty config
+        assert_eq!(config.session_start.len(), 0);
+        assert_eq!(config.session_end.len(), 0);
+        assert_eq!(config.pre_tool_use.len(), 0);
+        assert_eq!(config.post_tool_use.len(), 0);
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn test_load_default_walks_parent_directories() {
+        // Test that config search walks up parent directories
+        use tempfile::TempDir;
+        use tokio::fs;
+
+        let temp_dir = TempDir::new().unwrap();
+        let test_dir = temp_dir.path().to_path_buf();
+
+        // Create .claude/settings.json in parent directory
+        let claude_dir = test_dir.join(".claude");
+        fs::create_dir(&claude_dir).await.unwrap();
+
+        let settings_json = r#"{
+            "SessionStart": [
+                {
+                    "matcher": "*",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": "echo parent"
+                        }
+                    ]
+                }
+            ]
+        }"#;
+
+        fs::write(claude_dir.join("settings.json"), settings_json)
+            .await
+            .unwrap();
+
+        // Create subdirectory and change to it
+        let sub_dir = test_dir.join("subdir");
+        fs::create_dir(&sub_dir).await.unwrap();
+
+        let original_dir = std::env::current_dir().unwrap().canonicalize().unwrap();
+        struct DirGuard(std::path::PathBuf);
+        impl Drop for DirGuard {
+            fn drop(&mut self) {
+                let _ = std::env::set_current_dir(&self.0);
+            }
+        }
+        let _guard = DirGuard(original_dir);
+
+        std::env::set_current_dir(&sub_dir).unwrap();
+
+        // Load config - should find parent's settings.json
+        let config = HookLoader::load_default().await.unwrap();
+
+        // Verify it found the parent config
+        assert_eq!(config.session_start.len(), 1);
+        assert_eq!(config.session_start[0].hooks.len(), 1);
+        if let crate::hooks::types::HookType::Command = config.session_start[0].hooks[0].hook_type {
+            assert_eq!(
+                config.session_start[0].hooks[0].command.as_ref().unwrap(),
+                "echo parent"
+            );
+        } else {
+            panic!("Expected Command hook type");
+        }
     }
 }

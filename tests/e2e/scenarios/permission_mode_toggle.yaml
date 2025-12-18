@@ -1,0 +1,142 @@
+# YAML Scenario: Permission Mode Toggle (Shift+Tab)
+#
+# Tests the new Permission Mode Toggle feature (Issue #108)
+# Validates Shift+Tab cycling: Ask -> AutoAccept -> Plan -> Ask
+
+scenario:
+  name: "Permission Mode Toggle with Shift+Tab"
+  description: "Validate permission mode cycling and tool restrictions"
+  type: tui
+  tags: [permission-mode, keyboard, shift-tab, plan-mode]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 60s
+
+  steps:
+    # Startup in default (Ask) mode
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin claude"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt showing Ask mode"
+      contains: "Ask"
+      timeout: 5s
+
+    # Test 1: Shift+Tab to AutoAccept mode
+    - action: send_key
+      description: "Press Shift+Tab to cycle to AutoAccept"
+      key: "BackTab"
+      timeout: 2s
+
+    - action: wait_for_text
+      description: "Mode indicator should show Auto-Accept"
+      contains: "Auto"
+      timeout: 3s
+
+    # Test 2: Shift+Tab to Plan mode
+    - action: send_key
+      description: "Press Shift+Tab again to cycle to Plan"
+      key: "BackTab"
+      timeout: 2s
+
+    - action: wait_for_text
+      description: "Mode indicator should show Plan"
+      contains: "Plan"
+      timeout: 3s
+
+    # Test 3: Verify Plan mode blocks Write tool
+    - action: send_input
+      description: "Try to use Write tool in Plan mode"
+      text: "Create a test file at /tmp/blocked.txt"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should show tool blocked message"
+      contains: "blocked"
+      timeout: 15s
+
+    # Test 4: Verify Plan mode allows Read tool
+    - action: send_input
+      description: "Try to use Read tool in Plan mode"
+      text: "Read the Cargo.toml file"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should execute Read tool successfully"
+      contains: "workspace"
+      timeout: 15s
+
+    # Test 5: Cycle back to Ask mode
+    - action: send_key
+      description: "Press Shift+Tab to cycle back to Ask"
+      key: "BackTab"
+      timeout: 2s
+
+    - action: wait_for_text
+      description: "Mode should cycle back to Ask"
+      contains: "Ask"
+      timeout: 3s
+
+    # Capture final state
+    - action: capture_screenshot
+      description: "Capture permission mode cycling"
+      filename: "permission_mode_toggle.txt"
+
+    # Exit
+    - action: send_input
+      description: "Exit cleanly"
+      text: "/exit"
+      submit: true
+
+  assertions:
+    - type: text_present
+      value: "Auto"
+      description: "AutoAccept mode displayed after first Shift+Tab"
+
+    - type: text_present
+      value: "Plan"
+      description: "Plan mode displayed after second Shift+Tab"
+
+    - type: text_present
+      value: "blocked"
+      description: "Write tool blocked in Plan mode"
+
+    - type: text_present
+      value: "workspace"
+      description: "Read tool allowed in Plan mode"
+
+    - type: text_present
+      value: "Ask"
+      description: "Cycled back to Ask mode"
+
+    - type: exit_clean
+      description: "Session exits without errors"
+
+  cleanup:
+    - action: cleanup_test_files
+      description: "No test files created (Write blocked)"
+
+  notes: |
+    This scenario validates Issue #108: Permission Mode Toggle
+
+    Key behaviors tested:
+    1. Shift+Tab cycles modes: Ask → AutoAccept → Plan → Ask
+    2. Plan mode blocks modification tools (Write, Edit, Bash)
+    3. Plan mode allows read-only tools (Read, Glob, Grep)
+    4. Mode indicator visible in TUI
+    5. Complete cycle back to Ask mode
+
+    Matches Claude Code v2.0.61 behavior:
+    - 76% token savings in Plan mode (documented benefit)
+    - Clear mode switching UX
+    - Proper tool restrictions
+
+    **Sources**:
+    - [Claude Code Terminal Setup](https://claudelog.com/faqs/claude-code-terminal-setup/)
+    - [Keyboard Shortcuts](https://capacity.so/en/blog/how-to-use-claude-code-tips-and-shortcuts)

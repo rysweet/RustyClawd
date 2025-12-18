@@ -206,29 +206,35 @@ impl SettingsLoader {
         let extension = path.extension().and_then(|s| s.to_str());
 
         match extension {
-            Some("json") => {
-                // Parse as JSON
-                Self::parse_json_config(&content)
-            }
             Some("toml") => {
-                // TOML not yet supported - toml crate needs to be added to Cargo.toml
+                // Parse as TOML (highest priority)
+                Self::parse_toml_config(&content)
+            }
+            Some("yaml") | Some("yml") => {
+                // YAML not yet supported - serde_yaml crate already added but parsing not implemented
                 Err(format!(
-                    "TOML config files not yet supported. \
-                     To implement: add 'toml' crate to dependencies and parse with toml::from_str. \
+                    "YAML config files not yet supported. \
+                     To implement: parse with serde_yaml::from_str. \
                      File: {:?}",
                     path
                 ))
             }
+            Some("json") => {
+                // Parse as JSON
+                Self::parse_json_config(&content)
+            }
             _ => {
                 // No extension or unknown extension
-                // Try JSON first, as it's the most structured format
-                if let Ok(settings) = Self::parse_json_config(&content) {
+                // Try formats in priority order: TOML > YAML > JSON
+                if let Ok(settings) = Self::parse_toml_config(&content) {
+                    Ok(settings)
+                } else if let Ok(settings) = Self::parse_json_config(&content) {
                     Ok(settings)
                 } else {
                     Err(format!(
                         "Unable to parse config file {:?}. \
-                         Supported formats: JSON (.json). \
-                         TOML support requires adding 'toml' crate to dependencies.",
+                         Supported formats: TOML (.toml), JSON (.json). \
+                         YAML support coming soon.",
                         path
                     ))
                 }
@@ -308,6 +314,99 @@ impl SettingsLoader {
 
             // Parse enabled_plugins object
             if let Some(plugins) = obj.get("enabled_plugins").and_then(|v| v.as_object()) {
+                for (plugin_id, enabled) in plugins {
+                    if let Some(enabled_bool) = enabled.as_bool() {
+                        settings = settings.set_plugin(plugin_id.clone(), enabled_bool);
+                    }
+                }
+            }
+        }
+
+        Ok(settings)
+    }
+
+    /// Parse TOML configuration into Settings
+    fn parse_toml_config(content: &str) -> Result<Settings, String> {
+        let toml_value: toml::Value = toml::from_str(content).map_err(|e| {
+            format!(
+                "Invalid TOML at {}: {}",
+                e.span()
+                    .map(|s| format!("line {}", s.start))
+                    .unwrap_or_else(|| "unknown location".to_string()),
+                e.message()
+            )
+        })?;
+
+        let mut settings = Settings::new();
+
+        // Parse known settings fields
+        if let Some(table) = toml_value.as_table() {
+            if let Some(model) = table.get("model").and_then(|v| v.as_str()) {
+                settings = settings.with_model(model.to_string());
+            }
+
+            if let Some(api_url) = table.get("api_url").and_then(|v| v.as_str()) {
+                settings = settings.with_api_url(api_url.to_string());
+            }
+
+            if let Some(timeout) = table.get("timeout_secs").and_then(|v| v.as_integer()) {
+                settings = settings.with_timeout(timeout as u64);
+            }
+
+            if let Some(cleanup) = table
+                .get("cleanup_period_days")
+                .and_then(|v| v.as_integer())
+            {
+                settings = settings.with_cleanup_period(cleanup as u32);
+            }
+
+            if let Some(disable_bypass) = table
+                .get("disable_bypass_permissions")
+                .and_then(|v| v.as_bool())
+            {
+                if disable_bypass {
+                    settings = settings.disable_bypass();
+                }
+            }
+
+            // Parse permissions table
+            if let Some(permissions) = table.get("permissions").and_then(|v| v.as_table()) {
+                for (tool_name, tool_config) in permissions {
+                    if let Some(tool_table) = tool_config.as_table() {
+                        let mode_str = tool_table
+                            .get("mode")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("ask");
+
+                        if let Some(mode) = PermissionMode::parse(mode_str) {
+                            let patterns = tool_table
+                                .get("patterns")
+                                .and_then(|v| v.as_array())
+                                .map(|arr| {
+                                    arr.iter()
+                                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                        .collect()
+                                })
+                                .unwrap_or_default();
+
+                            let permission = ToolPermission::new(mode, patterns);
+                            settings = settings.with_permission(tool_name.clone(), permission);
+                        }
+                    }
+                }
+            }
+
+            // Parse env_vars table
+            if let Some(env_vars) = table.get("env_vars").and_then(|v| v.as_table()) {
+                for (key, value) in env_vars {
+                    if let Some(value_str) = value.as_str() {
+                        settings = settings.with_env_var(key.clone(), value_str.to_string());
+                    }
+                }
+            }
+
+            // Parse enabled_plugins table
+            if let Some(plugins) = table.get("enabled_plugins").and_then(|v| v.as_table()) {
                 for (plugin_id, enabled) in plugins {
                     if let Some(enabled_bool) = enabled.as_bool() {
                         settings = settings.set_plugin(plugin_id.clone(), enabled_bool);
@@ -429,5 +528,205 @@ mod tests {
         assert!(
             path.to_string_lossy().contains("claude") || path.to_string_lossy().contains("Claude")
         );
+    }
+
+    #[test]
+    fn test_parse_toml_config_basic() {
+        let toml_content = r#"
+model = "claude-3-opus"
+api_url = "https://api.example.com"
+timeout_secs = 90
+cleanup_period_days = 45
+"#;
+
+        let settings = SettingsLoader::parse_toml_config(toml_content);
+        assert!(settings.is_ok());
+
+        let settings = settings.unwrap();
+        assert_eq!(settings.model, Some("claude-3-opus".to_string()));
+        assert_eq!(
+            settings.api_url,
+            Some("https://api.example.com".to_string())
+        );
+        assert_eq!(settings.timeout_secs, Some(90));
+        assert_eq!(settings.cleanup_period_days, 45);
+    }
+
+    #[test]
+    fn test_parse_toml_config_with_permissions() {
+        let toml_content = r#"
+model = "claude-3"
+
+[permissions.bash]
+mode = "allow"
+patterns = ["ls", "cat"]
+
+[permissions.edit]
+mode = "deny"
+patterns = []
+"#;
+
+        let settings = SettingsLoader::parse_toml_config(toml_content);
+        assert!(settings.is_ok());
+
+        let settings = settings.unwrap();
+        assert_eq!(settings.model, Some("claude-3".to_string()));
+        assert_eq!(settings.permissions.len(), 2);
+
+        let bash_perm = settings.permissions.get("bash").unwrap();
+        assert_eq!(
+            bash_perm.mode,
+            crate::settings::types::PermissionMode::Allow
+        );
+        assert_eq!(bash_perm.patterns, vec!["ls", "cat"]);
+
+        let edit_perm = settings.permissions.get("edit").unwrap();
+        assert_eq!(edit_perm.mode, crate::settings::types::PermissionMode::Deny);
+    }
+
+    #[test]
+    fn test_parse_toml_config_with_env_vars() {
+        let toml_content = r#"
+model = "claude-3"
+
+[env_vars]
+PROJECT_ID = "proj-123"
+RUST_LOG = "debug"
+"#;
+
+        let settings = SettingsLoader::parse_toml_config(toml_content);
+        assert!(settings.is_ok());
+
+        let settings = settings.unwrap();
+        assert_eq!(
+            settings.env_vars.get("PROJECT_ID"),
+            Some(&"proj-123".to_string())
+        );
+        assert_eq!(
+            settings.env_vars.get("RUST_LOG"),
+            Some(&"debug".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_toml_config_with_plugins() {
+        let toml_content = r#"
+model = "claude-3"
+
+[enabled_plugins]
+github = true
+gitlab = false
+custom_tool = true
+"#;
+
+        let settings = SettingsLoader::parse_toml_config(toml_content);
+        assert!(settings.is_ok());
+
+        let settings = settings.unwrap();
+        assert_eq!(settings.enabled_plugins.get("github"), Some(&true));
+        assert_eq!(settings.enabled_plugins.get("gitlab"), Some(&false));
+        assert_eq!(settings.enabled_plugins.get("custom_tool"), Some(&true));
+    }
+
+    #[test]
+    fn test_parse_toml_config_with_disable_bypass() {
+        let toml_content = r#"
+model = "claude-3"
+disable_bypass_permissions = true
+"#;
+
+        let settings = SettingsLoader::parse_toml_config(toml_content);
+        assert!(settings.is_ok());
+
+        let settings = settings.unwrap();
+        assert!(settings.disable_bypass_permissions);
+    }
+
+    #[test]
+    fn test_parse_toml_config_invalid_syntax() {
+        let toml_content = r#"
+model = "claude-3"
+invalid syntax here
+"#;
+
+        let result = SettingsLoader::parse_toml_config(toml_content);
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert!(error.contains("Invalid TOML"));
+    }
+
+    #[test]
+    fn test_parse_toml_config_empty() {
+        let toml_content = "";
+
+        let settings = SettingsLoader::parse_toml_config(toml_content);
+        assert!(settings.is_ok());
+
+        let settings = settings.unwrap();
+        assert!(settings.is_empty());
+    }
+
+    #[test]
+    fn test_parse_toml_config_comprehensive() {
+        let toml_content = r#"
+model = "claude-3-opus-20240229"
+api_url = "https://api.anthropic.com/v1/messages"
+timeout_secs = 180
+cleanup_period_days = 60
+disable_bypass_permissions = true
+
+[env_vars]
+PROJECT_NAME = "test-project"
+DATABASE_URL = "postgresql://localhost/test"
+
+[permissions.bash]
+mode = "ask"
+patterns = ["ls", "cat", "git"]
+
+[permissions.edit]
+mode = "allow"
+patterns = ["*.rs", "*.toml"]
+
+[enabled_plugins]
+github = true
+gitlab = false
+jira = true
+"#;
+
+        let settings = SettingsLoader::parse_toml_config(toml_content);
+        assert!(settings.is_ok());
+
+        let settings = settings.unwrap();
+
+        // Verify all fields
+        assert_eq!(settings.model, Some("claude-3-opus-20240229".to_string()));
+        assert_eq!(
+            settings.api_url,
+            Some("https://api.anthropic.com/v1/messages".to_string())
+        );
+        assert_eq!(settings.timeout_secs, Some(180));
+        assert_eq!(settings.cleanup_period_days, 60);
+        assert!(settings.disable_bypass_permissions);
+
+        // Verify env_vars
+        assert_eq!(settings.env_vars.len(), 2);
+        assert_eq!(
+            settings.env_vars.get("PROJECT_NAME"),
+            Some(&"test-project".to_string())
+        );
+
+        // Verify permissions
+        assert_eq!(settings.permissions.len(), 2);
+        assert!(settings.permissions.contains_key("bash"));
+        assert!(settings.permissions.contains_key("edit"));
+
+        // Verify plugins
+        assert_eq!(settings.enabled_plugins.len(), 3);
+        assert_eq!(settings.enabled_plugins.get("github"), Some(&true));
+        assert_eq!(settings.enabled_plugins.get("gitlab"), Some(&false));
+
+        // Verify validation passes
+        assert!(settings.validate().is_ok());
     }
 }

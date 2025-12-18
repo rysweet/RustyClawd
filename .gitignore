@@ -42,5 +42,23 @@ api_keys.txt
 node_modules/
 package-lock.json
 
-# Claude runtime files
-.claude/runtime
+# Claude Code runtime (local only)
+.claude/runtime/
+
+# Screenshots folder symlink (WSL hack)
+Screenshots
+Screenshots/
+Screenshots/*
+
+# Backup directories (prevent repo pollution)
+.claude.backup*/
+*.backup/
+
+# Point-in-time reports (archive manually if needed)
+*_SUMMARY.txt
+*_REPORT*.md
+*_FINDINGS.md
+
+# Python cache
+__pycache__/
+*.pyc

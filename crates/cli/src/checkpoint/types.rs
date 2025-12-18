@@ -401,7 +401,10 @@ impl Session {
     /// Create a checkpoint of the current session state
     pub fn create_checkpoint(&mut self, description: Option<String>) -> String {
         let checkpoint_id = format!("checkpoint-{}-{}", self.id, self.current_checkpoint_number);
-        let now_ms = 0; // In real code, this would be current time
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
 
         let mut checkpoint = Checkpoint::new(
             checkpoint_id.clone(),
