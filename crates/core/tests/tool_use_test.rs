@@ -163,7 +163,11 @@ fn test_tool_result_deserialization_with_array() {
     let result: ContentBlock = serde_json::from_str(json_str).expect("Failed to deserialize");
 
     match result {
-        ContentBlock::ToolResult { tool_use_id, content, is_error } => {
+        ContentBlock::ToolResult {
+            tool_use_id,
+            content,
+            is_error,
+        } => {
             assert_eq!(tool_use_id, "tool_test");
             assert_eq!(content.len(), 1);
             assert!(is_error.is_none());
@@ -179,15 +183,13 @@ fn test_tool_result_deserialization_with_array() {
 
 #[test]
 fn test_message_with_tool_result_blocks() {
-    let blocks = vec![
-        ContentBlock::ToolResult {
-            tool_use_id: "tool_1".to_string(),
-            content: vec![ContentBlock::Text {
-                text: "Tool output".to_string(),
-            }],
-            is_error: None,
-        },
-    ];
+    let blocks = vec![ContentBlock::ToolResult {
+        tool_use_id: "tool_1".to_string(),
+        content: vec![ContentBlock::Text {
+            text: "Tool output".to_string(),
+        }],
+        is_error: None,
+    }];
 
     let msg = Message::with_blocks(Role::User, blocks);
     let json_str = serde_json::to_string(&msg).expect("Failed to serialize");
