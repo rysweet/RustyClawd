@@ -85,6 +85,16 @@ pub async fn handle_check_updates(force: bool) -> Result<UpdateOperationResult, 
                 restart_required: false,
             })
         }
+        Err(UpdateError::NoReleasesAvailable) => {
+            info!("No releases available yet");
+
+            Ok(UpdateOperationResult {
+                success: true,
+                message: "No releases are available yet. This is expected for repositories that haven't published any releases.".to_string(),
+                version: None,
+                restart_required: false,
+            })
+        }
         Err(e) => {
             error!("Failed to check for updates: {}", e);
 

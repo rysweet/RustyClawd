@@ -384,9 +384,10 @@ pub async fn execute_tool_with_hooks(
 
 /// Execute Bash tool
 async fn execute_bash_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    // Protect terminal state during bash execution
-    let _guard = TerminalGuard::new()
-        .map_err(|e| ClientError::Api(format!("Failed to create terminal guard: {}", e)))?;
+    // NOTE: TerminalGuard is NOT used here because bash tools now execute in background tasks
+    // during TUI mode. Suspending terminal state would black out the TUI and break interactivity.
+    // Instead, bash subprocesses are isolated from terminal via proper stdio redirection
+    // (stdin redirected to /dev/null, stdout/stderr captured).
 
     let params: rustyclawd_tools::bash::BashParams =
         serde_json::from_value(input).map_err(|e| create_schema_error("Bash", &e.to_string()))?;
@@ -417,7 +418,6 @@ async fn execute_bash_tool(input: Value, ctx: &ToolContext) -> Result<Value, Cli
     Err(ClientError::Api(
         "Bash tool completed without result".to_string(),
     ))
-    // Guard is automatically dropped here, restoring terminal state
 }
 
 /// Execute Read tool
