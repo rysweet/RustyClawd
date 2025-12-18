@@ -330,6 +330,7 @@ async fn test_pre_tool_use_hook_fires_before_any_tool() {
         "auto".to_string(),
         HookEvent::PreToolUse,
         "Write".to_string(),
+        None,
     );
 
     let results = system
@@ -409,6 +410,7 @@ async fn test_pre_tool_use_allow_decision() {
         "auto".to_string(),
         HookEvent::PreToolUse,
         "Write".to_string(),
+        None,
     );
 
     // WHEN: Hook returns allow decision
@@ -485,6 +487,7 @@ async fn test_pre_tool_use_ask_decision() {
         "auto".to_string(),
         HookEvent::PreToolUse,
         "Write".to_string(),
+        None,
     );
 
     // WHEN: Hook returns ask decision
@@ -1192,6 +1195,7 @@ async fn test_hook_timeout_handling() {
         "auto".to_string(),
         HookEvent::PreToolUse,
         "Write".to_string(),
+        None,
     );
 
     // WHEN: Hook times out
