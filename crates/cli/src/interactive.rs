@@ -483,11 +483,23 @@ impl InteractiveSession {
 
                                 // Parse tool result
                                 let tool_result = if let rustyclawd_core::client::types::ContentBlock::ToolResult { content, is_error, .. } = &result {
+                                // Extract text from ContentBlocks
+                                let content_text = content.iter()
+                                    .filter_map(|block| {
+                                        if let rustyclawd_core::client::types::ContentBlock::Text { text } = block {
+                                            Some(text.as_str())
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect::<Vec<&str>>()
+                                    .join("");
+
                                 // Debug: log the raw content
-                                self.tui.push_debug(format!("[TOOL] Result content: {}", content));
+                                self.tui.push_debug(format!("[TOOL] Result content: {}", content_text));
 
                                 // Try to parse as JSON (for bash tools)
-                                let (exit_code, stdout, stderr) = if let Ok(json) = serde_json::from_str::<serde_json::Value>(content) {
+                                let (exit_code, stdout, stderr) = if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content_text) {
                                     let exit_code = json.get("exit_code").and_then(|v| v.as_i64()).map(|v| v as i32);
                                     let stdout = json.get("stdout").and_then(|v| v.as_str()).unwrap_or("").to_string();
                                     let stderr = json.get("stderr").and_then(|v| v.as_str()).unwrap_or("").to_string();
@@ -500,7 +512,7 @@ impl InteractiveSession {
                                     (exit_code, stdout, stderr)
                                 } else {
                                     // Plain text result
-                                    (None, content.clone(), String::new())
+                                    (None, content_text.clone(), String::new())
                                 };
 
                                 crate::tui::ToolResult {
@@ -508,7 +520,7 @@ impl InteractiveSession {
                                     stdout,
                                     stderr,
                                     is_error: is_error.unwrap_or(false),
-                                    raw_content: content.clone(),
+                                    raw_content: content_text,
                                 }
                             } else {
                                 // Non-ToolResult content block (shouldn't happen)
