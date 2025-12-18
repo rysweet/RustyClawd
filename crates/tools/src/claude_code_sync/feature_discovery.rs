@@ -48,8 +48,8 @@ impl FeatureDiscovery {
 
     /// Fetch features from Claude Code changelog
     async fn fetch_from_changelog(&self) -> Result<Vec<ClaudeFeature>> {
-        // Claude Code changelog is typically in their docs or release notes
-        let url = "https://docs.anthropic.com/en/docs/changelog";
+        // Claude Code CLI changelog on GitHub
+        let url = "https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md";
 
         let response = self
             .client
@@ -58,19 +58,19 @@ impl FeatureDiscovery {
             .await
             .context("Failed to fetch Claude Code changelog")?;
 
-        let html = response
+        let markdown = response
             .text()
             .await
             .context("Failed to read changelog response")?;
 
-        // Parse features from changelog
-        self.parse_changelog(&html)
+        // Parse features from changelog (already markdown, no conversion needed)
+        self.parse_changelog(&markdown)
     }
 
     /// Fetch features from Claude Code documentation
     async fn fetch_from_docs(&self) -> Result<Vec<ClaudeFeature>> {
-        // Claude Code tools documentation
-        let url = "https://docs.anthropic.com/en/docs/build-with-claude/tool-use";
+        // Claude Code README on GitHub (contains feature overview)
+        let url = "https://raw.githubusercontent.com/anthropics/claude-code/main/README.md";
 
         let response = self
             .client
@@ -79,26 +79,23 @@ impl FeatureDiscovery {
             .await
             .context("Failed to fetch Claude Code docs")?;
 
-        let html = response
+        let markdown = response
             .text()
             .await
             .context("Failed to read docs response")?;
 
-        // Parse features from documentation
-        self.parse_docs(&html)
+        // Parse features from documentation (already markdown)
+        self.parse_docs(&markdown)
     }
 
-    /// Parse features from changelog HTML
-    fn parse_changelog(&self, html: &str) -> Result<Vec<ClaudeFeature>> {
+    /// Parse features from changelog markdown
+    fn parse_changelog(&self, markdown: &str) -> Result<Vec<ClaudeFeature>> {
         let mut features = Vec::new();
 
-        // Convert HTML to markdown for easier parsing
-        let markdown = html2md::parse_html(html);
-
-        // Look for tool/feature mentions in changelog
+        // Look for CLI features in changelog (v2.0.65-2.0.67)
         for line in markdown.lines() {
-            // Look for tool mentions (e.g., "Bash tool", "Read tool")
-            if let Some(feature) = self.extract_feature_from_line(line, "tools") {
+            // Look for feature mentions in release notes
+            if let Some(feature) = self.extract_feature_from_line(line, "cli-features") {
                 features.push(feature);
             }
         }
@@ -106,16 +103,13 @@ impl FeatureDiscovery {
         Ok(features)
     }
 
-    /// Parse features from documentation HTML
-    fn parse_docs(&self, html: &str) -> Result<Vec<ClaudeFeature>> {
+    /// Parse features from documentation markdown
+    fn parse_docs(&self, markdown: &str) -> Result<Vec<ClaudeFeature>> {
         let mut features = Vec::new();
 
-        // Convert HTML to markdown
-        let markdown = html2md::parse_html(html);
-
-        // Look for tool definitions
+        // Look for CLI tool/feature definitions in README
         for line in markdown.lines() {
-            if let Some(feature) = self.extract_feature_from_line(line, "tools") {
+            if let Some(feature) = self.extract_feature_from_line(line, "cli-features") {
                 features.push(feature);
             }
         }

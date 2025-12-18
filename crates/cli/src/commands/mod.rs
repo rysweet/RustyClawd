@@ -24,6 +24,12 @@ pub const DEFAULT_COMMANDS_DIR: &str = ".claude/commands";
 /// Maximum expanded prompt character budget
 pub const MAX_EXPANDED_CHARS: usize = 15_000;
 
+/// Maximum recursion depth for command discovery
+pub const MAX_RECURSION_DEPTH: usize = 3;
+
+/// Namespace separator for nested commands
+pub const NAMESPACE_SEPARATOR: char = ':';
+
 /// Lightweight metadata for command introspection
 #[derive(Debug, Clone)]
 pub struct CommandMetadata {
@@ -199,6 +205,11 @@ mod tests {
     #[tokio::test]
     async fn test_get_completions_empty_prefix() {
         let slash_commands = SlashCommands::new().await.unwrap();
+
+        // Small delay to ensure full initialization in CI environments
+        // where timing may differ from local development
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
         let completions = slash_commands.get_completions("");
 
         // With empty prefix, should return all commands

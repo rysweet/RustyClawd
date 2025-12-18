@@ -110,11 +110,21 @@ impl UpdateScheduler {
         let update_info = match github_client.get_update_info(current_version).await {
             Ok(info) => info,
             Err(e) => {
-                warn!("Failed to check for updates: {}", e);
+                // Don't warn if there are simply no releases available yet
+                use crate::update::error::UpdateError;
+                if !matches!(e, UpdateError::NoReleasesAvailable) {
+                    warn!("Failed to check for updates: {}", e);
+                } else {
+                    debug!("No releases available for update check");
+                }
                 return Ok(ScheduledCheckResult {
                     check_performed: true,
                     update_available: None,
-                    reason: format!("Failed to check: {}", e),
+                    reason: if matches!(e, UpdateError::NoReleasesAvailable) {
+                        "No releases available".to_string()
+                    } else {
+                        format!("Failed to check: {}", e)
+                    },
                     timestamp: current_unix_timestamp(),
                 });
             }

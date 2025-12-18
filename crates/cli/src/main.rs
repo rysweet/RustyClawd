@@ -564,7 +564,14 @@ impl App {
                             tracing::debug!("Already at latest version");
                         }
                         Err(e) => {
-                            tracing::warn!("Background update check failed: {}", e);
+                            // Don't warn if there are simply no releases available yet
+                            // This is expected for repos that haven't published releases
+                            use rustyclawd::update::error::UpdateError;
+                            if !matches!(e, UpdateError::NoReleasesAvailable) {
+                                tracing::warn!("Background update check failed: {}", e);
+                            } else {
+                                tracing::debug!("No releases available for update check");
+                            }
                         }
                     }
                 });
@@ -1238,6 +1245,15 @@ impl App {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // CRITICAL: Set COLORTERM for Windows Terminal + WSL RGB color support
+    // Windows Terminal doesn't set COLORTERM automatically in WSL, causing RGB
+    // colors to be rendered incorrectly. This is a known issue with crossterm
+    // and ratatui on Windows Terminal + WSL.
+    // See: https://github.com/microsoft/terminal/issues/11057
+    if std::env::var("COLORTERM").is_err() {
+        std::env::set_var("COLORTERM", "truecolor");
+    }
+
     // Parse CLI arguments
     let cli = Cli::parse();
 

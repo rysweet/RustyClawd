@@ -142,9 +142,10 @@ impl GitHubClient {
 
         let status = response.status();
         if !status.is_success() {
-            // Detect private repository access errors
             let status_code = status.as_u16();
-            if status_code == 401 || status_code == 403 || status_code == 404 {
+
+            // Detect private repository access errors (401/403) or 404
+            if status_code == 401 || status_code == 403 {
                 tracing::warn!(
                     "Private repository access detected (HTTP {}), will try fallback methods",
                     status_code
@@ -152,6 +153,13 @@ impl GitHubClient {
                 return Err(UpdateError::PrivateRepositoryAccess {
                     status: status_code,
                 });
+            }
+
+            // Handle 404 specifically - could be no releases or private repo
+            if status_code == 404 {
+                // Try to determine if this is a private repo or just no releases
+                // For now, treat 404 as NoReleasesAvailable since fallback will handle private repos
+                return Err(UpdateError::NoReleasesAvailable);
             }
 
             return Err(UpdateError::GitHubApiError(format!(

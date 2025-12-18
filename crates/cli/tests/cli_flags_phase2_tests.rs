@@ -27,7 +27,7 @@ use tempfile::TempDir;
 
 #[test]
 fn test_fork_session_flag_accepted() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--help");
 
     let output = cmd.output().unwrap();
@@ -42,7 +42,7 @@ fn test_fork_session_flag_accepted() {
 
 #[test]
 fn test_fallback_model_flag_accepted() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--help");
 
     let output = cmd.output().unwrap();
@@ -56,7 +56,7 @@ fn test_fallback_model_flag_accepted() {
 
 #[test]
 fn test_settings_flag_accepted() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--help");
 
     let output = cmd.output().unwrap();
@@ -70,7 +70,7 @@ fn test_settings_flag_accepted() {
 
 #[test]
 fn test_ide_flag_accepted() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--help");
 
     let output = cmd.output().unwrap();
@@ -81,7 +81,7 @@ fn test_ide_flag_accepted() {
 
 #[test]
 fn test_mcp_config_flag_accepted() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--help");
 
     let output = cmd.output().unwrap();
@@ -95,7 +95,7 @@ fn test_mcp_config_flag_accepted() {
 
 #[test]
 fn test_resume_from_checkpoint_flag_accepted() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--help");
 
     let output = cmd.output().unwrap();
@@ -109,7 +109,7 @@ fn test_resume_from_checkpoint_flag_accepted() {
 
 #[test]
 fn test_model_capabilities_flag_accepted() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--help");
 
     let output = cmd.output().unwrap();
@@ -123,7 +123,7 @@ fn test_model_capabilities_flag_accepted() {
 
 #[test]
 fn test_dangerous_mode_flag_accepted() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--help");
 
     let output = cmd.output().unwrap();
@@ -142,7 +142,7 @@ fn test_dangerous_mode_flag_accepted() {
 
 #[test]
 fn test_fork_session_with_fallback_model() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--fork-session")
         .arg("test-session")
         .arg("--fallback-model")
@@ -155,7 +155,7 @@ fn test_fork_session_with_fallback_model() {
 
 #[test]
 fn test_ide_mode_with_settings() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--ide")
         .arg("--settings")
         .arg("./test-settings.json")
@@ -166,7 +166,7 @@ fn test_ide_mode_with_settings() {
 
 #[test]
 fn test_dangerous_mode_with_mcp_config() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--dangerous-mode")
         .arg("--mcp-config")
         .arg("./mcp.json")
@@ -177,7 +177,7 @@ fn test_dangerous_mode_with_mcp_config() {
 
 #[test]
 fn test_all_phase2_flags_combined() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--fork-session")
         .arg("session-123")
         .arg("--fallback-model")
@@ -204,7 +204,7 @@ fn test_all_phase2_flags_combined() {
 
 #[test]
 fn test_resume_from_checkpoint_rejects_negative() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--resume-from-checkpoint").arg("-1");
 
     // Should fail with invalid value
@@ -213,7 +213,7 @@ fn test_resume_from_checkpoint_rejects_negative() {
 
 #[test]
 fn test_resume_from_checkpoint_rejects_non_numeric() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--resume-from-checkpoint").arg("abc");
 
     // Should fail with invalid value
@@ -232,7 +232,7 @@ fn test_settings_flag_overrides_default() {
     let settings_path = temp_dir.path().join("test-settings.json");
     fs::write(&settings_path, r#"{"model": "test-model"}"#).unwrap();
 
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--settings")
         .arg(settings_path.to_str().unwrap())
         .arg("--help");
@@ -243,7 +243,7 @@ fn test_settings_flag_overrides_default() {
 
 #[test]
 fn test_model_capabilities_accepts_valid_json() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--model-capabilities")
         .arg(r#"{"max_tokens":8192,"tools":true}"#)
         .arg("--help");
@@ -254,7 +254,7 @@ fn test_model_capabilities_accepts_valid_json() {
 #[test]
 fn test_ide_flag_boolean() {
     // Test that --ide doesn't require a value (boolean flag)
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--ide").arg("--help");
 
     cmd.assert().success();
@@ -263,7 +263,7 @@ fn test_ide_flag_boolean() {
 #[test]
 fn test_dangerous_mode_boolean() {
     // Test that --dangerous-mode doesn't require a value (boolean flag)
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--dangerous-mode").arg("--help");
 
     cmd.assert().success();
@@ -276,7 +276,7 @@ fn test_dangerous_mode_boolean() {
 
 #[test]
 fn test_all_phase2_flags_documented_in_help() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--help");
 
     let output = cmd.output().unwrap();
@@ -305,7 +305,7 @@ fn test_all_phase2_flags_documented_in_help() {
 
 #[test]
 fn test_dangerous_mode_has_warning_in_help() {
-    let mut cmd = cargo_bin_cmd!("claude");
+    let mut cmd = cargo_bin_cmd!("rusty");
     cmd.arg("--help");
 
     let output = cmd.output().unwrap();

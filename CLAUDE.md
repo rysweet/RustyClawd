@@ -902,3 +902,5 @@ liberally, execute in parallel, and continuously learn.
 
 1. Executable tool in `.claude/scenarios/` (the program itself)
 2. Skill in `.claude/skills/` that calls the tool (convenient interface)
+
+## Memory - 2025-12-10 09:21:07 - Use the ratatui-expert sub-agent when workign on TUI features, bugs, etc.
