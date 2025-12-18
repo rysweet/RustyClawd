@@ -341,7 +341,9 @@ impl Client {
 
                             tool_result_blocks.push(ContentBlock::ToolResult {
                                 tool_use_id: id.clone(),
-                                content: result.to_string(),
+                                content: vec![ContentBlock::Text {
+                                    text: result.to_string(),
+                                }],
                                 is_error: None,
                             });
                         }
@@ -353,7 +355,9 @@ impl Client {
 
                             tool_result_blocks.push(ContentBlock::ToolResult {
                                 tool_use_id: id.clone(),
-                                content: format!("Tool execution error: {}", e),
+                                content: vec![ContentBlock::Text {
+                                    text: format!("Tool execution error: {}", e),
+                                }],
                                 is_error: Some(true),
                             });
                         }

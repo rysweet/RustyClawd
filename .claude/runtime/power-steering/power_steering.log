@@ -54,3 +54,12 @@
 [2025-12-08T16:30:59.081955] INFO: Loaded 22 considerations from YAML
 [2025-12-08T16:30:59.082460] DEBUG: Path validated: within user home directory
 [2025-12-08T16:30:59.097703] ERROR: Power-steering error (fail-open): Expecting ',' delimiter: line 1 column 27 (char 26)
+[2025-12-18T14:49:39.561831] INFO: Loaded 22 considerations from YAML
+[2025-12-18T14:49:39.579062] INFO: Loaded 22 considerations from YAML
+[2025-12-18T14:49:39.582355] DEBUG: Path validated: within user home directory
+[2025-12-18T14:49:39.591148] DEBUG: Investigation keyword 'investigate' found in user message
+[2025-12-18T14:49:39.593361] INFO: Session classified as INVESTIGATION via keyword detection
+[2025-12-18T14:49:39.595535] INFO: Session classified as: INVESTIGATION
+[2025-12-18T14:50:25.601410] INFO: Parallel analysis completed: 6 checks in 46.0s
+[2025-12-18T14:50:25.605375] DEBUG: Message branch: CHECKS_FAILED (passed=0, failed=6, skipped=16)
+[2025-12-18T14:50:25.607691] INFO: Saved redirect #1 for session 20251218_144939

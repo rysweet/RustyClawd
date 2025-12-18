@@ -94,8 +94,7 @@ fn test_tool_use_id_serialization() {
     assert!(json.contains("toolu_test123"));
 
     // Deserialize back
-    let deserialized: HookContext =
-        serde_json::from_str(&json).expect("Failed to deserialize");
+    let deserialized: HookContext = serde_json::from_str(&json).expect("Failed to deserialize");
 
     assert_eq!(deserialized.tool_use_id, Some("toolu_test123".to_string()));
     assert_eq!(deserialized.tool_name, Some("Read".to_string()));
@@ -121,8 +120,7 @@ fn test_tool_use_id_not_in_json_when_none() {
     assert!(!json.contains("tool_use_id"));
 
     // Deserialize back
-    let deserialized: HookContext =
-        serde_json::from_str(&json).expect("Failed to deserialize");
+    let deserialized: HookContext = serde_json::from_str(&json).expect("Failed to deserialize");
 
     assert_eq!(deserialized.tool_use_id, None);
 }

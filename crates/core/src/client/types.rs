@@ -162,7 +162,7 @@ pub enum ContentBlock {
     },
     ToolResult {
         tool_use_id: String,
-        content: String,
+        content: Vec<ContentBlock>,
         #[serde(skip_serializing_if = "Option::is_none")]
         is_error: Option<bool>,
     },
