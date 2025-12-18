@@ -119,6 +119,7 @@ impl crate::Tool for BashTool {
             cmd.arg("-c")
                 .arg(&command)
                 .current_dir(&cwd)
+                .stdin(std::process::Stdio::null())   // Isolate stdin - prevent terminal access
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped());
 

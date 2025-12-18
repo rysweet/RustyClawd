@@ -1,0 +1,1 @@
+{"created_at_ms":1765458248100,"description":"Checkpoint 0","file_changes":[],"id":"checkpoint-test-session-1765458248100843053-0","messages":[{"content":"Message 0","role":"user","timestamp_ms":1765458248100}],"number":0,"session_state":{"active_contexts":[],"cwd":"/mnt/c/Users/noahbaertsch/Projects/RustyClawd/crates/cli","env":{}}}

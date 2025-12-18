@@ -42,8 +42,13 @@ api_keys.txt
 node_modules/
 package-lock.json
 
-# Claude Code framework (local only)
-.claude/
+# Claude Code runtime (local only)
+.claude/runtime/
+
+# Screenshots folder symlink (WSL hack)
+Screenshots
+Screenshots/
+Screenshots/*
 
 # Backup directories (prevent repo pollution)
 .claude.backup*/
