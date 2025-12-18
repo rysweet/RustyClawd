@@ -65,6 +65,10 @@ pub enum UpdateError {
     #[error("Invalid state data: {0}")]
     InvalidStateData(String),
 
+    /// No releases available (not an error, just informational)
+    #[error("No releases available for repository")]
+    NoReleasesAvailable,
+
     /// Private repository access error (401/403/404)
     #[error("Private repository access denied (HTTP {status})")]
     PrivateRepositoryAccess { status: u16 },
