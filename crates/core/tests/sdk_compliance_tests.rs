@@ -354,8 +354,15 @@ fn test_content_block_tool_result() {
             is_error,
         } => {
             assert_eq!(tool_use_id, "toolu_123");
-            let text = content.iter()
-                .filter_map(|b| if let ContentBlock::Text { text } = b { Some(text.as_str()) } else { None })
+            let text = content
+                .iter()
+                .filter_map(|b| {
+                    if let ContentBlock::Text { text } = b {
+                        Some(text.as_str())
+                    } else {
+                        None
+                    }
+                })
                 .collect::<Vec<_>>()
                 .join("");
             assert_eq!(text, "Temperature: 72°F");
@@ -954,7 +961,9 @@ fn test_parallel_tool_use_matching_ids() {
 fn test_tool_result_with_is_error_flag() {
     let error_result = ContentBlock::ToolResult {
         tool_use_id: "toolu_1".to_string(),
-        content: vec![ContentBlock::Text { text: "Connection timeout".to_string() }],
+        content: vec![ContentBlock::Text {
+            text: "Connection timeout".to_string(),
+        }],
         is_error: Some(true),
     };
 
@@ -970,7 +979,9 @@ fn test_tool_result_with_is_error_flag() {
 fn test_tool_result_success_no_error_flag() {
     let success_result = ContentBlock::ToolResult {
         tool_use_id: "toolu_1".to_string(),
-        content: vec![ContentBlock::Text { text: "Success".to_string() }],
+        content: vec![ContentBlock::Text {
+            text: "Success".to_string(),
+        }],
         is_error: None,
     };
 
@@ -986,7 +997,9 @@ fn test_tool_result_success_no_error_flag() {
 fn test_tool_result_with_error_message() {
     let error_result = ContentBlock::ToolResult {
         tool_use_id: "toolu_1".to_string(),
-        content: vec![ContentBlock::Text { text: "FileNotFoundError: /path/to/file does not exist".to_string() }],
+        content: vec![ContentBlock::Text {
+            text: "FileNotFoundError: /path/to/file does not exist".to_string(),
+        }],
         is_error: Some(true),
     };
 
@@ -994,8 +1007,15 @@ fn test_tool_result_with_error_message() {
         ContentBlock::ToolResult {
             content, is_error, ..
         } => {
-            let text = content.iter()
-                .filter_map(|b| if let ContentBlock::Text { text } = b { Some(text.as_str()) } else { None })
+            let text = content
+                .iter()
+                .filter_map(|b| {
+                    if let ContentBlock::Text { text } = b {
+                        Some(text.as_str())
+                    } else {
+                        None
+                    }
+                })
                 .collect::<Vec<_>>()
                 .join("");
             assert!(text.contains("FileNotFoundError"));
@@ -1263,7 +1283,9 @@ fn test_tool_execution_conversation_flow() {
         Role::User,
         vec![ContentBlock::ToolResult {
             tool_use_id: "toolu_1".to_string(),
-            content: vec![ContentBlock::Text { text: "72°F, sunny".to_string() }],
+            content: vec![ContentBlock::Text {
+                text: "72°F, sunny".to_string(),
+            }],
             is_error: None,
         }],
     ));
@@ -1508,7 +1530,9 @@ fn test_content_block_tool_use_serialization() {
 fn test_content_block_tool_result_serialization() {
     let block = ContentBlock::ToolResult {
         tool_use_id: "toolu_abc".to_string(),
-        content: vec![ContentBlock::Text { text: "result data".to_string() }],
+        content: vec![ContentBlock::Text {
+            text: "result data".to_string(),
+        }],
         is_error: None,
     };
 
@@ -1543,14 +1567,23 @@ fn test_empty_tool_input() {
 fn test_tool_result_empty_content() {
     let block = ContentBlock::ToolResult {
         tool_use_id: "t1".to_string(),
-        content: vec![ContentBlock::Text { text: "".to_string() }],
+        content: vec![ContentBlock::Text {
+            text: "".to_string(),
+        }],
         is_error: None,
     };
 
     match block {
         ContentBlock::ToolResult { content, .. } => {
-            let text = content.iter()
-                .filter_map(|b| if let ContentBlock::Text { text } = b { Some(text.as_str()) } else { None })
+            let text = content
+                .iter()
+                .filter_map(|b| {
+                    if let ContentBlock::Text { text } = b {
+                        Some(text.as_str())
+                    } else {
+                        None
+                    }
+                })
                 .collect::<Vec<_>>()
                 .join("");
             assert_eq!(text, "");
@@ -1780,7 +1813,9 @@ fn test_sequential_tool_calls_conversation() {
             Role::User,
             vec![ContentBlock::ToolResult {
                 tool_use_id: "t1".to_string(),
-                content: vec![ContentBlock::Text { text: "app.config".to_string() }],
+                content: vec![ContentBlock::Text {
+                    text: "app.config".to_string(),
+                }],
                 is_error: None,
             }],
         ),
@@ -1798,7 +1833,9 @@ fn test_sequential_tool_calls_conversation() {
             Role::User,
             vec![ContentBlock::ToolResult {
                 tool_use_id: "t2".to_string(),
-                content: vec![ContentBlock::Text { text: "port=8080".to_string() }],
+                content: vec![ContentBlock::Text {
+                    text: "port=8080".to_string(),
+                }],
                 is_error: None,
             }],
         ),
