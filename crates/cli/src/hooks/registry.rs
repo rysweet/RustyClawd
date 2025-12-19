@@ -200,6 +200,7 @@ mod tests {
             "auto".to_string(),
             HookEvent::PreToolUse,
             "Write".to_string(),
+            None,
         );
 
         let hooks = registry.get_hooks_for_event(&HookEvent::PreToolUse, &context);
@@ -224,6 +225,7 @@ mod tests {
             "auto".to_string(),
             HookEvent::PreToolUse,
             "Read".to_string(),
+            None,
         );
 
         let hooks = registry.get_hooks_for_event(&HookEvent::PreToolUse, &context);
@@ -271,6 +273,7 @@ mod tests {
             "auto".to_string(),
             HookEvent::PreToolUse,
             "Edit".to_string(),
+            None,
         );
 
         let context_write = HookContext::for_tool(
@@ -280,6 +283,7 @@ mod tests {
             "auto".to_string(),
             HookEvent::PreToolUse,
             "Write".to_string(),
+            None,
         );
 
         let hooks_edit = registry.get_hooks_for_event(&HookEvent::PreToolUse, &context_edit);
@@ -372,6 +376,7 @@ mod tests {
             "auto".to_string(),
             HookEvent::PreToolUse,
             "mcp__server__tool".to_string(),
+            None,
         );
 
         let hooks = registry.get_hooks_for_event(&HookEvent::PreToolUse, &context);

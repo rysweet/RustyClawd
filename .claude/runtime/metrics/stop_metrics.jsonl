@@ -23,3 +23,8 @@
 {"timestamp": "2025-12-08T16:24:03.497585", "metric": "reflection_disabled_checks", "value": 1, "hook": "stop"}
 {"timestamp": "2025-12-08T16:30:59.098608", "metric": "power_steering_approves", "value": 1, "hook": "stop"}
 {"timestamp": "2025-12-08T16:30:59.098776", "metric": "reflection_disabled_checks", "value": 1, "hook": "stop"}
+{"timestamp": "2025-12-18T14:50:25.609726", "metric": "power_steering_first_stop_visibility", "value": 1, "hook": "stop"}
+{"timestamp": "2025-12-18T16:34:52.736959", "metric": "power_steering_approves", "value": 1, "hook": "stop"}
+{"timestamp": "2025-12-18T16:34:52.738404", "metric": "reflection_disabled_checks", "value": 1, "hook": "stop"}
+{"timestamp": "2025-12-18T17:02:58.777778", "metric": "power_steering_approves", "value": 1, "hook": "stop"}
+{"timestamp": "2025-12-18T17:02:58.786712", "metric": "reflection_disabled_checks", "value": 1, "hook": "stop"}

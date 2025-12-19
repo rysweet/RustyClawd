@@ -1605,6 +1605,7 @@ impl InteractiveSession {
                     hooks,
                     session_id,
                     notification_manager.as_ref(),
+                    Some(id.clone()),
                 )
                 .await;
 

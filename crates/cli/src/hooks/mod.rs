@@ -80,6 +80,8 @@ impl Default for HooksSystem {
 mod tests {
     use super::*;
 
+    mod test_tool_use_id;
+
     #[test]
     fn test_hooks_system_creation() {
         let system = HooksSystem::new();

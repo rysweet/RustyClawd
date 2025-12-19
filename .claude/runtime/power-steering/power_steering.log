@@ -54,3 +54,30 @@
 [2025-12-08T16:30:59.081955] INFO: Loaded 22 considerations from YAML
 [2025-12-08T16:30:59.082460] DEBUG: Path validated: within user home directory
 [2025-12-08T16:30:59.097703] ERROR: Power-steering error (fail-open): Expecting ',' delimiter: line 1 column 27 (char 26)
+[2025-12-18T14:49:39.561831] INFO: Loaded 22 considerations from YAML
+[2025-12-18T14:49:39.579062] INFO: Loaded 22 considerations from YAML
+[2025-12-18T14:49:39.582355] DEBUG: Path validated: within user home directory
+[2025-12-18T14:49:39.591148] DEBUG: Investigation keyword 'investigate' found in user message
+[2025-12-18T14:49:39.593361] INFO: Session classified as INVESTIGATION via keyword detection
+[2025-12-18T14:49:39.595535] INFO: Session classified as: INVESTIGATION
+[2025-12-18T14:50:25.601410] INFO: Parallel analysis completed: 6 checks in 46.0s
+[2025-12-18T14:50:25.605375] DEBUG: Message branch: CHECKS_FAILED (passed=0, failed=6, skipped=16)
+[2025-12-18T14:50:25.607691] INFO: Saved redirect #1 for session 20251218_144939
+[2025-12-18T16:33:51.884252] INFO: Loaded 22 considerations from YAML
+[2025-12-18T16:33:51.896972] INFO: Loaded 22 considerations from YAML
+[2025-12-18T16:33:51.900152] DEBUG: Path validated: within user home directory
+[2025-12-18T16:33:51.912798] DEBUG: Investigation keyword 'investigate' found in user message
+[2025-12-18T16:33:51.913512] INFO: Session classified as INVESTIGATION via keyword detection
+[2025-12-18T16:33:51.913849] INFO: Session classified as: INVESTIGATION
+[2025-12-18T16:34:52.704697] WARNING: Parallel execution timed out after 60s
+[2025-12-18T16:34:52.723377] INFO: Parallel analysis completed: 6 checks in 60.8s
+[2025-12-18T16:34:52.730434] INFO: No power-steering checks applicable for session type - approving immediately
+[2025-12-18T17:01:56.578589] INFO: Loaded 22 considerations from YAML
+[2025-12-18T17:01:56.596314] INFO: Loaded 22 considerations from YAML
+[2025-12-18T17:01:56.606354] DEBUG: Path validated: within user home directory
+[2025-12-18T17:01:56.618832] DEBUG: Investigation keyword 'investigate' found in user message
+[2025-12-18T17:01:56.620663] INFO: Session classified as INVESTIGATION via keyword detection
+[2025-12-18T17:01:56.622674] INFO: Session classified as: INVESTIGATION
+[2025-12-18T17:02:58.751113] WARNING: Parallel execution timed out after 60s
+[2025-12-18T17:02:58.763601] INFO: Parallel analysis completed: 6 checks in 62.1s
+[2025-12-18T17:02:58.770116] INFO: No power-steering checks applicable for session type - approving immediately

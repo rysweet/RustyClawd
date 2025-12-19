@@ -1111,6 +1111,7 @@ impl App {
                         Some(hooks),
                         Some(session_id),
                         None, // No notification manager in non-interactive mode
+                        None, // No tool_use_id in non-interactive mode
                     )
                     .await
                 }
@@ -1154,6 +1155,7 @@ impl App {
                                     Some(hooks),
                                     Some(session_id),
                                     None, // No notification manager in non-interactive mode
+                                    None, // No tool_use_id in non-interactive mode
                                 )
                                 .await
                             }

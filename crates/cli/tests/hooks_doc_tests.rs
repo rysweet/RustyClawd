@@ -258,6 +258,7 @@ fn test_hook_context_tool_specific_fields() {
         "auto".to_string(),
         HookEvent::PreToolUse,
         "Bash".to_string(),
+        None,
     );
 
     assert_eq!(context.tool_name, Some("Bash".to_string()));
@@ -272,6 +273,7 @@ fn test_hook_context_serialization() {
         "auto".to_string(),
         HookEvent::PreToolUse,
         "Write".to_string(),
+        None,
     );
 
     let json = serde_json::to_string(&context).unwrap();
@@ -810,6 +812,7 @@ fn test_registry_get_hooks_exact_match() {
         "auto".to_string(),
         HookEvent::PreToolUse,
         "Write".to_string(),
+        None,
     );
 
     let hooks = registry.get_hooks_for_event(&HookEvent::PreToolUse, &context);
@@ -834,6 +837,7 @@ fn test_registry_get_hooks_no_match() {
         "auto".to_string(),
         HookEvent::PreToolUse,
         "Read".to_string(),
+        None,
     );
 
     let hooks = registry.get_hooks_for_event(&HookEvent::PreToolUse, &context);
@@ -1278,6 +1282,7 @@ fn test_scenario_multiple_matchers_same_event() {
         "auto".to_string(),
         HookEvent::PreToolUse,
         "Bash".to_string(),
+        None,
     );
 
     let hooks = registry.get_hooks_for_event(&HookEvent::PreToolUse, &context_bash);
@@ -1304,6 +1309,7 @@ fn test_scenario_regex_matching_multiple_tools() {
             "auto".to_string(),
             HookEvent::PreToolUse,
             tool.to_string(),
+            None,
         );
 
         let hooks = registry.get_hooks_for_event(&HookEvent::PreToolUse, &context);

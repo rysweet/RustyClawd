@@ -822,6 +822,7 @@ async fn test_notification_with_pretooluse_interaction() {
         "ask".to_string(),
         HookEvent::PreToolUse,
         "Write".to_string(),
+        None,
     );
 
     let pretool_results = system
