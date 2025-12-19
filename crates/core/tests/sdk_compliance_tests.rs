@@ -354,18 +354,11 @@ fn test_content_block_tool_result() {
             is_error,
         } => {
             assert_eq!(tool_use_id, "toolu_123");
-            let text = content
-                .iter()
-                .filter_map(|b| {
-                    if let ContentBlock::Text { text } = b {
-                        Some(text.as_str())
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join("");
-            assert_eq!(text, "Temperature: 72°F");
+            assert_eq!(content.len(), 1);
+            match &content[0] {
+                ContentBlock::Text { text } => assert_eq!(text, "Temperature: 72°F"),
+                _ => panic!("Expected Text content block"),
+            }
             assert!(is_error.is_none());
         }
         _ => panic!("Expected ToolResult block"),
@@ -1007,18 +1000,11 @@ fn test_tool_result_with_error_message() {
         ContentBlock::ToolResult {
             content, is_error, ..
         } => {
-            let text = content
-                .iter()
-                .filter_map(|b| {
-                    if let ContentBlock::Text { text } = b {
-                        Some(text.as_str())
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join("");
-            assert!(text.contains("FileNotFoundError"));
+            assert_eq!(content.len(), 1);
+            match &content[0] {
+                ContentBlock::Text { text } => assert!(text.contains("FileNotFoundError")),
+                _ => panic!("Expected Text content block"),
+            }
             assert_eq!(is_error, Some(true));
         }
         _ => panic!("Expected ToolResult"),
@@ -1575,18 +1561,11 @@ fn test_tool_result_empty_content() {
 
     match block {
         ContentBlock::ToolResult { content, .. } => {
-            let text = content
-                .iter()
-                .filter_map(|b| {
-                    if let ContentBlock::Text { text } = b {
-                        Some(text.as_str())
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join("");
-            assert_eq!(text, "");
+            assert_eq!(content.len(), 1);
+            match &content[0] {
+                ContentBlock::Text { text } => assert_eq!(text, ""),
+                _ => panic!("Expected Text content block"),
+            }
         }
         _ => panic!("Expected ToolResult"),
     }
