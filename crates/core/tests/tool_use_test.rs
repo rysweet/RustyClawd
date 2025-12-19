@@ -79,7 +79,9 @@ fn test_message_with_blocks() {
 fn test_content_block_tool_result() {
     let result = ContentBlock::ToolResult {
         tool_use_id: "tool_1".to_string(),
-        content: "Result data".to_string(),
+        content: vec![ContentBlock::Text {
+            text: "Result data".to_string(),
+        }],
         is_error: None,
     };
 

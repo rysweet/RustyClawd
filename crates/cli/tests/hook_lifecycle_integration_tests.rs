@@ -372,6 +372,7 @@ async fn test_pre_tool_use_receives_tool_name_and_params() {
         "auto".to_string(),
         HookEvent::PreToolUse,
         "Bash".to_string(),
+        None,
     )
     .with_tool_params(json!({
         "command": "ls -la",
@@ -449,6 +450,7 @@ async fn test_pre_tool_use_deny_decision() {
         "auto".to_string(),
         HookEvent::PreToolUse,
         "Bash".to_string(),
+        None,
     );
 
     // WHEN: Hook returns deny decision
@@ -526,6 +528,7 @@ async fn test_pre_tool_use_fail_open_on_error() {
         "auto".to_string(),
         HookEvent::PreToolUse,
         "Read".to_string(),
+        None,
     );
 
     // WHEN: Hook fails
@@ -573,6 +576,7 @@ async fn test_pre_tool_use_multiple_matchers() {
         "auto".to_string(),
         HookEvent::PreToolUse,
         "Write".to_string(),
+        None,
     );
 
     let write_results = system
@@ -616,6 +620,7 @@ async fn test_post_tool_use_fires_after_successful_execution() {
         "auto".to_string(),
         HookEvent::PostToolUse,
         "Read".to_string(),
+        None,
     )
     .with_tool_result(json!({
         "content": "file content",
@@ -658,6 +663,7 @@ async fn test_post_tool_use_fires_after_failed_execution() {
         "auto".to_string(),
         HookEvent::PostToolUse,
         "Bash".to_string(),
+        None,
     )
     .with_tool_result(json!({
         "error": "Command not found",
@@ -702,6 +708,7 @@ async fn test_post_tool_use_receives_tool_result() {
         "auto".to_string(),
         HookEvent::PostToolUse,
         "Write".to_string(),
+        None,
     )
     .with_tool_result(json!({
         "file_path": "/tmp/test.txt",
@@ -744,6 +751,7 @@ async fn test_post_tool_use_is_non_blocking() {
         "auto".to_string(),
         HookEvent::PostToolUse,
         "Read".to_string(),
+        None,
     );
 
     // WHEN: Hook returns blocking exit code
@@ -779,6 +787,7 @@ async fn test_post_tool_use_failures_logged_not_blocking() {
         "auto".to_string(),
         HookEvent::PostToolUse,
         "Bash".to_string(),
+        None,
     );
 
     // WHEN: Hook fails
@@ -1265,6 +1274,7 @@ async fn test_full_lifecycle_with_hooks() {
         "auto".to_string(),
         HookEvent::PreToolUse,
         "Write".to_string(),
+        None,
     );
 
     let pre_results = system
@@ -1280,6 +1290,7 @@ async fn test_full_lifecycle_with_hooks() {
         "auto".to_string(),
         HookEvent::PostToolUse,
         "Write".to_string(),
+        None,
     );
 
     let post_results = system
