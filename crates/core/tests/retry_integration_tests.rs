@@ -67,6 +67,7 @@ async fn test_retry_on_rate_limit_429() {
         max_retries: 3,
         initial_delay: Duration::from_millis(100),
         max_delay: Duration::from_secs(5),
+        jitter_factor: 0.0,
     };
 
     let client = create_test_client(&mock_server.uri(), retry_config);
@@ -111,6 +112,7 @@ async fn test_retry_on_503_service_unavailable() {
         max_retries: 3,
         initial_delay: Duration::from_millis(100),
         max_delay: Duration::from_secs(5),
+        jitter_factor: 0.0,
     };
 
     let client = create_test_client(&mock_server.uri(), retry_config);
@@ -144,6 +146,7 @@ async fn test_retry_on_500_server_error() {
         max_retries: 3,
         initial_delay: Duration::from_millis(100),
         max_delay: Duration::from_secs(5),
+        jitter_factor: 0.0,
     };
 
     let client = create_test_client(&mock_server.uri(), retry_config);
@@ -169,6 +172,7 @@ async fn test_no_retry_on_400_bad_request() {
         max_retries: 3,
         initial_delay: Duration::from_millis(100),
         max_delay: Duration::from_secs(5),
+        jitter_factor: 0.0,
     };
 
     let client = create_test_client(&mock_server.uri(), retry_config);
@@ -193,6 +197,7 @@ async fn test_no_retry_on_401_unauthorized() {
         max_retries: 3,
         initial_delay: Duration::from_millis(100),
         max_delay: Duration::from_secs(5),
+        jitter_factor: 0.0,
     };
 
     let client = create_test_client(&mock_server.uri(), retry_config);
@@ -217,6 +222,7 @@ async fn test_no_retry_on_403_forbidden() {
         max_retries: 3,
         initial_delay: Duration::from_millis(100),
         max_delay: Duration::from_secs(5),
+        jitter_factor: 0.0,
     };
 
     let client = create_test_client(&mock_server.uri(), retry_config);
@@ -246,6 +252,7 @@ async fn test_max_retries_exceeded() {
         max_retries: 3,
         initial_delay: Duration::from_millis(100),
         max_delay: Duration::from_secs(5),
+        jitter_factor: 0.0,
     };
 
     let client = create_test_client(&mock_server.uri(), retry_config);
@@ -278,6 +285,7 @@ async fn test_exponential_backoff() {
         max_retries: 3,
         initial_delay: Duration::from_millis(500), // 500ms
         max_delay: Duration::from_secs(5),
+        jitter_factor: 0.0,
     };
 
     let client = create_test_client(&mock_server.uri(), retry_config);
@@ -323,6 +331,7 @@ async fn test_retry_respects_retry_after_header() {
         max_retries: 3,
         initial_delay: Duration::from_millis(100), // Should be overridden by Retry-After
         max_delay: Duration::from_secs(10),
+        jitter_factor: 0.0,
     };
 
     let client = create_test_client(&mock_server.uri(), retry_config);
@@ -362,6 +371,7 @@ async fn test_custom_retry_config() {
         max_retries: 5,
         initial_delay: Duration::from_millis(200),
         max_delay: Duration::from_secs(10),
+        jitter_factor: 0.0,
     };
 
     let client = create_test_client(&mock_server.uri(), retry_config);

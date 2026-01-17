@@ -20,6 +20,7 @@ fn test_retry_config_custom() {
         max_retries: 5,
         initial_delay: Duration::from_secs(2),
         max_delay: Duration::from_secs(60),
+        jitter_factor: 0.0,
     };
     assert_eq!(config.max_retries, 5);
     assert_eq!(config.initial_delay, Duration::from_secs(2));
@@ -46,6 +47,7 @@ fn test_client_with_custom_retry_config() {
         max_retries: 5,
         initial_delay: Duration::from_secs(2),
         max_delay: Duration::from_secs(60),
+        jitter_factor: 0.0,
     };
 
     let client = Client::with_retry_config(config, retry_config);
