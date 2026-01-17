@@ -12,6 +12,8 @@ pub mod bash_output;
 pub mod claude_code_sync;
 pub mod edit;
 pub mod error;
+pub mod git_tool;
+pub mod github_tool;
 pub mod glob_tool;
 pub mod grep;
 pub mod kill_shell;
@@ -37,6 +39,11 @@ pub use bash::BashTool;
 pub use bash_output::BashOutputTool;
 pub use edit::EditTool;
 pub use error::{ToolError, ToolResult};
+pub use git_tool::{GitOperation, GitOutput, GitParams, GitTool};
+pub use github_tool::{
+    GitHubBranch, GitHubComment, GitHubIssue, GitHubOperation, GitHubOutput, GitHubParams,
+    GitHubPullRequest, GitHubTool, GitHubUser,
+};
 pub use glob_tool::GlobTool;
 pub use grep::GrepTool;
 pub use kill_shell::KillShellTool;
