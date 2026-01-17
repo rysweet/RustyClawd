@@ -35,6 +35,7 @@ fn test_tool_definition_basic_structure() {
             },
             "required": ["location"]
         }),
+    strict: None,
     };
 
     assert_eq!(tool.name, "get_weather");
@@ -56,6 +57,7 @@ fn test_tool_definition_with_multiple_required_params() {
             },
             "required": ["to", "subject", "body"]
         }),
+    strict: None,
     };
 
     let required = tool.input_schema["required"].as_array().unwrap();
@@ -78,6 +80,7 @@ fn test_tool_definition_with_optional_params() {
             },
             "required": ["query"]
         }),
+    strict: None,
     };
 
     let properties = tool.input_schema["properties"].as_object().unwrap();
@@ -106,6 +109,7 @@ fn test_tool_definition_with_nested_objects() {
             },
             "required": ["title", "datetime"]
         }),
+    strict: None,
     };
 
     let datetime_schema = &tool.input_schema["properties"]["datetime"];
@@ -137,6 +141,7 @@ fn test_tool_definition_with_array_parameters() {
             },
             "required": ["item_ids", "tags"]
         }),
+    strict: None,
     };
 
     assert_eq!(
@@ -165,6 +170,7 @@ fn test_tool_definition_with_enum_values() {
             },
             "required": ["mode"]
         }),
+    strict: None,
     };
 
     let mode_enum = tool.input_schema["properties"]["mode"]["enum"]
@@ -191,6 +197,7 @@ fn test_tool_definition_with_number_constraints() {
             },
             "required": ["level"]
         }),
+    strict: None,
     };
 
     assert_eq!(
@@ -209,6 +216,7 @@ fn test_tool_definition_serialization() {
         name: "test_tool".to_string(),
         description: "Test description".to_string(),
         input_schema: json!({"type": "object", "properties": {}}),
+    strict: None,
     };
 
     let serialized = serde_json::to_string(&tool).unwrap();
@@ -276,6 +284,7 @@ fn test_tool_choice_force_specific_for_json_mode() {
             },
             "required": ["name", "age"]
         }),
+    strict: None,
     };
 
     let request = CreateMessageRequest::new(
@@ -589,6 +598,7 @@ fn test_create_message_request_with_tools() {
         name: "test_tool".to_string(),
         description: "A test tool".to_string(),
         input_schema: json!({"type": "object", "properties": {}}),
+    strict: None,
     };
 
     let request = CreateMessageRequest::new(
@@ -765,6 +775,12 @@ fn test_stream_event_content_block_delta() {
                 }
                 rustyclawd_core::client::types::ContentDelta::InputJsonDelta { .. } => {
                     panic!("Expected TextDelta, got InputJsonDelta");
+                }
+                rustyclawd_core::client::types::ContentDelta::ThinkingDelta { .. } => {
+                    panic!("Expected TextDelta, got ThinkingDelta");
+                }
+                rustyclawd_core::client::types::ContentDelta::SignatureDelta { .. } => {
+                    panic!("Expected TextDelta, got SignatureDelta");
                 }
             }
         }
@@ -1032,6 +1048,7 @@ fn test_json_mode_single_tool_forced() {
             },
             "required": ["title", "summary"]
         }),
+    strict: None,
     };
 
     let request = CreateMessageRequest::new(
@@ -1075,6 +1092,7 @@ fn test_json_mode_structured_output() {
             },
             "required": ["people", "organizations", "locations"]
         }),
+    strict: None,
     };
 
     assert!(tool.input_schema["properties"]["people"].is_object());
@@ -1362,6 +1380,7 @@ fn test_complex_tool_bash_command() {
             },
             "required": ["command"]
         }),
+    strict: None,
     };
 
     assert_eq!(bash_tool.name, "Bash");
@@ -1394,6 +1413,7 @@ fn test_complex_tool_file_read() {
             },
             "required": ["file_path"]
         }),
+    strict: None,
     };
 
     assert_eq!(read_tool.name, "Read");
@@ -1425,6 +1445,7 @@ fn test_complex_tool_web_search() {
             },
             "required": ["query"]
         }),
+    strict: None,
     };
 
     assert_eq!(search_tool.name, "WebSearch");
@@ -1457,6 +1478,7 @@ fn test_complex_tool_grep_with_options() {
             },
             "required": ["pattern"]
         }),
+    strict: None,
     };
 
     assert_eq!(grep_tool.name, "Grep");
@@ -1583,6 +1605,7 @@ fn test_tool_definition_empty_required() {
             },
             "required": []
         }),
+    strict: None,
     };
 
     assert_eq!(tool.input_schema["required"].as_array().unwrap().len(), 0);
@@ -1667,6 +1690,7 @@ fn test_tool_name_with_underscores() {
         name: "get_user_profile_data".to_string(),
         description: "Get user profile".to_string(),
         input_schema: json!({"type": "object", "properties": {}}),
+    strict: None,
     };
 
     assert_eq!(tool.name, "get_user_profile_data");
@@ -1696,16 +1720,19 @@ fn test_request_builder_multiple_tools() {
             name: "tool1".to_string(),
             description: "First tool".to_string(),
             input_schema: json!({"type": "object"}),
+        strict: None,
         },
         ToolDefinition {
             name: "tool2".to_string(),
             description: "Second tool".to_string(),
             input_schema: json!({"type": "object"}),
+        strict: None,
         },
         ToolDefinition {
             name: "tool3".to_string(),
             description: "Third tool".to_string(),
             input_schema: json!({"type": "object"}),
+        strict: None,
         },
     ];
 
@@ -1894,6 +1921,7 @@ fn test_tool_schema_with_pattern_validation() {
             },
             "required": ["email"]
         }),
+    strict: None,
     };
 
     assert!(tool.input_schema["properties"]["email"]["pattern"]
@@ -1913,6 +1941,7 @@ fn test_tool_schema_with_additional_properties() {
             },
             "additionalProperties": true
         }),
+    strict: None,
     };
 
     assert_eq!(tool.input_schema["additionalProperties"], json!(true));
@@ -1936,6 +1965,7 @@ fn test_tool_schema_with_one_of() {
             },
             "required": ["value"]
         }),
+    strict: None,
     };
 
     assert!(tool.input_schema["properties"]["value"]["oneOf"].is_array());

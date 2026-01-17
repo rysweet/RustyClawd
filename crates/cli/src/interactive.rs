@@ -1396,6 +1396,16 @@ impl InteractiveSession {
                         }
                         StreamEvent::ContentBlockStart {
                             content_block:
+                                rustyclawd_core::client::types::ContentBlockStart::Thinking { .. },
+                            ..
+                        } => {
+                            // Starting a thinking block - notify TUI
+                            let _ = event_tx.send(StreamingChannelEvent::ThinkingUpdate {
+                                thinking: true,
+                            });
+                        }
+                        StreamEvent::ContentBlockStart {
+                            content_block:
                                 rustyclawd_core::client::types::ContentBlockStart::ToolUse { id, name },
                             ..
                         } => {
@@ -1419,6 +1429,23 @@ impl InteractiveSession {
                             }
 
                             current_text.push_str(&text);
+                        }
+                        StreamEvent::ContentBlockDelta {
+                            delta: rustyclawd_core::client::types::ContentDelta::ThinkingDelta { thinking },
+                            ..
+                        } => {
+                            // Thinking content - display but don't include in final response
+                            let _ = event_tx
+                                .send(StreamingChannelEvent::TextDelta { text: thinking.clone() });
+                            // Accumulate thinking text separately if needed
+                            current_text.push_str(&thinking);
+                        }
+                        StreamEvent::ContentBlockDelta {
+                            delta: rustyclawd_core::client::types::ContentDelta::SignatureDelta { .. },
+                            ..
+                        } => {
+                            // Signature delta - we don't display this to users
+                            // Just accumulate for the content block
                         }
                         StreamEvent::ContentBlockDelta {
                             delta:

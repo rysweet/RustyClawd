@@ -198,6 +198,7 @@ impl HookExecutor {
                     .iter()
                     .filter_map(|block| match block {
                         rustyclawd_core::client::ContentBlock::Text { text } => Some(text.as_str()),
+                        rustyclawd_core::client::ContentBlock::Thinking { .. } => None,
                         rustyclawd_core::client::ContentBlock::ToolUse { .. } => None,
                         rustyclawd_core::client::ContentBlock::ToolResult { .. } => None,
                     })

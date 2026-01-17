@@ -18,6 +18,7 @@ fn test_tool_definition_serialization() {
             },
             "required": ["param1"]
         }),
+        strict: None,
     };
 
     let json_str = serde_json::to_string(&tool).expect("Failed to serialize");
@@ -212,6 +213,7 @@ fn test_create_message_request_with_tools() {
             },
             "required": ["command"]
         }),
+        strict: None,
     }];
 
     let request = CreateMessageRequest::new(

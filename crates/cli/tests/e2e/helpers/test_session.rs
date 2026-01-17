@@ -160,6 +160,10 @@ impl TestSession {
                 ContentBlock::Text { text } => {
                     text_content.push_str(text);
                 }
+                ContentBlock::Thinking { thinking, .. } => {
+                    // Include thinking in output for debugging
+                    text_content.push_str(&format!("[Thinking: {}...]", &thinking[..thinking.len().min(50)]));
+                }
                 ContentBlock::ToolUse { name, input, .. } => {
                     tool_invocations_to_add.push((
                         name.clone(),
