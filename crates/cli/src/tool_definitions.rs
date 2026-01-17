@@ -54,6 +54,7 @@ fn bash_tool_definition() -> ToolDefinition {
             },
             "required": ["command"]
         }),
+        strict: None,
     }
 }
 
@@ -77,6 +78,7 @@ fn bash_output_tool_definition() -> ToolDefinition {
             },
             "required": ["bash_id"]
         }),
+        strict: None,
     }
 }
 
@@ -95,6 +97,7 @@ fn kill_shell_tool_definition() -> ToolDefinition {
             },
             "required": ["shell_id"]
         }),
+        strict: None,
     }
 }
 
@@ -121,6 +124,7 @@ fn read_tool_definition() -> ToolDefinition {
             },
             "required": ["file_path"]
         }),
+        strict: None,
     }
 }
 
@@ -143,6 +147,7 @@ fn write_tool_definition() -> ToolDefinition {
             },
             "required": ["file_path", "content"]
         }),
+        strict: None,
     }
 }
 
@@ -174,6 +179,7 @@ fn edit_tool_definition() -> ToolDefinition {
             },
             "required": ["file_path", "old_string", "new_string"]
         }),
+        strict: None,
     }
 }
 
@@ -196,6 +202,7 @@ fn glob_tool_definition() -> ToolDefinition {
             },
             "required": ["pattern"]
         }),
+        strict: None,
     }
 }
 
@@ -241,6 +248,7 @@ fn grep_tool_definition() -> ToolDefinition {
             },
             "required": ["pattern"]
         }),
+        strict: None,
     }
 }
 
@@ -299,6 +307,7 @@ fn ask_user_question_tool_definition() -> ToolDefinition {
             },
             "required": ["questions"]
         }),
+        strict: None,
     }
 }
 
@@ -317,6 +326,7 @@ fn skill_tool_definition() -> ToolDefinition {
             },
             "required": ["skill"]
         }),
+        strict: None,
     }
 }
 
@@ -335,6 +345,7 @@ fn slash_command_tool_definition() -> ToolDefinition {
             },
             "required": ["command"]
         }),
+        strict: None,
     }
 }
 
@@ -375,6 +386,7 @@ fn task_tool_definition() -> ToolDefinition {
             },
             "required": ["subagent_type", "prompt", "description"]
         }),
+        strict: None,
     }
 }
 
@@ -405,6 +417,7 @@ fn agent_output_tool_definition() -> ToolDefinition {
             },
             "required": ["agentId"]
         }),
+        strict: None,
     }
 }
 
@@ -442,6 +455,7 @@ fn todowrite_tool_definition() -> ToolDefinition {
             },
             "required": ["todos"]
         }),
+        strict: None,
     }
 }
 

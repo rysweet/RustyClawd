@@ -35,6 +35,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     rustyclawd_core::client::ContentBlock::ToolResult { .. } => {
                         println!("[tool_result block]");
                     }
+                    rustyclawd_core::client::ContentBlock::Thinking { thinking, .. } => {
+                        println!("[thinking] {}", thinking);
+                    }
                 }
             }
         }

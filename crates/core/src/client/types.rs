@@ -30,11 +30,37 @@ pub struct Message {
 }
 
 /// Tool definition for the API
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ToolDefinition {
     pub name: String,
     pub description: String,
+    #[serde(default)]
     pub input_schema: serde_json::Value,
+    /// Enable strict schema validation (requires beta header)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub strict: Option<bool>,
+}
+
+impl ToolDefinition {
+    /// Create a new tool definition
+    pub fn new(
+        name: impl Into<String>,
+        description: impl Into<String>,
+        input_schema: serde_json::Value,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            description: description.into(),
+            input_schema,
+            strict: None,
+        }
+    }
+
+    /// Enable strict schema validation
+    pub fn with_strict(mut self, strict: bool) -> Self {
+        self.strict = Some(strict);
+        self
+    }
 }
 
 /// Server-side tool schema for extra tools like web_search
@@ -109,6 +135,26 @@ impl ToolChoice {
     }
 }
 
+/// Extended thinking configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThinkingConfig {
+    /// Type of thinking - always "enabled"
+    #[serde(rename = "type")]
+    pub type_field: String,
+    /// Token budget for thinking (1024-16000)
+    pub budget_tokens: u32,
+}
+
+impl ThinkingConfig {
+    /// Create a new thinking configuration with the specified token budget
+    pub fn new(budget_tokens: u32) -> Self {
+        Self {
+            type_field: "enabled".to_string(),
+            budget_tokens,
+        }
+    }
+}
+
 /// Request to create a message (non-streaming)
 #[derive(Debug, Clone, Serialize)]
 pub struct CreateMessageRequest {
@@ -139,6 +185,9 @@ pub struct CreateMessageRequest {
     /// Server-side tools (e.g., web_search)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra_tool_schemas: Option<Vec<ExtraToolSchema>>,
+    /// Extended thinking configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<ThinkingConfig>,
 }
 
 /// Request metadata
@@ -165,6 +214,12 @@ pub enum ContentBlock {
         content: Vec<ContentBlock>,
         #[serde(skip_serializing_if = "Option::is_none")]
         is_error: Option<bool>,
+    },
+    /// Extended thinking block (chain-of-thought reasoning)
+    Thinking {
+        thinking: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        signature: Option<String>,
     },
 }
 
@@ -236,16 +291,35 @@ pub struct MessageStart {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlockStart {
-    Text { text: String },
-    ToolUse { id: String, name: String },
+    Text {
+        text: String,
+    },
+    ToolUse {
+        id: String,
+        name: String,
+    },
+    /// Extended thinking block start
+    Thinking,
 }
 
 /// Content delta (incremental update)
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentDelta {
-    TextDelta { text: String },
-    InputJsonDelta { partial_json: String },
+    TextDelta {
+        text: String,
+    },
+    InputJsonDelta {
+        partial_json: String,
+    },
+    /// Extended thinking delta
+    ThinkingDelta {
+        thinking: String,
+    },
+    /// Signature delta (for thinking block authenticity)
+    SignatureDelta {
+        signature: String,
+    },
 }
 
 /// Message delta (final updates)
@@ -280,12 +354,19 @@ impl CreateMessageRequest {
             tools: None,
             tool_choice: None,
             extra_tool_schemas: None,
+            thinking: None,
         }
     }
 
     /// Builder: Enable streaming
     pub fn with_stream(mut self, stream: bool) -> Self {
         self.stream = stream;
+        self
+    }
+
+    /// Builder: Enable extended thinking with specified token budget
+    pub fn with_thinking(mut self, budget_tokens: u32) -> Self {
+        self.thinking = Some(ThinkingConfig::new(budget_tokens));
         self
     }
 

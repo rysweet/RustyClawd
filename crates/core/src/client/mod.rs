@@ -51,7 +51,7 @@ pub use error::{ClientError, ClientResult};
 pub use stream::{EventStream, SseEvent, SseStream};
 pub use types::{
     ContentBlock, CreateMessageRequest, ExtraToolSchema, Message, MessageResponse, Role,
-    StreamEvent, ToolChoice, ToolDefinition, Usage,
+    StreamEvent, ThinkingConfig, ToolChoice, ToolDefinition, Usage,
 };
 
 /// Configuration for retry behavior
