@@ -59,7 +59,10 @@ async fn example_non_streaming(client: &Client) -> Result<(), Box<dyn std::error
     // Display all content blocks
     for (i, block) in response.content.iter().enumerate() {
         match block {
-            rustyclawd_core::client::ContentBlock::Thinking { thinking, signature } => {
+            rustyclawd_core::client::ContentBlock::Thinking {
+                thinking,
+                signature,
+            } => {
                 println!("--- [Block {}]: THINKING PROCESS ---", i);
                 if let Some(sig) = signature {
                     println!("Signature: {}...\n", &sig[..sig.len().min(32)]);
@@ -98,8 +101,8 @@ async fn example_streaming(client: &Client) -> Result<(), Box<dyn std::error::Er
     while let Some(result) = stream.next().await {
         match result {
             Ok(event) => {
-                use rustyclawd_core::client::StreamEvent;
                 use rustyclawd_core::client::types::{ContentBlockStart, ContentDelta};
+                use rustyclawd_core::client::StreamEvent;
 
                 match event {
                     StreamEvent::MessageStart { message } => {
@@ -108,21 +111,19 @@ async fn example_streaming(client: &Client) -> Result<(), Box<dyn std::error::Er
                     StreamEvent::ContentBlockStart {
                         index,
                         content_block,
-                    } => {
-                        match content_block {
-                            ContentBlockStart::Thinking { .. } => {
-                                in_thinking_block = true;
-                                println!("--- THINKING PROCESS (Block {}) ---", index);
-                            }
-                            ContentBlockStart::Text { .. } => {
-                                if in_thinking_block {
-                                    println!("\n--- END THINKING ---\n");
-                                }
-                                println!("--- FINAL ANSWER (Block {}) ---", index);
-                            }
-                            _ => {}
+                    } => match content_block {
+                        ContentBlockStart::Thinking => {
+                            in_thinking_block = true;
+                            println!("--- THINKING PROCESS (Block {}) ---", index);
                         }
-                    }
+                        ContentBlockStart::Text { .. } => {
+                            if in_thinking_block {
+                                println!("\n--- END THINKING ---\n");
+                            }
+                            println!("--- FINAL ANSWER (Block {}) ---", index);
+                        }
+                        _ => {}
+                    },
                     StreamEvent::ContentBlockDelta { delta, .. } => {
                         match delta {
                             ContentDelta::ThinkingDelta { thinking } => {

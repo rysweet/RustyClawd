@@ -68,7 +68,10 @@ async fn test_non_streaming(client: &Client) -> Result<(), Box<dyn std::error::E
             rustyclawd_core::client::ContentBlock::Text { text } => {
                 println!("  Content[{}]: {}", i, text);
             }
-            rustyclawd_core::client::ContentBlock::Thinking { thinking, signature } => {
+            rustyclawd_core::client::ContentBlock::Thinking {
+                thinking,
+                signature,
+            } => {
                 println!("  Content[{}]: [thinking]", i);
                 if let Some(sig) = signature {
                     println!("    Signature: {}...", &sig[..sig.len().min(32)]);

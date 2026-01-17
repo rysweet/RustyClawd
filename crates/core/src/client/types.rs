@@ -43,7 +43,11 @@ pub struct ToolDefinition {
 
 impl ToolDefinition {
     /// Create a new tool definition
-    pub fn new(name: impl Into<String>, description: impl Into<String>, input_schema: serde_json::Value) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        description: impl Into<String>,
+        input_schema: serde_json::Value,
+    ) -> Self {
         Self {
             name: name.into(),
             description: description.into(),
@@ -287,8 +291,13 @@ pub struct MessageStart {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlockStart {
-    Text { text: String },
-    ToolUse { id: String, name: String },
+    Text {
+        text: String,
+    },
+    ToolUse {
+        id: String,
+        name: String,
+    },
     /// Extended thinking block start
     Thinking,
 }
@@ -297,12 +306,20 @@ pub enum ContentBlockStart {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentDelta {
-    TextDelta { text: String },
-    InputJsonDelta { partial_json: String },
+    TextDelta {
+        text: String,
+    },
+    InputJsonDelta {
+        partial_json: String,
+    },
     /// Extended thinking delta
-    ThinkingDelta { thinking: String },
+    ThinkingDelta {
+        thinking: String,
+    },
     /// Signature delta (for thinking block authenticity)
-    SignatureDelta { signature: String },
+    SignatureDelta {
+        signature: String,
+    },
 }
 
 /// Message delta (final updates)
