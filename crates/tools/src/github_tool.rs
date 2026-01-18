@@ -554,10 +554,7 @@ mod tests {
         ];
 
         for (name, expected) in operations {
-            let json = format!(
-                r#"{{"operation": "{}", "owner": "o", "repo": "r"}}"#,
-                name
-            );
+            let json = format!(r#"{{"operation": "{}", "owner": "o", "repo": "r"}}"#, name);
             let params: GitHubParams = serde_json::from_str(&json).unwrap();
             assert_eq!(params.operation, expected, "Failed for operation: {}", name);
         }
