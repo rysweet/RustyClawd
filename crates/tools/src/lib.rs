@@ -13,6 +13,7 @@ pub mod claude_code_sync;
 pub mod command_skill;
 pub mod edit;
 pub mod error;
+pub mod git_tool;
 pub mod github_tool;
 pub mod glob_tool;
 pub mod grep;
@@ -42,6 +43,7 @@ pub use command_skill::{
 };
 pub use edit::EditTool;
 pub use error::{ToolError, ToolResult};
+pub use git_tool::GitTool;
 pub use github_tool::{GitHubOutput, GitHubParams, GitHubTool};
 pub use glob_tool::GlobTool;
 pub use grep::GrepTool;

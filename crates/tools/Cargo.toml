@@ -37,6 +37,9 @@ bytes = "1.5"
 chrono = { version = "0.4", features = ["serde"] }
 octocrab = "0.41"
 
+# Git operations (native, no CLI dependency)
+git2 = "0.19"
+
 # Process isolation (Unix-specific)
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.29", features = ["process"] }
