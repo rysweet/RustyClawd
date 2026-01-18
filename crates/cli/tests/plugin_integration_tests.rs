@@ -304,6 +304,7 @@ async fn test_plugin_with_agents() {
             description: "Agent defined in plugin".to_string(),
             path: "agents/plugin-agent.md".to_string(),
             model: Some("sonnet".to_string()),
+            disallowed_tools: vec![],
         }],
         mcp_servers: vec![],
         dependencies: HashMap::new(),
@@ -397,6 +398,7 @@ async fn test_complete_plugin_system_workflow() {
             description: "Test".to_string(),
             path: "agents/agent.md".to_string(),
             model: None,
+            disallowed_tools: vec![],
         }],
         mcp_servers: vec![rustyclawd::plugins::manifest::McpServerDefinition {
             id: "mcp".to_string(),
