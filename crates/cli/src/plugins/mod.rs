@@ -42,6 +42,7 @@ pub mod loader;
 pub mod manager;
 pub mod manifest;
 pub mod mcp_proxy;
+pub mod subprocess;
 
 pub use agent_discovery::{
     parse_runtime_agents, validate_runtime_agents, AgentDiscovery, RuntimeAgentDefinition,

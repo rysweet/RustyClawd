@@ -1,10 +1,11 @@
 //! Subprocess Executor for Plugin Commands
 //!
 //! Provides real subprocess execution with timeouts and output capture.
+//! Includes proper timeout enforcement with process tree killing.
 
 use std::fs;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
 /// Plugin execution result
@@ -52,53 +53,140 @@ impl PluginExecutionResult {
     }
 }
 
+/// Kill a process and its children
+#[cfg(unix)]
+fn kill_process(child: &mut Child) -> Result<(), String> {
+    use std::os::unix::process::ExitStatusExt;
+
+    let pid = child.id() as i32;
+
+    // First try SIGTERM to the process group (negative PID kills the group)
+    // This allows processes to clean up gracefully
+    unsafe {
+        libc::kill(-pid, libc::SIGTERM);
+    }
+
+    // Give the process a moment to terminate gracefully
+    std::thread::sleep(Duration::from_millis(100));
+
+    // Check if still running
+    match child.try_wait() {
+        Ok(Some(_)) => return Ok(()), // Process has terminated
+        Ok(None) => {
+            // Still running, send SIGKILL
+            unsafe {
+                libc::kill(-pid, libc::SIGKILL);
+            }
+            // Wait for it to actually die
+            let _ = child.wait();
+        }
+        Err(e) => return Err(format!("Failed to check process status: {}", e)),
+    }
+
+    Ok(())
+}
+
+/// Kill a process on Windows
+#[cfg(windows)]
+fn kill_process(child: &mut Child) -> Result<(), String> {
+    child
+        .kill()
+        .map_err(|e| format!("Failed to kill process: {}", e))?;
+    let _ = child.wait();
+    Ok(())
+}
+
 /// Subprocess executor
 pub struct SubprocessExecutor;
 
 impl SubprocessExecutor {
-    /// Execute a command in a real subprocess
+    /// Execute a command in a real subprocess with enforced timeout
     pub fn execute(
         cmd: &str,
         args: &[&str],
         timeout_ms: u64,
     ) -> Result<PluginExecutionResult, String> {
         let start = Instant::now();
+        let timeout = Duration::from_millis(timeout_ms);
 
-        let child = Command::new(cmd)
+        // Build the command
+        let mut command = Command::new(cmd);
+        command
             .args(args)
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        // On Unix, create a new process group so we can kill all children
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            // SAFETY: setpgid is safe to call in pre_exec
+            unsafe {
+                command.pre_exec(|| {
+                    // Create a new process group with this process as leader
+                    libc::setpgid(0, 0);
+                    Ok(())
+                });
+            }
+        }
+
+        let mut child = command
             .spawn()
             .map_err(|e| format!("Failed to spawn process: {}", e))?;
 
-        // Wait with timeout
-        let _timeout = Duration::from_millis(timeout_ms);
-        let result = std::thread::spawn(move || child.wait_with_output());
+        // Poll for completion with timeout
+        loop {
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    // Process completed
+                    let duration = start.elapsed().as_millis() as u64;
 
-        // Try to join with timeout (simplified approach)
-        let output_result = result
-            .join()
-            .map_err(|_| "Thread join failed".to_string())?;
+                    // Read output from the completed process
+                    let stdout = child
+                        .stdout
+                        .take()
+                        .map(|mut s| {
+                            let mut buf = Vec::new();
+                            std::io::Read::read_to_end(&mut s, &mut buf).ok();
+                            String::from_utf8_lossy(&buf).to_string()
+                        })
+                        .unwrap_or_default();
 
-        let duration = start.elapsed().as_millis() as u64;
+                    let stderr = child
+                        .stderr
+                        .take()
+                        .map(|mut s| {
+                            let mut buf = Vec::new();
+                            std::io::Read::read_to_end(&mut s, &mut buf).ok();
+                            String::from_utf8_lossy(&buf).to_string()
+                        })
+                        .unwrap_or_default();
 
-        match output_result {
-            Ok(output) => {
-                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-                let exit_code = output.status.code();
-
-                if output.status.success() {
-                    Ok(PluginExecutionResult::success(stdout, duration))
-                } else {
-                    Ok(PluginExecutionResult::failure(
-                        stderr,
-                        exit_code.unwrap_or(-1),
-                        duration,
-                    ))
+                    if status.success() {
+                        return Ok(PluginExecutionResult::success(stdout, duration));
+                    } else {
+                        return Ok(PluginExecutionResult::failure(
+                            stderr,
+                            status.code().unwrap_or(-1),
+                            duration,
+                        ));
+                    }
+                }
+                Ok(None) => {
+                    // Process still running, check timeout
+                    if start.elapsed() >= timeout {
+                        // Timeout exceeded - kill the process
+                        let duration = start.elapsed().as_millis() as u64;
+                        kill_process(&mut child)?;
+                        return Ok(PluginExecutionResult::timeout(duration));
+                    }
+                    // Sleep briefly before checking again
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                Err(e) => {
+                    return Err(format!("Failed to check process status: {}", e));
                 }
             }
-            Err(e) => Err(format!("Process execution failed: {}", e)),
         }
     }
 
@@ -169,6 +257,47 @@ mod tests {
         let exec_result = result.unwrap();
         assert!(!exec_result.success);
         assert_eq!(exec_result.exit_code, Some(1));
+    }
+
+    #[test]
+    fn test_timeout_enforced() {
+        // Start a process that sleeps for 5 seconds, but only give it 200ms
+        let result = SubprocessExecutor::execute("sleep", &["5"], 200);
+
+        assert!(result.is_ok());
+        let exec_result = result.unwrap();
+        assert!(!exec_result.success);
+        assert!(exec_result.stderr.contains("timed out"));
+        assert_eq!(exec_result.exit_code, None);
+        // Should complete in roughly 200ms, not 5 seconds
+        assert!(exec_result.duration_ms < 1000);
+    }
+
+    #[test]
+    fn test_command_completes_before_timeout() {
+        // Fast command with long timeout
+        let result = SubprocessExecutor::execute("echo", &["fast"], 5000);
+
+        assert!(result.is_ok());
+        let exec_result = result.unwrap();
+        assert!(exec_result.success);
+        assert!(exec_result.output.contains("fast"));
+        // Should complete quickly, not wait for timeout
+        assert!(exec_result.duration_ms < 1000);
+    }
+
+    #[test]
+    fn test_timeout_kills_process_tree() {
+        // Start a shell that spawns a child process
+        // The parent sleeps, and we need to ensure both are killed
+        let result = SubprocessExecutor::execute("sh", &["-c", "sleep 10 & sleep 10"], 200);
+
+        assert!(result.is_ok());
+        let exec_result = result.unwrap();
+        assert!(!exec_result.success);
+        assert!(exec_result.stderr.contains("timed out"));
+        // Should timeout quickly, not wait 10 seconds
+        assert!(exec_result.duration_ms < 1000);
     }
 
     #[test]

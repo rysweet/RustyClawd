@@ -69,3 +69,7 @@ uuid = { version = "1.11", features = ["v4"] }
 
 # HTTP testing
 wiremock = "0.6"
+
+# Unix process management (for process group killing on timeout)
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
