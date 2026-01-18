@@ -35,6 +35,7 @@ rand = "0.8"
 moka = { version = "0.12", features = ["future"] }
 bytes = "1.5"
 chrono = { version = "0.4", features = ["serde"] }
+octocrab = "0.41"
 
 # Process isolation (Unix-specific)
 [target.'cfg(unix)'.dependencies]
