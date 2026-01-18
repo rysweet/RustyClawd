@@ -3,7 +3,7 @@
 //! Tests EVERY feature documented at https://code.claude.com/docs/en/hooks
 //!
 //! Test Coverage:
-//! - All 9 hook lifecycle events
+//! - All 10 hook lifecycle events
 //! - Both hook types (command and prompt)
 //! - All matcher patterns (exact, regex, wildcard, MCP)
 //! - All exit codes (0, 1, 2)
@@ -76,7 +76,7 @@ fn test_hook_type_serialization() {
 }
 
 // ============================================================================
-// SECTION 2: ALL 9 CORE HOOK EVENTS
+// SECTION 2: ALL 10 CORE HOOK EVENTS
 // ============================================================================
 
 #[test]
@@ -134,9 +134,15 @@ fn test_hook_event_pre_compact() {
 }
 
 #[test]
-fn test_hook_event_all_nine_events() {
+fn test_hook_event_permission_request() {
+    let event = HookEvent::PermissionRequest;
+    assert_eq!(event.as_str(), "PermissionRequest");
+}
+
+#[test]
+fn test_hook_event_all_ten_events() {
     let events = HookEvent::all();
-    assert_eq!(events.len(), 9);
+    assert_eq!(events.len(), 10);
     assert!(events.contains(&HookEvent::SessionStart));
     assert!(events.contains(&HookEvent::SessionEnd));
     assert!(events.contains(&HookEvent::PreToolUse));
@@ -146,6 +152,7 @@ fn test_hook_event_all_nine_events() {
     assert!(events.contains(&HookEvent::SubagentStop));
     assert!(events.contains(&HookEvent::Notification));
     assert!(events.contains(&HookEvent::PreCompact));
+    assert!(events.contains(&HookEvent::PermissionRequest));
 }
 
 // ============================================================================
@@ -547,6 +554,7 @@ fn test_hooks_configuration_all_events() {
     assert_eq!(config.subagent_stop.len(), 0);
     assert_eq!(config.notification.len(), 0);
     assert_eq!(config.pre_compact.len(), 0);
+    assert_eq!(config.permission_request.len(), 0);
 }
 
 #[test]
@@ -1439,7 +1447,7 @@ fn test_documentation_coverage_summary() {
 
     println!("COVERED FEATURES:");
     println!("✓ Hook Types: Command & Prompt");
-    println!("✓ All 9 Core Hook Events");
+    println!("✓ All 10 Core Hook Events");
     println!("✓ Matcher Patterns: Exact, Regex, Wildcard, MCP");
     println!("✓ Hook Input Structure (JSON via stdin)");
     println!("✓ Exit Codes: 0 (success), 2 (blocking), 1+ (non-blocking)");

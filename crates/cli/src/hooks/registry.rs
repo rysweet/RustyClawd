@@ -51,6 +51,7 @@ impl HookRegistry {
             HookEvent::SubagentStop => &mut self.configuration.subagent_stop,
             HookEvent::Notification => &mut self.configuration.notification,
             HookEvent::PreCompact => &mut self.configuration.pre_compact,
+            HookEvent::PermissionRequest => &mut self.configuration.permission_request,
         };
         hooks.push(config);
     }
@@ -67,6 +68,7 @@ impl HookRegistry {
             HookEvent::SubagentStop => &mut self.configuration.subagent_stop,
             HookEvent::Notification => &mut self.configuration.notification,
             HookEvent::PreCompact => &mut self.configuration.pre_compact,
+            HookEvent::PermissionRequest => &mut self.configuration.permission_request,
         };
         hooks.clear();
     }
@@ -133,6 +135,12 @@ impl HookRegistry {
             + self
                 .configuration
                 .pre_compact
+                .iter()
+                .map(|c| c.hooks.len())
+                .sum::<usize>()
+            + self
+                .configuration
+                .permission_request
                 .iter()
                 .map(|c| c.hooks.len())
                 .sum::<usize>()
@@ -381,5 +389,72 @@ mod tests {
 
         let hooks = registry.get_hooks_for_event(&HookEvent::PreToolUse, &context);
         assert_eq!(hooks.len(), 1);
+    }
+
+    #[test]
+    fn test_permission_request_hooks() {
+        let mut registry = HookRegistry::new();
+        registry.register_hook(
+            HookEvent::PermissionRequest,
+            HookConfig {
+                matcher: HookMatcher::Exact("Bash".to_string()),
+                hooks: vec![Hook::command("auto-approve.sh".to_string(), Some(5000))],
+            },
+        );
+
+        let context = HookContext::for_permission_request(
+            "session-123".to_string(),
+            "/tmp/transcript".to_string(),
+            "/home/user".to_string(),
+            "ask".to_string(),
+            "Bash".to_string(),
+            Some("tool-use-456".to_string()),
+            Some(serde_json::json!({"command": "ls -la"})),
+        );
+
+        let hooks = registry.get_hooks_for_event(&HookEvent::PermissionRequest, &context);
+        assert_eq!(hooks.len(), 1);
+    }
+
+    #[test]
+    fn test_permission_request_hooks_no_match() {
+        let mut registry = HookRegistry::new();
+        registry.register_hook(
+            HookEvent::PermissionRequest,
+            HookConfig {
+                matcher: HookMatcher::Exact("Bash".to_string()),
+                hooks: vec![Hook::command("auto-approve.sh".to_string(), Some(5000))],
+            },
+        );
+
+        // Context with different tool name
+        let context = HookContext::for_permission_request(
+            "session-123".to_string(),
+            "/tmp/transcript".to_string(),
+            "/home/user".to_string(),
+            "ask".to_string(),
+            "Write".to_string(),
+            None,
+            None,
+        );
+
+        let hooks = registry.get_hooks_for_event(&HookEvent::PermissionRequest, &context);
+        assert_eq!(hooks.len(), 0);
+    }
+
+    #[test]
+    fn test_permission_request_clear_hooks() {
+        let mut registry = HookRegistry::new();
+        registry.register_hook(
+            HookEvent::PermissionRequest,
+            HookConfig {
+                matcher: HookMatcher::Exact("*".to_string()),
+                hooks: vec![Hook::command("approve-all.sh".to_string(), Some(5000))],
+            },
+        );
+
+        assert_eq!(registry.count_total_hooks(), 1);
+        registry.clear_event_hooks(&HookEvent::PermissionRequest);
+        assert_eq!(registry.count_total_hooks(), 0);
     }
 }
