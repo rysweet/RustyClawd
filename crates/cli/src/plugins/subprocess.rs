@@ -290,11 +290,7 @@ mod tests {
     fn test_timeout_kills_process_tree() {
         // Start a shell that spawns a child process
         // The parent sleeps, and we need to ensure both are killed
-        let result = SubprocessExecutor::execute(
-            "sh",
-            &["-c", "sleep 10 & sleep 10"],
-            200,
-        );
+        let result = SubprocessExecutor::execute("sh", &["-c", "sleep 10 & sleep 10"], 200);
 
         assert!(result.is_ok());
         let exec_result = result.unwrap();
