@@ -342,8 +342,9 @@ impl GitTool {
                 break;
             }
 
-            let oid = oid_result
-                .map_err(|e| ToolError::ExecutionFailed(format!("Failed to get commit oid: {}", e)))?;
+            let oid = oid_result.map_err(|e| {
+                ToolError::ExecutionFailed(format!("Failed to get commit oid: {}", e))
+            })?;
 
             let commit = repo
                 .find_commit(oid)
