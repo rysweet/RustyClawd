@@ -63,6 +63,9 @@ pub struct RetryConfig {
     pub initial_delay: Duration,
     /// Maximum delay between retries (default: 30s)
     pub max_delay: Duration,
+    /// Jitter factor for randomizing delays (0.0 to 1.0, default: 0.1)
+    /// A value of 0.1 means delays can vary by up to 10%
+    pub jitter_factor: f64,
 }
 
 impl Default for RetryConfig {
@@ -71,8 +74,53 @@ impl Default for RetryConfig {
             max_retries: 3,
             initial_delay: Duration::from_secs(1),
             max_delay: Duration::from_secs(30),
+            jitter_factor: 0.1,
         }
     }
+}
+
+impl RetryConfig {
+    /// Calculate the delay for a given retry attempt with exponential backoff and jitter.
+    ///
+    /// The delay is calculated as: `initial_delay * 2^attempt * (1.0 - jitter_factor * random)`
+    /// The result is capped at `max_delay`.
+    ///
+    /// # Arguments
+    /// * `attempt` - The retry attempt number (0-indexed)
+    ///
+    /// # Returns
+    /// The calculated delay duration
+    pub fn calculate_delay(&self, attempt: u32) -> Duration {
+        // Calculate base exponential backoff: initial_delay * 2^attempt
+        let base_delay_secs = self.initial_delay.as_secs_f64() * 2_f64.powi(attempt as i32);
+
+        // Cap at max_delay before applying jitter
+        let capped_delay_secs = base_delay_secs.min(self.max_delay.as_secs_f64());
+
+        // Apply jitter: reduce delay by random factor between 0 and jitter_factor
+        // This helps prevent thundering herd when multiple clients retry simultaneously
+        let jitter = self.jitter_factor * random_factor();
+        let jittered_delay_secs = capped_delay_secs * (1.0 - jitter);
+
+        // Ensure we don't go below a minimum delay of 10ms
+        let final_delay_secs = jittered_delay_secs.max(0.01);
+
+        Duration::from_secs_f64(final_delay_secs)
+    }
+}
+
+/// Generate a random factor between 0.0 and 1.0 for jitter calculation.
+/// Uses a simple pseudo-random approach based on system time for minimal dependencies.
+fn random_factor() -> f64 {
+    use std::time::SystemTime;
+
+    let nanos = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos())
+        .unwrap_or(0);
+
+    // Convert nanoseconds to a value between 0.0 and 1.0
+    (nanos as f64) / 1_000_000_000.0
 }
 
 /// Anthropic API client
@@ -134,16 +182,15 @@ impl Client {
             match self.create_message_internal(&request).await {
                 Ok(message) => return Ok(message),
                 Err(e) if e.is_retryable() && retries < self.retry_config.max_retries => {
-                    // Calculate delay with exponential backoff
-                    let base_delay = self.retry_config.initial_delay * 2_u32.pow(retries);
-                    let delay = std::cmp::min(base_delay, self.retry_config.max_delay);
+                    // Calculate delay with exponential backoff and jitter
+                    let calculated_delay = self.retry_config.calculate_delay(retries);
 
                     // Use Retry-After if provided, otherwise use calculated delay
-                    let actual_delay = e.retry_after().unwrap_or(delay);
+                    let actual_delay = e.retry_after().unwrap_or(calculated_delay);
 
                     eprintln!(
-                        "Retrying request after {}s (attempt {}/{})",
-                        actual_delay.as_secs(),
+                        "Retrying request after {:.2}s (attempt {}/{})",
+                        actual_delay.as_secs_f64(),
                         retries + 1,
                         self.retry_config.max_retries
                     );
@@ -182,7 +229,7 @@ impl Client {
         Ok(message_response)
     }
 
-    /// Create a message with streaming
+    /// Create a message with streaming and automatic retry logic
     pub async fn create_message_stream(
         &self,
         mut request: CreateMessageRequest,
@@ -190,6 +237,38 @@ impl Client {
         // Ensure streaming is enabled
         request.stream = true;
 
+        let mut retries = 0;
+
+        loop {
+            match self.create_message_stream_internal(&request).await {
+                Ok(stream) => return Ok(stream),
+                Err(e) if e.is_retryable() && retries < self.retry_config.max_retries => {
+                    // Calculate delay with exponential backoff and jitter
+                    let calculated_delay = self.retry_config.calculate_delay(retries);
+
+                    // Use Retry-After if provided, otherwise use calculated delay
+                    let actual_delay = e.retry_after().unwrap_or(calculated_delay);
+
+                    eprintln!(
+                        "Retrying streaming request after {:.2}s (attempt {}/{})",
+                        actual_delay.as_secs_f64(),
+                        retries + 1,
+                        self.retry_config.max_retries
+                    );
+
+                    tokio::time::sleep(actual_delay).await;
+                    retries += 1;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+    }
+
+    /// Internal method to create a streaming message request without retry
+    async fn create_message_stream_internal(
+        &self,
+        request: &CreateMessageRequest,
+    ) -> ClientResult<impl Stream<Item = ClientResult<StreamEvent>>> {
         let url = format!("{}/v1/messages", self.config.api_url);
 
         let response = self
@@ -199,7 +278,7 @@ impl Client {
             .header("anthropic-version", &self.config.api_version)
             .header("content-type", "application/json")
             .header("accept", "text/event-stream")
-            .json(&request)
+            .json(request)
             .send()
             .await?;
 
