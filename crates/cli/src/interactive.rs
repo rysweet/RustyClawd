@@ -521,6 +521,7 @@ impl InteractiveSession {
                                     stderr,
                                     is_error: is_error.unwrap_or(false),
                                     raw_content: content_text,
+                                    structured_content: None,
                                 }
                             } else {
                                 // Non-ToolResult content block (shouldn't happen)
@@ -530,6 +531,7 @@ impl InteractiveSession {
                                     stderr: "Unexpected result format".to_string(),
                                     is_error: true,
                                     raw_content: "Unexpected result format".to_string(),
+                                    structured_content: None,
                                 }
                             };
 
@@ -557,6 +559,7 @@ impl InteractiveSession {
                                     stderr: error.clone(),
                                     is_error: true,
                                     raw_content: format!("Tool execution error: {}", error),
+                                    structured_content: None,
                                 };
 
                                 // Finalize tool message with error

@@ -106,9 +106,63 @@ For tool developers:
 2. **To use structured content**: Return `Vec<ContentBlock>` instead of `String`
 3. **Testing**: Both old and new formats are covered by tests in `crates/core/tests/tool_use_test.rs`
 
+## structuredContent Field
+
+In addition to the `content` array, tool results can include an optional `structuredContent` field containing typed JSON data that conforms to the tool's declared `outputSchema`.
+
+### MCP CallToolResult Schema
+
+Per the MCP specification (2025-11-25), the complete `CallToolResult` structure is:
+
+```rust
+pub struct McpCallToolResult {
+    /// Array of content blocks (text, images, etc.)
+    pub content: Vec<ContentBlock>,
+    /// Optional structured JSON result matching tool's outputSchema
+    pub structured_content: Option<serde_json::Value>,
+    /// Whether this is an error response
+    pub is_error: Option<bool>,
+}
+```
+
+### When to Use structuredContent
+
+Use `structuredContent` when:
+- The tool has a declared `outputSchema` in its definition
+- Callers need machine-parseable results beyond text
+- Returning structured data (objects, arrays) that match a specific schema
+
+### Example with structuredContent
+
+```rust
+// MCP tool result with both content and structuredContent
+McpCallToolResult {
+    content: vec![ContentBlock::Text {
+        text: "Found 3 files matching pattern".to_string(),
+    }],
+    structured_content: Some(serde_json::json!({
+        "files": [
+            {"path": "/src/main.rs", "size": 1024},
+            {"path": "/src/lib.rs", "size": 512},
+            {"path": "/tests/test.rs", "size": 256}
+        ],
+        "total_count": 3
+    })),
+    is_error: None,
+}
+```
+
+### Backward Compatibility
+
+The `structuredContent` field is optional:
+- Existing tools without output schemas continue to work unchanged
+- MCP servers that don't return `structuredContent` are handled gracefully
+- When present, `structuredContent` provides typed data alongside human-readable `content`
+
 ## MCP Spec Compliance
 
 This implementation follows the Model Context Protocol specification for tool results:
 - Supports array of content blocks per MCP spec
+- Supports optional `structuredContent` field for typed JSON responses
 - Maintains backward compatibility with existing implementations
 - Enables richer tool responses with multiple content types

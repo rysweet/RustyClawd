@@ -10,7 +10,7 @@
 //!
 //! Used by both CLI (claude mcp ...) and TUI (/mcp-... commands)
 
-use crate::plugins::mcp_proxy::{McpProxy, McpServerInstance};
+use crate::plugins::mcp_proxy::{McpCallToolResult, McpProxy, McpServerInstance};
 use crate::tool_definitions;
 use serde::{Deserialize, Serialize};
 use std::io::{self, BufRead, Write};
@@ -210,16 +210,22 @@ async fn handle_tools_call(request: &JsonRpcRequest) -> JsonRpcResponse {
     // Future enhancement: Integrate with crate::tool_executor::execute_tool
     // to provide full tool execution capability.
 
+    // Build MCP-compliant CallToolResult with optional structuredContent
+    let tool_result = McpCallToolResult {
+        content: vec![serde_json::json!({
+            "type": "text",
+            "text": format!("Tool '{}' invoked with parameters. Full execution requires session context.", tool_name)
+        })],
+        // structuredContent can be provided when tool has outputSchema
+        // and returns typed data. For now, set to None.
+        structured_content: None,
+        is_error: Some(false),
+    };
+
     JsonRpcResponse {
         jsonrpc: "2.0".to_string(),
         id: request.id.clone(),
-        result: Some(serde_json::json!({
-            "content": [{
-                "type": "text",
-                "text": format!("Tool '{}' invoked with parameters. Full execution requires session context.", tool_name)
-            }],
-            "isError": false
-        })),
+        result: Some(serde_json::to_value(tool_result).unwrap_or_default()),
         error: None,
     }
 }
