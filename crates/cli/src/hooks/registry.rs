@@ -45,6 +45,7 @@ impl HookRegistry {
             HookEvent::SessionStart => &mut self.configuration.session_start,
             HookEvent::SessionEnd => &mut self.configuration.session_end,
             HookEvent::PreToolUse => &mut self.configuration.pre_tool_use,
+            HookEvent::PermissionRequest => &mut self.configuration.permission_request,
             HookEvent::PostToolUse => &mut self.configuration.post_tool_use,
             HookEvent::UserPromptSubmit => &mut self.configuration.user_prompt_submit,
             HookEvent::Stop => &mut self.configuration.stop,
@@ -61,6 +62,7 @@ impl HookRegistry {
             HookEvent::SessionStart => &mut self.configuration.session_start,
             HookEvent::SessionEnd => &mut self.configuration.session_end,
             HookEvent::PreToolUse => &mut self.configuration.pre_tool_use,
+            HookEvent::PermissionRequest => &mut self.configuration.permission_request,
             HookEvent::PostToolUse => &mut self.configuration.post_tool_use,
             HookEvent::UserPromptSubmit => &mut self.configuration.user_prompt_submit,
             HookEvent::Stop => &mut self.configuration.stop,
@@ -97,6 +99,12 @@ impl HookRegistry {
             + self
                 .configuration
                 .pre_tool_use
+                .iter()
+                .map(|c| c.hooks.len())
+                .sum::<usize>()
+            + self
+                .configuration
+                .permission_request
                 .iter()
                 .map(|c| c.hooks.len())
                 .sum::<usize>()

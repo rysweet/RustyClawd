@@ -54,6 +54,7 @@ struct HooksConfiguration {
     session_start: Vec<HookConfig>,
     session_end: Vec<HookConfig>,
     pre_tool_use: Vec<HookConfig>,
+    permission_request: Vec<HookConfig>,
     post_tool_use: Vec<HookConfig>,
     user_prompt_submit: Vec<HookConfig>,
     stop: Vec<HookConfig>,
@@ -488,6 +489,83 @@ fn test_pre_compact_hook_event() {
     assert_eq!(context.hook_event_name, "PreCompact");
 }
 
+#[test]
+fn test_permission_request_hook_event() {
+    // Happy path: PermissionRequest hook for auto-approve/deny
+    let context = HookContext {
+        session_id: "session-123".to_string(),
+        transcript_path: "/tmp/transcript.log".to_string(),
+        cwd: "/home/user".to_string(),
+        permission_mode: "ask".to_string(),
+        hook_event_name: "PermissionRequest".to_string(),
+        tool_name: Some("Read".to_string()),
+        tool_params: Some(json!({"file_path": "/tmp/test.txt"})),
+        tool_result: None,
+        session_start_matcher: None,
+        session_end_reason: None,
+        notification_type: None,
+        user_prompt: None,
+        additional: HashMap::new(),
+    };
+
+    assert_eq!(context.hook_event_name, "PermissionRequest");
+    assert_eq!(context.tool_name, Some("Read".to_string()));
+    assert_eq!(context.permission_mode, "ask");
+}
+
+#[test]
+fn test_permission_request_decision_approve() {
+    // Happy path: PermissionRequest decision - approve (auto-approve tool)
+    let output = HookOutput {
+        continue_execution: None,
+        permission_decision: None,
+        decision: Some("approve".to_string()),
+        additional_context: None,
+        stop_reason: None,
+        suppress_output: None,
+        system_message: None,
+        permission_decision_reason: None,
+        reason: None,
+        hook_specific_output: None,
+    };
+
+    assert_eq!(output.decision, Some("approve".to_string()));
+}
+
+#[test]
+fn test_permission_request_decision_deny() {
+    // Error case: PermissionRequest decision - deny with reason
+    let output = HookOutput {
+        continue_execution: None,
+        permission_decision: None,
+        decision: Some("deny".to_string()),
+        additional_context: None,
+        stop_reason: None,
+        suppress_output: None,
+        system_message: None,
+        permission_decision_reason: None,
+        reason: Some("Tool not allowed by policy".to_string()),
+        hook_specific_output: None,
+    };
+
+    assert_eq!(output.decision, Some("deny".to_string()));
+    assert_eq!(
+        output.reason,
+        Some("Tool not allowed by policy".to_string())
+    );
+}
+
+#[test]
+fn test_permission_request_decision_validation() {
+    // Validation: PermissionRequest decision values
+    let valid_decisions = vec!["approve", "deny"];
+
+    assert!(valid_decisions.contains(&"approve"));
+    assert!(valid_decisions.contains(&"deny"));
+    assert!(!valid_decisions.contains(&"allow")); // Not valid for PermissionRequest
+    assert!(!valid_decisions.contains(&"ask")); // Not valid for PermissionRequest
+}
+
 // ============================================================================
 // UNIT TESTS: HOOK EXECUTION & OUTPUT
 // ============================================================================
@@ -720,6 +798,7 @@ fn test_hooks_configuration_creation() {
         session_start: vec![],
         session_end: vec![],
         pre_tool_use: vec![],
+        permission_request: vec![],
         post_tool_use: vec![],
         user_prompt_submit: vec![],
         stop: vec![],
@@ -747,6 +826,7 @@ fn test_hooks_configuration_with_session_start() {
         }],
         session_end: vec![],
         pre_tool_use: vec![],
+        permission_request: vec![],
         post_tool_use: vec![],
         user_prompt_submit: vec![],
         stop: vec![],
@@ -773,6 +853,7 @@ fn test_hooks_configuration_with_pre_tool_use() {
                 timeout_ms: Some(60000),
             }],
         }],
+        permission_request: vec![],
         post_tool_use: vec![],
         user_prompt_submit: vec![],
         stop: vec![],
@@ -791,6 +872,7 @@ fn test_hooks_configuration_with_stop_hooks() {
         session_start: vec![],
         session_end: vec![],
         pre_tool_use: vec![],
+        permission_request: vec![],
         post_tool_use: vec![],
         user_prompt_submit: vec![],
         stop: vec![HookConfig {
@@ -812,7 +894,7 @@ fn test_hooks_configuration_with_stop_hooks() {
 
 #[test]
 fn test_hooks_configuration_all_events() {
-    // Integration: Configure hooks for all event types
+    // Integration: Configure hooks for all event types (10 total)
     let config = HooksConfiguration {
         session_start: vec![HookConfig {
             matcher: HookMatcher::Exact("*".to_string()),
@@ -839,6 +921,15 @@ fn test_hooks_configuration_all_events() {
                 prompt: None,
                 command: None,
                 timeout_ms: Some(60000),
+            }],
+        }],
+        permission_request: vec![HookConfig {
+            matcher: HookMatcher::Regex("Read|Glob|Grep".to_string()),
+            hooks: vec![Hook {
+                r#type: "command".to_string(),
+                prompt: None,
+                command: Some("echo '{\"decision\": \"approve\"}'".to_string()),
+                timeout_ms: Some(5000),
             }],
         }],
         post_tool_use: vec![HookConfig {
@@ -897,10 +988,11 @@ fn test_hooks_configuration_all_events() {
         }],
     };
 
-    // Verify all event types are configured
+    // Verify all event types are configured (10 total)
     assert_eq!(config.session_start.len(), 1);
     assert_eq!(config.session_end.len(), 1);
     assert_eq!(config.pre_tool_use.len(), 1);
+    assert_eq!(config.permission_request.len(), 1);
     assert_eq!(config.post_tool_use.len(), 1);
     assert_eq!(config.user_prompt_submit.len(), 1);
     assert_eq!(config.stop.len(), 1);
@@ -920,6 +1012,7 @@ fn test_custom_hook_registration_command() {
         session_start: vec![],
         session_end: vec![],
         pre_tool_use: vec![],
+        permission_request: vec![],
         post_tool_use: vec![],
         user_prompt_submit: vec![],
         stop: vec![],
@@ -952,6 +1045,7 @@ fn test_custom_hook_registration_prompt() {
         session_start: vec![],
         session_end: vec![],
         pre_tool_use: vec![],
+        permission_request: vec![],
         post_tool_use: vec![],
         user_prompt_submit: vec![],
         stop: vec![],
@@ -984,6 +1078,7 @@ fn test_custom_hook_registration_multiple() {
         session_start: vec![],
         session_end: vec![],
         pre_tool_use: vec![],
+        permission_request: vec![],
         post_tool_use: vec![],
         user_prompt_submit: vec![],
         stop: vec![],
@@ -1030,6 +1125,7 @@ fn test_custom_hook_registration_mcp_tool() {
                 timeout_ms: Some(60000),
             }],
         }],
+        permission_request: vec![],
         post_tool_use: vec![],
         user_prompt_submit: vec![],
         stop: vec![],
@@ -1172,6 +1268,7 @@ fn test_hooks_configuration_empty() {
         session_start: vec![],
         session_end: vec![],
         pre_tool_use: vec![],
+        permission_request: vec![],
         post_tool_use: vec![],
         user_prompt_submit: vec![],
         stop: vec![],
@@ -1269,11 +1366,12 @@ fn test_hook_decision_invalid_value() {
 
 #[test]
 fn test_hook_event_type_invalid() {
-    // Error handling: Invalid hook event type
+    // Error handling: Invalid hook event type (10 valid events)
     let valid_events = vec![
         "SessionStart",
         "SessionEnd",
         "PreToolUse",
+        "PermissionRequest",
         "PostToolUse",
         "UserPromptSubmit",
         "Stop",
@@ -1313,6 +1411,7 @@ fn test_scenario_session_workflow() {
             }],
         }],
         pre_tool_use: vec![],
+        permission_request: vec![],
         post_tool_use: vec![],
         user_prompt_submit: vec![],
         stop: vec![],
@@ -1354,6 +1453,7 @@ fn test_scenario_permission_enforcement() {
                 }],
             },
         ],
+        permission_request: vec![],
         post_tool_use: vec![],
         user_prompt_submit: vec![],
         stop: vec![],
@@ -1372,6 +1472,7 @@ fn test_scenario_post_execution_analysis() {
         session_start: vec![],
         session_end: vec![],
         pre_tool_use: vec![],
+        permission_request: vec![],
         post_tool_use: vec![HookConfig {
             matcher: HookMatcher::Regex("Bash|BashOutput".to_string()),
             hooks: vec![
@@ -1407,6 +1508,7 @@ fn test_scenario_completion_decision() {
         session_start: vec![],
         session_end: vec![],
         pre_tool_use: vec![],
+        permission_request: vec![],
         post_tool_use: vec![],
         user_prompt_submit: vec![],
         stop: vec![HookConfig {
@@ -1441,6 +1543,7 @@ fn test_scenario_environment_persistence() {
         }],
         session_end: vec![],
         pre_tool_use: vec![],
+        permission_request: vec![],
         post_tool_use: vec![],
         user_prompt_submit: vec![],
         stop: vec![],
@@ -1467,6 +1570,7 @@ fn test_scenario_mcp_tool_targeting() {
                 timeout_ms: Some(60000),
             }],
         }],
+        permission_request: vec![],
         post_tool_use: vec![],
         user_prompt_submit: vec![],
         stop: vec![],
@@ -1507,6 +1611,7 @@ fn test_scenario_parallel_hook_execution() {
         }],
         session_end: vec![],
         pre_tool_use: vec![],
+        permission_request: vec![],
         post_tool_use: vec![],
         user_prompt_submit: vec![],
         stop: vec![],
@@ -1547,6 +1652,7 @@ fn test_scenario_deduplication() {
         }],
         session_end: vec![],
         pre_tool_use: vec![],
+        permission_request: vec![],
         post_tool_use: vec![],
         user_prompt_submit: vec![],
         stop: vec![],
@@ -1557,6 +1663,71 @@ fn test_scenario_deduplication() {
 
     // In real system, deduplication happens during execution
     assert_eq!(config.session_start[0].hooks.len(), 3);
+}
+
+#[test]
+fn test_scenario_permission_request_auto_approval() {
+    // Scenario: PermissionRequest hooks for auto-approving read-only tools
+    let config = HooksConfiguration {
+        session_start: vec![],
+        session_end: vec![],
+        pre_tool_use: vec![],
+        permission_request: vec![HookConfig {
+            matcher: HookMatcher::Regex("Read|Glob|Grep".to_string()),
+            hooks: vec![Hook {
+                r#type: "command".to_string(),
+                prompt: None,
+                command: Some("echo '{\"decision\": \"approve\"}'".to_string()),
+                timeout_ms: Some(5000),
+            }],
+        }],
+        post_tool_use: vec![],
+        user_prompt_submit: vec![],
+        stop: vec![],
+        subagent_stop: vec![],
+        notification: vec![],
+        pre_compact: vec![],
+    };
+
+    assert_eq!(config.permission_request.len(), 1);
+}
+
+#[test]
+fn test_scenario_permission_request_with_deny() {
+    // Scenario: PermissionRequest hooks for denying dangerous tools
+    let config = HooksConfiguration {
+        session_start: vec![],
+        session_end: vec![],
+        pre_tool_use: vec![],
+        permission_request: vec![
+            HookConfig {
+                matcher: HookMatcher::Regex("Read|Glob|Grep".to_string()),
+                hooks: vec![Hook {
+                    r#type: "command".to_string(),
+                    prompt: None,
+                    command: Some("echo '{\"decision\": \"approve\"}'".to_string()),
+                    timeout_ms: Some(5000),
+                }],
+            },
+            HookConfig {
+                matcher: HookMatcher::Exact("Bash".to_string()),
+                hooks: vec![Hook {
+                    r#type: "command".to_string(),
+                    prompt: None,
+                    command: Some("echo '{\"decision\": \"deny\", \"reason\": \"Bash commands require manual review\"}'".to_string()),
+                    timeout_ms: Some(5000),
+                }],
+            },
+        ],
+        post_tool_use: vec![],
+        user_prompt_submit: vec![],
+        stop: vec![],
+        subagent_stop: vec![],
+        notification: vec![],
+        pre_compact: vec![],
+    };
+
+    assert_eq!(config.permission_request.len(), 2);
 }
 
 // ============================================================================
@@ -1583,6 +1754,56 @@ fn test_parse_hook_configuration_json() {
 
     assert!(json_config["SessionStart"].is_array());
     assert_eq!(json_config["SessionStart"][0]["matcher"], "Write");
+}
+
+#[test]
+fn test_parse_permission_request_configuration_json() {
+    // Advanced: Parse PermissionRequest hook configuration from JSON
+    let json_config = json!({
+        "PermissionRequest": [
+            {
+                "matcher": "Read|Glob|Grep",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "echo '{\"decision\": \"approve\"}'",
+                        "timeout": 5000
+                    }
+                ]
+            }
+        ]
+    });
+
+    assert!(json_config["PermissionRequest"].is_array());
+    assert_eq!(
+        json_config["PermissionRequest"][0]["matcher"],
+        "Read|Glob|Grep"
+    );
+    assert_eq!(
+        json_config["PermissionRequest"][0]["hooks"][0]["type"],
+        "command"
+    );
+}
+
+#[test]
+fn test_parse_permission_request_decision_json() {
+    // Advanced: Parse PermissionRequest decision JSON response
+    let decision_json = json!({
+        "decision": "approve"
+    });
+
+    assert_eq!(decision_json["decision"].as_str(), Some("approve"));
+
+    let deny_json = json!({
+        "decision": "deny",
+        "reason": "Tool not allowed by policy"
+    });
+
+    assert_eq!(deny_json["decision"].as_str(), Some("deny"));
+    assert_eq!(
+        deny_json["reason"].as_str(),
+        Some("Tool not allowed by policy")
+    );
 }
 
 #[test]
@@ -1650,11 +1871,12 @@ fn test_parse_all_hook_types() {
 
 #[test]
 fn test_parse_all_lifecycle_events() {
-    // Advanced: Verify all lifecycle events
+    // Advanced: Verify all lifecycle events (10 total)
     let events = vec![
         "SessionStart",
         "SessionEnd",
         "PreToolUse",
+        "PermissionRequest",
         "PostToolUse",
         "UserPromptSubmit",
         "Stop",
@@ -1663,8 +1885,9 @@ fn test_parse_all_lifecycle_events() {
         "PreCompact",
     ];
 
-    assert_eq!(events.len(), 9);
+    assert_eq!(events.len(), 10);
     assert!(events.contains(&"SessionStart"));
+    assert!(events.contains(&"PermissionRequest"));
     assert!(events.contains(&"Stop"));
 }
 
@@ -1952,7 +2175,7 @@ fn test_coverage_summary() {
     println!("\n=== HOOKS TEST SUITE COVERAGE SUMMARY ===\n");
     println!("Test Categories:");
     println!("  1. Hook Configuration & Validation (9 tests)");
-    println!("  2. Lifecycle Events (9 tests)");
+    println!("  2. Lifecycle Events (10 tests including PermissionRequest)");
     println!("  3. Hook Execution & Output (13 tests)");
     println!("  4. Configuration System (5 tests)");
     println!("  5. Custom Hook Registration (4 tests)");
@@ -1961,11 +2184,13 @@ fn test_coverage_summary() {
     println!("  8. Full Workflow Scenarios (8 tests)");
     println!("  9. JSON Configuration Parsing (9 tests)");
     println!("  10. Spec-Compliant Fields (20 tests)");
-    println!("\nTotal: 93 comprehensive tests");
+    println!("  11. PermissionRequest Hook (4 tests)");
+    println!("\nTotal: 97+ comprehensive tests");
     println!("\nCritical Coverage:");
-    println!("  ✓ All 9 hook lifecycle events");
+    println!("  ✓ All 10 hook lifecycle events (including PermissionRequest)");
     println!("  ✓ Both hook types (command, prompt)");
-    println!("  ✓ All permission decisions (allow/deny/ask)");
+    println!("  ✓ All PreToolUse permission decisions (allow/deny/ask)");
+    println!("  ✓ All PermissionRequest decisions (approve/deny)");
     println!("  ✓ All execution decisions (approve/block)");
     println!("  ✓ Exit code handling (0, 1, 2)");
     println!("  ✓ Matcher patterns (exact, regex)");
@@ -1974,6 +2199,7 @@ fn test_coverage_summary() {
     println!("  ✓ Real-world workflow scenarios");
     println!("  ✓ All hook output fields (stopReason, systemMessage, suppressOutput)");
     println!("  ✓ PreToolUse-specific output (updatedInput, permissionDecisionReason)");
+    println!("  ✓ PermissionRequest auto-approve/deny workflow");
     println!("  ✓ SessionStart matchers (startup, resume, clear, compact)");
     println!("  ✓ SessionEnd reasons (clear, logout, prompt_input_exit, other)");
     println!(

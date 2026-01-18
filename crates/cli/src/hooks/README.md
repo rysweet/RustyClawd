@@ -1,6 +1,6 @@
 # Claude Code Hooks System
 
-Complete implementation of the Claude Code hooks system for Rust. Provides lifecycle hooks for all 9 events with command and prompt-based execution.
+Complete implementation of the Claude Code hooks system for Rust. Provides lifecycle hooks for all 10 events with command and prompt-based execution.
 
 ## Architecture
 
@@ -29,7 +29,7 @@ Execute LLM-based analysis (placeholder implementation):
 - Generate dynamic responses
 - Future: Full LLM integration
 
-## Lifecycle Events (9 Total)
+## Lifecycle Events (10 Total)
 
 ### 1. SessionStart
 Called when a new session begins.
@@ -56,7 +56,16 @@ Called before tool execution (can block execution).
 - Rate limiting
 **Returns:** `permissionDecision` (allow/deny/ask)
 
-### 4. PostToolUse
+### 4. PermissionRequest
+Called when a tool permission is about to be requested from the user (in Ask mode).
+**Use cases:**
+- Auto-approve trusted tools
+- Auto-deny dangerous operations
+- Custom permission logic based on context
+- Bypass user prompts for known-safe operations
+**Returns:** `decision` (approve/deny) - if no output, user is prompted
+
+### 5. PostToolUse
 Called after tool execution.
 **Use cases:**
 - Log results
@@ -64,7 +73,7 @@ Called after tool execution.
 - Trigger follow-up actions
 - Update metrics
 
-### 5. UserPromptSubmit
+### 6. UserPromptSubmit
 Called when user submits a prompt.
 **Use cases:**
 - Preprocess prompts
@@ -72,7 +81,7 @@ Called when user submits a prompt.
 - Validate input
 - Track history
 
-### 6. Stop
+### 7. Stop
 Called when checking if work is complete.
 **Use cases:**
 - Verify completion criteria
@@ -81,7 +90,7 @@ Called when checking if work is complete.
 - Approve/block completion
 **Returns:** `decision` (approve/block)
 
-### 7. SubagentStop
+### 8. SubagentStop
 Called when a subagent stops.
 **Use cases:**
 - Control subagent lifecycle
@@ -89,7 +98,7 @@ Called when a subagent stops.
 - Coordinate multi-agent work
 **Returns:** `decision` (approve/block)
 
-### 8. Notification
+### 9. Notification
 Called for notification filtering.
 **Use cases:**
 - Route notifications
@@ -97,7 +106,7 @@ Called for notification filtering.
 - Aggregate alerts
 - Custom notification handling
 
-### 9. PreCompact
+### 10. PreCompact
 Called before compacting conversation history.
 **Use cases:**
 - Archive full history
@@ -177,6 +186,18 @@ Example configuration:
       ]
     }
   ],
+  "PermissionRequest": [
+    {
+      "matcher": "Read|Glob|Grep",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo '{\"decision\": \"approve\"}'",
+          "timeout": 5000
+        }
+      ]
+    }
+  ],
   "Stop": [
     {
       "matcher": "*",
@@ -234,9 +255,10 @@ Hooks can output JSON to stdout for advanced control:
 - `"deny"` - Block tool execution
 - `"ask"` - Prompt user for decision
 
-#### `decision` (Stop/SubagentStop hooks)
-- `"approve"` - Approve completion
+#### `decision` (Stop/SubagentStop/PermissionRequest hooks)
+- `"approve"` - Approve completion or auto-approve permission
 - `"block"` - Block completion
+- `"deny"` - Deny permission (PermissionRequest only)
 
 #### `additionalContext` (string)
 - Custom text to inject into conversation context
@@ -322,6 +344,42 @@ async fn check_tool_permission(
     }
 
     Ok(true) // Default: allow
+}
+```
+
+### PermissionRequest Auto-Approval
+
+```rust
+use claude_code_cli::hooks::{HooksSystem, HookEvent, HookContext, types::PermissionRequestDecision};
+
+async fn check_permission_request(
+    hooks: &HooksSystem,
+    tool_name: &str,
+    tool_params: &serde_json::Value,
+) -> anyhow::Result<Option<bool>> {
+    let context = HookContext::for_permission_request(
+        "session-123".to_string(),
+        "/tmp/transcript.log".to_string(),
+        "/home/user".to_string(),
+        "ask".to_string(),
+        tool_name.to_string(),
+        Some(tool_params.clone()),
+    );
+
+    let results = hooks.execute_hooks(HookEvent::PermissionRequest, &context).await?;
+
+    for result in results {
+        if let Some(output) = result.parse_output() {
+            if let Some(decision) = output.decision {
+                match decision {
+                    PermissionRequestDecision::Approve => return Ok(Some(true)),
+                    PermissionRequestDecision::Deny => return Ok(Some(false)),
+                }
+            }
+        }
+    }
+
+    Ok(None) // No hook decision - prompt user
 }
 ```
 
@@ -458,6 +516,21 @@ if [[ "$CLAUDE_TOOL_NAME" == "Bash" ]]; then
 fi
 echo '{"permissionDecision": "allow"}'
 ```
+
+### PermissionRequest Hook (Auto-approve safe tools)
+```bash
+#!/bin/bash
+# Auto-approve read-only operations
+if [[ "$CLAUDE_TOOL_NAME" == "Read" ]] || [[ "$CLAUDE_TOOL_NAME" == "Glob" ]] || [[ "$CLAUDE_TOOL_NAME" == "Grep" ]]; then
+    echo '{"decision": "approve"}'
+    exit 0
+fi
+
+# No decision - let user decide
+exit 0
+```
+
+This hook auto-approves read-only tools without prompting the user.
 
 ### Stop Hook (Prompt-based)
 ```json

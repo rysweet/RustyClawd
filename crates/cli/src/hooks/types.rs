@@ -17,6 +17,7 @@ pub enum HookEvent {
     SessionStart,
     SessionEnd,
     PreToolUse,
+    PermissionRequest,
     PostToolUse,
     UserPromptSubmit,
     Stop,
@@ -32,6 +33,7 @@ impl HookEvent {
             HookEvent::SessionStart,
             HookEvent::SessionEnd,
             HookEvent::PreToolUse,
+            HookEvent::PermissionRequest,
             HookEvent::PostToolUse,
             HookEvent::UserPromptSubmit,
             HookEvent::Stop,
@@ -47,6 +49,7 @@ impl HookEvent {
             HookEvent::SessionStart => "SessionStart",
             HookEvent::SessionEnd => "SessionEnd",
             HookEvent::PreToolUse => "PreToolUse",
+            HookEvent::PermissionRequest => "PermissionRequest",
             HookEvent::PostToolUse => "PostToolUse",
             HookEvent::UserPromptSubmit => "UserPromptSubmit",
             HookEvent::Stop => "Stop",
@@ -198,6 +201,8 @@ pub struct HooksConfiguration {
     pub session_end: Vec<HookConfig>,
     #[serde(rename = "PreToolUse", default)]
     pub pre_tool_use: Vec<HookConfig>,
+    #[serde(rename = "PermissionRequest", default)]
+    pub permission_request: Vec<HookConfig>,
     #[serde(rename = "PostToolUse", default)]
     pub post_tool_use: Vec<HookConfig>,
     #[serde(rename = "UserPromptSubmit", default)]
@@ -219,6 +224,7 @@ impl HooksConfiguration {
             HookEvent::SessionStart => &self.session_start,
             HookEvent::SessionEnd => &self.session_end,
             HookEvent::PreToolUse => &self.pre_tool_use,
+            HookEvent::PermissionRequest => &self.permission_request,
             HookEvent::PostToolUse => &self.post_tool_use,
             HookEvent::UserPromptSubmit => &self.user_prompt_submit,
             HookEvent::Stop => &self.stop,
@@ -446,6 +452,33 @@ impl HookContext {
         }
     }
 
+    /// Create context for PermissionRequest event
+    pub fn for_permission_request(
+        session_id: String,
+        transcript_path: String,
+        cwd: String,
+        permission_mode: String,
+        tool_name: String,
+        tool_params: Option<serde_json::Value>,
+    ) -> Self {
+        Self {
+            session_id,
+            transcript_path,
+            cwd,
+            permission_mode,
+            hook_event_name: HookEvent::PermissionRequest.as_str().to_string(),
+            tool_name: Some(tool_name),
+            tool_use_id: None,
+            tool_params,
+            tool_result: None,
+            session_start_matcher: None,
+            session_end_reason: None,
+            notification_type: None,
+            user_prompt: None,
+            additional: HashMap::new(),
+        }
+    }
+
     /// Set tool parameters
     pub fn with_tool_params(mut self, params: serde_json::Value) -> Self {
         self.tool_params = Some(params);
@@ -507,6 +540,16 @@ pub enum PermissionDecision {
 pub enum StopDecision {
     Approve,
     Block,
+}
+
+/// Decision for PermissionRequest hooks (auto-approve or deny without prompting user)
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PermissionRequestDecision {
+    /// Approve the permission request (bypass user prompt)
+    Approve,
+    /// Deny the permission request (bypass user prompt)
+    Deny,
 }
 
 /// Hook output structure (JSON response)
@@ -571,8 +614,9 @@ mod tests {
     #[test]
     fn test_hook_event_all() {
         let events = HookEvent::all();
-        assert_eq!(events.len(), 9);
+        assert_eq!(events.len(), 10);
         assert!(events.contains(&HookEvent::SessionStart));
+        assert!(events.contains(&HookEvent::PermissionRequest));
         assert!(events.contains(&HookEvent::Stop));
     }
 

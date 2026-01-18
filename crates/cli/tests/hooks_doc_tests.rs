@@ -134,12 +134,19 @@ fn test_hook_event_pre_compact() {
 }
 
 #[test]
-fn test_hook_event_all_nine_events() {
+fn test_hook_event_permission_request() {
+    let event = HookEvent::PermissionRequest;
+    assert_eq!(event.as_str(), "PermissionRequest");
+}
+
+#[test]
+fn test_hook_event_all_ten_events() {
     let events = HookEvent::all();
-    assert_eq!(events.len(), 9);
+    assert_eq!(events.len(), 10);
     assert!(events.contains(&HookEvent::SessionStart));
     assert!(events.contains(&HookEvent::SessionEnd));
     assert!(events.contains(&HookEvent::PreToolUse));
+    assert!(events.contains(&HookEvent::PermissionRequest));
     assert!(events.contains(&HookEvent::PostToolUse));
     assert!(events.contains(&HookEvent::UserPromptSubmit));
     assert!(events.contains(&HookEvent::Stop));
