@@ -10,6 +10,7 @@ pub mod ask_user_question;
 pub mod bash;
 pub mod bash_output;
 pub mod claude_code_sync;
+pub mod command_skill;
 pub mod edit;
 pub mod error;
 pub mod glob_tool;
@@ -35,6 +36,9 @@ pub use agent_registry::{global_agent_registry, AgentHandle, AgentRegistry, Agen
 pub use ask_user_question::AskUserQuestionTool;
 pub use bash::BashTool;
 pub use bash_output::BashOutputTool;
+pub use command_skill::{
+    CommandSkillMetadata, CommandSkillOutput, CommandSkillParams, CommandSkillTool, CommandType,
+};
 pub use edit::EditTool;
 pub use error::{ToolError, ToolResult};
 pub use glob_tool::GlobTool;
