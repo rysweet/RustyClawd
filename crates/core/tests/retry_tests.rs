@@ -138,7 +138,7 @@ fn test_calculate_delay_with_jitter_bounds() {
         // Base delay is 10s, with 50% jitter the range should be 5s to 10s
         // (delay * (1.0 - 0.5*random)) where random is 0.0 to 1.0
         assert!(
-            delay_secs >= 5.0 && delay_secs <= 10.0,
+            (5.0..=10.0).contains(&delay_secs),
             "Delay {:.2}s should be between 5.0s and 10.0s",
             delay_secs
         );
