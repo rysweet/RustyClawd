@@ -54,6 +54,9 @@ pub struct ToolResult {
     pub is_error: bool,
     /// Raw content (for expanded view - shows full API response)
     pub raw_content: String,
+    /// Optional structured JSON content (MCP spec structuredContent field)
+    /// Contains typed data conforming to the tool's outputSchema when available
+    pub structured_content: Option<serde_json::Value>,
 }
 
 /// Completion item for slash command autocomplete
