@@ -353,7 +353,10 @@ fn discover_command_paths(name: &str) -> Vec<PathBuf> {
 
     // Priority 1: Project-level commands
     if let Some(ns) = namespace {
-        paths.push(PathBuf::from(format!(".claude/commands/{}/{}.md", ns, cmd_name)));
+        paths.push(PathBuf::from(format!(
+            ".claude/commands/{}/{}.md",
+            ns, cmd_name
+        )));
     }
     paths.push(PathBuf::from(format!(".claude/commands/{}.md", name)));
 
@@ -386,7 +389,10 @@ fn discover_skill_paths(skill_name: &str) -> Vec<PathBuf> {
     paths.push(PathBuf::from(format!(".claude/skills/{}/skill.md", skill)));
     paths.push(PathBuf::from(format!(".claude/skills/{}/SKILL.md", skill)));
     paths.push(PathBuf::from(format!(".claude/skills/{}.yaml", skill)));
-    paths.push(PathBuf::from(format!(".claude/skills/{}/skill.yaml", skill)));
+    paths.push(PathBuf::from(format!(
+        ".claude/skills/{}/skill.yaml",
+        skill
+    )));
 
     // Priority 2: User-level skills
     if let Some(home) = std::env::var_os("HOME") {
@@ -592,26 +598,41 @@ mod tests {
     #[test]
     fn test_discover_command_paths() {
         let paths = discover_command_paths("review-pr");
-        assert!(paths.iter().any(|p| p.to_str().unwrap().contains(".claude/commands/review-pr.md")));
+        assert!(paths.iter().any(|p| p
+            .to_str()
+            .unwrap()
+            .contains(".claude/commands/review-pr.md")));
     }
 
     #[test]
     fn test_discover_command_paths_namespaced() {
         let paths = discover_command_paths("amplihack:analyze");
-        assert!(paths.iter().any(|p| p.to_str().unwrap().contains(".claude/commands/amplihack/analyze.md")));
+        assert!(paths.iter().any(|p| p
+            .to_str()
+            .unwrap()
+            .contains(".claude/commands/amplihack/analyze.md")));
     }
 
     #[test]
     fn test_discover_skill_paths() {
         let paths = discover_skill_paths("code-reviewer");
-        assert!(paths.iter().any(|p| p.to_str().unwrap().contains(".claude/skills/code-reviewer.md")));
-        assert!(paths.iter().any(|p| p.to_str().unwrap().contains(".claude/skills/code-reviewer/skill.md")));
+        assert!(paths.iter().any(|p| p
+            .to_str()
+            .unwrap()
+            .contains(".claude/skills/code-reviewer.md")));
+        assert!(paths.iter().any(|p| p
+            .to_str()
+            .unwrap()
+            .contains(".claude/skills/code-reviewer/skill.md")));
     }
 
     #[test]
     fn test_discover_skill_paths_with_plugin() {
         let paths = discover_skill_paths("my-plugin:my-skill");
-        assert!(paths.iter().any(|p| p.to_str().unwrap().contains(".claude/plugins/my-plugin/skills/my-skill")));
+        assert!(paths.iter().any(|p| p
+            .to_str()
+            .unwrap()
+            .contains(".claude/plugins/my-plugin/skills/my-skill")));
     }
 
     #[test]
