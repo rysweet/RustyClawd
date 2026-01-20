@@ -11,6 +11,7 @@
 //! Used by both CLI (claude mcp ...) and TUI (/mcp-... commands)
 
 use crate::plugins::mcp_proxy::{McpCallToolResult, McpProxy, McpServerInstance};
+use crate::schema_validator::{SchemaValidator, ValidationResult};
 use crate::tool_definitions;
 use serde::{Deserialize, Serialize};
 use std::io::{self, BufRead, Write};
@@ -136,10 +137,12 @@ fn handle_initialize(request: &JsonRpcRequest) -> JsonRpcResponse {
 fn handle_tools_list(request: &JsonRpcRequest) -> JsonRpcResponse {
     // Get all tool definitions and convert to MCP format
     let tool_defs = tool_definitions::get_all_tool_definitions();
+    let validator = SchemaValidator::default();
+    let mut filtered_count = 0;
 
     let tools: Vec<serde_json::Value> = tool_defs
         .into_iter()
-        .map(|tool| {
+        .filter_map(|tool| {
             // Ensure inputSchema has "type": "object" at root
             let mut input_schema = tool.input_schema;
             if !input_schema
@@ -161,13 +164,34 @@ fn handle_tools_list(request: &JsonRpcRequest) -> JsonRpcResponse {
                 input_schema = serde_json::Value::Object(schema_obj);
             }
 
-            serde_json::json!({
+            // Validate the input schema
+            let validation_result = validator.validate(&input_schema);
+            if !validation_result.is_valid() {
+                // Log the filtered tool for debugging
+                eprintln!(
+                    "MCP serve: Filtered out tool '{}' due to incompatible schema: {}",
+                    tool.name,
+                    validation_result.error_message().unwrap_or_default()
+                );
+                filtered_count += 1;
+                return None;
+            }
+
+            Some(serde_json::json!({
                 "name": tool.name,
                 "description": tool.description,
                 "inputSchema": input_schema
-            })
+            }))
         })
         .collect();
+
+    // Log summary if any tools were filtered
+    if filtered_count > 0 {
+        eprintln!(
+            "MCP serve: Filtered out {} tool(s) with incompatible schemas",
+            filtered_count
+        );
+    }
 
     JsonRpcResponse {
         jsonrpc: "2.0".to_string(),

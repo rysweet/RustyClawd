@@ -15,6 +15,7 @@ mod mcp_commands;
 mod notification;
 mod permission_mode;
 mod plugins;
+mod schema_validator;
 mod session;
 mod session_persistence;
 mod settings;
