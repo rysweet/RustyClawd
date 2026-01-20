@@ -1,5 +1,6 @@
 //! Application state for TUI
 
+use crate::commands::permissions_search_state::PermissionsSearchState;
 use crate::permission_mode::PermissionMode;
 use crate::tui::message::Message;
 use crate::tui::token_counter::TokenCount;
@@ -209,6 +210,9 @@ pub struct App {
     /// Memory modal state
     memory_modal: Option<MemoryModalState>,
 
+    /// Permissions search modal state
+    permissions_modal: Option<PermissionsSearchState>,
+
     /// Current permission mode
     permission_mode: PermissionMode,
 
@@ -259,6 +263,9 @@ pub struct App {
 
     /// Focus state for memory modal
     focus_memory_modal: FocusFlag,
+
+    /// Focus state for permissions modal
+    focus_permissions_modal: FocusFlag,
 
     /// Layout cache from last render (for hit testing)
     layout_cache: LayoutCache,
@@ -317,6 +324,7 @@ impl App {
             max_scroll: 0,       // Will be updated by renderer
             autocomplete: None,
             memory_modal: None,
+            permissions_modal: None,
             permission_mode,
             streaming: None,
             tool_messages: HashMap::new(),
@@ -334,6 +342,7 @@ impl App {
             focus_debug: FocusFlag::new(),
             focus_autocomplete: FocusFlag::new(),
             focus_memory_modal: FocusFlag::new(),
+            focus_permissions_modal: FocusFlag::new(),
             layout_cache: LayoutCache::default(),
             click_regions: crate::tui::click_region::ClickableRegions::new(),
             soft_wrap: SoftWrapState::default(),
@@ -1518,6 +1527,35 @@ impl App {
         self.memory_modal.as_ref()
     }
 
+    // === Permissions modal management ===
+
+    /// Activate permissions search modal
+    pub fn activate_permissions_modal(&mut self) {
+        self.permissions_modal = Some(PermissionsSearchState::new());
+        self.mark_dirty();
+    }
+
+    /// Clear permissions modal
+    pub fn clear_permissions_modal(&mut self) {
+        self.permissions_modal = None;
+        self.mark_dirty();
+    }
+
+    /// Check if permissions modal is active
+    pub fn permissions_modal_active(&self) -> bool {
+        self.permissions_modal.is_some()
+    }
+
+    /// Get mutable reference to permissions modal state
+    pub fn permissions_modal_mut(&mut self) -> Option<&mut PermissionsSearchState> {
+        self.permissions_modal.as_mut()
+    }
+
+    /// Get permissions modal state (for rendering)
+    pub fn permissions_modal(&self) -> Option<&PermissionsSearchState> {
+        self.permissions_modal.as_ref()
+    }
+
     // === Focus management ===
 
     /// Get focus flag for messages pane
@@ -1543,6 +1581,11 @@ impl App {
     /// Get focus flag for memory modal
     pub fn focus_memory_modal(&self) -> FocusFlag {
         self.focus_memory_modal.clone()
+    }
+
+    /// Get focus flag for permissions modal
+    pub fn focus_permissions_modal(&self) -> FocusFlag {
+        self.focus_permissions_modal.clone()
     }
 
     /// Update layout cache from render
@@ -1686,6 +1729,35 @@ impl HasFocus for MemoryModalWrapper {
 
     fn area_z(&self) -> u16 {
         2 // Z-order 2 (above autocomplete)
+    }
+
+    fn navigable(&self) -> Navigation {
+        Navigation::Mouse // Mouse-only navigation
+    }
+}
+
+/// Wrapper for permissions modal to implement HasFocus with z-ordering
+/// Holds FocusFlag directly to avoid borrowing conflicts
+pub struct PermissionsModalWrapper {
+    pub focus: FocusFlag,
+    pub area: Rect,
+}
+
+impl HasFocus for PermissionsModalWrapper {
+    fn build(&self, builder: &mut FocusBuilder) {
+        builder.leaf_widget(self);
+    }
+
+    fn focus(&self) -> FocusFlag {
+        self.focus.clone()
+    }
+
+    fn area(&self) -> ratatui::layout::Rect {
+        self.area
+    }
+
+    fn area_z(&self) -> u16 {
+        3 // Z-order 3 (above memory modal)
     }
 
     fn navigable(&self) -> Navigation {

@@ -267,7 +267,8 @@ impl BuiltinCommands {
     }
 
     fn permissions_command() -> String {
-        "Permissions:\n  Tools: all enabled\n  File access: allowed\n  Network: allowed".to_string()
+        // Return special marker that TUI will detect and open modal
+        "[[OPEN_PERMISSIONS_MODAL]]".to_string()
     }
 
     fn debug_command(args: &Option<String>) -> String {

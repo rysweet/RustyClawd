@@ -11,6 +11,9 @@ pub mod builtins;
 pub mod executor;
 pub mod loader;
 pub mod parser;
+pub mod permission_rules;
+pub mod permissions_search_state;
+pub mod permissions_ui;
 pub mod registry;
 
 pub use self::{executor::Executor, parser::CommandParser, registry::Registry};

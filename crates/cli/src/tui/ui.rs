@@ -12,6 +12,7 @@ use ratatui::{
 };
 use unicode_width::UnicodeWidthStr;
 
+use crate::commands::permissions_ui;
 use crate::permission_mode::PermissionMode;
 use crate::tui::app::{App, LayoutCache};
 use crate::tui::layout::{LayoutConfig, LayoutOrganizer};
@@ -67,9 +68,14 @@ pub fn render(frame: &mut Frame, app: &mut App) -> (usize, usize, LayoutCache) {
         render_autocomplete(frame, input_area, app);
     }
 
-    // Render memory modal if active (after autocomplete, highest priority overlay)
+    // Render memory modal if active (after autocomplete)
     if app.memory_modal_active() {
         render_memory_modal(frame, input_area, app);
+    }
+
+    // Render permissions modal if active (highest priority overlay)
+    if app.permissions_modal_active() {
+        render_permissions_modal(frame, frame.area(), app);
     }
 
     // Render debug panel if visible
@@ -1574,6 +1580,13 @@ fn build_memory_list_item(
     spans.push(Span::styled(right_text.to_string(), path_style));
 
     ListItem::new(Line::from(spans))
+}
+
+fn render_permissions_modal(frame: &mut Frame, area: Rect, app: &App) {
+    if let Some(state) = app.permissions_modal() {
+        // Use the permissions_ui module to render the modal
+        permissions_ui::render_permissions_search(state, area, frame.buffer_mut());
+    }
 }
 
 fn render_debug_panel(frame: &mut Frame, area: Rect, app: &App) -> usize {

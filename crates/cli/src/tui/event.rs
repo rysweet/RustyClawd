@@ -12,7 +12,7 @@ use std::time::Duration;
 
 use crate::tui::app::{
     App, AutocompletePopupWrapper, DebugPaneWrapper, InputPaneWrapper, MemoryModalWrapper,
-    MessagesPaneWrapper,
+    MessagesPaneWrapper, PermissionsModalWrapper,
 };
 use crate::tui::click_region::ClickTarget;
 use crate::tui::keybindings::{KeyAction, KeyBindings};
@@ -68,8 +68,10 @@ pub fn handle_event(app: &mut App, event: Event) -> Result<EventResult> {
         let focus_debug = app.focus_debug();
         let focus_autocomplete = app.focus_autocomplete();
         let focus_memory_modal = app.focus_memory_modal();
+        let focus_permissions_modal = app.focus_permissions_modal();
         let autocomplete_active = app.autocomplete_active();
         let memory_modal_active = app.memory_modal_active();
+        let permissions_modal_active = app.permissions_modal_active();
 
         let mut builder = FocusBuilder::default();
 
@@ -111,6 +113,15 @@ pub fn handle_event(app: &mut App, event: Event) -> Result<EventResult> {
                 area: cache.input_area,
             };
             memory_modal_wrapper.build(&mut builder);
+        }
+
+        if permissions_modal_active {
+            let permissions_modal_wrapper = PermissionsModalWrapper {
+                focus: focus_permissions_modal,
+                // Permissions modal area is calculated in render, use input area as approximation
+                area: cache.input_area,
+            };
+            permissions_modal_wrapper.build(&mut builder);
         }
 
         let mut focus = builder.build();
@@ -277,7 +288,21 @@ fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<EventResult> {
 
     if is_printable && !is_streaming {
         if let crossterm::event::KeyCode::Char(c) = key.code {
-            app.insert_char(c);
+            // Route character input to permissions modal if active and searching
+            if app.permissions_modal_active() {
+                if let Some(permissions) = app.permissions_modal_mut() {
+                    if permissions.is_searching() {
+                        permissions.handle_char_input(c);
+                        app.mark_dirty();
+                    } else if c == '/' {
+                        // '/' activates search mode
+                        permissions.enter_search_mode();
+                        app.mark_dirty();
+                    }
+                }
+            } else {
+                app.insert_char(c);
+            }
         }
     }
 
@@ -314,18 +339,36 @@ fn handle_key_action(app: &mut App, action: &KeyAction) -> Result<EventResult> {
             app.cycle_permission_mode();
         }
         KeyAction::ClearError => {
-            // Escape key clears errors, memory modal, and autocomplete
+            // Escape key clears errors, modals, and autocomplete
             app.clear_error();
-            if app.memory_modal_active() {
+            if app.permissions_modal_active() {
+                // Check if we're in search mode
+                if let Some(permissions) = app.permissions_modal() {
+                    if permissions.is_searching() {
+                        // Exit search mode but keep modal open
+                        if let Some(p) = app.permissions_modal_mut() {
+                            p.exit_search_mode();
+                            app.mark_dirty();
+                        }
+                    } else {
+                        // Close modal entirely
+                        app.clear_permissions_modal();
+                    }
+                }
+            } else if app.memory_modal_active() {
                 app.clear_memory_modal();
-            }
-            if app.autocomplete_active() {
+            } else if app.autocomplete_active() {
                 app.clear_autocomplete();
             }
         }
         KeyAction::ScrollUp(n) => {
-            // Priority: memory modal > autocomplete > multi-line input > message scrolling
-            if app.memory_modal_active() {
+            // Priority: permissions modal > memory modal > autocomplete > multi-line input > message scrolling
+            if app.permissions_modal_active() {
+                if let Some(permissions) = app.permissions_modal_mut() {
+                    permissions.select_previous();
+                    app.mark_dirty();
+                }
+            } else if app.memory_modal_active() {
                 app.memory_modal_prev();
             } else if app.autocomplete_active() {
                 app.autocomplete_prev();
@@ -337,8 +380,13 @@ fn handle_key_action(app: &mut App, action: &KeyAction) -> Result<EventResult> {
             }
         }
         KeyAction::ScrollDown(n) => {
-            // Priority: memory modal > autocomplete > multi-line input > message scrolling
-            if app.memory_modal_active() {
+            // Priority: permissions modal > memory modal > autocomplete > multi-line input > message scrolling
+            if app.permissions_modal_active() {
+                if let Some(permissions) = app.permissions_modal_mut() {
+                    permissions.select_next();
+                    app.mark_dirty();
+                }
+            } else if app.memory_modal_active() {
                 app.memory_modal_next();
             } else if app.autocomplete_active() {
                 app.autocomplete_next();
@@ -400,7 +448,17 @@ fn handle_key_action(app: &mut App, action: &KeyAction) -> Result<EventResult> {
         }
         KeyAction::Backspace => {
             if !app.is_streaming() {
-                app.backspace();
+                // Route backspace to permissions modal if active and searching
+                if app.permissions_modal_active() {
+                    if let Some(permissions) = app.permissions_modal_mut() {
+                        if permissions.is_searching() {
+                            permissions.handle_backspace();
+                            app.mark_dirty();
+                        }
+                    }
+                } else {
+                    app.backspace();
+                }
             }
         }
         KeyAction::Delete => {
