@@ -133,8 +133,8 @@ impl Registry {
                 let path = entry.path();
 
                 if path.is_file() && path.extension().map(|e| e == "md").unwrap_or(false) {
-                    // Load command file
-                    match self.loader.load_command(&path).await {
+                    // Load command file (no plugin root for built-in commands)
+                    match self.loader.load_command(&path, None, None).await {
                         Ok(mut cmd) => {
                             // Build namespaced command name
                             let base_name = cmd.name.clone();
