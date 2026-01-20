@@ -65,6 +65,25 @@ pub struct McpToolDefinition {
     pub input_schema: serde_json::Value,
 }
 
+/// MCP CallToolResult per MCP spec (2025-11-25)
+///
+/// Represents the result of executing a tool via tools/call.
+/// Includes both human-readable content and optional structured JSON data.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpCallToolResult {
+    /// Array of content blocks (text, images, etc.) for human-readable output
+    pub content: Vec<serde_json::Value>,
+    /// Optional structured JSON result matching the tool's declared outputSchema.
+    /// Use this when returning typed data that callers can parse programmatically.
+    #[serde(rename = "structuredContent")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub structured_content: Option<serde_json::Value>,
+    /// Whether this is an error response
+    #[serde(rename = "isError")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_error: Option<bool>,
+}
+
 /// MCP resource definition from server
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Resource {

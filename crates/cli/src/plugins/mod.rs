@@ -53,7 +53,7 @@ pub use executor::PluginExecutor;
 pub use hooks_integration::{register_plugin_hooks, PluginHooksIntegrator};
 pub use loader::PluginLoader;
 pub use manager::{PluginManager, PluginSystemSummary};
-pub use mcp_proxy::McpProxy;
+pub use mcp_proxy::{McpCallToolResult, McpProxy};
 pub use tool_search_config::{ToolSearchConfig, ToolSearchConfigError, DEFAULT_THRESHOLD_PERCENT};
 
 /// Plugin system version
