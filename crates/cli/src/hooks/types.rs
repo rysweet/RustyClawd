@@ -96,11 +96,19 @@ impl<'de> Deserialize<'de> for HookMatcher {
         } else if s.contains('|') || s.contains(".*") || s.contains(".") {
             // Contains regex special characters: pipe (alternation), .* (wildcard), dots
             Ok(HookMatcher::Regex(s))
+        } else if is_mcp_server_wildcard(&s) {
+            // MCP server wildcard pattern: mcp__<server>__*
+            Ok(HookMatcher::Regex(s))
         } else {
             // Simple string - exact match
             Ok(HookMatcher::Exact(s))
         }
     }
+}
+
+/// Check if a pattern is an MCP server wildcard (mcp__<server>__*)
+fn is_mcp_server_wildcard(pattern: &str) -> bool {
+    pattern.starts_with("mcp__") && pattern.ends_with("__*") && pattern.matches("__").count() == 2
 }
 
 impl HookMatcher {
@@ -116,27 +124,42 @@ impl HookMatcher {
             }
             HookMatcher::Regex(pattern) => {
                 // Simple regex matching for common patterns
-                if pattern.contains('|') {
-                    // Alternation pattern like "Edit|Write"
-                    pattern.split('|').any(|p| tool_name.contains(p.trim()))
-                } else if pattern == ".*" || pattern == "mcp__.*" {
-                    // Match all or MCP tools
-                    if pattern == "mcp__.*" {
-                        tool_name.starts_with("mcp__")
-                    } else {
-                        true
-                    }
-                } else if pattern.ends_with(".*") {
-                    // Prefix matching
-                    let prefix = pattern.trim_end_matches(".*");
-                    tool_name.starts_with(prefix)
-                } else if pattern == "mcp__.*__.*" {
-                    // MCP tool pattern
-                    tool_name.starts_with("mcp__") && tool_name.matches("__").count() >= 2
-                } else {
-                    // Default: contains matching
-                    tool_name.contains(pattern)
+                // Order matters: check specific patterns before generic ones
+
+                // 1. Check exact "mcp__.*" (all MCP tools)
+                if pattern == "mcp__.*" {
+                    return tool_name.starts_with("mcp__");
                 }
+
+                // 2. Check MCP server wildcard pattern: mcp__<server>__*
+                if is_mcp_server_wildcard(pattern) {
+                    // Extract server name: "mcp__filesystem__*" → "filesystem"
+                    let parts: Vec<&str> = pattern.split("__").collect();
+                    if parts.len() == 3 {
+                        let server_name = parts[1];
+                        // Match: "mcp__<server>__<anything>"
+                        return tool_name.starts_with(&format!("mcp__{}__", server_name));
+                    }
+                }
+
+                // 3. Check full MCP pattern: mcp__.*__.*
+                if pattern == "mcp__.*__.*" {
+                    return tool_name.starts_with("mcp__") && tool_name.matches("__").count() >= 2;
+                }
+
+                // 4. Check alternation pattern like "Edit|Write"
+                if pattern.contains('|') {
+                    return pattern.split('|').any(|p| tool_name.contains(p.trim()));
+                }
+
+                // 5. Check generic prefix matching (ends with .*)
+                if pattern.ends_with(".*") {
+                    let prefix = pattern.trim_end_matches(".*");
+                    return tool_name.starts_with(prefix);
+                }
+
+                // 6. Default: contains matching
+                tool_name.contains(pattern)
             }
         }
     }
