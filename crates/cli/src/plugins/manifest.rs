@@ -97,6 +97,13 @@ pub struct AgentDefinition {
     /// Optional model override for agent
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
+    /// Tools that are explicitly blocked for this agent
+    #[serde(
+        default,
+        rename = "disallowedTools",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub disallowed_tools: Vec<String>,
 }
 
 /// MCP server transport type
@@ -385,5 +392,70 @@ mod tests {
 
         let transport = server.get_transport().unwrap();
         assert!(matches!(transport, McpTransportConfig::Http { .. }));
+    }
+
+    #[test]
+    fn test_agent_definition_with_disallowed_tools() {
+        let json = r#"{
+            "id": "secure-agent",
+            "name": "Secure Agent",
+            "description": "Read-only agent",
+            "path": "agents/secure.md",
+            "disallowedTools": ["Write", "Edit", "Bash"]
+        }"#;
+
+        let agent: AgentDefinition = serde_json::from_str(json).unwrap();
+
+        assert_eq!(agent.id, "secure-agent");
+        assert_eq!(agent.name, "Secure Agent");
+        assert_eq!(agent.disallowed_tools, vec!["Write", "Edit", "Bash"]);
+    }
+
+    #[test]
+    fn test_agent_definition_disallowed_tools_default_empty() {
+        let json = r#"{
+            "id": "basic-agent",
+            "name": "Basic Agent",
+            "description": "Basic agent",
+            "path": "agents/basic.md"
+        }"#;
+
+        let agent: AgentDefinition = serde_json::from_str(json).unwrap();
+
+        // disallowedTools should default to empty vec when not specified
+        assert!(agent.disallowed_tools.is_empty());
+    }
+
+    #[test]
+    fn test_agent_definition_serialization_skips_empty_disallowed_tools() {
+        let agent = AgentDefinition {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            description: "Test agent".to_string(),
+            path: "test.md".to_string(),
+            model: None,
+            disallowed_tools: vec![],
+        };
+
+        let json = serde_json::to_string(&agent).unwrap();
+        // Empty disallowed_tools should not appear in serialized JSON
+        assert!(!json.contains("disallowedTools"));
+    }
+
+    #[test]
+    fn test_agent_definition_serialization_includes_non_empty_disallowed_tools() {
+        let agent = AgentDefinition {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            description: "Test agent".to_string(),
+            path: "test.md".to_string(),
+            model: None,
+            disallowed_tools: vec!["Bash".to_string()],
+        };
+
+        let json = serde_json::to_string(&agent).unwrap();
+        // Non-empty disallowed_tools should appear in serialized JSON
+        assert!(json.contains("disallowedTools"));
+        assert!(json.contains("Bash"));
     }
 }
