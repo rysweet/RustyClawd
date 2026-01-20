@@ -179,8 +179,7 @@ impl SchemaValidator {
                 }
                 "items" => {
                     path_stack.push("items".to_string());
-                    if let Some(error) = self.detect_cycles(value, visited, path_stack, depth + 1)
-                    {
+                    if let Some(error) = self.detect_cycles(value, visited, path_stack, depth + 1) {
                         return Some(error);
                     }
                     path_stack.pop();
@@ -228,11 +227,7 @@ impl SchemaValidator {
     }
 
     /// Validate schema structure based on its type
-    fn validate_schema_structure(
-        &self,
-        schema: &Value,
-        depth: usize,
-    ) -> Option<ValidationResult> {
+    fn validate_schema_structure(&self, schema: &Value, depth: usize) -> Option<ValidationResult> {
         // Check depth limit
         if depth > self.max_depth {
             return Some(ValidationResult::Malformed {
@@ -267,9 +262,11 @@ impl SchemaValidator {
                                 self.validate_schema_structure(prop_schema, depth + 1)
                             {
                                 return Some(ValidationResult::Malformed {
-                                    reason: format!("Invalid schema for property '{}': {}",
+                                    reason: format!(
+                                        "Invalid schema for property '{}': {}",
                                         prop_name,
-                                        error.error_message().unwrap_or_default()),
+                                        error.error_message().unwrap_or_default()
+                                    ),
                                 });
                             }
                         }
@@ -317,8 +314,10 @@ impl SchemaValidator {
                 if let Some(items) = obj.get("items") {
                     if let Some(error) = self.validate_schema_structure(items, depth + 1) {
                         return Some(ValidationResult::Malformed {
-                            reason: format!("Invalid items schema: {}",
-                                error.error_message().unwrap_or_default()),
+                            reason: format!(
+                                "Invalid items schema: {}",
+                                error.error_message().unwrap_or_default()
+                            ),
                         });
                     }
                 }
