@@ -145,7 +145,16 @@ impl TuiState {
         if let Some(event) = poll_event(Duration::from_millis(100))? {
             match handle_event(&mut self.app, event)? {
                 EventResult::Continue => Ok(None),
-                EventResult::Submit(input) => Ok(Some(input)),
+                EventResult::Submit(input) => {
+                    // Check if this is a /permissions command
+                    if input.trim() == "/permissions" {
+                        // Open permissions modal instead of returning input
+                        self.app.activate_permissions_modal();
+                        Ok(None)
+                    } else {
+                        Ok(Some(input))
+                    }
+                }
                 EventResult::SaveMemory(memory_text, file_path) => {
                     // Save memory to file
                     self.save_memory_to_file(&memory_text, &file_path)?;
