@@ -1,12 +1,61 @@
-# MCP Tool Search Auto-Configuration
+# MCP Tool Search
 
-This document describes the `auto:N` syntax for configuring MCP (Model Context Protocol) tool search thresholds in RustyClawd.
+This document describes the MCPSearch tool and the `auto:N` syntax for configuring MCP (Model Context Protocol) tool search thresholds in RustyClawd.
 
 ## Overview
 
-MCP Tool Search dynamically loads MCP tools on-demand rather than preloading all tools upfront. This preserves context window space when you have many MCP servers configured.
+MCPSearch is a built-in tool that dynamically loads MCP tools on-demand rather than preloading all tools upfront. This preserves context window space when you have many MCP servers configured.
 
-The `auto:N` syntax allows you to configure when tool search automatically activates based on context usage.
+By default, MCPSearch activates automatically when MCP tool descriptions exceed 10% of the context window.
+
+## MCPSearch Tool
+
+### What It Does
+
+MCPSearch queries available MCP tools by semantic search, returning only the tools relevant to your current task. Instead of loading hundreds of tool definitions upfront, Claude searches for what it needs when it needs it.
+
+### Tool Definition
+
+```json
+{
+  "name": "MCPSearch",
+  "description": "Search available MCP tools by query. Returns matching tools that can then be invoked.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Search query to find relevant MCP tools"
+      }
+    },
+    "required": ["query"]
+  }
+}
+```
+
+### Example Usage
+
+When MCPSearch is active, Claude uses it to find relevant tools:
+
+```
+User: "Create a new GitHub issue for this bug"
+
+Claude invokes: MCPSearch(query: "github issue create")
+
+Returns: github_create_issue, github_list_issues, github_get_issue
+
+Claude then invokes: github_create_issue(...)
+```
+
+## Default Behavior
+
+MCPSearch is enabled by default with the `auto:10` threshold:
+
+- **Threshold**: 10% of context window
+- **Behavior**: If MCP tool definitions exceed 10% of context, MCPSearch activates automatically
+- **Fallback**: If below threshold, all tools load normally
+
+This default ensures optimal context usage without requiring manual configuration.
 
 ## Configuration
 
@@ -15,7 +64,7 @@ The `auto:N` syntax allows you to configure when tool search automatically activ
 Set the `ENABLE_TOOL_SEARCH` environment variable:
 
 ```bash
-# Use default 10% threshold
+# Use default 10% threshold (same as auto:10)
 ENABLE_TOOL_SEARCH=auto rustyclawd
 
 # Use custom 5% threshold
@@ -47,6 +96,19 @@ Configure in your settings file (`.claude/settings.json` or `config.toml`):
 ENABLE_TOOL_SEARCH = "auto:5"
 ```
 
+## Disabling MCPSearch
+
+To completely disable the MCPSearch tool, add it to your `disallowedTools` list:
+
+**In settings.json:**
+```json
+{
+  "disallowedTools": ["MCPSearch"]
+}
+```
+
+This prevents MCPSearch from being offered to Claude, forcing all MCP tools to load upfront regardless of context usage.
+
 ## Syntax Reference
 
 | Value | Description |
@@ -67,9 +129,10 @@ ENABLE_TOOL_SEARCH = "auto:5"
 ## How It Works
 
 1. **Context Analysis**: RustyClawd calculates the total token cost of all MCP tool definitions
-2. **Threshold Check**: If the cost exceeds the configured percentage of the context window, tool search is enabled
-3. **On-Demand Loading**: Instead of preloading all tools, Claude searches for relevant tools when needed
-4. **Token Savings**: Typically reduces MCP-related context usage by 85%
+2. **Threshold Check**: If the cost exceeds the configured percentage of the context window, MCPSearch activates
+3. **Tool Injection**: The MCPSearch tool is added to Claude's available tools
+4. **On-Demand Loading**: Claude searches for relevant tools when needed instead of having all tools preloaded
+5. **Token Savings**: Typically reduces MCP-related context usage by 85%
 
 ## Benefits
 
