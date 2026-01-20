@@ -49,7 +49,18 @@ impl CommandLoader {
     }
 
     /// Load a command file from path
-    pub async fn load_command(&self, path: &Path) -> Result<LoadedCommand> {
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to command file
+    /// * `plugin_root` - Optional plugin root for variable substitution
+    /// * `project_root` - Optional project root for variable substitution
+    pub async fn load_command(
+        &self,
+        path: &Path,
+        plugin_root: Option<&Path>,
+        project_root: Option<&Path>,
+    ) -> Result<LoadedCommand> {
         let content = fs::read_to_string(path)
             .await
             .context(format!("Failed to read command file: {}", path.display()))?;
@@ -60,7 +71,18 @@ impl CommandLoader {
             .ok_or_else(|| anyhow!("Invalid file name"))?
             .to_string();
 
-        let (frontmatter, body) = self.parse_frontmatter(&content)?;
+        let (mut frontmatter, body) = self.parse_frontmatter(&content)?;
+
+        // Apply variable substitution if plugin root is provided
+        if let Some(plugin_root) = plugin_root {
+            use crate::plugins::{Substituter, SubstitutionContext};
+            let ctx = SubstitutionContext::new(
+                plugin_root.to_path_buf(),
+                project_root.map(|p| p.to_path_buf()),
+            );
+            let substituter = Substituter::new(ctx);
+            substituter.substitute_frontmatter(&mut frontmatter);
+        }
 
         Ok(LoadedCommand {
             name,
@@ -416,5 +438,119 @@ mod tests {
         let result = loader.expand_template(template, &args);
 
         assert_eq!(result, "Args: arg1 arg2, First: arg1");
+    }
+
+    #[tokio::test]
+    async fn test_load_command_with_variable_substitution() {
+        use std::path::PathBuf;
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir().unwrap();
+        let cmd_file = temp_dir.path().join("test.md");
+
+        // Create test command with variables
+        let content = r#"---
+description: Test command from ${CLAUDE_PLUGIN_ROOT}
+allowed_tools: ["${CLAUDE_PLUGIN_ROOT}/bin/verify", "Read", "${CLAUDE_PROJECT_ROOT}/shared/tool"]
+argument-hint: ${CLAUDE_PLUGIN_ROOT}/config
+---
+Command content here"#;
+
+        tokio::fs::write(&cmd_file, content).await.unwrap();
+
+        let loader = CommandLoader::new();
+        let plugin_root = PathBuf::from("/plugin/root");
+        let project_root = PathBuf::from("/project/root");
+
+        let loaded = loader
+            .load_command(&cmd_file, Some(&plugin_root), Some(&project_root))
+            .await
+            .unwrap();
+
+        // Verify substitution worked
+        assert_eq!(
+            loaded.frontmatter.description,
+            Some("Test command from /plugin/root".to_string())
+        );
+        assert_eq!(loaded.frontmatter.allowed_tools.len(), 3);
+        assert_eq!(
+            loaded.frontmatter.allowed_tools[0],
+            "/plugin/root/bin/verify"
+        );
+        assert_eq!(loaded.frontmatter.allowed_tools[1], "Read");
+        assert_eq!(
+            loaded.frontmatter.allowed_tools[2],
+            "/project/root/shared/tool"
+        );
+        assert_eq!(
+            loaded.frontmatter.argument_hint,
+            Some("/plugin/root/config".to_string())
+        );
+        assert_eq!(loaded.content, "Command content here");
+    }
+
+    #[tokio::test]
+    async fn test_load_command_without_plugin_root() {
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir().unwrap();
+        let cmd_file = temp_dir.path().join("test.md");
+
+        // Create test command with variables
+        let content = r#"---
+description: Test command
+allowed_tools: ["${CLAUDE_PLUGIN_ROOT}/bin/verify", "Read"]
+---
+Command content"#;
+
+        tokio::fs::write(&cmd_file, content).await.unwrap();
+
+        let loader = CommandLoader::new();
+
+        // Load without plugin root - variables should NOT be substituted
+        let loaded = loader.load_command(&cmd_file, None, None).await.unwrap();
+
+        // Variables should be preserved as-is
+        assert_eq!(
+            loaded.frontmatter.allowed_tools[0],
+            "${CLAUDE_PLUGIN_ROOT}/bin/verify"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_load_command_with_unknown_variable() {
+        use std::path::PathBuf;
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir().unwrap();
+        let cmd_file = temp_dir.path().join("test.md");
+
+        // Create test command with unknown variable
+        let content = r#"---
+description: Test command
+allowed_tools: ["${UNKNOWN_VAR}/bin/verify", "${CLAUDE_PLUGIN_ROOT}/bin/check"]
+---
+Command content"#;
+
+        tokio::fs::write(&cmd_file, content).await.unwrap();
+
+        let loader = CommandLoader::new();
+        let plugin_root = PathBuf::from("/plugin/root");
+
+        let loaded = loader
+            .load_command(&cmd_file, Some(&plugin_root), None)
+            .await
+            .unwrap();
+
+        // Unknown variable should be preserved
+        assert_eq!(
+            loaded.frontmatter.allowed_tools[0],
+            "${UNKNOWN_VAR}/bin/verify"
+        );
+        // Known variable should be substituted
+        assert_eq!(
+            loaded.frontmatter.allowed_tools[1],
+            "/plugin/root/bin/check"
+        );
     }
 }

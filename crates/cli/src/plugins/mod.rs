@@ -37,6 +37,7 @@
 pub mod agent_discovery;
 pub mod discovery;
 pub mod executor;
+pub mod frontmatter_substitution;
 pub mod hooks_integration;
 pub mod loader;
 pub mod manager;
@@ -50,6 +51,7 @@ pub use agent_discovery::{
 };
 pub use discovery::PluginDiscovery;
 pub use executor::PluginExecutor;
+pub use frontmatter_substitution::{Substituter, SubstitutionContext, Variable};
 pub use hooks_integration::{register_plugin_hooks, PluginHooksIntegrator};
 pub use loader::PluginLoader;
 pub use manager::{PluginManager, PluginSystemSummary};
