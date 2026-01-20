@@ -19,13 +19,25 @@ MCPSearch queries available MCP tools by semantic search, returning only the too
 ```json
 {
   "name": "MCPSearch",
-  "description": "Search available MCP tools by query. Returns matching tools that can then be invoked.",
+  "description": "Search and discover MCP tools on-demand to preserve context window space",
   "inputSchema": {
     "type": "object",
     "properties": {
       "query": {
         "type": "string",
-        "description": "Search query to find relevant MCP tools"
+        "description": "Search query for MCP tool names or descriptions"
+      },
+      "exact_match": {
+        "type": "boolean",
+        "description": "If true, only return exact name matches",
+        "default": false
+      },
+      "max_results": {
+        "type": "integer",
+        "description": "Maximum number of tools to return",
+        "default": 5,
+        "minimum": 1,
+        "maximum": 20
       }
     },
     "required": ["query"]
