@@ -143,6 +143,10 @@ impl HookExecutor {
             cmd.env("CLAUDE_TOOL_NAME", tool_name);
         }
 
+        if let Some(tool_use_id) = &context.tool_use_id {
+            cmd.env("CLAUDE_TOOL_USE_ID", tool_use_id);
+        }
+
         if let Some(env_file) = env_file {
             cmd.env("CLAUDE_ENV_FILE", env_file);
         }
@@ -430,5 +434,68 @@ mod tests {
         }
 
         assert!(result[0].is_success());
+    }
+
+    #[tokio::test]
+    async fn test_command_hook_receives_tool_use_id_env_var() {
+        // This test verifies that CLAUDE_TOOL_USE_ID is set for tool-related hooks
+        let hook = Hook::command("echo $CLAUDE_TOOL_USE_ID".to_string(), Some(5000));
+        let context = HookContext::for_tool(
+            "test-session".to_string(),
+            "/tmp/transcript".to_string(),
+            std::env::current_dir()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+            "ask".to_string(),
+            HookEvent::PreToolUse,
+            "Write".to_string(),
+            Some("toolu_test_123".to_string()),
+        );
+
+        let executor = HookExecutor::new();
+        let result = executor.execute_hooks(&[hook], &context).await.unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert!(result[0].is_success());
+        // Verify the tool_use_id was passed through environment variable
+        assert!(
+            result[0].stdout.trim().contains("toolu_test_123"),
+            "Expected CLAUDE_TOOL_USE_ID to be set. Got stdout: {}",
+            result[0].stdout
+        );
+    }
+
+    #[tokio::test]
+    async fn test_command_hook_tool_use_id_not_set_when_none() {
+        // Verify that CLAUDE_TOOL_USE_ID is NOT set when context has None
+        let hook = Hook::command(
+            "echo \"ID:$CLAUDE_TOOL_USE_ID:END\"".to_string(),
+            Some(5000),
+        );
+        let context = HookContext::for_tool(
+            "test-session".to_string(),
+            "/tmp/transcript".to_string(),
+            std::env::current_dir()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+            "ask".to_string(),
+            HookEvent::PreToolUse,
+            "Write".to_string(),
+            None, // No tool_use_id
+        );
+
+        let executor = HookExecutor::new();
+        let result = executor.execute_hooks(&[hook], &context).await.unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert!(result[0].is_success());
+        // When tool_use_id is None, the env var should not be set (empty)
+        assert!(
+            result[0].stdout.trim() == "ID::END",
+            "Expected empty CLAUDE_TOOL_USE_ID when None. Got stdout: {}",
+            result[0].stdout
+        );
     }
 }

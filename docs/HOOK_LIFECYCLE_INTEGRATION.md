@@ -1066,6 +1066,7 @@ All command hooks receive:
 - `CLAUDE_PERMISSION_MODE` - Permission mode (auto/ask/always)
 - `CLAUDE_HOOK_EVENT` - Event name (e.g., "PreToolUse")
 - `CLAUDE_TOOL_NAME` - Tool name (for tool-related events)
+- `CLAUDE_TOOL_USE_ID` - Unique identifier for this tool invocation (for PreToolUse/PostToolUse events), allows correlating pre/post hooks for the same tool call
 - `CLAUDE_PROJECT_DIR` - Project root directory
 
 #### Hook Context as JSON
