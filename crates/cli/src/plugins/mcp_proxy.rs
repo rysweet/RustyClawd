@@ -1028,9 +1028,8 @@ impl McpProxy {
 
         // Update resources list
         if let Some(result) = response.result {
-            let resources: Vec<Resource> =
-                serde_json::from_value(result["resources"].clone())
-                    .map_err(|e| format!("Failed to parse resources: {}", e))?;
+            let resources: Vec<Resource> = serde_json::from_value(result["resources"].clone())
+                .map_err(|e| format!("Failed to parse resources: {}", e))?;
             server.resources = resources;
         }
 

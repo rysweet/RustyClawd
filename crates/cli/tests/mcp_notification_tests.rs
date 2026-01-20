@@ -17,8 +17,7 @@ async fn test_notification_types_parsing() {
     assert_eq!(tools_notif.to_method(), "notifications/tools/list_changed");
 
     // Test resources notification
-    let resources_notif =
-        McpNotificationType::from_method("notifications/resources/list_changed");
+    let resources_notif = McpNotificationType::from_method("notifications/resources/list_changed");
     assert_eq!(resources_notif, McpNotificationType::ResourcesListChanged);
     assert_eq!(
         resources_notif.to_method(),
