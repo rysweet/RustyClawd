@@ -761,10 +761,8 @@ jira = true
         overrides.insert("enable_tool_search".to_string(), "auto".to_string());
 
         let settings = SettingsLoader::parse_env_overrides(&overrides);
-        assert!(settings.tool_search.is_some());
-        let config = settings.tool_search.unwrap();
-        assert!(config.is_auto());
-        assert_eq!(config.threshold_percent(), Some(10));
+        assert!(settings.tool_search.is_auto());
+        assert_eq!(settings.tool_search.threshold_percent(), Some(10));
     }
 
     #[test]
@@ -773,10 +771,8 @@ jira = true
         overrides.insert("enable_tool_search".to_string(), "auto:5".to_string());
 
         let settings = SettingsLoader::parse_env_overrides(&overrides);
-        assert!(settings.tool_search.is_some());
-        let config = settings.tool_search.unwrap();
-        assert!(config.is_auto());
-        assert_eq!(config.threshold_percent(), Some(5));
+        assert!(settings.tool_search.is_auto());
+        assert_eq!(settings.tool_search.threshold_percent(), Some(5));
     }
 
     #[test]
@@ -785,9 +781,7 @@ jira = true
         overrides.insert("enable_tool_search".to_string(), "true".to_string());
 
         let settings = SettingsLoader::parse_env_overrides(&overrides);
-        assert!(settings.tool_search.is_some());
-        let config = settings.tool_search.unwrap();
-        assert!(config.is_always_enabled());
+        assert!(settings.tool_search.is_always_enabled());
     }
 
     #[test]
@@ -796,9 +790,7 @@ jira = true
         overrides.insert("enable_tool_search".to_string(), "false".to_string());
 
         let settings = SettingsLoader::parse_env_overrides(&overrides);
-        assert!(settings.tool_search.is_some());
-        let config = settings.tool_search.unwrap();
-        assert!(config.is_disabled());
+        assert!(settings.tool_search.is_disabled());
     }
 
     #[test]
@@ -812,10 +804,8 @@ tool_search = "auto:15"
         assert!(settings.is_ok());
 
         let settings = settings.unwrap();
-        assert!(settings.tool_search.is_some());
-        let config = settings.tool_search.unwrap();
-        assert!(config.is_auto());
-        assert_eq!(config.threshold_percent(), Some(15));
+        assert!(settings.tool_search.is_auto());
+        assert_eq!(settings.tool_search.threshold_percent(), Some(15));
     }
 
     #[test]
@@ -831,9 +821,7 @@ tool_search = "auto:15"
         assert!(settings.is_ok());
 
         let settings = settings.unwrap();
-        assert!(settings.tool_search.is_some());
-        let config = settings.tool_search.unwrap();
-        assert!(config.is_auto());
-        assert_eq!(config.threshold_percent(), Some(20));
+        assert!(settings.tool_search.is_auto());
+        assert_eq!(settings.tool_search.threshold_percent(), Some(20));
     }
 }

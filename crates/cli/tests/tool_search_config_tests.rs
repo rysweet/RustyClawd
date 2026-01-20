@@ -90,11 +90,12 @@ fn test_default_tool_search_behavior() {
     use rustyclawd::plugins::ToolSearchConfig;
     use rustyclawd::settings::Settings;
 
-    // Default settings should have no tool_search set
+    // Default settings should have tool_search set to auto:10
     let settings = Settings::new();
-    assert!(settings.tool_search.is_none());
+    assert!(settings.tool_search.is_auto());
+    assert_eq!(settings.tool_search.threshold_percent(), Some(10));
 
-    // But get_tool_search should return default (auto:10)
+    // get_tool_search should return the same value
     let default_config = settings.get_tool_search();
     assert!(default_config.is_auto());
     assert_eq!(default_config.threshold_percent(), Some(10));

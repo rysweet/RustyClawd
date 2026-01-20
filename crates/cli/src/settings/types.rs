@@ -75,7 +75,7 @@ pub struct Settings {
     /// Sandbox settings
     pub sandbox: Option<SandboxSettings>,
     /// MCP tool search configuration (auto:N syntax)
-    pub tool_search: Option<ToolSearchConfig>,
+    pub tool_search: ToolSearchConfig,
 }
 
 impl Default for Settings {
@@ -90,7 +90,7 @@ impl Default for Settings {
             disable_bypass_permissions: false,
             enabled_plugins: HashMap::new(),
             sandbox: None,
-            tool_search: None,
+            tool_search: ToolSearchConfig::default(),
         }
     }
 }
@@ -151,7 +151,7 @@ impl Settings {
 
     /// Set MCP tool search configuration
     pub fn with_tool_search(mut self, config: ToolSearchConfig) -> Self {
-        self.tool_search = Some(config);
+        self.tool_search = config;
         self
     }
 
@@ -196,12 +196,12 @@ impl Settings {
             && !self.disable_bypass_permissions
             && self.enabled_plugins.is_empty()
             && self.sandbox.is_none()
-            && self.tool_search.is_none()
+            && self.tool_search.is_auto()
     }
 
-    /// Get tool search configuration, using default if not set
+    /// Get tool search configuration
     pub fn get_tool_search(&self) -> ToolSearchConfig {
-        self.tool_search.unwrap_or_default()
+        self.tool_search
     }
 }
 
