@@ -1,3 +1,4 @@
+use crate::plugins::tool_search_config::ToolSearchConfig;
 use crate::settings::hierarchy::SettingsHierarchy;
 /// Configuration loading from various sources (files, environment variables)
 use crate::settings::types::{PermissionMode, Settings, SettingsLayer, ToolPermission};
@@ -91,6 +92,12 @@ impl SettingsLoader {
                 "disable_bypass_permissions" | "disable_bypass" => {
                     if value.to_lowercase() == "true" || value == "1" {
                         settings = settings.disable_bypass();
+                    }
+                }
+                "enable_tool_search" | "tool_search" => {
+                    // Parse auto:N syntax for MCP tool search configuration
+                    if let Ok(config) = ToolSearchConfig::parse(value) {
+                        settings = settings.with_tool_search(config);
                     }
                 }
                 // Additional env variables not directly mapped become env_vars
@@ -320,6 +327,13 @@ impl SettingsLoader {
                     }
                 }
             }
+
+            // Parse tool_search (auto:N syntax)
+            if let Some(tool_search) = obj.get("tool_search").and_then(|v| v.as_str()) {
+                if let Ok(config) = ToolSearchConfig::parse(tool_search) {
+                    settings = settings.with_tool_search(config);
+                }
+            }
         }
 
         Ok(settings)
@@ -411,6 +425,13 @@ impl SettingsLoader {
                     if let Some(enabled_bool) = enabled.as_bool() {
                         settings = settings.set_plugin(plugin_id.clone(), enabled_bool);
                     }
+                }
+            }
+
+            // Parse tool_search (auto:N syntax)
+            if let Some(tool_search) = table.get("tool_search").and_then(|v| v.as_str()) {
+                if let Ok(config) = ToolSearchConfig::parse(tool_search) {
+                    settings = settings.with_tool_search(config);
                 }
             }
         }
@@ -728,5 +749,91 @@ jira = true
 
         // Verify validation passes
         assert!(settings.validate().is_ok());
+    }
+
+    // ===========================================
+    // Tool Search (auto:N) Configuration Tests
+    // ===========================================
+
+    #[test]
+    fn test_parse_env_overrides_tool_search_auto() {
+        let mut overrides = HashMap::new();
+        overrides.insert("enable_tool_search".to_string(), "auto".to_string());
+
+        let settings = SettingsLoader::parse_env_overrides(&overrides);
+        assert!(settings.tool_search.is_some());
+        let config = settings.tool_search.unwrap();
+        assert!(config.is_auto());
+        assert_eq!(config.threshold_percent(), Some(10));
+    }
+
+    #[test]
+    fn test_parse_env_overrides_tool_search_auto_with_threshold() {
+        let mut overrides = HashMap::new();
+        overrides.insert("enable_tool_search".to_string(), "auto:5".to_string());
+
+        let settings = SettingsLoader::parse_env_overrides(&overrides);
+        assert!(settings.tool_search.is_some());
+        let config = settings.tool_search.unwrap();
+        assert!(config.is_auto());
+        assert_eq!(config.threshold_percent(), Some(5));
+    }
+
+    #[test]
+    fn test_parse_env_overrides_tool_search_enabled() {
+        let mut overrides = HashMap::new();
+        overrides.insert("enable_tool_search".to_string(), "true".to_string());
+
+        let settings = SettingsLoader::parse_env_overrides(&overrides);
+        assert!(settings.tool_search.is_some());
+        let config = settings.tool_search.unwrap();
+        assert!(config.is_always_enabled());
+    }
+
+    #[test]
+    fn test_parse_env_overrides_tool_search_disabled() {
+        let mut overrides = HashMap::new();
+        overrides.insert("enable_tool_search".to_string(), "false".to_string());
+
+        let settings = SettingsLoader::parse_env_overrides(&overrides);
+        assert!(settings.tool_search.is_some());
+        let config = settings.tool_search.unwrap();
+        assert!(config.is_disabled());
+    }
+
+    #[test]
+    fn test_parse_toml_config_with_tool_search() {
+        let toml_content = r#"
+model = "claude-3"
+tool_search = "auto:15"
+"#;
+
+        let settings = SettingsLoader::parse_toml_config(toml_content);
+        assert!(settings.is_ok());
+
+        let settings = settings.unwrap();
+        assert!(settings.tool_search.is_some());
+        let config = settings.tool_search.unwrap();
+        assert!(config.is_auto());
+        assert_eq!(config.threshold_percent(), Some(15));
+    }
+
+    #[test]
+    fn test_parse_json_config_with_tool_search() {
+        let json_content = r#"
+{
+    "model": "claude-3",
+    "tool_search": "auto:20"
+}
+"#;
+
+        let settings = SettingsLoader::parse_json_config(json_content);
+        assert!(settings.is_ok());
+
+        let settings = settings.unwrap();
+        assert!(settings.tool_search.is_some());
+        let config = settings.tool_search.unwrap();
+        assert!(config.is_auto());
+        assert_eq!(config.threshold_percent(), Some(20));
     }
 }

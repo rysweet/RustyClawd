@@ -1,6 +1,8 @@
 /// Core types and data structures for the settings/configuration system
 use std::collections::HashMap;
 
+use crate::plugins::tool_search_config::ToolSearchConfig;
+
 /// Represents permission modes for tool access control
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PermissionMode {
@@ -72,6 +74,8 @@ pub struct Settings {
     pub enabled_plugins: HashMap<String, bool>,
     /// Sandbox settings
     pub sandbox: Option<SandboxSettings>,
+    /// MCP tool search configuration (auto:N syntax)
+    pub tool_search: Option<ToolSearchConfig>,
 }
 
 impl Default for Settings {
@@ -86,6 +90,7 @@ impl Default for Settings {
             disable_bypass_permissions: false,
             enabled_plugins: HashMap::new(),
             sandbox: None,
+            tool_search: None,
         }
     }
 }
@@ -144,6 +149,12 @@ impl Settings {
         self
     }
 
+    /// Set MCP tool search configuration
+    pub fn with_tool_search(mut self, config: ToolSearchConfig) -> Self {
+        self.tool_search = Some(config);
+        self
+    }
+
     /// Validate settings configuration
     pub fn validate(&self) -> Result<(), String> {
         // Validate timeout is reasonable (>0, <1 hour)
@@ -185,6 +196,12 @@ impl Settings {
             && !self.disable_bypass_permissions
             && self.enabled_plugins.is_empty()
             && self.sandbox.is_none()
+            && self.tool_search.is_none()
+    }
+
+    /// Get tool search configuration, using default if not set
+    pub fn get_tool_search(&self) -> ToolSearchConfig {
+        self.tool_search.unwrap_or_default()
     }
 }
 
