@@ -77,7 +77,11 @@ pub fn render_permissions_search(state: &PermissionsSearchState, area: Rect, buf
 fn render_header(area: Rect, buf: &mut Buffer) {
     let title = Paragraph::new("PERMISSIONS")
         .alignment(Alignment::Center)
-        .style(Style::default().fg(RUST_ORANGE).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(RUST_ORANGE)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(Block::default().borders(Borders::TOP | Borders::LEFT | Borders::RIGHT));
 
     title.render(area, buf);
@@ -116,7 +120,12 @@ fn render_search_input(state: &PermissionsSearchState, area: Rect, buf: &mut Buf
     if state.is_searching() {
         spans.insert(
             1,
-            Span::styled("█", Style::default().fg(Color::Yellow).add_modifier(Modifier::SLOW_BLINK)),
+            Span::styled(
+                "█",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::SLOW_BLINK),
+            ),
         );
     }
 
@@ -154,7 +163,11 @@ fn render_table(state: &PermissionsSearchState, area: Rect, buf: &mut Buffer) {
 
             // Permission columns (checkmark or X)
             let ask_icon = if rule.allow_in_ask { "✓" } else { "✗" };
-            let auto_icon = if rule.allow_in_auto_accept { "✓" } else { "✗" };
+            let auto_icon = if rule.allow_in_auto_accept {
+                "✓"
+            } else {
+                "✗"
+            };
             let plan_icon = if rule.allow_in_plan { "✓" } else { "✗" };
 
             // Style based on selection

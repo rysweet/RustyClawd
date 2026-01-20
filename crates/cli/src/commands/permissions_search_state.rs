@@ -496,7 +496,10 @@ mod tests {
 
         let selected = state.selected_rule();
         assert!(selected.is_some());
-        assert_eq!(selected.unwrap().tool_name, state.filtered_rules()[0].tool_name);
+        assert_eq!(
+            selected.unwrap().tool_name,
+            state.filtered_rules()[0].tool_name
+        );
     }
 
     #[test]

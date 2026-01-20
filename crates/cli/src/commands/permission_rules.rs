@@ -101,7 +101,10 @@ const KNOWN_TOOLS: &[&str] = &[
 /// assert!(!rules.is_empty());
 /// ```
 pub fn get_all_rules() -> Vec<PermissionRule> {
-    KNOWN_TOOLS.iter().map(|&tool| PermissionRule::new(tool)).collect()
+    KNOWN_TOOLS
+        .iter()
+        .map(|&tool| PermissionRule::new(tool))
+        .collect()
 }
 
 /// Filter rules by search term (case-insensitive partial match)
