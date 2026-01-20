@@ -333,8 +333,8 @@ mod tests {
         // Should be centered
         let margin_x = (outer.width - centered.width) / 2;
         let margin_y = (outer.height - centered.height) / 2;
-        assert!(margin_x >= 8 && margin_x <= 12);
-        assert!(margin_y >= 8 && margin_y <= 12);
+        assert!((8..=12).contains(&margin_x));
+        assert!((8..=12).contains(&margin_y));
     }
 
     #[test]
