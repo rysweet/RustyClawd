@@ -5,8 +5,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::process::Stdio;
+use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child as TokioChild, Command as TokioCommand};
+use tokio::sync::{mpsc, Mutex as TokioMutex};
 
 use crate::plugins::manifest::{McpServerDefinition, McpTransportConfig};
 
@@ -14,7 +16,11 @@ use crate::plugins::manifest::{McpServerDefinition, McpTransportConfig};
 #[derive(Debug)]
 pub enum McpConnection {
     /// Standard I/O connection with child process
-    Stdio { process: TokioChild },
+    Stdio {
+        process: TokioChild,
+        /// Handle to notification listener task (if started)
+        notification_task: Option<tokio::task::JoinHandle<()>>,
+    },
     /// HTTP connection with reqwest client
     Http {
         client: reqwest::Client,
@@ -179,6 +185,54 @@ struct McpResponse {
     error: Option<McpError>,
 }
 
+/// MCP notification message (no id field)
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct McpNotification {
+    pub jsonrpc: String,
+    pub method: String,
+    #[serde(default)]
+    pub params: serde_json::Value,
+}
+
+/// JSON-RPC message (can be response or notification)
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum JsonRpcMessage {
+    Response(McpResponse),
+    Notification(McpNotification),
+}
+
+/// Types of MCP notifications we handle
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum McpNotificationType {
+    ToolsListChanged,
+    ResourcesListChanged,
+    PromptsListChanged,
+    Unknown(String),
+}
+
+impl McpNotificationType {
+    /// Parse notification type from method string
+    pub fn from_method(method: &str) -> Self {
+        match method {
+            "notifications/tools/list_changed" => Self::ToolsListChanged,
+            "notifications/resources/list_changed" => Self::ResourcesListChanged,
+            "notifications/prompts/list_changed" => Self::PromptsListChanged,
+            _ => Self::Unknown(method.to_string()),
+        }
+    }
+
+    /// Convert to method string
+    pub fn to_method(&self) -> String {
+        match self {
+            Self::ToolsListChanged => "notifications/tools/list_changed".to_string(),
+            Self::ResourcesListChanged => "notifications/resources/list_changed".to_string(),
+            Self::PromptsListChanged => "notifications/prompts/list_changed".to_string(),
+            Self::Unknown(method) => method.clone(),
+        }
+    }
+}
+
 /// MCP error structure
 #[derive(Debug, Deserialize)]
 struct McpError {
@@ -265,6 +319,16 @@ impl McpProxy {
         Ok(())
     }
 
+    /// Manually refresh all registries for a server (tools, resources, prompts)
+    /// This can be called periodically or after operations to sync with server state
+    pub async fn refresh_server_registries(&mut self, server_id: &str) -> Result<(), String> {
+        // Refresh all three registries
+        self.refresh_tools(server_id).await?;
+        self.refresh_resources(server_id).await?;
+        self.refresh_prompts(server_id).await?;
+        Ok(())
+    }
+
     /// Start stdio connection to MCP server
     async fn start_stdio_connection(
         &self,
@@ -283,7 +347,10 @@ impl McpProxy {
             .spawn()
             .map_err(|e| format!("Failed to start MCP server: {}", e))?;
 
-        Ok(McpConnection::Stdio { process: child })
+        Ok(McpConnection::Stdio {
+            process: child,
+            notification_task: None,
+        })
     }
 
     /// Start HTTP connection to MCP server
@@ -346,9 +413,10 @@ impl McpProxy {
         self.next_request_id += 1;
 
         let init_response = match connection {
-            McpConnection::Stdio { process } => {
-                self.send_stdio_request_mut(process, &init_request).await?
-            }
+            McpConnection::Stdio {
+                process,
+                notification_task: _,
+            } => self.send_stdio_request_mut(process, &init_request).await?,
             McpConnection::Http { client, url } => {
                 self.send_http_request(client, url, &init_request).await?
             }
@@ -370,9 +438,10 @@ impl McpProxy {
         self.next_request_id += 1;
 
         let list_response = match connection {
-            McpConnection::Stdio { process } => {
-                self.send_stdio_request_mut(process, &list_request).await?
-            }
+            McpConnection::Stdio {
+                process,
+                notification_task: _,
+            } => self.send_stdio_request_mut(process, &list_request).await?,
             McpConnection::Http { client, url } => {
                 self.send_http_request(client, url, &list_request).await?
             }
@@ -421,7 +490,15 @@ impl McpProxy {
 
         if let Some(connection) = server.connection.take() {
             match connection {
-                McpConnection::Stdio { mut process } => {
+                McpConnection::Stdio {
+                    mut process,
+                    notification_task,
+                } => {
+                    // Stop notification listener if running
+                    if let Some(task) = notification_task {
+                        task.abort();
+                    }
+
                     process
                         .kill()
                         .await
@@ -486,9 +563,10 @@ impl McpProxy {
 
         // Send request through appropriate transport
         let response = match &mut connection {
-            McpConnection::Stdio { process } => {
-                self.send_stdio_request_mut(process, &call_request).await?
-            }
+            McpConnection::Stdio {
+                process,
+                notification_task: _,
+            } => self.send_stdio_request_mut(process, &call_request).await?,
             McpConnection::Http { client, url } => {
                 self.send_http_request(client, url, &call_request).await?
             }
@@ -729,9 +807,10 @@ impl McpProxy {
 
         // Send request through appropriate transport
         let response = match &mut connection {
-            McpConnection::Stdio { process } => {
-                self.send_stdio_request_mut(process, &read_request).await?
-            }
+            McpConnection::Stdio {
+                process,
+                notification_task: _,
+            } => self.send_stdio_request_mut(process, &read_request).await?,
             McpConnection::Http { client, url } => {
                 self.send_http_request(client, url, &read_request).await?
             }
@@ -785,9 +864,10 @@ impl McpProxy {
 
         // Send request through appropriate transport
         let response = match &mut connection {
-            McpConnection::Stdio { process } => {
-                self.send_stdio_request_mut(process, &get_request).await?
-            }
+            McpConnection::Stdio {
+                process,
+                notification_task: _,
+            } => self.send_stdio_request_mut(process, &get_request).await?,
             McpConnection::Http { client, url } => {
                 self.send_http_request(client, url, &get_request).await?
             }
@@ -831,6 +911,178 @@ impl McpProxy {
         }
         Ok(())
     }
+
+    /// Handle a notification from an MCP server
+    async fn handle_notification(
+        &mut self,
+        server_id: &str,
+        notification: McpNotification,
+    ) -> Result<(), String> {
+        let notification_type = McpNotificationType::from_method(&notification.method);
+
+        match notification_type {
+            McpNotificationType::ToolsListChanged => {
+                self.refresh_tools(server_id).await?;
+            }
+            McpNotificationType::ResourcesListChanged => {
+                self.refresh_resources(server_id).await?;
+            }
+            McpNotificationType::PromptsListChanged => {
+                self.refresh_prompts(server_id).await?;
+            }
+            McpNotificationType::Unknown(method) => {
+                // Log unknown notifications but don't fail
+                eprintln!(
+                    "Received unknown notification from server '{}': {}",
+                    server_id, method
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Refresh tools list for a server
+    async fn refresh_tools(&mut self, server_id: &str) -> Result<(), String> {
+        // Create list request
+        let list_request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: self.next_request_id,
+            method: "tools/list".to_string(),
+            params: serde_json::json!({}),
+        };
+        self.next_request_id += 1;
+
+        // Get server and extract connection temporarily
+        let server = self
+            .servers
+            .get_mut(server_id)
+            .ok_or_else(|| format!("Server not found: {}", server_id))?;
+
+        let mut connection = server
+            .connection
+            .take()
+            .ok_or_else(|| format!("Server not started: {}", server_id))?;
+
+        // Send request
+        let response = match &mut connection {
+            McpConnection::Stdio {
+                process,
+                notification_task: _,
+            } => self.send_stdio_request_mut(process, &list_request).await?,
+            McpConnection::Http { client, url } => {
+                self.send_http_request(client, url, &list_request).await?
+            }
+        };
+
+        // Restore connection
+        let server = self.servers.get_mut(server_id).unwrap();
+        server.connection = Some(connection);
+
+        // Update tools list
+        if let Some(result) = response.result {
+            let tools: Vec<McpToolDefinition> = serde_json::from_value(result["tools"].clone())
+                .map_err(|e| format!("Failed to parse tools: {}", e))?;
+            server.tools = tools;
+        }
+
+        Ok(())
+    }
+
+    /// Refresh resources list for a server
+    async fn refresh_resources(&mut self, server_id: &str) -> Result<(), String> {
+        // Create list request
+        let list_request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: self.next_request_id,
+            method: "resources/list".to_string(),
+            params: serde_json::json!({}),
+        };
+        self.next_request_id += 1;
+
+        // Get server and extract connection temporarily
+        let server = self
+            .servers
+            .get_mut(server_id)
+            .ok_or_else(|| format!("Server not found: {}", server_id))?;
+
+        let mut connection = server
+            .connection
+            .take()
+            .ok_or_else(|| format!("Server not started: {}", server_id))?;
+
+        // Send request
+        let response = match &mut connection {
+            McpConnection::Stdio {
+                process,
+                notification_task: _,
+            } => self.send_stdio_request_mut(process, &list_request).await?,
+            McpConnection::Http { client, url } => {
+                self.send_http_request(client, url, &list_request).await?
+            }
+        };
+
+        // Restore connection
+        let server = self.servers.get_mut(server_id).unwrap();
+        server.connection = Some(connection);
+
+        // Update resources list
+        if let Some(result) = response.result {
+            let resources: Vec<Resource> = serde_json::from_value(result["resources"].clone())
+                .map_err(|e| format!("Failed to parse resources: {}", e))?;
+            server.resources = resources;
+        }
+
+        Ok(())
+    }
+
+    /// Refresh prompts list for a server
+    async fn refresh_prompts(&mut self, server_id: &str) -> Result<(), String> {
+        // Create list request
+        let list_request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: self.next_request_id,
+            method: "prompts/list".to_string(),
+            params: serde_json::json!({}),
+        };
+        self.next_request_id += 1;
+
+        // Get server and extract connection temporarily
+        let server = self
+            .servers
+            .get_mut(server_id)
+            .ok_or_else(|| format!("Server not found: {}", server_id))?;
+
+        let mut connection = server
+            .connection
+            .take()
+            .ok_or_else(|| format!("Server not started: {}", server_id))?;
+
+        // Send request
+        let response = match &mut connection {
+            McpConnection::Stdio {
+                process,
+                notification_task: _,
+            } => self.send_stdio_request_mut(process, &list_request).await?,
+            McpConnection::Http { client, url } => {
+                self.send_http_request(client, url, &list_request).await?
+            }
+        };
+
+        // Restore connection
+        let server = self.servers.get_mut(server_id).unwrap();
+        server.connection = Some(connection);
+
+        // Update prompts list
+        if let Some(result) = response.result {
+            let prompts: Vec<McpPromptDefinition> =
+                serde_json::from_value(result["prompts"].clone())
+                    .map_err(|e| format!("Failed to parse prompts: {}", e))?;
+            server.prompts = prompts;
+        }
+
+        Ok(())
+    }
 }
 
 impl Default for McpProxy {
@@ -843,7 +1095,17 @@ impl Drop for McpProxy {
     fn drop(&mut self) {
         // Best effort cleanup - stop stdio servers synchronously
         for (_, server) in self.servers.iter_mut() {
-            if let Some(McpConnection::Stdio { process }) = server.connection.take() {
+            if let Some(McpConnection::Stdio {
+                process,
+                notification_task,
+            }) = server.connection.take()
+            {
+                // Abort notification task
+                if let Some(task) = notification_task {
+                    task.abort();
+                }
+
+                // Kill process
                 let _ = std::process::Command::new("kill")
                     .arg(format!("{}", process.id().unwrap_or(0)))
                     .output();
