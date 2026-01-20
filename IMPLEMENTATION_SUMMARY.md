@@ -1,125 +1,172 @@
-# Implementation Summary: Issue #149 - Add tool_use_id to HookContext
+# Issue #250 Implementation Summary
 
 ## Overview
 
-Successfully implemented tool_use_id tracking in the hooks system to enable correlation between PreToolUse and PostToolUse events for the same tool invocation.
+This design implements wildcard syntax `mcp__<server>__*` for MCP tool permissions, allowing users to allow or deny all tools from a specific MCP server with a single pattern.
 
-## Changes Made
+## Key Changes
 
-### 1. Core Data Structure Changes
+### 1. Pattern Matching Enhancement
 
-**File: `crates/cli/src/hooks/types.rs`**
-- Added `tool_use_id: Option<String>` field to `HookContext` struct
-- Updated `for_tool()` constructor to accept `tool_use_id: Option<String>` parameter
-- Added `tool_use_id: None` to all other HookContext constructors (for_session, for_session_start, for_session_end, for_notification, for_user_prompt)
+**File**: `crates/cli/src/hooks/types.rs`
 
-### 2. Tool Executor Changes
-
-**File: `crates/cli/src/tool_executor.rs`**
-- Updated `execute_tool_with_hooks()` to accept `tool_use_id: Option<String>` parameter
-- Updated `execute_tool_with_permission()` to accept and forward `tool_use_id` parameter
-- Updated `execute_tool()` to pass `None` for backward compatibility
-- Modified PreToolUse hook context creation to include `tool_use_id`
-- Modified PostToolUse hook context creation to include `tool_use_id`
-
-### 3. Interactive Session Integration
-
-**File: `crates/cli/src/interactive.rs`**
-- Updated `execute_tools()` method to extract tool_use_id from ContentBlock::ToolUse
-- Pass tool_use_id to `execute_tool_with_permission()` via `Some(id.clone())`
-
-### 4. Test Updates
-
-**File: `crates/cli/src/hooks/registry.rs`**
-- Updated all test calls to `HookContext::for_tool()` to pass `None` for tool_use_id
-
-### 5. New Tests
-
-**File: `crates/cli/src/hooks/tests/test_tool_use_id.rs`**
-Created comprehensive test suite with 6 tests:
-1. `test_hook_context_includes_tool_use_id` - Verifies tool_use_id is stored in context
-2. `test_hook_context_without_tool_use_id` - Tests backward compatibility with None
-3. `test_pre_and_post_tool_use_correlation` - Verifies PreToolUse and PostToolUse share same ID
-4. `test_tool_use_id_serialization` - Tests JSON serialization includes tool_use_id
-5. `test_tool_use_id_not_in_json_when_none` - Tests omission when None (backward compat)
-6. `test_multiple_tool_invocations_different_ids` - Verifies different invocations get different IDs
-
-**File: `crates/cli/src/hooks/mod.rs`**
-- Added test module declaration for test_tool_use_id
-
-## Key Design Decisions
-
-1. **Option Type**: Used `Option<String>` for backward compatibility with existing code
-2. **Skip Serializing**: Added `#[serde(skip_serializing_if = "Option::is_none")]` to keep JSON clean when tool_use_id is not present
-3. **Forward Compatible**: All existing code paths work unchanged by passing `None`
-4. **Correlation Ready**: PreToolUse and PostToolUse hooks now receive the same tool_use_id, enabling:
-   - Performance tracking (time between pre and post)
-   - Resource management (cleanup after tool execution)
-   - Debugging (trace tool execution lifecycle)
-   - Logging correlation (link pre and post events)
-
-## Test Results
-
-All tests pass:
-```
-running 6 tests
-test hooks::tests::test_tool_use_id::test_hook_context_includes_tool_use_id ... ok
-test hooks::tests::test_tool_use_id::test_multiple_tool_invocations_different_ids ... ok
-test hooks::tests::test_tool_use_id::test_pre_and_post_tool_use_correlation ... ok
-test hooks::tests::test_tool_use_id::test_tool_use_id_not_in_json_when_none ... ok
-test hooks::tests::test_tool_use_id::test_tool_use_id_serialization ... ok
-test hooks::tests::test_tool_use_id::test_hook_context_without_tool_use_id ... ok
-
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 497 filtered out
+**Before**:
+```rust
+// Could only match specific tools or all MCP tools
+"mcp__filesystem__read_file"  // specific tool
+"mcp__.*"                      // all MCP tools
 ```
 
-All hooks tests (43 total) pass, confirming no regressions.
+**After**:
+```rust
+// Now supports server-level wildcards
+"mcp__filesystem__*"   // all tools from filesystem server
+```
+
+### 2. Implementation Locations
+
+#### Primary: HookMatcher::matches()
+- Add helper: `is_mcp_server_wildcard(pattern) -> bool`
+- Add pattern check: "mcp__<server>__*" → prefix matching on "mcp__<server>__"
+- Fix pattern order to handle specific cases before generic ones
+
+#### Secondary: HookMatcher::deserialize()
+- Recognize MCP server wildcard patterns during JSON deserialization
+- Treat them as `Regex` patterns (not `Exact` matches)
+
+### 3. Pattern Matching Order (FIXED)
+
+Current problematic order:
+```
+1. Check "mcp__.*" (all MCP) → works
+2. Check ends_with(".*")    → catches "mcp__server__.*" too early ❌
+3. Check "mcp__.*__.*"      → never reached ❌
+```
+
+New correct order:
+```
+1. Check exact "*" → matches everything
+2. Check "mcp__.*" (all MCP tools)
+3. NEW: Check "mcp__<server>__*" (server wildcards) ← SOLVES Issue #250
+4. Check "mcp__.*__.*" (full MCP pattern)
+5. Check ends_with(".*") (other prefixes)
+6. Check alternation patterns (Edit|Write)
+7. Default: contains matching
+```
+
+## Test Coverage
+
+### New Tests
+- `test_mcp_server_wildcard_recognition()` - Pattern validation
+- `test_mcp_server_wildcard_matching()` - Wildcard matching behavior  
+- `test_mcp_server_wildcard_deserialization()` - JSON parsing
+- `test_mcp_server_wildcard_priority()` - Specificity handling
+- `test_mcp_server_wildcard_edge_cases()` - Edge cases (underscores, hyphens, etc.)
+
+### Fixed Tests
+- Un-ignore `test_matcher_mcp_full_pattern` (currently broken due to pattern order)
+
+## Priority Rules
+
+When multiple patterns match, most specific wins:
+
+```
+1. Exact match:        "mcp__filesystem__read_file"  (HIGHEST)
+2. Server wildcard:    "mcp__filesystem__*"
+3. All MCP tools:      "mcp__.*"                      (LOWEST)
+```
+
+**Example**:
+```json
+{
+  "deny": [
+    "mcp__.*",              // Deny all MCP
+    "mcp__filesystem__*",   // Override: allow filesystem
+    "mcp__filesystem__delete"  // Override: deny delete specifically
+  ]
+}
+```
+
+Tool `mcp__filesystem__delete` → Uses most specific → DENIED
+
+## Configuration Examples
+
+### Block Entire Server
+```json
+{
+  "PermissionRequest": [{
+    "matcher": "mcp__filesystem__*",
+    "hooks": [{
+      "type": "command",
+      "command": "scripts/deny-filesystem.sh"
+    }]
+  }]
+}
+```
+
+### Allow Server, Block One Tool
+```json
+{
+  "PermissionRequest": [
+    {
+      "matcher": "mcp__memory__*",
+      "hooks": [{
+        "type": "command",
+        "command": "scripts/allow-memory.sh"
+      }]
+    },
+    {
+      "matcher": "mcp__memory__delete",
+      "hooks": [{
+        "type": "command",
+        "command": "scripts/deny-delete.sh"
+      }]
+    }
+  ]
+}
+```
 
 ## Files Modified
 
-1. `crates/cli/src/hooks/types.rs` - Core data structure
-2. `crates/cli/src/hooks/mod.rs` - Test module declaration
-3. `crates/cli/src/tool_executor.rs` - Function signatures and hook context creation
-4. `crates/cli/src/interactive.rs` - Tool execution integration
-5. `crates/cli/src/hooks/registry.rs` - Test updates
+1. **`crates/cli/src/hooks/types.rs`**
+   - Update `HookMatcher::matches()` method
+   - Update `HookMatcher::deserialize()` method
+   - Add `is_mcp_server_wildcard()` helper
+   - ~50 lines of changes
 
-## Files Created
+2. **`crates/cli/tests/hooks_doc_tests.rs`**
+   - Add 8-10 new test cases
+   - Un-ignore existing test
+   - ~150 lines of additions
 
-1. `crates/cli/src/hooks/tests/test_tool_use_id.rs` - Comprehensive test suite
+## Backwards Compatibility
 
-## Implementation Effort
+✓ **100% Backwards Compatible**
+- Existing exact matches still work: `"mcp__server__tool"`
+- Existing regex patterns still work: `"mcp__.*"`
+- Only adds new pattern type, no breaking changes
 
-- **Effort Level**: LOW (as predicted)
-- **Lines Changed**: ~20 lines (as estimated)
-- **Risk**: Very low - backward compatible with Option type
-- **Complexity**: Minimal - straightforward threading of parameter
+## Complexity & Risk
 
-## Usage Example
+- **Complexity**: LOW - Simple string parsing and pattern matching
+- **Risk**: LOW - Contained change within HookMatcher
+- **Performance**: NO IMPACT - Same matching complexity
+- **Test Coverage**: HIGH - Comprehensive edge case testing
 
-Hooks can now correlate PreToolUse and PostToolUse events:
+## Success Metrics
 
-```json
-// PreToolUse hook context
-{
-  "tool_name": "Write",
-  "tool_use_id": "toolu_abc123",
-  "tool_params": {...},
-  "hook_event_name": "PreToolUse"
-}
+✓ Single pattern matches all tools from one server
+✓ Priority rules respected (specific > wildcard > general)
+✓ All tests pass (including fixed ignored test)
+✓ Backwards compatible with existing configs
+✓ No performance degradation
+✓ Handles edge cases (underscores, hyphens, etc.)
 
-// PostToolUse hook context (same tool_use_id)
-{
-  "tool_name": "Write",
-  "tool_use_id": "toolu_abc123",
-  "tool_params": {...},
-  "tool_result": {...},
-  "hook_event_name": "PostToolUse"
-}
-```
+## Code Quality
 
-## Next Steps
+- Follows existing code patterns
+- Consistent with current matcher architecture
+- Well-commented implementation
+- Comprehensive test suite
+- Fixes existing ignored test as bonus
 
-The implementation is complete and tested. Ready for:
-1. Code review
-2. PR creation
-3. Integration testing

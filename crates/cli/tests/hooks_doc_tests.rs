@@ -203,10 +203,8 @@ fn test_matcher_mcp_prefix_pattern() {
 }
 
 #[test]
-#[ignore] // TODO: Fix matcher implementation - this pattern should work but currently doesn't due to order of checks
 fn test_matcher_mcp_full_pattern() {
-    // This test documents the EXPECTED behavior from documentation
-    // Currently fails because the implementation checks ends_with(".*") before the mcp__.*__.* pattern
+    // Fixed: Pattern matching order now handles this correctly
     let matcher = HookMatcher::Regex("mcp__.*__.*".to_string());
     assert!(matcher.matches("mcp__server__tool"));
     assert!(matcher.matches("mcp__memory__read"));
@@ -233,6 +231,158 @@ fn test_matcher_deserialization_wildcard() {
     let json = r#""*""#;
     let matcher: HookMatcher = serde_json::from_str(json).unwrap();
     assert!(matches!(matcher, HookMatcher::Exact(_)));
+}
+
+// ============================================================================
+// SECTION 3.5: MCP SERVER WILDCARD PATTERN (Issue #250)
+// ============================================================================
+
+#[test]
+fn test_mcp_server_wildcard_filesystem() {
+    let matcher = HookMatcher::Regex("mcp__filesystem__*".to_string());
+
+    // Should match all filesystem tools
+    assert!(matcher.matches("mcp__filesystem__read_file"));
+    assert!(matcher.matches("mcp__filesystem__write_file"));
+    assert!(matcher.matches("mcp__filesystem__list_dir"));
+    assert!(matcher.matches("mcp__filesystem__delete"));
+
+    // Should NOT match other servers
+    assert!(!matcher.matches("mcp__memory__store"));
+    assert!(!matcher.matches("mcp__web__fetch"));
+
+    // Should NOT match non-MCP tools
+    assert!(!matcher.matches("Bash"));
+    assert!(!matcher.matches("Write"));
+}
+
+#[test]
+fn test_mcp_server_wildcard_memory() {
+    let matcher = HookMatcher::Regex("mcp__memory__*".to_string());
+
+    // Should match all memory tools
+    assert!(matcher.matches("mcp__memory__store"));
+    assert!(matcher.matches("mcp__memory__read"));
+    assert!(matcher.matches("mcp__memory__delete"));
+
+    // Should NOT match other servers
+    assert!(!matcher.matches("mcp__filesystem__read_file"));
+    assert!(!matcher.matches("mcp__web__fetch"));
+}
+
+#[test]
+fn test_mcp_server_wildcard_deserialization() {
+    let json = r#""mcp__filesystem__*""#;
+    let matcher: HookMatcher = serde_json::from_str(json).unwrap();
+
+    // Should deserialize as Regex (pattern matching, not exact)
+    assert!(matches!(matcher, HookMatcher::Regex(_)));
+    assert!(matcher.matches("mcp__filesystem__read_file"));
+    assert!(matcher.matches("mcp__filesystem__write_file"));
+}
+
+#[test]
+fn test_mcp_server_wildcard_priority_exact_over_wildcard() {
+    // Exact match should take precedence
+    let exact_matcher = HookMatcher::Exact("mcp__filesystem__read_file".to_string());
+    let wildcard_matcher = HookMatcher::Regex("mcp__filesystem__*".to_string());
+
+    let tool = "mcp__filesystem__read_file";
+
+    // Both match, but exact is more specific
+    assert!(exact_matcher.matches(tool));
+    assert!(wildcard_matcher.matches(tool));
+}
+
+#[test]
+fn test_mcp_server_wildcard_priority_wildcard_over_general() {
+    // Server wildcard should be more specific than mcp__.*
+    let server_wildcard = HookMatcher::Regex("mcp__filesystem__*".to_string());
+    let general_mcp = HookMatcher::Regex("mcp__.*".to_string());
+
+    let tool = "mcp__filesystem__read_file";
+
+    // Both match, but server wildcard is more specific
+    assert!(server_wildcard.matches(tool));
+    assert!(general_mcp.matches(tool));
+}
+
+#[test]
+fn test_mcp_server_wildcard_edge_case_underscores_in_name() {
+    // Server name with underscores
+    let matcher = HookMatcher::Regex("mcp__my_custom_server__*".to_string());
+    assert!(matcher.matches("mcp__my_custom_server__tool"));
+    assert!(matcher.matches("mcp__my_custom_server__another_tool"));
+    assert!(!matcher.matches("mcp__other_server__tool"));
+}
+
+#[test]
+fn test_mcp_server_wildcard_edge_case_hyphens_in_name() {
+    // Server name with hyphens
+    let matcher = HookMatcher::Regex("mcp__my-server__*".to_string());
+    assert!(matcher.matches("mcp__my-server__tool"));
+    assert!(matcher.matches("mcp__my-server__another-tool"));
+    assert!(!matcher.matches("mcp__my_server__tool"));
+}
+
+#[test]
+fn test_mcp_server_wildcard_edge_case_empty_tool_name() {
+    // Edge case: empty tool name (just server prefix)
+    let matcher = HookMatcher::Regex("mcp__filesystem__*".to_string());
+    // This should match because it starts with "mcp__filesystem__"
+    assert!(matcher.matches("mcp__filesystem__"));
+}
+
+#[test]
+fn test_mcp_server_wildcard_case_sensitive() {
+    // Pattern matching should be case sensitive
+    let matcher = HookMatcher::Regex("mcp__filesystem__*".to_string());
+    assert!(!matcher.matches("MCP__filesystem__read"));
+    assert!(!matcher.matches("mcp__FILESYSTEM__read"));
+    assert!(!matcher.matches("mcp__Filesystem__read"));
+}
+
+#[test]
+fn test_mcp_server_wildcard_not_matching_invalid_patterns() {
+    // These should NOT be recognized as MCP server wildcards
+
+    // mcp__* has only 1 "__", so it's NOT a server wildcard pattern
+    // It would need to use contains matching, which won't match because
+    // tool names don't have literal "*" in them
+    let matcher1 = HookMatcher::Regex("mcp__*".to_string());
+    assert!(!matcher1.matches("mcp__filesystem__read"));
+
+    // However, if you want to match all MCP tools, use mcp__.*
+    let matcher_all_mcp = HookMatcher::Regex("mcp__.*".to_string());
+    assert!(matcher_all_mcp.matches("mcp__filesystem__read"));
+
+    // mcp__filesystem_* ends with "_*" not "__*" so it's not a server wildcard
+    // It doesn't end with ".*" either, so it uses contains matching
+    let matcher2 = HookMatcher::Regex("mcp__filesystem_*".to_string());
+    assert!(!matcher2.matches("mcp__filesystem_read")); // No literal "*" in tool name
+}
+
+#[test]
+fn test_mcp_server_wildcard_configuration_example() {
+    // Real-world configuration example
+    let json = r#"{
+        "PermissionRequest": [
+            {
+                "matcher": "mcp__filesystem__*",
+                "hooks": [{
+                    "type": "command",
+                    "command": "scripts/deny-filesystem.sh"
+                }]
+            }
+        ]
+    }"#;
+
+    let config: HooksConfiguration = serde_json::from_str(json).unwrap();
+    assert_eq!(config.permission_request.len(), 1);
+    assert!(matches!(
+        config.permission_request[0].matcher,
+        HookMatcher::Regex(_)
+    ));
 }
 
 // ============================================================================
@@ -1326,9 +1476,8 @@ fn test_scenario_regex_matching_multiple_tools() {
 }
 
 #[test]
-#[ignore] // TODO: Fix matcher implementation - mcp__.*__.* pattern needs implementation fix
 fn test_scenario_mcp_tool_pattern_matching() {
-    // This test documents EXPECTED behavior - awaiting implementation fix
+    // Fixed: Pattern matching order now handles this correctly
     let matcher = HookMatcher::Regex("mcp__.*__.*".to_string());
 
     assert!(matcher.matches("mcp__server__tool"));
