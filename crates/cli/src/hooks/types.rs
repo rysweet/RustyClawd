@@ -23,6 +23,9 @@ pub enum HookEvent {
     SubagentStop,
     Notification,
     PreCompact,
+    /// Fires when a tool requires permission and user would be prompted.
+    /// Hook can return allow/deny/ask to automatically handle permission decisions.
+    PermissionRequest,
 }
 
 impl HookEvent {
@@ -38,6 +41,7 @@ impl HookEvent {
             HookEvent::SubagentStop,
             HookEvent::Notification,
             HookEvent::PreCompact,
+            HookEvent::PermissionRequest,
         ]
     }
 
@@ -53,6 +57,7 @@ impl HookEvent {
             HookEvent::SubagentStop => "SubagentStop",
             HookEvent::Notification => "Notification",
             HookEvent::PreCompact => "PreCompact",
+            HookEvent::PermissionRequest => "PermissionRequest",
         }
     }
 }
@@ -210,6 +215,10 @@ pub struct HooksConfiguration {
     pub notification: Vec<HookConfig>,
     #[serde(rename = "PreCompact", default)]
     pub pre_compact: Vec<HookConfig>,
+    /// PermissionRequest hooks fire when a tool requires permission and user would be prompted.
+    /// Hook can return allow/deny/ask to automatically handle permission decisions.
+    #[serde(rename = "PermissionRequest", default)]
+    pub permission_request: Vec<HookConfig>,
 }
 
 impl HooksConfiguration {
@@ -225,6 +234,7 @@ impl HooksConfiguration {
             HookEvent::SubagentStop => &self.subagent_stop,
             HookEvent::Notification => &self.notification,
             HookEvent::PreCompact => &self.pre_compact,
+            HookEvent::PermissionRequest => &self.permission_request,
         }
     }
 }
@@ -446,6 +456,35 @@ impl HookContext {
         }
     }
 
+    /// Create context for PermissionRequest event.
+    /// Fires when a tool requires permission and user would be prompted.
+    pub fn for_permission_request(
+        session_id: String,
+        transcript_path: String,
+        cwd: String,
+        permission_mode: String,
+        tool_name: String,
+        tool_use_id: Option<String>,
+        tool_params: Option<serde_json::Value>,
+    ) -> Self {
+        Self {
+            session_id,
+            transcript_path,
+            cwd,
+            permission_mode,
+            hook_event_name: HookEvent::PermissionRequest.as_str().to_string(),
+            tool_name: Some(tool_name),
+            tool_use_id,
+            tool_params,
+            tool_result: None,
+            session_start_matcher: None,
+            session_end_reason: None,
+            notification_type: None,
+            user_prompt: None,
+            additional: HashMap::new(),
+        }
+    }
+
     /// Set tool parameters
     pub fn with_tool_params(mut self, params: serde_json::Value) -> Self {
         self.tool_params = Some(params);
@@ -571,9 +610,10 @@ mod tests {
     #[test]
     fn test_hook_event_all() {
         let events = HookEvent::all();
-        assert_eq!(events.len(), 9);
+        assert_eq!(events.len(), 10);
         assert!(events.contains(&HookEvent::SessionStart));
         assert!(events.contains(&HookEvent::Stop));
+        assert!(events.contains(&HookEvent::PermissionRequest));
     }
 
     #[test]
@@ -640,5 +680,88 @@ mod tests {
         let output = result.parse_output().unwrap();
         assert_eq!(output.continue_execution, Some(true));
         assert_eq!(output.permission_decision, Some(PermissionDecision::Allow));
+    }
+
+    #[test]
+    fn test_permission_request_event_as_str() {
+        assert_eq!(HookEvent::PermissionRequest.as_str(), "PermissionRequest");
+    }
+
+    #[test]
+    fn test_permission_request_context() {
+        let ctx = HookContext::for_permission_request(
+            "session-123".to_string(),
+            "/path/to/transcript".to_string(),
+            "/cwd".to_string(),
+            "ask".to_string(),
+            "Bash".to_string(),
+            Some("tool-use-456".to_string()),
+            Some(serde_json::json!({"command": "ls -la"})),
+        );
+        assert_eq!(ctx.hook_event_name, "PermissionRequest");
+        assert_eq!(ctx.tool_name, Some("Bash".to_string()));
+        assert_eq!(ctx.tool_use_id, Some("tool-use-456".to_string()));
+        assert!(ctx.tool_params.is_some());
+    }
+
+    #[test]
+    fn test_hooks_configuration_permission_request() {
+        let json = r#"{
+            "PermissionRequest": [
+                {
+                    "matcher": "Bash",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": "scripts/auto-approve.sh",
+                            "timeout": 5000
+                        }
+                    ]
+                }
+            ]
+        }"#;
+
+        let config: HooksConfiguration = serde_json::from_str(json).unwrap();
+        assert_eq!(config.permission_request.len(), 1);
+        assert_eq!(
+            config
+                .get_hooks_for_event(&HookEvent::PermissionRequest)
+                .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn test_permission_request_output_allow() {
+        let json = r#"{"permissionDecision": "allow", "permissionDecisionReason": "Safe command"}"#;
+        let output: HookOutput = serde_json::from_str(json).unwrap();
+        assert_eq!(output.permission_decision, Some(PermissionDecision::Allow));
+        assert_eq!(
+            output.permission_decision_reason,
+            Some("Safe command".to_string())
+        );
+    }
+
+    #[test]
+    fn test_permission_request_output_deny() {
+        let json = r#"{"permissionDecision": "deny", "permissionDecisionReason": "Dangerous command detected"}"#;
+        let output: HookOutput = serde_json::from_str(json).unwrap();
+        assert_eq!(output.permission_decision, Some(PermissionDecision::Deny));
+        assert_eq!(
+            output.permission_decision_reason,
+            Some("Dangerous command detected".to_string())
+        );
+    }
+
+    #[test]
+    fn test_permission_request_output_ask() {
+        let json =
+            r#"{"permissionDecision": "ask", "permissionDecisionReason": "Needs user review"}"#;
+        let output: HookOutput = serde_json::from_str(json).unwrap();
+        assert_eq!(output.permission_decision, Some(PermissionDecision::Ask));
+        assert_eq!(
+            output.permission_decision_reason,
+            Some("Needs user review".to_string())
+        );
     }
 }

@@ -4,15 +4,16 @@
 
 RustyClawd Claude Code implements a comprehensive hook lifecycle system that enables custom event handling at critical points throughout the CLI session and tool execution. This system allows developers, DevOps engineers, and power users to inject custom logic into the Claude Code workflow without modifying the core application.
 
-### The Five Core Hook Events
+### The Six Core Hook Events
 
-The implementation provides five primary hook integration points:
+The implementation provides six primary hook integration points:
 
 1. **UserPromptSubmit** - Fires when a user submits a prompt
 2. **PreToolUse** - Fires before a tool is executed (can block execution)
 3. **PostToolUse** - Fires after a tool completes execution
 4. **Stop** - Fires when checking if work is complete (can approve/block exit)
 5. **SubagentStop** - Fires when a subagent signals completion (can approve/block subagent exit)
+6. **PermissionRequest** - Fires when a tool requires permission and user would be prompted (can auto-approve/deny)
 
 Additional hooks (SessionStart, SessionEnd, Notification, PreCompact) provide session and notification lifecycle control.
 
@@ -263,6 +264,101 @@ Hooks enable powerful automation patterns:
 
 ---
 
+### PermissionRequest
+
+**Fires**: When a tool requires permission and user would be prompted for approval
+
+**Context Provided**:
+- `session_id` - Unique session identifier
+- `transcript_path` - Path to the session transcript
+- `cwd` - Current working directory
+- `tool_name` - Name of the tool requesting permission (e.g., "Bash", "Write", "Edit")
+- `tool_use_id` - Unique identifier for this tool invocation
+- `tool_params` - Complete parameters as JSON object
+- `hook_event_name` - "PermissionRequest"
+
+**Blocking Model**: Three-way decision system:
+- `allow` - Auto-approve the tool execution without user prompt
+- `deny` - Block execution and return error to Claude
+- `ask` - Fall through to normal interactive prompt (default if no hook configured)
+
+**PermissionRequest Decision Logic**:
+1. Tool execution requires permission (e.g., permission_mode is "ask")
+2. Before showing user the permission prompt, PermissionRequest hook fires
+3. Hook returns decision: allow, deny, or ask
+4. If `allow`: Tool executes immediately without user interaction
+5. If `deny`: Tool is blocked and Claude receives error message
+6. If `ask` or hook not configured: Normal permission prompt is shown to user
+
+**Use Cases**:
+- Auto-approve safe commands based on patterns (e.g., read-only operations)
+- Auto-deny dangerous commands (e.g., rm -rf, network access to unknown hosts)
+- Implement custom security policies (RBAC, allowlists/blocklists)
+- Speed up automated workflows by bypassing interactive prompts
+- Integrate with external approval systems (ticket systems, security scanners)
+- Log permission requests for audit trails
+
+**Example Hook Output - Allow**:
+```json
+{
+  "permissionDecision": "allow",
+  "permissionDecisionReason": "Read-only file operation - auto-approved by policy"
+}
+```
+
+**Example Hook Output - Deny**:
+```json
+{
+  "permissionDecision": "deny",
+  "permissionDecisionReason": "Network access to external host blocked by security policy",
+  "systemMessage": "This operation is not permitted by your organization's security policy"
+}
+```
+
+**Example Hook Output - Ask**:
+```json
+{
+  "permissionDecision": "ask",
+  "permissionDecisionReason": "Unrecognized operation - requires manual review"
+}
+```
+
+**Example Configuration**:
+```json
+{
+  "PermissionRequest": [
+    {
+      "matcher": "Bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "scripts/auto-approve-bash.sh",
+          "timeout": 5000
+        }
+      ]
+    },
+    {
+      "matcher": "Write|Edit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "scripts/check-file-permissions.sh",
+          "timeout": 3000
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Difference from PreToolUse**:
+- **PreToolUse** fires for EVERY tool execution, regardless of permission mode
+- **PermissionRequest** fires ONLY when a permission prompt would be shown
+- Use PreToolUse for general validation/transformation/logging of all tools
+- Use PermissionRequest specifically for automating permission decisions
+
+---
+
 ## Configuration
 
 ### Configuration File Location
@@ -288,7 +384,8 @@ Hooks are configured using JSON with the following structure:
   "Stop": [...],
   "SubagentStop": [...],
   "Notification": [...],
-  "PreCompact": [...]
+  "PreCompact": [...],
+  "PermissionRequest": [...]
 }
 ```
 
