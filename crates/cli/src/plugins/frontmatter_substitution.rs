@@ -453,10 +453,7 @@ mod tests {
         #[test]
         fn unknown_variable_preserved() {
             let substituter = Substituter::new(test_ctx());
-            assert_eq!(
-                substituter.substitute("${UNKNOWN}/path"),
-                "${UNKNOWN}/path"
-            );
+            assert_eq!(substituter.substitute("${UNKNOWN}/path"), "${UNKNOWN}/path");
         }
 
         #[test]
@@ -494,10 +491,7 @@ mod tests {
         #[test]
         fn no_variables() {
             let substituter = Substituter::new(test_ctx());
-            assert_eq!(
-                substituter.substitute("/absolute/path"),
-                "/absolute/path"
-            );
+            assert_eq!(substituter.substitute("/absolute/path"), "/absolute/path");
         }
 
         #[test]
@@ -578,10 +572,7 @@ mod tests {
 
             substituter.substitute_frontmatter(&mut fm);
 
-            assert_eq!(
-                fm.argument_hint,
-                Some("/plugin/root/config".to_string())
-            );
+            assert_eq!(fm.argument_hint, Some("/plugin/root/config".to_string()));
         }
 
         #[test]
@@ -707,7 +698,10 @@ mod tests {
 
             assert_eq!(
                 fm.description,
-                Some("Code analyzer using tools from /home/alice/.claude/plugins/code-analyzer".to_string())
+                Some(
+                    "Code analyzer using tools from /home/alice/.claude/plugins/code-analyzer"
+                        .to_string()
+                )
             );
             assert_eq!(
                 fm.allowed_tools[0],
