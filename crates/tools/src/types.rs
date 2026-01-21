@@ -56,6 +56,14 @@ pub struct ToolContext {
 
     /// Execution context (TUI vs non-interactive)
     pub execution_context: ExecutionContext,
+
+    /// List of tools that are explicitly allowed (empty means all tools allowed)
+    /// When non-empty, only tools in this list can be executed
+    pub allowed_tools: Vec<String>,
+
+    /// List of tools that are explicitly disallowed
+    /// Takes precedence over allowed_tools
+    pub disallowed_tools: Vec<String>,
 }
 
 impl Default for ToolContext {
@@ -65,6 +73,8 @@ impl Default for ToolContext {
             debug: false,
             metadata: serde_json::Value::Null,
             execution_context: ExecutionContext::default(),
+            allowed_tools: vec![],
+            disallowed_tools: vec![],
         }
     }
 }

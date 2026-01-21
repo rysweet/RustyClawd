@@ -55,6 +55,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         debug: true,
         metadata: serde_json::Value::Null,
         execution_context: rustyclawd_tools::ExecutionContext::default(),
+        allowed_tools: vec![],
+        disallowed_tools: vec![],
     };
 
     println!("Invoking 'example' agent with haiku model...\n");

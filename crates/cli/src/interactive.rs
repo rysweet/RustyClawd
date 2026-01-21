@@ -134,6 +134,10 @@ pub struct InteractiveSession {
     expected_tool_ids: Vec<String>,
     /// Current response waiting for tool completion
     pending_tool_response: Option<rustyclawd_core::client::MessageResponse>,
+    /// List of tools that are explicitly allowed (empty means all tools allowed)
+    allowed_tools: Vec<String>,
+    /// List of tools that are explicitly disallowed
+    disallowed_tools: Vec<String>,
 }
 
 impl InteractiveSession {
@@ -267,6 +271,8 @@ impl InteractiveSession {
             pending_response: None,
             expected_tool_ids: Vec::new(),
             pending_tool_response: None,
+            allowed_tools: vec![],
+            disallowed_tools: vec![],
         })
     }
 
@@ -1032,6 +1038,8 @@ impl InteractiveSession {
             debug: false,
             metadata: serde_json::Value::Null,
             execution_context: ExecutionContext::Tui,
+            allowed_tools: self.allowed_tools.clone(),
+            disallowed_tools: self.disallowed_tools.clone(),
         };
 
         // Create bash tool parameters
@@ -1625,6 +1633,8 @@ impl InteractiveSession {
             let session_id = Some(self.session_id.clone());
             let notification_manager = self.notification_manager.clone();
             let permission_mode = self.tui.permission_mode();
+            let allowed_tools = self.allowed_tools.clone();
+            let disallowed_tools = self.disallowed_tools.clone();
             let tx = event_tx.clone();
 
             // Spawn tool execution in background
@@ -1634,10 +1644,14 @@ impl InteractiveSession {
                     name.clone(),
                     input,
                     permission_mode,
-                    hooks,
-                    session_id,
-                    notification_manager.as_ref(),
-                    Some(id.clone()),
+                    tool_executor::ToolExecutionParams {
+                        hooks,
+                        session_id,
+                        notification_manager: notification_manager.as_ref(),
+                        tool_use_id: Some(id.clone()),
+                        allowed_tools,
+                        disallowed_tools,
+                    },
                 )
                 .await;
 
@@ -2109,6 +2123,17 @@ pub async fn run_interactive() -> Result<()> {
 
 /// Entry point for interactive mode with optional hooks system
 pub async fn run_interactive_with_hooks(hooks: Option<Arc<hooks::HooksSystem>>) -> Result<()> {
+    run_interactive_with_config(hooks, vec![], vec![]).await
+}
+
+/// Entry point for interactive mode with full configuration
+pub async fn run_interactive_with_config(
+    hooks: Option<Arc<hooks::HooksSystem>>,
+    allowed_tools: Vec<String>,
+    disallowed_tools: Vec<String>,
+) -> Result<()> {
     let mut session = InteractiveSession::with_hooks(hooks).await?;
+    session.allowed_tools = allowed_tools;
+    session.disallowed_tools = disallowed_tools;
     session.run().await
 }

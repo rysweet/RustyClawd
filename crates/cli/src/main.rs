@@ -694,6 +694,8 @@ impl App {
             debug: self.cli.verbose,
             metadata: serde_json::Value::Null,
             execution_context: rustyclawd_tools::ExecutionContext::NonInteractive,
+            allowed_tools: self.cli.allowed_tools.clone(),
+            disallowed_tools: self.cli.disallowed_tools.clone(),
         };
 
         // Create agent parameters
@@ -958,9 +960,11 @@ impl App {
 
     /// Run interactive mode
     async fn run_interactive(&mut self) -> Result<()> {
-        // Pass hooks to interactive session
+        // Pass hooks and tool restrictions to interactive session
         let hooks = std::sync::Arc::new(self.hooks.clone());
-        interactive::run_interactive_with_hooks(Some(hooks)).await
+        let allowed_tools = self.cli.allowed_tools.clone();
+        let disallowed_tools = self.cli.disallowed_tools.clone();
+        interactive::run_interactive_with_config(Some(hooks), allowed_tools, disallowed_tools).await
     }
 
     /// Run in print mode (one-shot execution) - matches Claude Code's behavior
@@ -1100,19 +1104,29 @@ impl App {
             })
             .unwrap_or(permission_mode::PermissionMode::Ask);
 
+        // Clone allowed/disallowed tools from CLI for tool executor
+        let allowed_tools_for_executor = self.cli.allowed_tools.clone();
+        let disallowed_tools_for_executor = self.cli.disallowed_tools.clone();
+
         let response = match client
             .execute_with_tools(request.clone(), |tool_name, tool_input| {
                 let hooks = hooks_for_tools.clone();
                 let session_id = session_id_for_tools.clone();
+                let allowed_tools = allowed_tools_for_executor.clone();
+                let disallowed_tools = disallowed_tools_for_executor.clone();
                 async move {
                     tool_executor::execute_tool_with_permission(
                         tool_name,
                         tool_input,
                         permission_mode,
-                        Some(hooks),
-                        Some(session_id),
-                        None, // No notification manager in non-interactive mode
-                        None, // No tool_use_id in non-interactive mode
+                        tool_executor::ToolExecutionParams {
+                            hooks: Some(hooks),
+                            session_id: Some(session_id),
+                            notification_manager: None, // No notification manager in non-interactive mode
+                            tool_use_id: None,          // No tool_use_id in non-interactive mode
+                            allowed_tools,
+                            disallowed_tools,
+                        },
                     )
                     .await
                 }
@@ -1143,20 +1157,28 @@ impl App {
 
                     let hooks_fallback = hooks_for_tools.clone();
                     let session_id_fallback = session_id_for_tools.clone();
+                    let allowed_tools_fallback = allowed_tools_for_executor.clone();
+                    let disallowed_tools_fallback = disallowed_tools_for_executor.clone();
 
                     client
                         .execute_with_tools(fallback_request, |tool_name, tool_input| {
                             let hooks = hooks_fallback.clone();
                             let session_id = session_id_fallback.clone();
+                            let allowed_tools = allowed_tools_fallback.clone();
+                            let disallowed_tools = disallowed_tools_fallback.clone();
                             async move {
                                 tool_executor::execute_tool_with_permission(
                                     tool_name,
                                     tool_input,
                                     permission_mode,
-                                    Some(hooks),
-                                    Some(session_id),
-                                    None, // No notification manager in non-interactive mode
-                                    None, // No tool_use_id in non-interactive mode
+                                    tool_executor::ToolExecutionParams {
+                                        hooks: Some(hooks),
+                                        session_id: Some(session_id),
+                                        notification_manager: None, // No notification manager in non-interactive mode
+                                        tool_use_id: None, // No tool_use_id in non-interactive mode
+                                        allowed_tools,
+                                        disallowed_tools,
+                                    },
                                 )
                                 .await
                             }
