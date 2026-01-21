@@ -136,6 +136,7 @@ fn handle_initialize(request: &JsonRpcRequest) -> JsonRpcResponse {
 /// Handle tools/list request
 fn handle_tools_list(request: &JsonRpcRequest) -> JsonRpcResponse {
     // Get all tool definitions and convert to MCP format
+    // Trust tool_definitions.rs to provide correct schemas
     let tool_defs = tool_definitions::get_all_tool_definitions();
     let validator = SchemaValidator::default();
     let mut filtered_count = 0;
@@ -143,29 +144,8 @@ fn handle_tools_list(request: &JsonRpcRequest) -> JsonRpcResponse {
     let tools: Vec<serde_json::Value> = tool_defs
         .into_iter()
         .filter_map(|tool| {
-            // Ensure inputSchema has "type": "object" at root
-            let mut input_schema = tool.input_schema;
-            if !input_schema
-                .get("type")
-                .and_then(|t| t.as_str())
-                .eq(&Some("object"))
-            {
-                // Wrap schema if it doesn't have type: object
-                let mut schema_obj = serde_json::Map::new();
-                schema_obj.insert(
-                    "type".to_string(),
-                    serde_json::Value::String("object".to_string()),
-                );
-                if let Some(obj) = input_schema.as_object() {
-                    for (key, value) in obj {
-                        schema_obj.insert(key.clone(), value.clone());
-                    }
-                }
-                input_schema = serde_json::Value::Object(schema_obj);
-            }
-
             // Validate the input schema
-            let validation_result = validator.validate(&input_schema);
+            let validation_result = validator.validate(&tool.input_schema);
             if !validation_result.is_valid() {
                 // Log the filtered tool for debugging
                 eprintln!(
@@ -180,7 +160,7 @@ fn handle_tools_list(request: &JsonRpcRequest) -> JsonRpcResponse {
             Some(serde_json::json!({
                 "name": tool.name,
                 "description": tool.description,
-                "inputSchema": input_schema
+                "inputSchema": tool.input_schema
             }))
         })
         .collect();
@@ -202,55 +182,22 @@ fn handle_tools_list(request: &JsonRpcRequest) -> JsonRpcResponse {
 }
 
 /// Handle tools/call request
+///
+/// Tool execution in MCP serve mode is not supported because it requires
+/// the complete tool_executor context (hooks, session state, permissions).
+/// Returns a proper error response per JSON-RPC 2.0 spec.
 async fn handle_tools_call(request: &JsonRpcRequest) -> JsonRpcResponse {
-    // Extract tool name and arguments
-    let tool_name = match request.params.get("name").and_then(|n| n.as_str()) {
-        Some(name) => name,
-        None => {
-            return JsonRpcResponse {
-                jsonrpc: "2.0".to_string(),
-                id: request.id.clone(),
-                result: None,
-                error: Some(JsonRpcError {
-                    code: -32602,
-                    message: "Invalid params".to_string(),
-                    data: Some(serde_json::json!({ "details": "Missing tool name" })),
-                }),
-            };
-        }
-    };
-
-    let _arguments = request
-        .params
-        .get("arguments")
-        .cloned()
-        .unwrap_or(serde_json::json!({}));
-
-    // NOTE: Full tool execution requires the complete tool_executor context
-    // which includes hooks, session state, permission handling, etc.
-    // For initial MCP serve implementation, we return a success response
-    // indicating the tool was invoked.
-    //
-    // Future enhancement: Integrate with crate::tool_executor::execute_tool
-    // to provide full tool execution capability.
-
-    // Build MCP-compliant CallToolResult with optional structuredContent
-    let tool_result = McpCallToolResult {
-        content: vec![serde_json::json!({
-            "type": "text",
-            "text": format!("Tool '{}' invoked with parameters. Full execution requires session context.", tool_name)
-        })],
-        // structuredContent can be provided when tool has outputSchema
-        // and returns typed data. For now, set to None.
-        structured_content: None,
-        is_error: Some(false),
-    };
-
     JsonRpcResponse {
         jsonrpc: "2.0".to_string(),
         id: request.id.clone(),
-        result: Some(serde_json::to_value(tool_result).unwrap_or_default()),
-        error: None,
+        result: None,
+        error: Some(JsonRpcError {
+            code: -32601,
+            message: "Method not supported".to_string(),
+            data: Some(serde_json::json!({
+                "details": "Tool execution requires session context (hooks, permissions, state) which is not available in MCP serve mode. Use CLI mode for tool execution."
+            })),
+        }),
     }
 }
 
