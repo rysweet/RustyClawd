@@ -46,16 +46,21 @@ impl PermissionsSearchState {
     /// ```
     pub fn new() -> Self {
         let all_rules = get_all_rules();
-        let filtered_rules = all_rules.clone();
+        // Initialize filtered_rules as empty - will be populated by update_filtered_rules()
+        let filtered_rules = Vec::new();
 
-        Self {
+        let mut state = Self {
             all_rules,
             filtered_rules,
             search_query: String::new(),
             is_searching: false,
             selected_index: 0,
             scroll_offset: 0,
-        }
+        };
+
+        // Initialize filtered rules (avoids unnecessary clone)
+        state.update_filtered_rules();
+        state
     }
 
     /// Enter search mode (triggered by '/')
@@ -340,12 +345,35 @@ impl PermissionsSearchState {
     /// Adjusts scroll_offset to keep selected item on screen.
     /// Called internally after selection changes.
     fn ensure_selected_visible(&mut self) {
-        // This will be updated by UI renderer based on visible height
-        // For now, just ensure scroll offset doesn't go past selection
+        // Scroll up if selection is above viewport
         if self.selected_index < self.scroll_offset {
             self.scroll_offset = self.selected_index;
         }
-        // Upper bound check will be done by UI renderer with actual viewport height
+        // Note: Upper bound check requires viewport height from renderer
+        // Use update_scroll_for_viewport() from render loop
+    }
+
+    /// Update scroll offset based on viewport height
+    ///
+    /// Should be called by UI renderer with actual visible height.
+    /// Ensures selected item remains visible when viewport changes.
+    ///
+    /// # Arguments
+    ///
+    /// * `viewport_height` - Number of rows visible in the table area
+    pub fn update_scroll_for_viewport(&mut self, viewport_height: usize) {
+        if viewport_height == 0 {
+            return;
+        }
+
+        // Ensure selected item is within viewport
+        if self.selected_index < self.scroll_offset {
+            // Scroll up
+            self.scroll_offset = self.selected_index;
+        } else if self.selected_index >= self.scroll_offset + viewport_height {
+            // Scroll down
+            self.scroll_offset = self.selected_index.saturating_sub(viewport_height - 1);
+        }
     }
 }
 

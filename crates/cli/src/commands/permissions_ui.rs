@@ -104,30 +104,30 @@ fn render_search_input(state: &PermissionsSearchState, area: Rect, buf: &mut Buf
         format!("({} tools)", total)
     };
 
-    let mut spans = vec![
-        Span::styled(
-            search_text,
-            Style::default().fg(if state.is_searching() {
-                Color::Yellow
-            } else {
-                Color::Gray
-            }),
-        ),
-        Span::styled(match_text, Style::default().fg(Color::DarkGray)),
-    ];
+    let mut spans = vec![Span::styled(
+        search_text,
+        Style::default().fg(if state.is_searching() {
+            Color::Yellow
+        } else {
+            Color::Gray
+        }),
+    )];
 
-    // Add cursor if searching
+    // Add cursor if searching - positioned at end of query
     if state.is_searching() {
-        spans.insert(
-            1,
-            Span::styled(
-                "█",
-                Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::SLOW_BLINK),
-            ),
-        );
+        spans.push(Span::styled(
+            "█",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::SLOW_BLINK),
+        ));
     }
+
+    // Add match count after cursor
+    spans.push(Span::styled(
+        match_text,
+        Style::default().fg(Color::DarkGray),
+    ));
 
     let search_line = Line::from(spans);
 
