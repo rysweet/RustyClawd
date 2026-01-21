@@ -1,164 +1,89 @@
-# Issue #250: Wildcard Syntax for MCP Tool Permissions
+# RustyClawd
 
-## Deliverables
+A Rust implementation of a CLI tool compatible with Claude Code.
 
-This directory contains the complete architectural design for implementing wildcard syntax `mcp__<server>__*` for MCP tool permissions.
+## Legal Disclaimer
 
-### Documents
+**IMPORTANT**: This is an independent, unofficial open-source project with no affiliation to Anthropic PBC. Not endorsed or sponsored by Anthropic.
 
-1. **DESIGN.md** (Primary Design Specification)
-   - Complete problem statement and solution overview
-   - Detailed pattern format specification
-   - Matcher architecture and implementation strategy
-   - Priority rules for specificity matching
-   - Comprehensive testing strategy with 5 test cases
-   - Integration points and backwards compatibility analysis
-   - Implementation checklist and success criteria
+"Claude" and "Claude Code" are trademarks of Anthropic PBC. This project provides tools that are compatible with Claude's API services. Users must comply with [Anthropic's Terms of Service](https://www.anthropic.com/legal/consumer-terms) when using this software with Claude services.
 
-2. **IMPLEMENTATION_SUMMARY.md** (Executive Summary)
-   - High-level overview of changes
-   - Before/after examples
-   - Key implementation locations
-   - Pattern matching order fixes
-   - Test coverage summary
-   - Priority rules explanation
-   - Configuration examples
-   - Files modified with line counts
+## About
 
-3. **QUICK_REFERENCE.md** (Quick Start Guide)
-   - Pattern syntax examples
-   - Matching examples with test cases
-   - Specificity priority chart
-   - Common use cases
-   - Implementation details
-   - Files changed summary
+RustyClawd is a Rust-based CLI tool that provides compatibility with Claude Code functionality. This project aims to explore Rust implementations of AI-powered development tools while maintaining compatibility with the Claude ecosystem.
 
-## Key Design Decisions
+## Features
 
-### Problem
-Users cannot efficiently allow or deny all tools from a specific MCP server without creating individual entries for each tool.
+- Terminal UI (TUI) for interactive sessions
+- Hook system for workflow customization
+- Plugin architecture for extensibility
+- MCP (Model Context Protocol) support
+- Command and slash command system
+- Session state management
+- Settings hierarchy and configuration
 
-### Solution
-Introduce pattern `mcp__<server>__*` to match all tools from a specific server.
+## Getting Started
 
-### Implementation Approach
-- **Location**: `crates/cli/src/hooks/types.rs`
-- **Method**: Enhance `HookMatcher::matches()` with server wildcard pattern detection
-- **Strategy**: Fix pattern matching order to handle specific cases before generic ones
-- **Bonus**: Fixes existing ignored test `test_matcher_mcp_full_pattern`
+### Prerequisites
 
-### Priority Rules
-1. **Exact match** - `mcp__server__tool` (HIGHEST)
-2. **Server wildcard** - `mcp__server__*`
-3. **All MCP tools** - `mcp__.*` (LOWEST)
+- Rust 1.70 or higher
+- Cargo
 
-## Implementation Plan
+### Building
 
-### Phase 1: Core Logic
-1. Add `is_mcp_server_wildcard()` helper function
-2. Update `HookMatcher::matches()` with new pattern check
-3. Reorder pattern checks for correct priority
-
-### Phase 2: Deserialization
-1. Update `HookMatcher::deserialize()` to recognize wildcards
-
-### Phase 3: Testing
-1. Add 8-10 comprehensive unit tests
-2. Fix ignored test `test_matcher_mcp_full_pattern`
-3. Add edge case tests
-
-### Phase 4: Validation
-1. Run full test suite
-2. Verify backwards compatibility
-3. Document configuration examples
-
-## Pattern Format
-
-```rust
-// Matches all tools from specific server
-"mcp__filesystem__*"    // Matches: mcp__filesystem__read, mcp__filesystem__write, etc.
-"mcp__memory__*"        // Matches: mcp__memory__store, mcp__memory__read, etc.
-
-// Still supported (backwards compatible)
-"mcp__filesystem__read"         // Exact match
-"mcp__.*"                       // All MCP tools
-"*"                            // Match everything
-"Edit|Write"                   // Alternation
+```bash
+cargo build --release
 ```
 
-## Example Configuration
+### Running
 
-```json
-{
-  "PermissionRequest": [
-    {
-      "matcher": "mcp__filesystem__*",
-      "hooks": [{
-        "type": "command",
-        "command": "scripts/auto-deny-filesystem.sh"
-      }]
-    },
-    {
-      "matcher": "mcp__memory__*",
-      "hooks": [{
-        "type": "command",
-        "command": "scripts/auto-allow-memory.sh"
-      }]
-    }
-  ]
-}
+```bash
+cargo run
 ```
 
-## Testing Strategy
+## Architecture
 
-### Unit Tests (8-10 cases)
-- Pattern recognition validation
-- Matching behavior verification
-- Deserialization handling
-- Priority/specificity rules
-- Edge cases (underscores, hyphens, etc.)
+The project is organized into three main crates:
 
-### Integration Tests
-- Full hooks configuration scenarios
-- Multiple pattern interactions
-- Backwards compatibility verification
+- **cli**: Command-line interface and TUI components
+- **core**: Core client and API integration
+- **tools**: Tool definitions and execution
 
-## Complexity Assessment
+## Development
 
-- **Complexity Level**: LOW
-- **Risk Level**: LOW
-- **Performance Impact**: NONE
-- **Backwards Compatibility**: 100%
+### Running Tests
 
-## Success Criteria
+```bash
+cargo test
+```
 
-✓ Single pattern `mcp__filesystem__*` matches all tools from that server
-✓ Specific patterns take precedence over wildcards
-✓ All existing tests pass
-✓ Ignored test becomes passing test
-✓ New test cases cover all scenarios
-✓ Fully backwards compatible
-✓ No performance degradation
-✓ Handles edge cases correctly
+### Pre-commit Hooks
 
-## Files to Modify
+This project uses pre-commit hooks for code quality:
 
-1. **crates/cli/src/hooks/types.rs** (~50 lines)
-   - Core implementation
+```bash
+pre-commit install
+pre-commit run --all-files
+```
 
-2. **crates/cli/tests/hooks_doc_tests.rs** (~150 lines)
-   - New test cases
+## Contributing
 
-## Related Code
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-- Hook registry: `crates/cli/src/hooks/registry.rs`
-- Hook executor: `crates/cli/src/hooks/executor.rs`
-- Permission checking: Uses `HookMatcher::matches()` for permission decisions
+## License
 
-## Next Steps
+This project is dual-licensed under:
+- MIT License
+- Apache License 2.0
 
-1. Read DESIGN.md for complete specification
-2. Review IMPLEMENTATION_SUMMARY.md for executive overview
-3. Check QUICK_REFERENCE.md for examples and quick lookup
-4. Begin implementation following the implementation checklist in DESIGN.md
+See [LICENSE-MIT](LICENSE-MIT) and [LICENSE-APACHE](LICENSE-APACHE) for details.
 
+## Acknowledgments
+
+This project provides a Rust implementation compatible with Claude Code APIs. Anthropic PBC creates Claude Code - this is an independent community project that aims to complement the Claude ecosystem.
+
+## Support
+
+For issues or questions about this project, please use the [GitHub issue tracker](https://github.com/rysweet/RustyClawd/issues).
+
+For questions about Claude or Claude Code, please refer to [Anthropic's official documentation](https://docs.anthropic.com/).
