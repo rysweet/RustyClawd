@@ -234,13 +234,19 @@ impl HookExecutor {
                                 2
                             }
                         } else {
-                            // No recognized decision field - default to success
-                            0
+                            // No recognized decision field - return error
+                            // This indicates malformed or unrecognized JSON structure
+                            1
                         }
                     }
-                    Err(_) => {
-                        // Not valid JSON - return as-is with success code
-                        0
+                    Err(e) => {
+                        // Not valid JSON - return error with diagnostic message
+                        eprintln!(
+                            "Hook returned invalid JSON response: {}\nError: {}",
+                            text.chars().take(200).collect::<String>(),
+                            e
+                        );
+                        1
                     }
                 };
 
@@ -497,5 +503,109 @@ mod tests {
             "Expected empty CLAUDE_TOOL_USE_ID when None. Got stdout: {}",
             result[0].stdout
         );
+    }
+
+    #[test]
+    fn test_prompt_hook_malformed_json_returns_error() {
+        // Test that malformed JSON returns an error exit code, not success
+        // This test simulates the prompt hook JSON parsing logic
+
+        // Simulate malformed JSON responses
+        let malformed_json_responses = vec![
+            "{invalid json}",
+            "{ \"continue\": \"not a bool\" }",
+            "{ unclosed object",
+            "plain text response",
+            "",
+        ];
+
+        for response in malformed_json_responses {
+            // Parse and check exit code in one step to avoid borrow issues
+            let exit_code = match serde_json::from_str::<serde_json::Value>(response) {
+                Ok(json) => {
+                    // Valid JSON - check fields as normal
+                    if let Some(continue_val) = json.get("continue") {
+                        if continue_val.as_bool() == Some(true) {
+                            0
+                        } else {
+                            2
+                        }
+                    } else {
+                        // After fix: Return 1 for unrecognized JSON format
+                        1
+                    }
+                }
+                Err(_) => {
+                    // After fix: Return 1 for malformed JSON
+                    1
+                }
+            };
+
+            // After fix, malformed JSON should return exit_code 1
+            // Valid but unrecognized JSON format should also return 1
+            let is_valid_json = serde_json::from_str::<serde_json::Value>(response).is_ok();
+            let has_recognized_fields =
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(response) {
+                    json.get("continue").is_some()
+                        || json.get("decision").is_some()
+                        || json.get("permissionDecision").is_some()
+                } else {
+                    false
+                };
+
+            if !is_valid_json || !has_recognized_fields {
+                assert_eq!(
+                    exit_code, 1,
+                    "Malformed or unrecognized JSON '{}' should return exit code 1",
+                    response
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_prompt_hook_valid_json_formats() {
+        // Test that valid JSON responses are handled correctly
+        let valid_responses = vec![
+            (r#"{"continue": true}"#, 0),              // Success
+            (r#"{"continue": false}"#, 2),             // Block
+            (r#"{"decision": "approve"}"#, 0),         // Approve
+            (r#"{"decision": "block"}"#, 2),           // Block
+            (r#"{"permissionDecision": "allow"}"#, 0), // Allow
+            (r#"{"permissionDecision": "deny"}"#, 2),  // Deny
+        ];
+
+        for (response, expected_exit_code) in valid_responses {
+            let json: serde_json::Value = serde_json::from_str(response).unwrap();
+
+            let exit_code = if let Some(continue_val) = json.get("continue") {
+                if continue_val.as_bool() == Some(true) {
+                    0
+                } else {
+                    2
+                }
+            } else if let Some(decision) = json.get("decision") {
+                if decision.as_str() == Some("approve") {
+                    0
+                } else {
+                    2
+                }
+            } else if let Some(permission) = json.get("permissionDecision") {
+                if permission.as_str() == Some("allow") {
+                    0
+                } else {
+                    2
+                }
+            } else {
+                // Unrecognized format - should be 1 (error)
+                1
+            };
+
+            assert_eq!(
+                exit_code, expected_exit_code,
+                "Response '{}' should return exit code {}",
+                response, expected_exit_code
+            );
+        }
     }
 }

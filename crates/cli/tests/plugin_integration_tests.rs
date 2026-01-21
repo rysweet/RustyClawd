@@ -161,6 +161,7 @@ async fn test_hooks_integration() {
     let hook_def = rustyclawd::plugins::manifest::HookDefinition {
         event: "PreToolUse".to_string(),
         handler: "test-hook.sh".to_string(),
+        matcher: None,
     };
 
     let integrator = PluginHooksIntegrator::new("test-plugin".to_string(), plugin_dir);
@@ -391,6 +392,7 @@ async fn test_complete_plugin_system_workflow() {
         hooks: vec![rustyclawd::plugins::manifest::HookDefinition {
             event: "PreToolUse".to_string(),
             handler: "hooks/hook.sh".to_string(),
+            matcher: None,
         }],
         agents: vec![rustyclawd::plugins::manifest::AgentDefinition {
             id: "agent".to_string(),
