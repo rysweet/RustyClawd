@@ -347,7 +347,7 @@ async fn test_disallowed_takes_precedence_over_allowed() {
             notification_manager: None,
             tool_use_id: None,
             allowed_tools: vec!["Bash".to_string(), "Read".to_string()], // Bash is allowed
-            disallowed_tools: vec!["Bash".to_string()],                     // But also disallowed - this wins
+            disallowed_tools: vec!["Bash".to_string()], // But also disallowed - this wins
         },
     )
     .await;

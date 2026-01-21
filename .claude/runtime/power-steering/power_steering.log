@@ -85,3 +85,7 @@
 [2026-01-21T18:16:19.651365] INFO: Loaded 22 considerations from YAML
 [2026-01-21T18:16:19.651918] DEBUG: Path validated: within user home directory
 [2026-01-21T18:16:19.905729] ERROR: Power-steering error (fail-open): Expecting ',' delimiter: line 1 column 1263 (char 1262)
+[2026-01-21T21:11:56.919848] INFO: Loaded 22 considerations from YAML
+[2026-01-21T21:11:56.934306] INFO: Loaded 22 considerations from YAML
+[2026-01-21T21:11:56.934907] DEBUG: Path validated: within user home directory
+[2026-01-21T21:11:57.196074] ERROR: Power-steering error (fail-open): Expecting ',' delimiter: line 1 column 1263 (char 1262)

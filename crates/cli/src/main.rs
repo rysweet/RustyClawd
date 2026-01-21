@@ -1175,7 +1175,7 @@ impl App {
                                         hooks: Some(hooks),
                                         session_id: Some(session_id),
                                         notification_manager: None, // No notification manager in non-interactive mode
-                                        tool_use_id: None,          // No tool_use_id in non-interactive mode
+                                        tool_use_id: None, // No tool_use_id in non-interactive mode
                                         allowed_tools,
                                         disallowed_tools,
                                     },
