@@ -518,6 +518,29 @@ impl McpProxy {
         Ok(())
     }
 
+    /// Take a connection from a server temporarily
+    ///
+    /// Helper to extract connection for use, must be followed by restore_connection
+    fn take_connection(&mut self, server_id: &str) -> Result<McpConnection, String> {
+        let server = self
+            .servers
+            .get_mut(server_id)
+            .ok_or_else(|| format!("Server not found: {}", server_id))?;
+
+        server
+            .connection
+            .take()
+            .ok_or_else(|| format!("Server not started: {}", server_id))
+    }
+
+    /// Restore a connection back to a server
+    ///
+    /// Helper to restore connection after temporary use
+    fn restore_connection(&mut self, server_id: &str, connection: McpConnection) {
+        let server = self.servers.get_mut(server_id).expect("Server disappeared");
+        server.connection = Some(connection);
+    }
+
     /// List all available tools from a server
     pub fn list_tools(&self, server_id: &str) -> Result<Vec<McpToolDefinition>, String> {
         let server = self
@@ -550,16 +573,8 @@ impl McpProxy {
         };
         self.next_request_id += 1;
 
-        // Get server and extract connection temporarily to avoid borrow issues
-        let server = self
-            .servers
-            .get_mut(server_id)
-            .ok_or_else(|| format!("Server not found: {}", server_id))?;
-
-        let mut connection = server
-            .connection
-            .take()
-            .ok_or_else(|| format!("Server not started: {}", server_id))?;
+        // Take connection temporarily
+        let mut connection = self.take_connection(server_id)?;
 
         // Send request through appropriate transport
         let response = match &mut connection {
@@ -573,8 +588,7 @@ impl McpProxy {
         };
 
         // Restore connection
-        let server = self.servers.get_mut(server_id).unwrap();
-        server.connection = Some(connection);
+        self.restore_connection(server_id, connection);
 
         if let Some(error) = response.error {
             return Err(format!("MCP tool call error: {}", error.message));
@@ -794,16 +808,8 @@ impl McpProxy {
         };
         self.next_request_id += 1;
 
-        // Get server and extract connection temporarily to avoid borrow issues
-        let server = self
-            .servers
-            .get_mut(server_id)
-            .ok_or_else(|| format!("Server not found: {}", server_id))?;
-
-        let mut connection = server
-            .connection
-            .take()
-            .ok_or_else(|| format!("Server not started: {}", server_id))?;
+        // Take connection temporarily
+        let mut connection = self.take_connection(server_id)?;
 
         // Send request through appropriate transport
         let response = match &mut connection {
@@ -817,8 +823,7 @@ impl McpProxy {
         };
 
         // Restore connection
-        let server = self.servers.get_mut(server_id).unwrap();
-        server.connection = Some(connection);
+        self.restore_connection(server_id, connection);
 
         if let Some(error) = response.error {
             return Err(format!("MCP resource read error: {}", error.message));
@@ -851,16 +856,8 @@ impl McpProxy {
         };
         self.next_request_id += 1;
 
-        // Get server and extract connection temporarily to avoid borrow issues
-        let server = self
-            .servers
-            .get_mut(server_id)
-            .ok_or_else(|| format!("Server not found: {}", server_id))?;
-
-        let mut connection = server
-            .connection
-            .take()
-            .ok_or_else(|| format!("Server not started: {}", server_id))?;
+        // Take connection temporarily
+        let mut connection = self.take_connection(server_id)?;
 
         // Send request through appropriate transport
         let response = match &mut connection {
@@ -874,8 +871,7 @@ impl McpProxy {
         };
 
         // Restore connection
-        let server = self.servers.get_mut(server_id).unwrap();
-        server.connection = Some(connection);
+        self.restore_connection(server_id, connection);
 
         if let Some(error) = response.error {
             return Err(format!("MCP prompt error: {}", error.message));
@@ -1093,7 +1089,7 @@ impl Default for McpProxy {
 
 impl Drop for McpProxy {
     fn drop(&mut self) {
-        // Best effort cleanup - stop stdio servers synchronously
+        // Best effort cleanup - stop stdio servers
         for (_, server) in self.servers.iter_mut() {
             if let Some(McpConnection::Stdio {
                 process,
@@ -1105,10 +1101,9 @@ impl Drop for McpProxy {
                     task.abort();
                 }
 
-                // Kill process
-                let _ = std::process::Command::new("kill")
-                    .arg(format!("{}", process.id().unwrap_or(0)))
-                    .output();
+                // tokio::process::Child's Drop will kill the process automatically
+                // No need for explicit kill command - OS handles cleanup
+                drop(process);
             }
             // HTTP connections don't need explicit cleanup
         }
