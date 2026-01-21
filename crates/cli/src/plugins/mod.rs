@@ -227,6 +227,7 @@ mod tests {
                 name: "Test Skill".to_string(),
                 description: "Test".to_string(),
                 path: "skill.md".to_string(),
+                allowed_tools: None,
             }],
             hooks: vec![],
             agents: vec![],

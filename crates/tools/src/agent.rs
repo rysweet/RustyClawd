@@ -607,6 +607,8 @@ mod tests {
             debug: false,
             metadata: serde_json::Value::Null,
             execution_context: ExecutionContext::default(),
+            allowed_tools: vec![],
+            disallowed_tools: vec![],
         };
 
         let stream = tool.execute(params, &ctx).await.unwrap();
@@ -646,6 +648,8 @@ mod tests {
             debug: true,
             metadata: serde_json::Value::Null,
             execution_context: ExecutionContext::default(),
+            allowed_tools: vec![],
+            disallowed_tools: vec![],
         };
 
         let mut stream = tool.execute(params, &ctx).await.unwrap();

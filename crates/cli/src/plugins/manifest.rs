@@ -72,6 +72,13 @@ pub struct SkillDefinition {
     pub description: String,
     /// File path to skill documentation/implementation
     pub path: String,
+    /// Tools that are explicitly allowed for this skill (empty/None means all tools allowed)
+    #[serde(
+        default,
+        rename = "allowedTools",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub allowed_tools: Option<Vec<String>>,
 }
 
 /// Hook definition for lifecycle events
@@ -102,6 +109,13 @@ pub struct AgentDefinition {
     /// Optional model override for agent
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
+    /// Tools that are explicitly allowed for this agent (empty/None means all tools allowed)
+    #[serde(
+        default,
+        rename = "allowedTools",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub allowed_tools: Option<Vec<String>>,
     /// Tools that are explicitly blocked for this agent
     #[serde(
         default,
@@ -439,6 +453,7 @@ mod tests {
             description: "Test agent".to_string(),
             path: "test.md".to_string(),
             model: None,
+            allowed_tools: None,
             disallowed_tools: vec![],
         };
 
@@ -455,6 +470,7 @@ mod tests {
             description: "Test agent".to_string(),
             path: "test.md".to_string(),
             model: None,
+            allowed_tools: None,
             disallowed_tools: vec!["Bash".to_string()],
         };
 
@@ -462,5 +478,94 @@ mod tests {
         // Non-empty disallowed_tools should appear in serialized JSON
         assert!(json.contains("disallowedTools"));
         assert!(json.contains("Bash"));
+    }
+
+    // Tests for allowed_tools feature
+
+    #[test]
+    fn test_agent_definition_with_allowed_tools() {
+        let json = r#"{
+            "id": "restricted-agent",
+            "name": "Restricted Agent",
+            "description": "Agent with limited tool access",
+            "path": "agents/restricted.md",
+            "allowedTools": ["Read", "Grep", "Glob"]
+        }"#;
+
+        let agent: AgentDefinition = serde_json::from_str(json).unwrap();
+
+        assert_eq!(agent.id, "restricted-agent");
+        assert_eq!(agent.name, "Restricted Agent");
+        assert_eq!(agent.allowed_tools, Some(vec!["Read".to_string(), "Grep".to_string(), "Glob".to_string()]));
+    }
+
+    #[test]
+    fn test_agent_definition_allowed_tools_default_none() {
+        let json = r#"{
+            "id": "basic-agent",
+            "name": "Basic Agent",
+            "description": "Basic agent",
+            "path": "agents/basic.md"
+        }"#;
+
+        let agent: AgentDefinition = serde_json::from_str(json).unwrap();
+
+        // allowedTools should default to None when not specified
+        assert!(agent.allowed_tools.is_none());
+    }
+
+    #[test]
+    fn test_agent_definition_serialization_skips_none_allowed_tools() {
+        let agent = AgentDefinition {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            description: "Test agent".to_string(),
+            path: "test.md".to_string(),
+            model: None,
+            disallowed_tools: vec![],
+            allowed_tools: None,
+        };
+
+        let json = serde_json::to_string(&agent).unwrap();
+        // None allowed_tools should not appear in serialized JSON
+        assert!(!json.contains("allowedTools"));
+    }
+
+    #[test]
+    fn test_agent_definition_serialization_includes_non_empty_allowed_tools() {
+        let agent = AgentDefinition {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            description: "Test agent".to_string(),
+            path: "test.md".to_string(),
+            model: None,
+            disallowed_tools: vec![],
+            allowed_tools: Some(vec!["Read".to_string(), "Grep".to_string()]),
+        };
+
+        let json = serde_json::to_string(&agent).unwrap();
+        // Non-empty allowed_tools should appear in serialized JSON
+        assert!(json.contains("allowedTools"));
+        assert!(json.contains("Read"));
+        assert!(json.contains("Grep"));
+    }
+
+    #[test]
+    fn test_agent_definition_with_both_allowed_and_disallowed_tools() {
+        let json = r#"{
+            "id": "complex-agent",
+            "name": "Complex Agent",
+            "description": "Agent with both allowed and disallowed tools",
+            "path": "agents/complex.md",
+            "allowedTools": ["Read", "Write", "Bash"],
+            "disallowedTools": ["Bash"]
+        }"#;
+
+        let agent: AgentDefinition = serde_json::from_str(json).unwrap();
+
+        assert_eq!(agent.id, "complex-agent");
+        // Both fields should be preserved (filtering happens at execution time)
+        assert_eq!(agent.allowed_tools, Some(vec!["Read".to_string(), "Write".to_string(), "Bash".to_string()]));
+        assert_eq!(agent.disallowed_tools, vec!["Bash".to_string()]);
     }
 }

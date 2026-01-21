@@ -201,7 +201,7 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
 /// This function takes the tool name and input from Claude's API response,
 /// executes the corresponding internal tool, and returns the result as JSON.
 pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value, ClientError> {
-    execute_tool_with_hooks(tool_name, tool_input, None, None, None, None).await
+    execute_tool_with_hooks(tool_name, tool_input, None, None, None, None, vec![], vec![]).await
 }
 
 /// Execute a tool with permission mode checking
@@ -215,6 +215,8 @@ pub async fn execute_tool_with_permission(
     session_id: Option<String>,
     notification_manager: Option<&NotificationManager>,
     tool_use_id: Option<String>,
+    allowed_tools: Vec<String>,
+    disallowed_tools: Vec<String>,
 ) -> Result<Value, ClientError> {
     // Check permission mode first
     if !permission_mode.allows_tool(&tool_name) {
@@ -231,6 +233,8 @@ pub async fn execute_tool_with_permission(
         session_id,
         notification_manager,
         tool_use_id,
+        allowed_tools,
+        disallowed_tools,
     )
     .await
 }
@@ -247,6 +251,8 @@ pub async fn execute_tool_with_hooks(
     session_id: Option<String>,
     notification_manager: Option<&NotificationManager>,
     tool_use_id: Option<String>,
+    allowed_tools: Vec<String>,
+    disallowed_tools: Vec<String>,
 ) -> Result<Value, ClientError> {
     // Create tool context with execution context from global state
     use crate::terminal_guard::{get_execution_context, ExecutionContext as GuardContext};
@@ -260,7 +266,25 @@ pub async fn execute_tool_with_hooks(
             GuardContext::Tui => rustyclawd_tools::ExecutionContext::Tui,
             GuardContext::NonInteractive => rustyclawd_tools::ExecutionContext::NonInteractive,
         },
+        allowed_tools: allowed_tools.clone(),
+        disallowed_tools: disallowed_tools.clone(),
     };
+
+    // Check if tool is explicitly disallowed (takes precedence)
+    if !ctx.disallowed_tools.is_empty() && ctx.disallowed_tools.contains(&tool_name) {
+        return Err(ClientError::Api(format!(
+            "Tool execution blocked: Tool '{}' is disallowed for this session",
+            tool_name
+        )));
+    }
+
+    // Check if tool is in allowed list (if allowlist is non-empty)
+    if !ctx.allowed_tools.is_empty() && !ctx.allowed_tools.contains(&tool_name) {
+        return Err(ClientError::Api(format!(
+            "Tool execution blocked: Tool '{}' is not in the allowed tools list for this session",
+            tool_name
+        )));
+    }
 
     // Execute PreToolUse hook (BLOCKING - can deny execution)
     if let (Some(ref hooks_system), Some(ref sess_id)) = (&hooks, &session_id) {
@@ -914,6 +938,8 @@ mod tests {
             debug: false,
             metadata: serde_json::Value::Null,
             execution_context: rustyclawd_tools::ExecutionContext::NonInteractive,
+            allowed_tools: vec![],
+            disallowed_tools: vec![],
         };
 
         // Missing required fields
@@ -940,6 +966,8 @@ mod tests {
             debug: false,
             metadata: serde_json::Value::Null,
             execution_context: rustyclawd_tools::ExecutionContext::NonInteractive,
+            allowed_tools: vec![],
+            disallowed_tools: vec![],
         };
 
         // Wrong type for subagent_type (should be string)

@@ -13,7 +13,7 @@ use crate::plugins::manifest::AgentDefinition;
 
 /// Runtime agent definition from --agents CLI JSON flag
 ///
-/// Format: `--agents '{"name": {"description":"...", "prompt":"...", "tools":["Read"], "disallowedTools":["Bash"], "model":"sonnet"}}'`
+/// Format: `--agents '{"name": {"description":"...", "prompt":"...", "tools":["Read"], "allowedTools":["Read","Grep"], "disallowedTools":["Bash"], "model":"sonnet"}}'`
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RuntimeAgentDefinition {
     /// Agent description
@@ -23,6 +23,9 @@ pub struct RuntimeAgentDefinition {
     /// Tools available to this agent (e.g., ["Read", "Write", "Bash"])
     #[serde(default)]
     pub tools: Vec<String>,
+    /// Tools that are explicitly allowed for this agent (empty means all tools allowed)
+    #[serde(default, rename = "allowedTools")]
+    pub allowed_tools: Vec<String>,
     /// Tools that are explicitly blocked for this agent
     #[serde(default, rename = "disallowedTools")]
     pub disallowed_tools: Vec<String>,
@@ -128,6 +131,11 @@ impl AgentDiscovery {
                 description: runtime_agent.description.clone(),
                 path: format!("runtime:{}", id), // Special marker for runtime agents
                 model: runtime_agent.model.clone(),
+                allowed_tools: if runtime_agent.allowed_tools.is_empty() {
+                    None
+                } else {
+                    Some(runtime_agent.allowed_tools.clone())
+                },
                 disallowed_tools: runtime_agent.disallowed_tools.clone(),
             });
         }
@@ -189,6 +197,7 @@ impl AgentDiscovery {
             description,
             path: relative_path,
             model: None,              // Use default model
+            allowed_tools: None,      // No allowed tools restriction by default for file-based agents
             disallowed_tools: vec![], // No disallowed tools by default for file-based agents
         }))
     }
@@ -484,6 +493,7 @@ mod tests {
                 description: "Test agent".to_string(),
                 prompt: "Test prompt".to_string(),
                 tools: vec![],
+                allowed_tools: vec![],
                 disallowed_tools: vec![],
                 model: None,
             },
@@ -501,6 +511,7 @@ mod tests {
                 description: "".to_string(),
                 prompt: "Test prompt".to_string(),
                 tools: vec![],
+                allowed_tools: vec![],
                 disallowed_tools: vec![],
                 model: None,
             },
@@ -521,6 +532,7 @@ mod tests {
                 description: "Test description".to_string(),
                 prompt: "".to_string(),
                 tools: vec![],
+                allowed_tools: vec![],
                 disallowed_tools: vec![],
                 model: None,
             },
@@ -552,6 +564,7 @@ mod tests {
                 description: "Runtime agent".to_string(),
                 prompt: "Runtime prompt".to_string(),
                 tools: vec!["Read".to_string()],
+                allowed_tools: vec![],
                 disallowed_tools: vec![],
                 model: Some("sonnet".to_string()),
             },
@@ -586,6 +599,7 @@ mod tests {
                 description: "Runtime".to_string(),
                 prompt: "Prompt".to_string(),
                 tools: vec![],
+                allowed_tools: vec![],
                 disallowed_tools: vec![],
                 model: None,
             },
@@ -608,6 +622,7 @@ mod tests {
                 description: "My agent".to_string(),
                 prompt: "My prompt".to_string(),
                 tools: vec!["Bash".to_string()],
+                allowed_tools: vec![],
                 disallowed_tools: vec![],
                 model: Some("opus".to_string()),
             },
@@ -637,6 +652,7 @@ mod tests {
                 description: "Added".to_string(),
                 prompt: "Added prompt".to_string(),
                 tools: vec![],
+                allowed_tools: vec![],
                 disallowed_tools: vec![],
                 model: None,
             },
@@ -676,6 +692,7 @@ mod tests {
                 description: "Restricted agent".to_string(),
                 prompt: "Restricted prompt".to_string(),
                 tools: vec!["Read".to_string()],
+                allowed_tools: vec![],
                 disallowed_tools: vec!["Bash".to_string(), "Write".to_string()],
                 model: None,
             },
@@ -719,6 +736,7 @@ mod tests {
                 description: "My agent".to_string(),
                 prompt: "My prompt".to_string(),
                 tools: vec!["Read".to_string()],
+                allowed_tools: vec![],
                 disallowed_tools: vec!["Bash".to_string()],
                 model: None,
             },
@@ -728,5 +746,82 @@ mod tests {
 
         let agent = discovery.get_runtime_agent("my-agent").unwrap();
         assert_eq!(agent.disallowed_tools, vec!["Bash".to_string()]);
+    }
+
+    // Tests for allowed_tools feature in RuntimeAgentDefinition
+
+    #[test]
+    fn test_parse_runtime_agents_with_allowed_tools() {
+        let json = r#"{
+            "restricted-agent": {
+                "description": "Agent with limited tool access",
+                "prompt": "You can only use specific tools",
+                "allowedTools": ["Read", "Grep", "Glob"]
+            }
+        }"#;
+
+        let result = parse_runtime_agents(json).unwrap();
+        let agent = result.get("restricted-agent").unwrap();
+
+        // allowedTools should be parsed from JSON
+        assert_eq!(agent.allowed_tools, vec!["Read", "Grep", "Glob"]);
+    }
+
+    #[test]
+    fn test_runtime_agent_allowed_tools_default_empty() {
+        let json = r#"{
+            "basic-agent": {
+                "description": "Basic agent",
+                "prompt": "Basic prompt"
+            }
+        }"#;
+
+        let result = parse_runtime_agents(json).unwrap();
+        let agent = result.get("basic-agent").unwrap();
+
+        // allowedTools should default to empty vec when not specified
+        assert!(agent.allowed_tools.is_empty());
+    }
+
+    #[test]
+    fn test_runtime_agent_with_both_allowed_and_disallowed_tools() {
+        let json = r#"{
+            "complex-agent": {
+                "description": "Agent with both allowed and disallowed",
+                "prompt": "Complex restrictions",
+                "allowedTools": ["Read", "Write", "Bash"],
+                "disallowedTools": ["Bash"]
+            }
+        }"#;
+
+        let result = parse_runtime_agents(json).unwrap();
+        let agent = result.get("complex-agent").unwrap();
+
+        // Both fields should be preserved (filtering happens at execution time)
+        assert_eq!(agent.allowed_tools, vec!["Read", "Write", "Bash"]);
+        assert_eq!(agent.disallowed_tools, vec!["Bash"]);
+    }
+
+    #[test]
+    fn test_get_runtime_agent_includes_allowed_tools() {
+        let temp_dir = setup_test_agents_dir();
+
+        let mut runtime_agents = HashMap::new();
+        runtime_agents.insert(
+            "my-agent".to_string(),
+            RuntimeAgentDefinition {
+                description: "My agent".to_string(),
+                prompt: "My prompt".to_string(),
+                tools: vec![],
+                allowed_tools: vec!["Read".to_string(), "Grep".to_string()],
+                disallowed_tools: vec![],
+                model: None,
+            },
+        );
+
+        let discovery = AgentDiscovery::new(temp_dir.path()).with_runtime_agents(runtime_agents);
+
+        let agent = discovery.get_runtime_agent("my-agent").unwrap();
+        assert_eq!(agent.allowed_tools, vec!["Read", "Grep"]);
     }
 }

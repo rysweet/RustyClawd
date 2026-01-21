@@ -216,6 +216,7 @@ async fn test_plugin_manager_lifecycle() {
             name: "Test Skill".to_string(),
             description: "A test skill".to_string(),
             path: "skills/test-skill.md".to_string(),
+            allowed_tools: None,
         }],
         hooks: vec![],
         agents: vec![],
@@ -305,6 +306,7 @@ async fn test_plugin_with_agents() {
             description: "Agent defined in plugin".to_string(),
             path: "agents/plugin-agent.md".to_string(),
             model: Some("sonnet".to_string()),
+            allowed_tools: None,
             disallowed_tools: vec![],
         }],
         mcp_servers: vec![],
@@ -388,6 +390,7 @@ async fn test_complete_plugin_system_workflow() {
             name: "Skill".to_string(),
             description: "Test".to_string(),
             path: "skills/skill.md".to_string(),
+            allowed_tools: None,
         }],
         hooks: vec![rustyclawd::plugins::manifest::HookDefinition {
             event: "PreToolUse".to_string(),
@@ -400,6 +403,7 @@ async fn test_complete_plugin_system_workflow() {
             description: "Test".to_string(),
             path: "agents/agent.md".to_string(),
             model: None,
+            allowed_tools: None,
             disallowed_tools: vec![],
         }],
         mcp_servers: vec![rustyclawd::plugins::manifest::McpServerDefinition {
