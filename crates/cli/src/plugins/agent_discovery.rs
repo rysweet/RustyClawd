@@ -197,7 +197,7 @@ impl AgentDiscovery {
             description,
             path: relative_path,
             model: None,              // Use default model
-            allowed_tools: None,      // No allowed tools restriction by default for file-based agents
+            allowed_tools: None, // No allowed tools restriction by default for file-based agents
             disallowed_tools: vec![], // No disallowed tools by default for file-based agents
         }))
     }

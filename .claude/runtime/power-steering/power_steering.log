@@ -81,3 +81,7 @@
 [2025-12-18T17:02:58.751113] WARNING: Parallel execution timed out after 60s
 [2025-12-18T17:02:58.763601] INFO: Parallel analysis completed: 6 checks in 62.1s
 [2025-12-18T17:02:58.770116] INFO: No power-steering checks applicable for session type - approving immediately
+[2026-01-21T18:16:19.636444] INFO: Loaded 22 considerations from YAML
+[2026-01-21T18:16:19.651365] INFO: Loaded 22 considerations from YAML
+[2026-01-21T18:16:19.651918] DEBUG: Path validated: within user home directory
+[2026-01-21T18:16:19.905729] ERROR: Power-steering error (fail-open): Expecting ',' delimiter: line 1 column 1263 (char 1262)

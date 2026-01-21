@@ -496,7 +496,14 @@ mod tests {
 
         assert_eq!(agent.id, "restricted-agent");
         assert_eq!(agent.name, "Restricted Agent");
-        assert_eq!(agent.allowed_tools, Some(vec!["Read".to_string(), "Grep".to_string(), "Glob".to_string()]));
+        assert_eq!(
+            agent.allowed_tools,
+            Some(vec![
+                "Read".to_string(),
+                "Grep".to_string(),
+                "Glob".to_string()
+            ])
+        );
     }
 
     #[test]
@@ -565,7 +572,14 @@ mod tests {
 
         assert_eq!(agent.id, "complex-agent");
         // Both fields should be preserved (filtering happens at execution time)
-        assert_eq!(agent.allowed_tools, Some(vec!["Read".to_string(), "Write".to_string(), "Bash".to_string()]));
+        assert_eq!(
+            agent.allowed_tools,
+            Some(vec![
+                "Read".to_string(),
+                "Write".to_string(),
+                "Bash".to_string()
+            ])
+        );
         assert_eq!(agent.disallowed_tools, vec!["Bash".to_string()]);
     }
 }

@@ -201,7 +201,17 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
 /// This function takes the tool name and input from Claude's API response,
 /// executes the corresponding internal tool, and returns the result as JSON.
 pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value, ClientError> {
-    execute_tool_with_hooks(tool_name, tool_input, None, None, None, None, vec![], vec![]).await
+    execute_tool_with_hooks(
+        tool_name,
+        tool_input,
+        None,
+        None,
+        None,
+        None,
+        vec![],
+        vec![],
+    )
+    .await
 }
 
 /// Execute a tool with permission mode checking

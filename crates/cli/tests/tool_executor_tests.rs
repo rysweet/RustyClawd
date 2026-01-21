@@ -192,14 +192,14 @@ async fn test_error_includes_example_json() {
 
 #[tokio::test]
 async fn test_allowed_tools_permits_tool_execution() {
-    use rustyclawd::tool_executor::execute_tool_with_permission;
     use rustyclawd::permission_mode::PermissionMode;
-    
+    use rustyclawd::tool_executor::execute_tool_with_permission;
+
     let tool_input = json!({
         "pattern": "test.*",
         "path": "."
     });
-    
+
     // Read is in allowed list, should succeed
     let result = execute_tool_with_permission(
         "Grep".to_string(),
@@ -213,14 +213,17 @@ async fn test_allowed_tools_permits_tool_execution() {
         vec![],
     )
     .await;
-    
+
     // Tool execution should proceed (may fail for other reasons, but shouldn't be blocked)
     // We're just checking it wasn't blocked by allowed_tools filter
     match result {
         Err(e) => {
             let err_str = e.to_string();
-            assert!(!err_str.contains("not in the allowed tools list"), 
-                "Tool should not be blocked by allowlist: {}", err_str);
+            assert!(
+                !err_str.contains("not in the allowed tools list"),
+                "Tool should not be blocked by allowlist: {}",
+                err_str
+            );
         }
         Ok(_) => {} // Success is fine
     }
@@ -228,13 +231,13 @@ async fn test_allowed_tools_permits_tool_execution() {
 
 #[tokio::test]
 async fn test_allowed_tools_blocks_non_allowed_tool() {
-    use rustyclawd::tool_executor::execute_tool_with_permission;
     use rustyclawd::permission_mode::PermissionMode;
-    
+    use rustyclawd::tool_executor::execute_tool_with_permission;
+
     let tool_input = json!({
         "command": "echo test"
     });
-    
+
     // Bash is NOT in allowed list, should be blocked
     let result = execute_tool_with_permission(
         "Bash".to_string(),
@@ -248,7 +251,7 @@ async fn test_allowed_tools_blocks_non_allowed_tool() {
         vec![],
     )
     .await;
-    
+
     assert!(result.is_err());
     let error = result.unwrap_err();
     let error_str = error.to_string();
@@ -257,13 +260,13 @@ async fn test_allowed_tools_blocks_non_allowed_tool() {
 
 #[tokio::test]
 async fn test_empty_allowed_tools_permits_all() {
-    use rustyclawd::tool_executor::execute_tool_with_permission;
     use rustyclawd::permission_mode::PermissionMode;
-    
+    use rustyclawd::tool_executor::execute_tool_with_permission;
+
     let tool_input = json!({
         "pattern": "test.*"
     });
-    
+
     // Empty allowed_tools means all tools are allowed
     let result = execute_tool_with_permission(
         "Grep".to_string(),
@@ -277,13 +280,16 @@ async fn test_empty_allowed_tools_permits_all() {
         vec![],
     )
     .await;
-    
+
     // Should not be blocked by allowed_tools filter
     match result {
         Err(e) => {
             let err_str = e.to_string();
-            assert!(!err_str.contains("not in the allowed tools list"), 
-                "Empty allowlist should permit all tools: {}", err_str);
+            assert!(
+                !err_str.contains("not in the allowed tools list"),
+                "Empty allowlist should permit all tools: {}",
+                err_str
+            );
         }
         Ok(_) => {} // Success is fine
     }
@@ -291,13 +297,13 @@ async fn test_empty_allowed_tools_permits_all() {
 
 #[tokio::test]
 async fn test_disallowed_tools_blocks_execution() {
-    use rustyclawd::tool_executor::execute_tool_with_permission;
     use rustyclawd::permission_mode::PermissionMode;
-    
+    use rustyclawd::tool_executor::execute_tool_with_permission;
+
     let tool_input = json!({
         "command": "echo test"
     });
-    
+
     // Bash is in disallowed list, should be blocked
     let result = execute_tool_with_permission(
         "Bash".to_string(),
@@ -311,7 +317,7 @@ async fn test_disallowed_tools_blocks_execution() {
         vec!["Bash".to_string(), "Write".to_string()], // Bash disallowed
     )
     .await;
-    
+
     assert!(result.is_err());
     let error = result.unwrap_err();
     let error_str = error.to_string();
@@ -320,13 +326,13 @@ async fn test_disallowed_tools_blocks_execution() {
 
 #[tokio::test]
 async fn test_disallowed_takes_precedence_over_allowed() {
-    use rustyclawd::tool_executor::execute_tool_with_permission;
     use rustyclawd::permission_mode::PermissionMode;
-    
+    use rustyclawd::tool_executor::execute_tool_with_permission;
+
     let tool_input = json!({
         "command": "echo test"
     });
-    
+
     // Bash is in BOTH allowed and disallowed lists
     // disallowed should take precedence
     let result = execute_tool_with_permission(
@@ -338,10 +344,10 @@ async fn test_disallowed_takes_precedence_over_allowed() {
         None,
         None,
         vec!["Bash".to_string(), "Read".to_string()], // Bash is allowed
-        vec!["Bash".to_string()], // But also disallowed - this wins
+        vec!["Bash".to_string()],                     // But also disallowed - this wins
     )
     .await;
-    
+
     assert!(result.is_err());
     let error = result.unwrap_err();
     let error_str = error.to_string();
