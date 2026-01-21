@@ -1644,12 +1644,14 @@ impl InteractiveSession {
                     name.clone(),
                     input,
                     permission_mode,
-                    hooks,
-                    session_id,
-                    notification_manager.as_ref(),
-                    Some(id.clone()),
-                    allowed_tools,
-                    disallowed_tools,
+                    tool_executor::ToolExecutionParams {
+                        hooks,
+                        session_id,
+                        notification_manager: notification_manager.as_ref(),
+                        tool_use_id: Some(id.clone()),
+                        allowed_tools,
+                        disallowed_tools,
+                    },
                 )
                 .await;
 

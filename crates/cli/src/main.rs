@@ -1119,12 +1119,14 @@ impl App {
                         tool_name,
                         tool_input,
                         permission_mode,
-                        Some(hooks),
-                        Some(session_id),
-                        None, // No notification manager in non-interactive mode
-                        None, // No tool_use_id in non-interactive mode
-                        allowed_tools,
-                        disallowed_tools,
+                        tool_executor::ToolExecutionParams {
+                            hooks: Some(hooks),
+                            session_id: Some(session_id),
+                            notification_manager: None, // No notification manager in non-interactive mode
+                            tool_use_id: None,          // No tool_use_id in non-interactive mode
+                            allowed_tools,
+                            disallowed_tools,
+                        },
                     )
                     .await
                 }
@@ -1169,12 +1171,14 @@ impl App {
                                     tool_name,
                                     tool_input,
                                     permission_mode,
-                                    Some(hooks),
-                                    Some(session_id),
-                                    None, // No notification manager in non-interactive mode
-                                    None, // No tool_use_id in non-interactive mode
-                                    allowed_tools,
-                                    disallowed_tools,
+                                    tool_executor::ToolExecutionParams {
+                                        hooks: Some(hooks),
+                                        session_id: Some(session_id),
+                                        notification_manager: None, // No notification manager in non-interactive mode
+                                        tool_use_id: None,          // No tool_use_id in non-interactive mode
+                                        allowed_tools,
+                                        disallowed_tools,
+                                    },
                                 )
                                 .await
                             }
