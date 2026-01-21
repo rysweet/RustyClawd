@@ -85,9 +85,26 @@ impl PluginHooksIntegrator {
             HookType::Prompt => Hook::prompt(Some(command), Some(60000)),
         };
 
-        // Create hook config with wildcard matcher (applies to all tools/events)
+        // Parse matcher from hook definition
+        // Default to "*" if not specified (backward compatibility)
+        let matcher_str = hook_def.matcher.as_deref().unwrap_or("*");
+
+        // Determine if it's a regex pattern (contains regex metacharacters)
+        // Simple heuristic: if it contains |, ^, $, [, ], (, ), or other regex chars, treat as regex
+        let matcher = if matcher_str.contains('|')
+            || matcher_str.contains('^')
+            || matcher_str.contains('$')
+            || matcher_str.contains('[')
+            || matcher_str.contains('(')
+        {
+            HookMatcher::Regex(matcher_str.to_string())
+        } else {
+            HookMatcher::Exact(matcher_str.to_string())
+        };
+
+        // Create hook config with parsed matcher
         let hook_config = HookConfig {
-            matcher: HookMatcher::Exact("*".to_string()),
+            matcher,
             hooks: vec![hook],
         };
 
@@ -129,6 +146,7 @@ pub fn register_plugin_hooks(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::hooks::types::HookContext;
     use std::fs;
     use tempfile::TempDir;
 
@@ -161,6 +179,7 @@ mod tests {
         let hook_def = HookDefinition {
             event: "onLoad".to_string(),
             handler: "nonexistent.js".to_string(),
+            matcher: None,
         };
 
         let mut registry = HookRegistry::new();
@@ -187,6 +206,7 @@ mod tests {
         let hook_def = HookDefinition {
             event: "PreToolUse".to_string(),
             handler: "handler.js".to_string(),
+            matcher: None,
         };
 
         let mut registry = HookRegistry::new();
@@ -210,10 +230,12 @@ mod tests {
             HookDefinition {
                 event: "onLoad".to_string(),
                 handler: "onload.js".to_string(),
+                matcher: None,
             },
             HookDefinition {
                 event: "PreToolUse".to_string(),
                 handler: "pretool.sh".to_string(),
+                matcher: None,
             },
         ];
 
@@ -244,6 +266,7 @@ mod tests {
                 vec![HookDefinition {
                     event: "onLoad".to_string(),
                     handler: "hook1.js".to_string(),
+                    matcher: None, // Use default wildcard
                 }],
             ),
             (
@@ -252,6 +275,7 @@ mod tests {
                 vec![HookDefinition {
                     event: "PreToolUse".to_string(),
                     handler: "hook2.js".to_string(),
+                    matcher: None, // Use default wildcard
                 }],
             ),
         ];
@@ -260,5 +284,146 @@ mod tests {
         let result = register_plugin_hooks(&plugins, &mut registry);
 
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_register_hook_with_custom_matcher() {
+        let temp_dir = TempDir::new().unwrap();
+        let plugin_path = temp_dir.path().to_path_buf();
+
+        // Create a JS handler file
+        fs::write(
+            plugin_path.join("handler.js"),
+            "console.log('Hook executed');",
+        )
+        .unwrap();
+
+        let integrator = PluginHooksIntegrator::new("test".to_string(), plugin_path);
+
+        let hook_def = HookDefinition {
+            event: "PreToolUse".to_string(),
+            handler: "handler.js".to_string(),
+            matcher: Some("Write".to_string()), // Custom matcher for Write tool only
+        };
+
+        let mut registry = HookRegistry::new();
+        let result = integrator.register_hook(&hook_def, &mut registry);
+
+        assert!(result.is_ok());
+
+        // Verify the hook was registered with the correct matcher using HookContext
+        let context_write = HookContext::for_tool(
+            "test-session".to_string(),
+            "/tmp/transcript".to_string(),
+            std::env::current_dir()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+            "auto".to_string(),
+            HookEvent::PreToolUse,
+            "Write".to_string(),
+            None,
+        );
+
+        let context_read = HookContext::for_tool(
+            "test-session".to_string(),
+            "/tmp/transcript".to_string(),
+            std::env::current_dir()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+            "auto".to_string(),
+            HookEvent::PreToolUse,
+            "Read".to_string(),
+            None,
+        );
+
+        let hooks_write = registry.get_hooks_for_event(&HookEvent::PreToolUse, &context_write);
+        assert!(!hooks_write.is_empty(), "Hook should match 'Write' tool");
+
+        let hooks_read = registry.get_hooks_for_event(&HookEvent::PreToolUse, &context_read);
+        assert!(hooks_read.is_empty(), "Hook should NOT match 'Read' tool");
+    }
+
+    #[test]
+    fn test_register_hook_with_regex_matcher() {
+        let temp_dir = TempDir::new().unwrap();
+        let plugin_path = temp_dir.path().to_path_buf();
+
+        // Create a JS handler file
+        fs::write(
+            plugin_path.join("handler.js"),
+            "console.log('Hook executed');",
+        )
+        .unwrap();
+
+        let integrator = PluginHooksIntegrator::new("test".to_string(), plugin_path);
+
+        let hook_def = HookDefinition {
+            event: "PreToolUse".to_string(),
+            handler: "handler.js".to_string(),
+            matcher: Some("Write|Edit|Read".to_string()), // Regex pattern
+        };
+
+        let mut registry = HookRegistry::new();
+        let result = integrator.register_hook(&hook_def, &mut registry);
+
+        assert!(result.is_ok());
+
+        // Create contexts for different tools
+        let context_write = HookContext::for_tool(
+            "test-session".to_string(),
+            "/tmp/transcript".to_string(),
+            std::env::current_dir()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+            "auto".to_string(),
+            HookEvent::PreToolUse,
+            "Write".to_string(),
+            None,
+        );
+
+        let context_read = HookContext::for_tool(
+            "test-session".to_string(),
+            "/tmp/transcript".to_string(),
+            std::env::current_dir()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+            "auto".to_string(),
+            HookEvent::PreToolUse,
+            "Read".to_string(),
+            None,
+        );
+
+        let context_bash = HookContext::for_tool(
+            "test-session".to_string(),
+            "/tmp/transcript".to_string(),
+            std::env::current_dir()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+            "auto".to_string(),
+            HookEvent::PreToolUse,
+            "Bash".to_string(),
+            None,
+        );
+
+        // Verify the hook matches multiple tools via regex
+        let hooks_write = registry.get_hooks_for_event(&HookEvent::PreToolUse, &context_write);
+        assert!(
+            !hooks_write.is_empty(),
+            "Hook should match 'Write' via regex"
+        );
+
+        let hooks_read = registry.get_hooks_for_event(&HookEvent::PreToolUse, &context_read);
+        assert!(!hooks_read.is_empty(), "Hook should match 'Read' via regex");
+
+        let hooks_bash = registry.get_hooks_for_event(&HookEvent::PreToolUse, &context_bash);
+        assert!(
+            hooks_bash.is_empty(),
+            "Hook should NOT match 'Bash' (not in regex)"
+        );
     }
 }

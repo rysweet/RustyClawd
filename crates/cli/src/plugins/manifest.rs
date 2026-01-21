@@ -81,6 +81,11 @@ pub struct HookDefinition {
     pub event: String,
     /// Handler function name or file path
     pub handler: String,
+    /// Optional matcher pattern for filtering hooks
+    /// If None, defaults to "*" (match all)
+    /// Can be exact match ("Write") or regex pattern ("Write|Edit|Read")
+    #[serde(default)]
+    pub matcher: Option<String>,
 }
 
 /// Agent plugin definition
