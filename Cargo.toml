@@ -11,8 +11,8 @@ exclude = ["# python-sdk"]
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-authors = ["Claude Code Rust Translation Project"]
-repository = "https://github.com/yourusername/claude-code-rs"
+authors = ["RustyClawd Contributors"]
+repository = "https://github.com/rysweet/RustyClawd"
 
 [workspace.dependencies]
 # Async runtime
