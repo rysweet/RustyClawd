@@ -142,7 +142,7 @@ fn test_hook_event_permission_request() {
 #[test]
 fn test_hook_event_all_ten_events() {
     let events = HookEvent::all();
-    assert_eq!(events.len(), 10);
+    assert_eq!(events.len(), 12);
     assert!(events.contains(&HookEvent::SessionStart));
     assert!(events.contains(&HookEvent::SessionEnd));
     assert!(events.contains(&HookEvent::PreToolUse));
@@ -152,6 +152,9 @@ fn test_hook_event_all_ten_events() {
     assert!(events.contains(&HookEvent::SubagentStop));
     assert!(events.contains(&HookEvent::Notification));
     assert!(events.contains(&HookEvent::PreCompact));
+    assert!(events.contains(&HookEvent::PermissionRequest));
+    assert!(events.contains(&HookEvent::TeammateIdle));
+    assert!(events.contains(&HookEvent::TaskCompleted));
     assert!(events.contains(&HookEvent::PermissionRequest));
 }
 
