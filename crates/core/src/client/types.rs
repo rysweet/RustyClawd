@@ -493,3 +493,69 @@ mod tests {
         assert_eq!(request.temperature, Some(0.7));
     }
 }
+
+#[cfg(test)]
+mod fast_mode_tests {
+    use super::*;
+    use crate::client::{ApiKey, Config};
+
+    #[test]
+    fn test_fast_mode_with_opus_46() {
+        let request = CreateMessageRequest::new(
+            "claude-opus-4-6",
+            vec![Message::user("Test")],
+            1024,
+        );
+        
+        let result = request.with_fast_mode(true);
+        assert!(result.is_ok());
+        let request = result.unwrap();
+        assert_eq!(request.fast_mode, Some(true));
+    }
+
+    #[test]
+    fn test_fast_mode_with_non_opus_fails() {
+        let request = CreateMessageRequest::new(
+            "claude-3-5-sonnet-20241022",
+            vec![Message::user("Test")],
+            1024,
+        );
+        
+        let result = request.with_fast_mode(true);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            "Fast mode only supported on claude-opus-4-6 model"
+        );
+    }
+
+    #[test]
+    fn test_fast_mode_disabled_works_with_any_model() {
+        let request = CreateMessageRequest::new(
+            "claude-3-5-sonnet-20241022",
+            vec![Message::user("Test")],
+            1024,
+        );
+        
+        let result = request.with_fast_mode(false);
+        assert!(result.is_ok());
+        let request = result.unwrap();
+        assert_eq!(request.fast_mode, Some(false));
+    }
+
+    #[test]
+    fn test_config_with_fast_mode() {
+        let api_key = ApiKey::new("sk-ant-test123".to_string()).unwrap();
+        let config = Config::new(api_key).with_fast_mode(true);
+        
+        assert!(config.fast_mode_enabled);
+    }
+
+    #[test]
+    fn test_config_default_fast_mode_false() {
+        let api_key = ApiKey::new("sk-ant-test123".to_string()).unwrap();
+        let config = Config::new(api_key);
+        
+        assert!(!config.fast_mode_enabled);
+    }
+}
