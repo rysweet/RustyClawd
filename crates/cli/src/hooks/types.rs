@@ -26,6 +26,10 @@ pub enum HookEvent {
     /// Fires when a tool requires permission and user would be prompted.
     /// Hook can return allow/deny/ask to automatically handle permission decisions.
     PermissionRequest,
+    /// Fires when an agent becomes idle and available for new tasks (multi-agent coordination)
+    TeammateIdle,
+    /// Fires when an agent completes its assigned task (multi-agent coordination)
+    TaskCompleted,
 }
 
 impl HookEvent {
@@ -42,6 +46,8 @@ impl HookEvent {
             HookEvent::Notification,
             HookEvent::PreCompact,
             HookEvent::PermissionRequest,
+            HookEvent::TeammateIdle,
+            HookEvent::TaskCompleted,
         ]
     }
 
@@ -58,6 +64,8 @@ impl HookEvent {
             HookEvent::Notification => "Notification",
             HookEvent::PreCompact => "PreCompact",
             HookEvent::PermissionRequest => "PermissionRequest",
+            HookEvent::TeammateIdle => "TeammateIdle",
+            HookEvent::TaskCompleted => "TaskCompleted",
         }
     }
 }
@@ -242,6 +250,14 @@ pub struct HooksConfiguration {
     /// Hook can return allow/deny/ask to automatically handle permission decisions.
     #[serde(rename = "PermissionRequest", default)]
     pub permission_request: Vec<HookConfig>,
+    /// TeammateIdle hooks fire when an agent becomes idle and available for new tasks.
+    /// Enables multi-agent coordination by notifying when agents finish their work.
+    #[serde(rename = "TeammateIdle", default)]
+    pub teammate_idle: Vec<HookConfig>,
+    /// TaskCompleted hooks fire when an agent completes its assigned task.
+    /// Allows teams to coordinate task hand-off and track progress.
+    #[serde(rename = "TaskCompleted", default)]
+    pub task_completed: Vec<HookConfig>,
 }
 
 impl HooksConfiguration {
@@ -258,6 +274,8 @@ impl HooksConfiguration {
             HookEvent::Notification => &self.notification,
             HookEvent::PreCompact => &self.pre_compact,
             HookEvent::PermissionRequest => &self.permission_request,
+            HookEvent::TeammateIdle => &self.teammate_idle,
+            HookEvent::TaskCompleted => &self.task_completed,
         }
     }
 }
@@ -633,10 +651,12 @@ mod tests {
     #[test]
     fn test_hook_event_all() {
         let events = HookEvent::all();
-        assert_eq!(events.len(), 10);
+        assert_eq!(events.len(), 12);
         assert!(events.contains(&HookEvent::SessionStart));
         assert!(events.contains(&HookEvent::Stop));
         assert!(events.contains(&HookEvent::PermissionRequest));
+        assert!(events.contains(&HookEvent::TeammateIdle));
+        assert!(events.contains(&HookEvent::TaskCompleted));
     }
 
     #[test]

@@ -52,6 +52,8 @@ impl HookRegistry {
             HookEvent::Notification => &mut self.configuration.notification,
             HookEvent::PreCompact => &mut self.configuration.pre_compact,
             HookEvent::PermissionRequest => &mut self.configuration.permission_request,
+            HookEvent::TeammateIdle => &mut self.configuration.teammate_idle,
+            HookEvent::TaskCompleted => &mut self.configuration.task_completed,
         };
         hooks.push(config);
     }
@@ -69,6 +71,8 @@ impl HookRegistry {
             HookEvent::Notification => &mut self.configuration.notification,
             HookEvent::PreCompact => &mut self.configuration.pre_compact,
             HookEvent::PermissionRequest => &mut self.configuration.permission_request,
+            HookEvent::TeammateIdle => &mut self.configuration.teammate_idle,
+            HookEvent::TaskCompleted => &mut self.configuration.task_completed,
         };
         hooks.clear();
     }
