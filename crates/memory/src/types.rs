@@ -364,7 +364,10 @@ mod tests {
 
     #[test]
     fn test_memory_type_conversions() {
-        assert_eq!("decision".parse::<MemoryType>().ok(), Some(MemoryType::Decision));
+        assert_eq!(
+            "decision".parse::<MemoryType>().ok(),
+            Some(MemoryType::Decision)
+        );
         assert_eq!(MemoryType::Decision.as_str(), "decision");
         assert!("invalid".parse::<MemoryType>().is_err());
     }

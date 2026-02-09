@@ -293,7 +293,9 @@ mod integration_tests {
 
         let results = manager.retrieve(&query).unwrap();
         assert!(results.len() <= 3);
-        assert!(results.iter().all(|m| m.memory_type == MemoryType::Decision));
+        assert!(results
+            .iter()
+            .all(|m| m.memory_type == MemoryType::Decision));
         assert!(results.iter().all(|m| m.importance >= 5));
     }
 }

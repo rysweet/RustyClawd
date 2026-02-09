@@ -51,9 +51,7 @@ impl MemoryManager {
             .or_else(|_| std::env::var("USERPROFILE"))
             .unwrap_or_else(|_| ".".to_string());
 
-        PathBuf::from(home)
-            .join(".rustyclawd")
-            .join("memory.db")
+        PathBuf::from(home).join(".rustyclawd").join("memory.db")
     }
 
     /// Store a new memory
