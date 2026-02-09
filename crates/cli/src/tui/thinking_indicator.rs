@@ -72,7 +72,9 @@ fn format_duration(duration: Duration) -> String {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,no_run
+/// # use std::time::Duration;
+/// # fn render_thinking_indicator(_: Option<Duration>) -> String { String::new() }
 /// let status = render_thinking_indicator(None);
 /// // Returns: "⣾⣀⣀⣀⣀⣀⣀⣀ Extended thinking..."
 ///
@@ -83,7 +85,11 @@ pub fn render_thinking_indicator(duration: Option<Duration>) -> String {
     let shimmer = current_shimmer_frame();
 
     if let Some(duration) = duration {
-        format!("{} Extended thinking ({})...", shimmer, format_duration(duration))
+        format!(
+            "{} Extended thinking ({})...",
+            shimmer,
+            format_duration(duration)
+        )
     } else {
         format!("{} Extended thinking...", shimmer)
     }

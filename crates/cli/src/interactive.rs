@@ -433,7 +433,8 @@ impl InteractiveSession {
                         StreamingChannelEvent::ExtendedThinkingStarted => {
                             // Extended thinking phase started
                             self.tui.start_extended_thinking();
-                            self.tui.push_debug("[EXTENDED_THINKING] Started".to_string());
+                            self.tui
+                                .push_debug("[EXTENDED_THINKING] Started".to_string());
                         }
                         StreamingChannelEvent::ExtendedThinkingDelta => {
                             // Extended thinking content received - note phase transition
@@ -442,7 +443,8 @@ impl InteractiveSession {
                         StreamingChannelEvent::ExtendedThinkingStopped => {
                             // Extended thinking phase ended
                             self.tui.stop_extended_thinking();
-                            self.tui.push_debug("[EXTENDED_THINKING] Stopped".to_string());
+                            self.tui
+                                .push_debug("[EXTENDED_THINKING] Stopped".to_string());
                         }
                         StreamingChannelEvent::Complete { response } => {
                             // Finalize streaming
@@ -1509,7 +1511,8 @@ impl InteractiveSession {
                             // need to be replaced with a block-type stack.
                             if in_thinking_block {
                                 in_thinking_block = false;
-                                let _ = event_tx.send(StreamingChannelEvent::ExtendedThinkingStopped);
+                                let _ =
+                                    event_tx.send(StreamingChannelEvent::ExtendedThinkingStopped);
                             }
 
                             // Finalize current block

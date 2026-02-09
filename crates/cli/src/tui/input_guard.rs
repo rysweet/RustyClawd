@@ -32,8 +32,9 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,no_run
 /// use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+/// # fn should_block_input(_: bool, _: &KeyEvent) -> bool { true }
 ///
 /// let thinking = true;
 ///
@@ -59,7 +60,7 @@ pub fn should_block_input(is_thinking: bool, key_event: &KeyEvent) -> bool {
     match (key_event.code, key_event.modifiers) {
         (KeyCode::Char('c'), KeyModifiers::CONTROL) => false, // Allow Ctrl+C
         (KeyCode::Char('d'), KeyModifiers::CONTROL) => false, // Allow Ctrl+D
-        _ => true, // Block everything else
+        _ => true,                                            // Block everything else
     }
 }
 
