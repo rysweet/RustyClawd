@@ -204,10 +204,7 @@ impl Client {
     }
 
     /// Build common headers for API requests, including conditional beta headers.
-    fn build_request_headers(
-        &self,
-        request: &CreateMessageRequest,
-    ) -> reqwest::header::HeaderMap {
+    fn build_request_headers(&self, request: &CreateMessageRequest) -> reqwest::header::HeaderMap {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
             "x-api-key",
@@ -229,10 +226,7 @@ impl Client {
 
         // Add fast mode beta header when speed is set to "fast"
         if request.requires_fast_mode_beta() {
-            headers.insert(
-                "anthropic-beta",
-                "fast-mode-2026-02-01".parse().unwrap(),
-            );
+            headers.insert("anthropic-beta", "fast-mode-2026-02-01".parse().unwrap());
         }
 
         headers
@@ -244,9 +238,7 @@ impl Client {
         request: &CreateMessageRequest,
     ) -> ClientResult<MessageResponse> {
         // Validate request before sending
-        request
-            .validate()
-            .map_err(|e| ClientError::Unknown(e))?;
+        request.validate().map_err(ClientError::Unknown)?;
 
         let url = format!("{}/v1/messages", self.config.api_url);
         let headers = self.build_request_headers(request);
@@ -309,9 +301,7 @@ impl Client {
         request: &CreateMessageRequest,
     ) -> ClientResult<impl Stream<Item = ClientResult<StreamEvent>>> {
         // Validate request before sending
-        request
-            .validate()
-            .map_err(|e| ClientError::Unknown(e))?;
+        request.validate().map_err(ClientError::Unknown)?;
 
         let url = format!("{}/v1/messages", self.config.api_url);
         let mut headers = self.build_request_headers(request);

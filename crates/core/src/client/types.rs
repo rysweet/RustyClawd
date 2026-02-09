@@ -445,9 +445,7 @@ impl CreateMessageRequest {
     /// Called automatically by the client before making API requests.
     pub fn validate(&self) -> Result<(), String> {
         // Fast mode is only supported on Opus 4.6 models
-        if self.speed.as_deref() == Some("fast")
-            && !self.model.starts_with("claude-opus-4-6")
-        {
+        if self.speed.as_deref() == Some("fast") && !self.model.starts_with("claude-opus-4-6") {
             return Err(
                 "Fast mode (speed: \"fast\") is only supported on claude-opus-4-6 models"
                     .to_string(),
