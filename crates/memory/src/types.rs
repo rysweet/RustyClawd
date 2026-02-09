@@ -8,7 +8,18 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt;
 use std::str::FromStr;
+use thiserror::Error;
+
+/// Errors that can occur when parsing memory types
+#[derive(Debug, Error)]
+pub enum MemoryParseError {
+    #[error("Invalid memory type: {0}")]
+    InvalidType(String),
+    #[error("Invalid memory scope: {0}")]
+    InvalidScope(String),
+}
 
 /// Memory type classification for organizational purposes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -42,8 +53,14 @@ impl MemoryType {
     }
 }
 
+impl fmt::Display for MemoryType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 impl FromStr for MemoryType {
-    type Err = String;
+    type Err = MemoryParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -53,21 +70,26 @@ impl FromStr for MemoryType {
             "context" => Ok(Self::Context),
             "learning" => Ok(Self::Learning),
             "artifact" => Ok(Self::Artifact),
-            _ => Err(format!("Invalid memory type: {}", s)),
+            _ => Err(MemoryParseError::InvalidType(s.to_string())),
         }
     }
 }
 
 /// Memory scope hierarchy: Local > Project > User
+///
+/// Enum variants are ordered so that derived Ord matches documented priority:
+/// User (lowest priority) < Project < Local (highest priority).
+/// This means `MemoryScope::Local > MemoryScope::Project > MemoryScope::User`
+/// which matches the documented "Local > Project > User" hierarchy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MemoryScope {
-    /// Session-local memory (highest priority)
-    Local,
+    /// User-level memory (shared across projects, lowest priority)
+    User,
     /// Project-wide memory (shared across sessions)
     Project,
-    /// User-level memory (shared across projects)
-    User,
+    /// Session-local memory (highest priority)
+    Local,
 }
 
 impl MemoryScope {
@@ -81,15 +103,21 @@ impl MemoryScope {
     }
 }
 
+impl fmt::Display for MemoryScope {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 impl FromStr for MemoryScope {
-    type Err = String;
+    type Err = MemoryParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "local" => Ok(Self::Local),
             "project" => Ok(Self::Project),
             "user" => Ok(Self::User),
-            _ => Err(format!("Invalid memory scope: {}", s)),
+            _ => Err(MemoryParseError::InvalidScope(s.to_string())),
         }
     }
 }
@@ -342,9 +370,35 @@ mod tests {
     }
 
     #[test]
-    fn test_memory_scope_ordering() {
-        assert!(MemoryScope::Local < MemoryScope::Project);
-        assert!(MemoryScope::Project < MemoryScope::User);
+    fn test_memory_type_display() {
+        assert_eq!(format!("{}", MemoryType::Decision), "decision");
+        assert_eq!(format!("{}", MemoryType::Conversation), "conversation");
+    }
+
+    #[test]
+    fn test_memory_scope_display() {
+        assert_eq!(format!("{}", MemoryScope::Local), "local");
+        assert_eq!(format!("{}", MemoryScope::Project), "project");
+        assert_eq!(format!("{}", MemoryScope::User), "user");
+    }
+
+    #[test]
+    fn test_memory_scope_ordering_matches_documented_priority() {
+        // Documented: Local > Project > User (Local is highest priority)
+        assert!(MemoryScope::Local > MemoryScope::Project);
+        assert!(MemoryScope::Project > MemoryScope::User);
+        assert!(MemoryScope::Local > MemoryScope::User);
+    }
+
+    #[test]
+    fn test_memory_parse_error_is_structured() {
+        let err = "invalid".parse::<MemoryType>().unwrap_err();
+        assert!(matches!(err, MemoryParseError::InvalidType(_)));
+        // Verify Display impl from thiserror
+        assert!(err.to_string().contains("Invalid memory type: invalid"));
+
+        let err = "invalid".parse::<MemoryScope>().unwrap_err();
+        assert!(matches!(err, MemoryParseError::InvalidScope(_)));
     }
 
     #[test]

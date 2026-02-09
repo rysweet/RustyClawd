@@ -2,16 +2,23 @@
 //
 // Philosophy:
 // - <50ms operations (target: 2-15ms)
-// - Thread-safe via connection pool
+// - Thread-safe via Mutex-guarded connection
 // - ACID compliance with WAL mode
 // - Efficient indexing for fast queries
+//
+// Thread safety note:
+// The Connection is wrapped in Arc<Mutex<>> so only one thread accesses it at
+// a time. SQLITE_OPEN_FULL_MUTEX is used as defense-in-depth -- if the outer
+// Mutex is ever removed or bypassed, SQLite's internal mutex still prevents
+// data corruption.
 
 use crate::types::{MemoryEntry, MemoryQuery, MemoryScope, MemoryType};
 use anyhow::{Context, Result};
+use chrono::DateTime;
 use rusqlite::{params, Connection, OpenFlags};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 /// Database schema version for migrations
 const SCHEMA_VERSION: i32 = 1;
@@ -34,12 +41,12 @@ impl Database {
                 .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
         }
 
-        // Open database with flags for performance
+        // Open database with FULL_MUTEX for defense-in-depth thread safety
         let conn = Connection::open_with_flags(
             &path,
             OpenFlags::SQLITE_OPEN_READ_WRITE
                 | OpenFlags::SQLITE_OPEN_CREATE
-                | OpenFlags::SQLITE_OPEN_NO_MUTEX, // We'll handle thread safety
+                | OpenFlags::SQLITE_OPEN_FULL_MUTEX,
         )
         .with_context(|| format!("Failed to open database: {}", path.display()))?;
 
@@ -65,9 +72,16 @@ impl Database {
         Ok(db)
     }
 
+    /// Acquire the database connection lock, returning a meaningful error on poison
+    fn lock_conn(&self) -> Result<std::sync::MutexGuard<'_, Connection>> {
+        self.conn
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Database lock poisoned: {}", e))
+    }
+
     /// Initialize database schema
     fn initialize_schema(&self) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.lock_conn()?;
 
         // Check if schema exists
         let version: i32 = conn
@@ -84,6 +98,9 @@ impl Database {
         }
 
         info!("Initializing database schema version {}", SCHEMA_VERSION);
+
+        // Wrap schema init in a transaction to avoid races on concurrent first-open
+        conn.execute_batch("BEGIN EXCLUSIVE")?;
 
         // Create schema_version table
         conn.execute(
@@ -144,11 +161,13 @@ impl Database {
             [],
         )?;
 
-        // Record schema version
+        // Record schema version (INSERT OR IGNORE to handle concurrent init)
         conn.execute(
-            "INSERT INTO schema_version (version) VALUES (?1)",
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?1)",
             params![SCHEMA_VERSION],
         )?;
+
+        conn.execute_batch("COMMIT")?;
 
         info!("Database schema initialized successfully");
         Ok(())
@@ -156,7 +175,7 @@ impl Database {
 
     /// Store a memory entry in the database
     pub fn store(&self, entry: &MemoryEntry) -> Result<String> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.lock_conn()?;
 
         let tags_json = serde_json::to_string(&entry.tags)
             .context("Failed to serialize tags")?;
@@ -192,108 +211,168 @@ impl Database {
         Ok(entry.id.clone())
     }
 
+    /// Update an existing memory entry
+    ///
+    /// Updates all mutable fields (title, content, importance, tags, metadata,
+    /// scope, memory_type, parent_id, expires_at) and sets updated_at to now.
+    /// Returns true if the entry existed and was updated, false if not found.
+    pub fn update(&self, entry: &MemoryEntry) -> Result<bool> {
+        let conn = self.lock_conn()?;
+
+        let tags_json = serde_json::to_string(&entry.tags)
+            .context("Failed to serialize tags")?;
+        let metadata_json = serde_json::to_string(&entry.metadata)
+            .context("Failed to serialize metadata")?;
+
+        let now = chrono::Utc::now().to_rfc3339();
+
+        let rows_affected = conn.execute(
+            "UPDATE memory_entries SET
+                memory_type = ?1,
+                scope = ?2,
+                title = ?3,
+                content = ?4,
+                importance = ?5,
+                tags = ?6,
+                metadata = ?7,
+                parent_id = ?8,
+                updated_at = ?9,
+                expires_at = ?10
+            WHERE id = ?11",
+            params![
+                entry.memory_type.as_str(),
+                entry.scope.as_str(),
+                &entry.title,
+                &entry.content,
+                entry.importance,
+                tags_json,
+                metadata_json,
+                &entry.parent_id,
+                now,
+                entry.expires_at.map(|dt| dt.to_rfc3339()),
+                &entry.id,
+            ],
+        )
+        .with_context(|| format!("Failed to update memory entry: {}", entry.id))?;
+
+        if rows_affected > 0 {
+            debug!("Updated memory entry: {}", entry.id);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Escape LIKE wildcard characters in a search string
+    fn escape_like(input: &str) -> String {
+        input
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_")
+    }
+
     /// Retrieve memory entries matching the query
     pub fn query(&self, query: &MemoryQuery) -> Result<Vec<MemoryEntry>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.lock_conn()?;
 
         // Build SQL query dynamically based on filters
         let mut sql = String::from("SELECT * FROM memory_entries WHERE 1=1");
-        let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+        let mut param_values: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
         if let Some(agent_id) = &query.agent_id {
             sql.push_str(" AND agent_id = ?");
-            params.push(Box::new(agent_id.clone()));
+            param_values.push(Box::new(agent_id.clone()));
         }
 
         if let Some(session_id) = &query.session_id {
             sql.push_str(" AND session_id = ?");
-            params.push(Box::new(session_id.clone()));
+            param_values.push(Box::new(session_id.clone()));
         }
 
         if let Some(memory_type) = &query.memory_type {
             sql.push_str(" AND memory_type = ?");
-            params.push(Box::new(memory_type.as_str().to_string()));
+            param_values.push(Box::new(memory_type.as_str().to_string()));
         }
 
         if let Some(scope) = &query.scope {
             sql.push_str(" AND scope = ?");
-            params.push(Box::new(scope.as_str().to_string()));
+            param_values.push(Box::new(scope.as_str().to_string()));
         }
 
         if let Some(min_importance) = query.min_importance {
             sql.push_str(" AND importance >= ?");
-            params.push(Box::new(min_importance));
+            param_values.push(Box::new(min_importance));
         }
 
         if let Some(search) = &query.search {
-            sql.push_str(" AND (title LIKE ? OR content LIKE ?)");
-            let pattern = format!("%{}%", search);
-            params.push(Box::new(pattern.clone()));
-            params.push(Box::new(pattern));
+            sql.push_str(" AND (title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\')");
+            let escaped = Self::escape_like(search);
+            let pattern = format!("%{}%", escaped);
+            param_values.push(Box::new(pattern.clone()));
+            param_values.push(Box::new(pattern));
         }
 
         if let Some(created_after) = &query.created_after {
             sql.push_str(" AND created_at >= ?");
-            params.push(Box::new(created_after.to_rfc3339()));
+            param_values.push(Box::new(created_after.to_rfc3339()));
         }
 
         if let Some(created_before) = &query.created_before {
             sql.push_str(" AND created_at <= ?");
-            params.push(Box::new(created_before.to_rfc3339()));
+            param_values.push(Box::new(created_before.to_rfc3339()));
+        }
+
+        // Tag filtering in SQL using json_each() to avoid loading all rows into memory
+        if !query.tags.is_empty() {
+            for tag in &query.tags {
+                sql.push_str(
+                    " AND EXISTS (SELECT 1 FROM json_each(memory_entries.tags) WHERE json_each.value = ?)",
+                );
+                param_values.push(Box::new(tag.clone()));
+            }
         }
 
         // Filter out expired entries
         let now = chrono::Utc::now().to_rfc3339();
         sql.push_str(" AND (expires_at IS NULL OR expires_at > ?)");
-        params.push(Box::new(now));
+        param_values.push(Box::new(now));
 
         // Order by importance and creation time
         sql.push_str(" ORDER BY importance DESC, created_at DESC");
 
+        // Use parameterized LIMIT/OFFSET instead of format! interpolation
         if let Some(limit) = query.limit {
-            sql.push_str(&format!(" LIMIT {}", limit));
+            sql.push_str(" LIMIT ?");
+            param_values.push(Box::new(limit as i64));
         }
 
         if let Some(offset) = query.offset {
-            sql.push_str(&format!(" OFFSET {}", offset));
+            sql.push_str(" OFFSET ?");
+            param_values.push(Box::new(offset as i64));
         }
 
         // Execute query
-        let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+        let param_refs: Vec<&dyn rusqlite::ToSql> =
+            param_values.iter().map(|p| p.as_ref()).collect();
         let mut stmt = conn.prepare(&sql)?;
         let entries = stmt
-            .query_map(param_refs.as_slice(), |row| self.row_to_entry(row))?
+            .query_map(param_refs.as_slice(), Self::row_to_entry)?
             .collect::<Result<Vec<_>, _>>()?;
 
-        // Filter by tags if specified (SQLite doesn't have good JSON array support)
-        let filtered_entries = if query.tags.is_empty() {
-            entries
-        } else {
-            entries
-                .into_iter()
-                .filter(|entry| {
-                    query
-                        .tags
-                        .iter()
-                        .all(|tag| entry.tags.contains(tag))
-                })
-                .collect()
-        };
-
-        debug!("Query returned {} entries", filtered_entries.len());
-        Ok(filtered_entries)
+        debug!("Query returned {} entries", entries.len());
+        Ok(entries)
     }
 
     /// Get a specific memory entry by ID
     pub fn get(&self, id: &str) -> Result<Option<MemoryEntry>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.lock_conn()?;
 
         let now = chrono::Utc::now().to_rfc3339();
         let mut stmt = conn.prepare(
-            "SELECT * FROM memory_entries WHERE id = ? AND (expires_at IS NULL OR expires_at > ?)"
+            "SELECT * FROM memory_entries WHERE id = ? AND (expires_at IS NULL OR expires_at > ?)",
         )?;
 
-        match stmt.query_row(params![id, now], |row| self.row_to_entry(row)) {
+        match stmt.query_row(params![id, now], Self::row_to_entry) {
             Ok(entry) => Ok(Some(entry)),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
             Err(e) => Err(e.into()),
@@ -302,7 +381,7 @@ impl Database {
 
     /// Delete a memory entry
     pub fn delete(&self, id: &str) -> Result<bool> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.lock_conn()?;
 
         let rows_affected = conn.execute("DELETE FROM memory_entries WHERE id = ?", params![id])?;
 
@@ -316,7 +395,7 @@ impl Database {
 
     /// Delete all expired memory entries
     pub fn cleanup_expired(&self) -> Result<usize> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.lock_conn()?;
 
         let now = chrono::Utc::now().to_rfc3339();
         let count = conn.execute(
@@ -333,7 +412,7 @@ impl Database {
 
     /// Get memory statistics
     pub fn stats(&self) -> Result<MemoryStats> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.lock_conn()?;
 
         let total_entries: i64 = conn.query_row(
             "SELECT COUNT(*) FROM memory_entries",
@@ -359,17 +438,16 @@ impl Database {
     }
 
     /// Convert a database row to a MemoryEntry
-    fn row_to_entry(&self, row: &rusqlite::Row) -> rusqlite::Result<MemoryEntry> {
-        use chrono::DateTime;
-
+    ///
+    /// Handles malformed datetime values gracefully by falling back to Utc::now()
+    /// with a warning log, rather than panicking and poisoning the mutex.
+    fn row_to_entry(row: &rusqlite::Row) -> rusqlite::Result<MemoryEntry> {
         let tags_json: String = row.get("tags")?;
         let metadata_json: String = row.get("metadata")?;
 
-        let tags: Vec<String> = serde_json::from_str(&tags_json)
-            .unwrap_or_default();
+        let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
         let metadata: std::collections::HashMap<String, serde_json::Value> =
-            serde_json::from_str(&metadata_json)
-                .unwrap_or_default();
+            serde_json::from_str(&metadata_json).unwrap_or_default();
 
         let memory_type_str: String = row.get("memory_type")?;
         let scope_str: String = row.get("scope")?;
@@ -377,6 +455,32 @@ impl Database {
         let created_at_str: String = row.get("created_at")?;
         let updated_at_str: String = row.get("updated_at")?;
         let expires_at_str: Option<String> = row.get("expires_at")?;
+
+        let created_at = DateTime::parse_from_rfc3339(&created_at_str)
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+            .unwrap_or_else(|e| {
+                warn!(
+                    "Malformed created_at '{}' in database, using current time: {}",
+                    created_at_str, e
+                );
+                chrono::Utc::now()
+            });
+
+        let updated_at = DateTime::parse_from_rfc3339(&updated_at_str)
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+            .unwrap_or_else(|e| {
+                warn!(
+                    "Malformed updated_at '{}' in database, using current time: {}",
+                    updated_at_str, e
+                );
+                chrono::Utc::now()
+            });
+
+        let expires_at = expires_at_str.and_then(|s| {
+            DateTime::parse_from_rfc3339(&s)
+                .ok()
+                .map(|dt| dt.with_timezone(&chrono::Utc))
+        });
 
         Ok(MemoryEntry {
             id: row.get("id")?,
@@ -390,17 +494,9 @@ impl Database {
             tags,
             metadata,
             parent_id: row.get("parent_id")?,
-            created_at: DateTime::parse_from_rfc3339(&created_at_str)
-                .unwrap()
-                .with_timezone(&chrono::Utc),
-            updated_at: DateTime::parse_from_rfc3339(&updated_at_str)
-                .unwrap()
-                .with_timezone(&chrono::Utc),
-            expires_at: expires_at_str.and_then(|s| {
-                DateTime::parse_from_rfc3339(&s)
-                    .ok()
-                    .map(|dt| dt.with_timezone(&chrono::Utc))
-            }),
+            created_at,
+            updated_at,
+            expires_at,
         })
     }
 }
@@ -452,6 +548,53 @@ mod tests {
     }
 
     #[test]
+    fn test_update() {
+        let (db, _temp_dir) = create_test_db();
+
+        let mut entry = MemoryEntry::new(
+            "test_agent",
+            "Original Title",
+            "Original content",
+            MemoryType::Decision,
+            MemoryScope::Project,
+        )
+        .with_importance(5);
+
+        let id = db.store(&entry).unwrap();
+
+        // Modify and update
+        entry.title = "Updated Title".to_string();
+        entry.content = "Updated content".to_string();
+        entry.importance = 9;
+
+        let updated = db.update(&entry).unwrap();
+        assert!(updated);
+
+        let retrieved = db.get(&id).unwrap().unwrap();
+        assert_eq!(retrieved.title, "Updated Title");
+        assert_eq!(retrieved.content, "Updated content");
+        assert_eq!(retrieved.importance, 9);
+        // updated_at should be newer than created_at (or at least equal, since time resolution)
+        assert!(retrieved.updated_at >= retrieved.created_at);
+    }
+
+    #[test]
+    fn test_update_nonexistent_returns_false() {
+        let (db, _temp_dir) = create_test_db();
+
+        let entry = MemoryEntry::new(
+            "test_agent",
+            "Ghost",
+            "Does not exist",
+            MemoryType::Context,
+            MemoryScope::Local,
+        );
+
+        let updated = db.update(&entry).unwrap();
+        assert!(!updated);
+    }
+
+    #[test]
     fn test_query_filtering() {
         let (db, _temp_dir) = create_test_db();
 
@@ -477,6 +620,93 @@ mod tests {
         let query = MemoryQuery::new().limit(2);
         let results = db.query(&query).unwrap();
         assert_eq!(results.len(), 2);
+    }
+
+    #[test]
+    fn test_search_escapes_like_wildcards() {
+        let (db, _temp_dir) = create_test_db();
+
+        // Store entries with special LIKE characters in content
+        let entry1 = MemoryEntry::new(
+            "test_agent",
+            "Percent Entry",
+            "This has 100% coverage",
+            MemoryType::Context,
+            MemoryScope::Local,
+        );
+        db.store(&entry1).unwrap();
+
+        let entry2 = MemoryEntry::new(
+            "test_agent",
+            "Underscore Entry",
+            "Use snake_case naming",
+            MemoryType::Context,
+            MemoryScope::Local,
+        );
+        db.store(&entry2).unwrap();
+
+        let entry3 = MemoryEntry::new(
+            "test_agent",
+            "Normal Entry",
+            "Just normal content here",
+            MemoryType::Context,
+            MemoryScope::Local,
+        );
+        db.store(&entry3).unwrap();
+
+        // Searching for literal "%" should only match the percent entry
+        let query = MemoryQuery::new().search("100%");
+        let results = db.query(&query).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].title, "Percent Entry");
+
+        // Searching for literal "_" should only match the underscore entry
+        let query = MemoryQuery::new().search("snake_case");
+        let results = db.query(&query).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].title, "Underscore Entry");
+    }
+
+    #[test]
+    fn test_tag_filtering_in_sql() {
+        let (db, _temp_dir) = create_test_db();
+
+        let entry1 = MemoryEntry::new(
+            "test_agent",
+            "Tagged Entry",
+            "Content",
+            MemoryType::Decision,
+            MemoryScope::Project,
+        )
+        .add_tag("rust")
+        .add_tag("architecture");
+        db.store(&entry1).unwrap();
+
+        let entry2 = MemoryEntry::new(
+            "test_agent",
+            "Other Entry",
+            "Content",
+            MemoryType::Decision,
+            MemoryScope::Project,
+        )
+        .add_tag("python");
+        db.store(&entry2).unwrap();
+
+        // Query for "rust" tag
+        let query = MemoryQuery::new().add_tag("rust");
+        let results = db.query(&query).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].title, "Tagged Entry");
+
+        // Query for both "rust" and "architecture" tags
+        let query = MemoryQuery::new().add_tag("rust").add_tag("architecture");
+        let results = db.query(&query).unwrap();
+        assert_eq!(results.len(), 1);
+
+        // Query for a tag that doesn't match any entry
+        let query = MemoryQuery::new().add_tag("go");
+        let results = db.query(&query).unwrap();
+        assert_eq!(results.len(), 0);
     }
 
     #[test]
@@ -536,5 +766,33 @@ mod tests {
         let stats = db.stats().unwrap();
         assert_eq!(stats.total_entries, 1);
         assert!(stats.database_size_bytes > 0);
+    }
+
+    #[test]
+    fn test_concurrent_access() {
+        let (db, _temp_dir) = create_test_db();
+
+        let handles: Vec<_> = (0..10)
+            .map(|i| {
+                let db = db.clone();
+                std::thread::spawn(move || {
+                    let entry = MemoryEntry::new(
+                        format!("agent_{}", i),
+                        format!("Thread {} Memory", i),
+                        format!("Content from thread {}", i),
+                        MemoryType::Context,
+                        MemoryScope::Local,
+                    );
+                    db.store(&entry).unwrap();
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        let stats = db.stats().unwrap();
+        assert_eq!(stats.total_entries, 10);
     }
 }

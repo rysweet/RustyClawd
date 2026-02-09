@@ -27,13 +27,5 @@ tracing = { workspace = true }
 # UUID generation
 uuid = { version = "1.6", features = ["v4", "serde"] }
 
-# Async (for future async API support)
-tokio = { workspace = true, optional = true }
-
 [dev-dependencies]
-tokio = { workspace = true, features = ["test-util", "macros"] }
 tempfile = "3.8"
-
-[features]
-default = []
-async = ["tokio"]

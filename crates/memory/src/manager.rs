@@ -12,6 +12,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 /// High-level memory manager interface
+///
+/// Note: `Default` is intentionally not implemented because construction
+/// touches the filesystem (creating directories and the SQLite database),
+/// which can fail. Use `MemoryManager::new()` and handle the Result.
 #[derive(Clone)]
 pub struct MemoryManager {
     db: Arc<Database>,
@@ -81,6 +85,15 @@ impl MemoryManager {
         }
 
         self.db.store(&entry)
+    }
+
+    /// Update an existing memory entry
+    ///
+    /// Updates all mutable fields and sets updated_at to the current time.
+    /// Returns true if the entry was found and updated, false if the ID
+    /// does not exist.
+    pub fn update(&self, entry: &MemoryEntry) -> Result<bool> {
+        self.db.update(entry)
     }
 
     /// Retrieve memories matching the query
@@ -178,12 +191,6 @@ impl MemoryManager {
     /// Clear the session ID
     pub fn clear_session_id(&mut self) {
         self.session_id = None;
-    }
-}
-
-impl Default for MemoryManager {
-    fn default() -> Self {
-        Self::new().expect("Failed to create default MemoryManager")
     }
 }
 
@@ -292,6 +299,32 @@ mod tests {
 
         let entry = manager.get(&id).unwrap().unwrap();
         assert_eq!(entry.title, "Test Memory");
+    }
+
+    #[test]
+    fn test_update_via_manager() {
+        let (manager, _temp_dir) = create_test_manager();
+
+        let entry = MemoryEntry::new(
+            "test_agent",
+            "Original",
+            "Original content",
+            MemoryType::Decision,
+            MemoryScope::Project,
+        );
+        let id = manager.store_entry(entry.clone()).unwrap();
+
+        // Retrieve, modify, update
+        let mut retrieved = manager.get(&id).unwrap().unwrap();
+        retrieved.title = "Modified".to_string();
+        retrieved.content = "Modified content".to_string();
+
+        let updated = manager.update(&retrieved).unwrap();
+        assert!(updated);
+
+        let final_entry = manager.get(&id).unwrap().unwrap();
+        assert_eq!(final_entry.title, "Modified");
+        assert_eq!(final_entry.content, "Modified content");
     }
 
     #[test]

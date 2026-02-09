@@ -82,7 +82,7 @@ mod types;
 // Re-export public API
 pub use database::{Database, MemoryStats};
 pub use manager::{MemoryBuilder, MemoryManager};
-pub use types::{MemoryEntry, MemoryQuery, MemoryScope, MemoryType};
+pub use types::{MemoryEntry, MemoryParseError, MemoryQuery, MemoryScope, MemoryType};
 
 /// Module version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -225,7 +225,7 @@ mod integration_tests {
             )
             .unwrap();
 
-        // Verify scope ordering (Local < Project < User)
+        // Verify scope filtering (each scope returns its own entries)
         let local = manager.by_scope(MemoryScope::Local).unwrap();
         let project = manager.by_scope(MemoryScope::Project).unwrap();
         let user = manager.by_scope(MemoryScope::User).unwrap();
