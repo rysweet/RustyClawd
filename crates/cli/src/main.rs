@@ -455,8 +455,8 @@ impl App {
         } else if let Some(pr_number) = cli.from_pr {
             // Resume session linked to a GitHub PR number
             tracing::info!("Looking up session for PR #{}", pr_number);
-            let index = session_index::SessionIndex::new()
-                .context("Failed to load session index")?;
+            let index =
+                session_index::SessionIndex::new().context("Failed to load session index")?;
 
             if let Some(session_id) = index.get_latest_session_for_pr(pr_number) {
                 tracing::info!("Found session {} for PR #{}", session_id, pr_number);

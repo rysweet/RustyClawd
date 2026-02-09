@@ -102,8 +102,7 @@ impl SessionIndex {
             .join("claude");
 
         // Ensure config directory exists
-        fs::create_dir_all(&config_dir)
-            .context("Failed to create config directory")?;
+        fs::create_dir_all(&config_dir).context("Failed to create config directory")?;
 
         Ok(config_dir.join(INDEX_FILENAME))
     }
@@ -135,15 +134,23 @@ impl SessionIndex {
 
     /// Save index to file (atomic write via temp file + rename)
     fn save(&self) -> Result<()> {
-        let contents = serde_json::to_string_pretty(self)
-            .context("Failed to serialize session index")?;
+        let contents =
+            serde_json::to_string_pretty(self).context("Failed to serialize session index")?;
 
         let tmp_path = self.storage_path.with_extension("json.tmp");
-        fs::write(&tmp_path, &contents)
-            .with_context(|| format!("Failed to write temp session index to {}", tmp_path.display()))?;
+        fs::write(&tmp_path, &contents).with_context(|| {
+            format!(
+                "Failed to write temp session index to {}",
+                tmp_path.display()
+            )
+        })?;
 
-        fs::rename(&tmp_path, &self.storage_path)
-            .with_context(|| format!("Failed to rename temp file to {}", self.storage_path.display()))?;
+        fs::rename(&tmp_path, &self.storage_path).with_context(|| {
+            format!(
+                "Failed to rename temp file to {}",
+                self.storage_path.display()
+            )
+        })?;
 
         Ok(())
     }
