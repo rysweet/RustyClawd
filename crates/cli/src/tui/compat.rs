@@ -441,6 +441,21 @@ impl TuiState {
         self.app.update_token_count(input, output);
     }
 
+    /// Start extended thinking phase
+    pub fn start_extended_thinking(&mut self) {
+        self.app.start_extended_thinking();
+    }
+
+    /// Append thinking content
+    pub fn append_thinking_content(&mut self, content: &str) {
+        self.app.append_thinking_content(content);
+    }
+
+    /// Stop extended thinking phase
+    pub fn stop_extended_thinking(&mut self) {
+        self.app.stop_extended_thinking();
+    }
+
     /// Check if currently streaming
     pub fn is_streaming(&self) -> bool {
         self.app.is_streaming()

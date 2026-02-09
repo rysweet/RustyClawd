@@ -259,6 +259,15 @@ fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<EventResult> {
         return Ok(EventResult::Continue);
     }
 
+    // Block input during extended thinking (except Ctrl+C interruption)
+    let is_extended_thinking = app.is_extended_thinking();
+    if crate::tui::input_guard::should_block_input(is_extended_thinking, &key) {
+        // Show message about blocked input
+        let msg = crate::tui::input_guard::get_blocked_input_message();
+        app.push_debug_message(msg.to_string());
+        return Ok(EventResult::Continue);
+    }
+
     // Special handling: backslash-escaped Enter inserts newline
     // Check if Enter key pressed WITHOUT Shift modifier AND input ends with backslash
     if matches!(key.code, KeyCode::Enter)

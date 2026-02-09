@@ -60,6 +60,12 @@ enum StreamingChannelEvent {
     Error { message: String },
     /// Thinking mode update (true = thinking, false = receiving tokens)
     ThinkingUpdate { thinking: bool },
+    /// Extended thinking started (ContentBlockStart::Thinking received)
+    ExtendedThinkingStarted,
+    /// Extended thinking content delta
+    ExtendedThinkingDelta { thinking: String },
+    /// Extended thinking stopped (ContentBlockStop received)
+    ExtendedThinkingStopped,
 }
 
 /// Events sent from background tool execution tasks to main event loop
@@ -423,6 +429,20 @@ impl InteractiveSession {
                                         .to_string(),
                                 );
                             }
+                        }
+                        StreamingChannelEvent::ExtendedThinkingStarted => {
+                            // Extended thinking phase started
+                            self.tui.start_extended_thinking();
+                            self.tui.push_debug("[EXTENDED_THINKING] Started".to_string());
+                        }
+                        StreamingChannelEvent::ExtendedThinkingDelta { thinking } => {
+                            // Extended thinking content received
+                            self.tui.append_thinking_content(&thinking);
+                        }
+                        StreamingChannelEvent::ExtendedThinkingStopped => {
+                            // Extended thinking phase ended
+                            self.tui.stop_extended_thinking();
+                            self.tui.push_debug("[EXTENDED_THINKING] Stopped".to_string());
                         }
                         StreamingChannelEvent::Complete { response } => {
                             // Finalize streaming
@@ -1384,6 +1404,7 @@ impl InteractiveSession {
             };
             let mut stop_reason = None;
             let mut thinking = true; // Start in thinking mode
+            let mut in_thinking_block = false; // Track if we're in an extended thinking block
 
             // Process stream events and send to main loop via channel
             while let Some(result) = stream.next().await {
@@ -1412,8 +1433,10 @@ impl InteractiveSession {
                             ..
                         } => {
                             // Starting a thinking block - notify TUI
+                            in_thinking_block = true;
                             let _ = event_tx
                                 .send(StreamingChannelEvent::ThinkingUpdate { thinking: true });
+                            let _ = event_tx.send(StreamingChannelEvent::ExtendedThinkingStarted);
                         }
                         StreamEvent::ContentBlockStart {
                             content_block:
@@ -1446,7 +1469,11 @@ impl InteractiveSession {
                                 rustyclawd_core::client::types::ContentDelta::ThinkingDelta { thinking },
                             ..
                         } => {
-                            // Thinking content - display but don't include in final response
+                            // Thinking content - send extended thinking delta
+                            let _ = event_tx.send(StreamingChannelEvent::ExtendedThinkingDelta {
+                                thinking: thinking.clone(),
+                            });
+                            // Also send as text delta for display
                             let _ = event_tx.send(StreamingChannelEvent::TextDelta {
                                 text: thinking.clone(),
                             });
@@ -1474,6 +1501,12 @@ impl InteractiveSession {
                             }
                         }
                         StreamEvent::ContentBlockStop { .. } => {
+                            // Check if we were in an extended thinking block
+                            if in_thinking_block {
+                                in_thinking_block = false;
+                                let _ = event_tx.send(StreamingChannelEvent::ExtendedThinkingStopped);
+                            }
+
                             // Finalize current block
                             if !current_text.is_empty() {
                                 response_content.push(

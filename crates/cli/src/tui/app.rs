@@ -3,6 +3,7 @@
 use crate::commands::permissions_search_state::PermissionsSearchState;
 use crate::permission_mode::PermissionMode;
 use crate::tui::message::Message;
+use crate::tui::thinking_state::ThinkingState;
 use crate::tui::token_counter::TokenCount;
 use rat_focus::FocusFlag;
 use ratatui::{
@@ -293,6 +294,9 @@ struct StreamingState {
 
     /// Thinking indicator (true when waiting for first token)
     thinking: bool,
+
+    /// Extended thinking state (tracks thinking phases)
+    thinking_state: ThinkingState,
 }
 
 impl App {
@@ -516,6 +520,7 @@ impl App {
             accumulated: String::new(),
             token_count: TokenCount::default(),
             thinking: true, // Start in thinking mode
+            thinking_state: ThinkingState::new(),
         });
         self.scroll_to_bottom();
         self.mark_dirty();
@@ -1387,6 +1392,47 @@ impl App {
     /// Check if currently in thinking mode (waiting for first token)
     pub fn is_thinking(&self) -> bool {
         self.streaming.as_ref().map(|s| s.thinking).unwrap_or(false)
+    }
+
+    /// Check if in extended thinking phase
+    pub fn is_extended_thinking(&self) -> bool {
+        self.streaming
+            .as_ref()
+            .map(|s| s.thinking_state.is_thinking())
+            .unwrap_or(false)
+    }
+
+    /// Start extended thinking phase (called when ContentBlockStart::Thinking received)
+    pub fn start_extended_thinking(&mut self) {
+        if let Some(ref state) = self.streaming {
+            state.thinking_state.start_thinking();
+            self.push_debug_message("[THINKING] Extended thinking started".to_string());
+            self.mark_dirty();
+        }
+    }
+
+    /// Append thinking content (called when ThinkingDelta received)
+    pub fn append_thinking_content(&mut self, content: &str) {
+        if let Some(ref state) = self.streaming {
+            state.thinking_state.append_thinking(content);
+            self.mark_dirty();
+        }
+    }
+
+    /// Stop extended thinking phase (called when ContentBlockStop received)
+    pub fn stop_extended_thinking(&mut self) {
+        if let Some(ref state) = self.streaming {
+            state.thinking_state.stop_thinking();
+            self.push_debug_message("[THINKING] Extended thinking stopped".to_string());
+            self.mark_dirty();
+        }
+    }
+
+    /// Get thinking duration (if in extended thinking phase)
+    pub fn thinking_duration(&self) -> Option<std::time::Duration> {
+        self.streaming
+            .as_ref()
+            .and_then(|s| s.thinking_state.thinking_duration())
     }
 
     // === Autocomplete management ===
