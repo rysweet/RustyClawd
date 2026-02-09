@@ -67,7 +67,7 @@ pub fn should_block_input(is_thinking: bool, key_event: &KeyEvent) -> bool {
 ///
 /// Returns a helpful message explaining why input is blocked and how to interrupt.
 pub fn get_blocked_input_message() -> &'static str {
-    "⚠️  Input blocked during extended thinking (Ctrl+C to interrupt)"
+    "[!] Input blocked during extended thinking (Ctrl+C to interrupt)"
 }
 
 #[cfg(test)]

@@ -262,9 +262,13 @@ fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<EventResult> {
     // Block input during extended thinking (except Ctrl+C interruption)
     let is_extended_thinking = app.is_extended_thinking();
     if crate::tui::input_guard::should_block_input(is_extended_thinking, &key) {
-        // Show message about blocked input
-        let msg = crate::tui::input_guard::get_blocked_input_message();
-        app.push_debug_message(msg.to_string());
+        // Emit blocked-input debug message only once per thinking phase
+        // to avoid flooding the debug panel on repeated keypresses.
+        if !app.has_shown_blocked_input_message() {
+            let msg = crate::tui::input_guard::get_blocked_input_message();
+            app.push_debug_message(msg.to_string());
+            app.set_shown_blocked_input_message(true);
+        }
         return Ok(EventResult::Continue);
     }
 

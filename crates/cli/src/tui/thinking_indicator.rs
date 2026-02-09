@@ -18,7 +18,7 @@ use std::time::Duration;
 /// Shimmer animation frames (flowing wave pattern)
 ///
 /// Uses box-drawing and block characters to create a flowing shimmer effect.
-/// Animation cycles through 8 frames for smooth 60 FPS rendering.
+/// Animation cycles through 8 frames at 100ms per frame (10 FPS).
 const SHIMMER_FRAMES: [&str; 8] = [
     "⣾⣀⣀⣀⣀⣀⣀⣀",
     "⣿⣦⣀⣀⣀⣀⣀⣀",

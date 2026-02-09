@@ -446,9 +446,9 @@ impl TuiState {
         self.app.start_extended_thinking();
     }
 
-    /// Append thinking content
-    pub fn append_thinking_content(&mut self, content: &str) {
-        self.app.append_thinking_content(content);
+    /// Note transition to receiving thinking content
+    pub fn append_thinking_content(&mut self) {
+        self.app.append_thinking_content();
     }
 
     /// Stop extended thinking phase

@@ -297,6 +297,9 @@ struct StreamingState {
 
     /// Extended thinking state (tracks thinking phases)
     thinking_state: ThinkingState,
+
+    /// Whether the "input blocked" debug message has been shown this thinking phase
+    shown_blocked_input_message: bool,
 }
 
 impl App {
@@ -521,6 +524,7 @@ impl App {
             token_count: TokenCount::default(),
             thinking: true, // Start in thinking mode
             thinking_state: ThinkingState::new(),
+            shown_blocked_input_message: false,
         });
         self.scroll_to_bottom();
         self.mark_dirty();
@@ -1404,27 +1408,44 @@ impl App {
 
     /// Start extended thinking phase (called when ContentBlockStart::Thinking received)
     pub fn start_extended_thinking(&mut self) {
-        if let Some(ref state) = self.streaming {
+        if let Some(ref mut state) = self.streaming {
             state.thinking_state.start_thinking();
-            self.push_debug_message("[THINKING] Extended thinking started".to_string());
-            self.mark_dirty();
+            state.shown_blocked_input_message = false;
         }
+        self.push_debug_message("[THINKING] Extended thinking started".to_string());
+        self.mark_dirty();
     }
 
-    /// Append thinking content (called when ThinkingDelta received)
-    pub fn append_thinking_content(&mut self, content: &str) {
-        if let Some(ref state) = self.streaming {
-            state.thinking_state.append_thinking(content);
-            self.mark_dirty();
+    /// Note transition to receiving thinking content (called when ThinkingDelta received)
+    pub fn append_thinking_content(&mut self) {
+        if let Some(ref mut state) = self.streaming {
+            state.thinking_state.append_thinking();
         }
+        self.mark_dirty();
     }
 
     /// Stop extended thinking phase (called when ContentBlockStop received)
     pub fn stop_extended_thinking(&mut self) {
-        if let Some(ref state) = self.streaming {
+        if let Some(ref mut state) = self.streaming {
             state.thinking_state.stop_thinking();
-            self.push_debug_message("[THINKING] Extended thinking stopped".to_string());
-            self.mark_dirty();
+            state.shown_blocked_input_message = false;
+        }
+        self.push_debug_message("[THINKING] Extended thinking stopped".to_string());
+        self.mark_dirty();
+    }
+
+    /// Check if the "input blocked" message has been shown this thinking phase
+    pub fn has_shown_blocked_input_message(&self) -> bool {
+        self.streaming
+            .as_ref()
+            .map(|s| s.shown_blocked_input_message)
+            .unwrap_or(false)
+    }
+
+    /// Set the "input blocked" message shown flag
+    pub fn set_shown_blocked_input_message(&mut self, shown: bool) {
+        if let Some(ref mut state) = self.streaming {
+            state.shown_blocked_input_message = shown;
         }
     }
 

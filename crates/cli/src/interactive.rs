@@ -62,8 +62,8 @@ enum StreamingChannelEvent {
     ThinkingUpdate { thinking: bool },
     /// Extended thinking started (ContentBlockStart::Thinking received)
     ExtendedThinkingStarted,
-    /// Extended thinking content delta
-    ExtendedThinkingDelta { thinking: String },
+    /// Extended thinking content delta received (signals phase transition)
+    ExtendedThinkingDelta,
     /// Extended thinking stopped (ContentBlockStop received)
     ExtendedThinkingStopped,
 }
@@ -435,9 +435,9 @@ impl InteractiveSession {
                             self.tui.start_extended_thinking();
                             self.tui.push_debug("[EXTENDED_THINKING] Started".to_string());
                         }
-                        StreamingChannelEvent::ExtendedThinkingDelta { thinking } => {
-                            // Extended thinking content received
-                            self.tui.append_thinking_content(&thinking);
+                        StreamingChannelEvent::ExtendedThinkingDelta => {
+                            // Extended thinking content received - note phase transition
+                            self.tui.append_thinking_content();
                         }
                         StreamingChannelEvent::ExtendedThinkingStopped => {
                             // Extended thinking phase ended
@@ -1469,10 +1469,8 @@ impl InteractiveSession {
                                 rustyclawd_core::client::types::ContentDelta::ThinkingDelta { thinking },
                             ..
                         } => {
-                            // Thinking content - send extended thinking delta
-                            let _ = event_tx.send(StreamingChannelEvent::ExtendedThinkingDelta {
-                                thinking: thinking.clone(),
-                            });
+                            // Thinking content - signal phase transition to receiving thoughts
+                            let _ = event_tx.send(StreamingChannelEvent::ExtendedThinkingDelta);
                             // Also send as text delta for display
                             let _ = event_tx.send(StreamingChannelEvent::TextDelta {
                                 text: thinking.clone(),
@@ -1501,7 +1499,14 @@ impl InteractiveSession {
                             }
                         }
                         StreamEvent::ContentBlockStop { .. } => {
-                            // Check if we were in an extended thinking block
+                            // Check if we were in an extended thinking block.
+                            //
+                            // NOTE: ContentBlockStop does not carry a block type. We rely on the
+                            // Anthropic streaming API sending block stops in the same order as
+                            // block starts, with no interleaving. The `in_thinking_block` boolean
+                            // assumes exactly one thinking block is active at a time. If the API
+                            // changes to allow interleaved or nested blocks, this tracking would
+                            // need to be replaced with a block-type stack.
                             if in_thinking_block {
                                 in_thinking_block = false;
                                 let _ = event_tx.send(StreamingChannelEvent::ExtendedThinkingStopped);
