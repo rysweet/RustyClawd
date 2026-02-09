@@ -1,4 +1,4 @@
-#  Task Management System with Dependency Tracking
+# Task Management System with Dependency Tracking
 
 This module implements a complete task management system with dependency tracking for RustyClawd.
 

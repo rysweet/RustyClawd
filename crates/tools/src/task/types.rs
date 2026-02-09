@@ -1,6 +1,16 @@
 //! Task types and data structures
 //!
 //! Defines core task types with dependency tracking support.
+//!
+//! **Note on naming**: This module defines `Task` and `TaskStatus` types that share
+//! names with the legacy `todo_write` module's types. The two are distinct:
+//!
+//! - `task::Task` has dependency tracking, soft delete, and richer status (incl. `Blocked`)
+//! - `todo_write::Task` is the simpler legacy type without dependency support
+//!
+//! Only `task::Task` and `task::TaskStatus` are re-exported at crate root.
+//! When using both modules within this crate, qualify with the module path:
+//! `crate::task::Task` vs `crate::todo_write::Task`.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;

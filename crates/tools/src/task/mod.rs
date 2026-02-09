@@ -44,6 +44,7 @@
 //! - **Regeneratable**: Can be rebuilt from this specification
 
 pub mod create;
+pub mod delete;
 pub mod get;
 pub mod list;
 pub mod state;
@@ -52,6 +53,7 @@ pub mod update;
 
 // Re-export public API (the "studs")
 pub use create::{TaskCreateOutput, TaskCreateParams, TaskCreateTool};
+pub use delete::{TaskDeleteOutput, TaskDeleteParams, TaskDeleteTool};
 pub use get::{TaskGetOutput, TaskGetParams, TaskGetTool};
 pub use list::{TaskListOutput, TaskListParams, TaskListTool};
 pub use state::{TaskStateError, TaskStore};

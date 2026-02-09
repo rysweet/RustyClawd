@@ -61,9 +61,10 @@ pub use read::ReadTool;
 pub use skill::SkillTool;
 pub use slash_command::SlashCommandTool;
 pub use task::{
-    Task, TaskCreateOutput, TaskCreateParams, TaskCreateTool, TaskDependencies, TaskGetOutput,
-    TaskGetParams, TaskGetTool, TaskId, TaskListOutput, TaskListParams, TaskListTool,
-    TaskStateError, TaskStatus, TaskStore, TaskUpdateOutput, TaskUpdateParams, TaskUpdateTool,
+    Task, TaskCreateOutput, TaskCreateParams, TaskCreateTool, TaskDeleteOutput, TaskDeleteParams,
+    TaskDeleteTool, TaskDependencies, TaskGetOutput, TaskGetParams, TaskGetTool, TaskId,
+    TaskListOutput, TaskListParams, TaskListTool, TaskStateError, TaskStatus, TaskStore,
+    TaskUpdateOutput, TaskUpdateParams, TaskUpdateTool,
 };
 pub use todo_write::TodoWriteTool;
 pub use types::{ExecutionContext, ToolContext, ToolEvent, ToolMetadata, ToolStream};

@@ -54,8 +54,11 @@ pub struct TaskStore;
 
 impl TaskStore {
     /// Create a new task
+    ///
+    /// Validates the proposed dependency graph on a read-only snapshot before
+    /// performing any mutations, preventing state corruption on cycle detection.
     pub fn create(task: Task) -> Result<Task, TaskStateError> {
-        let mut state = get_state().write().unwrap();
+        let mut state = get_state().write().expect("invariant: TASK_STATE lock not poisoned");
 
         // Check for duplicate ID
         if state.contains_key(&task.id) {
@@ -65,21 +68,27 @@ impl TaskStore {
         // Validate dependencies exist
         Self::validate_dependencies(&task, &state)?;
 
-        // Add bidirectional dependencies
+        // Validate on a snapshot: apply proposed changes to a clone, check for cycles
+        {
+            let mut snapshot = state.clone();
+            let task_with_deps = Self::sync_bidirectional_deps(task.clone(), &mut snapshot);
+            snapshot.insert(task_with_deps.id, task_with_deps);
+            Self::validate_no_cycles(&snapshot)?;
+        }
+
+        // Validation passed -- now apply mutations to real state
         let task_with_deps = Self::sync_bidirectional_deps(task, &mut state);
-
-        // Insert task
         state.insert(task_with_deps.id, task_with_deps.clone());
-
-        // Validate no cycles
-        Self::validate_no_cycles(&state)?;
 
         Ok(task_with_deps)
     }
 
     /// Update an existing task
+    ///
+    /// Validates the proposed dependency graph on a read-only snapshot before
+    /// performing any mutations, preventing state corruption on cycle detection.
     pub fn update(task: Task) -> Result<Task, TaskStateError> {
-        let mut state = get_state().write().unwrap();
+        let mut state = get_state().write().expect("invariant: TASK_STATE lock not poisoned");
 
         // Check task exists
         if !state.contains_key(&task.id) {
@@ -96,27 +105,32 @@ impl TaskStore {
         // Validate dependencies exist
         Self::validate_dependencies(&task, &state)?;
 
-        // Remove old bidirectional dependencies
+        // Validate on a snapshot: apply proposed changes to a clone, check for cycles
+        {
+            let mut snapshot = state.clone();
+            let old_task_clone = snapshot.get(&task.id).cloned();
+            if let Some(old_task) = old_task_clone {
+                Self::remove_bidirectional_deps(&old_task, &mut snapshot);
+            }
+            let task_with_deps = Self::sync_bidirectional_deps(task.clone(), &mut snapshot);
+            snapshot.insert(task_with_deps.id, task_with_deps);
+            Self::validate_no_cycles(&snapshot)?;
+        }
+
+        // Validation passed -- now apply mutations to real state
         let old_task_clone = state.get(&task.id).cloned();
         if let Some(old_task) = old_task_clone {
             Self::remove_bidirectional_deps(&old_task, &mut state);
         }
-
-        // Add new bidirectional dependencies
         let task_with_deps = Self::sync_bidirectional_deps(task, &mut state);
-
-        // Update task
         state.insert(task_with_deps.id, task_with_deps.clone());
-
-        // Validate no cycles
-        Self::validate_no_cycles(&state)?;
 
         Ok(task_with_deps)
     }
 
     /// Get a task by ID
     pub fn get(id: &TaskId) -> Result<Task, TaskStateError> {
-        let state = get_state().read().unwrap();
+        let state = get_state().read().expect("invariant: TASK_STATE lock not poisoned");
         state
             .get(id)
             .filter(|t| !t.deleted)
@@ -126,7 +140,7 @@ impl TaskStore {
 
     /// List all tasks (excluding deleted)
     pub fn list() -> Vec<Task> {
-        let state = get_state().read().unwrap();
+        let state = get_state().read().expect("invariant: TASK_STATE lock not poisoned");
         state
             .values()
             .filter(|t| !t.deleted)
@@ -136,13 +150,13 @@ impl TaskStore {
 
     /// List all tasks including deleted
     pub fn list_all() -> Vec<Task> {
-        let state = get_state().read().unwrap();
+        let state = get_state().read().expect("invariant: TASK_STATE lock not poisoned");
         state.values().cloned().collect()
     }
 
     /// Delete a task (soft delete)
     pub fn delete(id: &TaskId) -> Result<(), TaskStateError> {
-        let mut state = get_state().write().unwrap();
+        let mut state = get_state().write().expect("invariant: TASK_STATE lock not poisoned");
 
         let task = state
             .get_mut(id)
@@ -159,7 +173,7 @@ impl TaskStore {
     /// Clear all tasks (for testing)
     #[cfg(test)]
     pub fn clear() {
-        let mut state = get_state().write().unwrap();
+        let mut state = get_state().write().expect("invariant: TASK_STATE lock not poisoned");
         state.clear();
     }
 
@@ -272,7 +286,10 @@ impl TaskStore {
                     }
                 } else if rec_stack.contains(&dep_id) {
                     // Found cycle - return path from dep_id to current
-                    let cycle_start = path.iter().position(|&id| id == dep_id).unwrap();
+                    let cycle_start = path
+                        .iter()
+                        .position(|&id| id == dep_id)
+                        .expect("invariant: dep_id must be in path when present in rec_stack");
                     return Some(path[cycle_start..].to_vec());
                 }
             }
@@ -519,5 +536,83 @@ mod tests {
             result,
             Err(TaskStateError::CircularDependency(_))
         ));
+    }
+
+    #[test]
+    #[serial]
+    fn test_cycle_detection_does_not_corrupt_state() {
+        TaskStore::clear();
+
+        // Set up: Task1 blocks Task2 (valid)
+        let task1 = Task::new("Task 1".to_string(), "Working 1".to_string());
+        let task2 = Task::new("Task 2".to_string(), "Working 2".to_string());
+        let id1 = task1.id;
+        let id2 = task2.id;
+
+        TaskStore::create(task1).unwrap();
+        TaskStore::create(task2).unwrap();
+
+        let mut t1 = TaskStore::get(&id1).unwrap();
+        t1.dependencies.add_blocks(id2);
+        TaskStore::update(t1).unwrap();
+
+        // Snapshot state before the failed cycle attempt
+        let task1_before = TaskStore::get(&id1).unwrap();
+        let task2_before = TaskStore::get(&id2).unwrap();
+
+        // Attempt to create a cycle: Task2 blocks Task1 (should fail)
+        let mut t2 = TaskStore::get(&id2).unwrap();
+        t2.dependencies.add_blocks(id1);
+        let result = TaskStore::update(t2);
+        assert!(matches!(result, Err(TaskStateError::CircularDependency(_))));
+
+        // Verify state is unchanged after the failed cycle attempt
+        let task1_after = TaskStore::get(&id1).unwrap();
+        let task2_after = TaskStore::get(&id2).unwrap();
+
+        assert_eq!(task1_before.dependencies, task1_after.dependencies,
+            "Task1 dependencies should be unchanged after failed cycle check");
+        assert_eq!(task2_before.dependencies, task2_after.dependencies,
+            "Task2 dependencies should be unchanged after failed cycle check");
+    }
+
+    #[test]
+    #[serial]
+    fn test_create_cycle_does_not_corrupt_state() {
+        TaskStore::clear();
+
+        // Set up: A blocks B (valid chain)
+        let t1 = Task::new("Task A".to_string(), "Working A".to_string());
+        let t2 = Task::new("Task B".to_string(), "Working B".to_string());
+        let a_id = t1.id;
+        let b_id = t2.id;
+
+        TaskStore::create(t1).unwrap();
+        TaskStore::create(t2).unwrap();
+
+        let mut ta = TaskStore::get(&a_id).unwrap();
+        ta.dependencies.add_blocks(b_id);
+        TaskStore::update(ta).unwrap();
+
+        // Snapshot state before failed create
+        let count_before = TaskStore::list().len();
+        let ta_before = TaskStore::get(&a_id).unwrap();
+        let tb_before = TaskStore::get(&b_id).unwrap();
+
+        // Try to create Task C that is blocked_by B and blocks A (cycle: A->B->C->A)
+        let mut tc = Task::new("Task C".to_string(), "Working C".to_string());
+        tc.dependencies.add_blocked_by(b_id);
+        tc.dependencies.add_blocks(a_id);
+        let result = TaskStore::create(tc);
+
+        assert!(matches!(result, Err(TaskStateError::CircularDependency(_))));
+
+        // Verify state unchanged: no new task, existing tasks unmodified
+        assert_eq!(TaskStore::list().len(), count_before,
+            "Task count should be unchanged after failed create");
+        assert_eq!(TaskStore::get(&a_id).unwrap().dependencies, ta_before.dependencies,
+            "Task A dependencies should be unchanged after failed create");
+        assert_eq!(TaskStore::get(&b_id).unwrap().dependencies, tb_before.dependencies,
+            "Task B dependencies should be unchanged after failed create");
     }
 }
