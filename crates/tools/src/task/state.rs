@@ -58,7 +58,9 @@ impl TaskStore {
     /// Validates the proposed dependency graph on a read-only snapshot before
     /// performing any mutations, preventing state corruption on cycle detection.
     pub fn create(task: Task) -> Result<Task, TaskStateError> {
-        let mut state = get_state().write().expect("invariant: TASK_STATE lock not poisoned");
+        let mut state = get_state()
+            .write()
+            .expect("invariant: TASK_STATE lock not poisoned");
 
         // Check for duplicate ID
         if state.contains_key(&task.id) {
@@ -88,7 +90,9 @@ impl TaskStore {
     /// Validates the proposed dependency graph on a read-only snapshot before
     /// performing any mutations, preventing state corruption on cycle detection.
     pub fn update(task: Task) -> Result<Task, TaskStateError> {
-        let mut state = get_state().write().expect("invariant: TASK_STATE lock not poisoned");
+        let mut state = get_state()
+            .write()
+            .expect("invariant: TASK_STATE lock not poisoned");
 
         // Check task exists
         if !state.contains_key(&task.id) {
@@ -130,7 +134,9 @@ impl TaskStore {
 
     /// Get a task by ID
     pub fn get(id: &TaskId) -> Result<Task, TaskStateError> {
-        let state = get_state().read().expect("invariant: TASK_STATE lock not poisoned");
+        let state = get_state()
+            .read()
+            .expect("invariant: TASK_STATE lock not poisoned");
         state
             .get(id)
             .filter(|t| !t.deleted)
@@ -140,27 +146,27 @@ impl TaskStore {
 
     /// List all tasks (excluding deleted)
     pub fn list() -> Vec<Task> {
-        let state = get_state().read().expect("invariant: TASK_STATE lock not poisoned");
-        state
-            .values()
-            .filter(|t| !t.deleted)
-            .cloned()
-            .collect()
+        let state = get_state()
+            .read()
+            .expect("invariant: TASK_STATE lock not poisoned");
+        state.values().filter(|t| !t.deleted).cloned().collect()
     }
 
     /// List all tasks including deleted
     pub fn list_all() -> Vec<Task> {
-        let state = get_state().read().expect("invariant: TASK_STATE lock not poisoned");
+        let state = get_state()
+            .read()
+            .expect("invariant: TASK_STATE lock not poisoned");
         state.values().cloned().collect()
     }
 
     /// Delete a task (soft delete)
     pub fn delete(id: &TaskId) -> Result<(), TaskStateError> {
-        let mut state = get_state().write().expect("invariant: TASK_STATE lock not poisoned");
+        let mut state = get_state()
+            .write()
+            .expect("invariant: TASK_STATE lock not poisoned");
 
-        let task = state
-            .get_mut(id)
-            .ok_or(TaskStateError::TaskNotFound(*id))?;
+        let task = state.get_mut(id).ok_or(TaskStateError::TaskNotFound(*id))?;
 
         if task.deleted {
             return Err(TaskStateError::TaskDeleted(*id));
@@ -173,7 +179,9 @@ impl TaskStore {
     /// Clear all tasks (for testing)
     #[cfg(test)]
     pub fn clear() {
-        let mut state = get_state().write().expect("invariant: TASK_STATE lock not poisoned");
+        let mut state = get_state()
+            .write()
+            .expect("invariant: TASK_STATE lock not poisoned");
         state.clear();
     }
 
@@ -202,10 +210,7 @@ impl TaskStore {
     /// Sync bidirectional dependencies
     ///
     /// When task A blocks task B, ensure B.blocked_by contains A
-    fn sync_bidirectional_deps(
-        task: Task,
-        state: &mut HashMap<TaskId, Task>,
-    ) -> Task {
+    fn sync_bidirectional_deps(task: Task, state: &mut HashMap<TaskId, Task>) -> Task {
         // For each task this blocks, add this to their blocked_by
         for blocked_id in task.dependencies.blocks.clone() {
             if let Some(blocked_task) = state.get_mut(&blocked_id) {
@@ -248,13 +253,9 @@ impl TaskStore {
 
         for task in state.values() {
             if !visited.contains(&task.id) {
-                if let Some(cycle) = Self::detect_cycle_dfs(
-                    task.id,
-                    state,
-                    &mut visited,
-                    &mut rec_stack,
-                    &mut path,
-                ) {
+                if let Some(cycle) =
+                    Self::detect_cycle_dfs(task.id, state, &mut visited, &mut rec_stack, &mut path)
+                {
                     return Err(TaskStateError::CircularDependency(cycle));
                 }
             }
@@ -495,10 +496,7 @@ mod tests {
         task2.dependencies.add_blocks(id1);
         let result = TaskStore::update(task2);
 
-        assert!(matches!(
-            result,
-            Err(TaskStateError::CircularDependency(_))
-        ));
+        assert!(matches!(result, Err(TaskStateError::CircularDependency(_))));
     }
 
     #[test]
@@ -532,10 +530,7 @@ mod tests {
         task3.dependencies.add_blocks(id1);
         let result = TaskStore::update(task3);
 
-        assert!(matches!(
-            result,
-            Err(TaskStateError::CircularDependency(_))
-        ));
+        assert!(matches!(result, Err(TaskStateError::CircularDependency(_))));
     }
 
     #[test]
@@ -570,10 +565,14 @@ mod tests {
         let task1_after = TaskStore::get(&id1).unwrap();
         let task2_after = TaskStore::get(&id2).unwrap();
 
-        assert_eq!(task1_before.dependencies, task1_after.dependencies,
-            "Task1 dependencies should be unchanged after failed cycle check");
-        assert_eq!(task2_before.dependencies, task2_after.dependencies,
-            "Task2 dependencies should be unchanged after failed cycle check");
+        assert_eq!(
+            task1_before.dependencies, task1_after.dependencies,
+            "Task1 dependencies should be unchanged after failed cycle check"
+        );
+        assert_eq!(
+            task2_before.dependencies, task2_after.dependencies,
+            "Task2 dependencies should be unchanged after failed cycle check"
+        );
     }
 
     #[test]
@@ -608,11 +607,20 @@ mod tests {
         assert!(matches!(result, Err(TaskStateError::CircularDependency(_))));
 
         // Verify state unchanged: no new task, existing tasks unmodified
-        assert_eq!(TaskStore::list().len(), count_before,
-            "Task count should be unchanged after failed create");
-        assert_eq!(TaskStore::get(&a_id).unwrap().dependencies, ta_before.dependencies,
-            "Task A dependencies should be unchanged after failed create");
-        assert_eq!(TaskStore::get(&b_id).unwrap().dependencies, tb_before.dependencies,
-            "Task B dependencies should be unchanged after failed create");
+        assert_eq!(
+            TaskStore::list().len(),
+            count_before,
+            "Task count should be unchanged after failed create"
+        );
+        assert_eq!(
+            TaskStore::get(&a_id).unwrap().dependencies,
+            ta_before.dependencies,
+            "Task A dependencies should be unchanged after failed create"
+        );
+        assert_eq!(
+            TaskStore::get(&b_id).unwrap().dependencies,
+            tb_before.dependencies,
+            "Task B dependencies should be unchanged after failed create"
+        );
     }
 }
