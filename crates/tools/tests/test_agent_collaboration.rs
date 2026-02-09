@@ -24,7 +24,11 @@ async fn test_agent_collaboration_basic() {
     // Agent 1 starts working
     let agent1_id = "agent1_builder".to_string();
     registry
-        .register(agent1_id.clone(), "builder".to_string(), "sonnet".to_string())
+        .register(
+            agent1_id.clone(),
+            "builder".to_string(),
+            "sonnet".to_string(),
+        )
         .await
         .unwrap();
 
@@ -46,7 +50,11 @@ async fn test_agent_collaboration_basic() {
     // Agent 2 starts working (triggered by TaskCompleted event)
     let agent2_id = "agent2_tester".to_string();
     registry
-        .register(agent2_id.clone(), "tester".to_string(), "sonnet".to_string())
+        .register(
+            agent2_id.clone(),
+            "tester".to_string(),
+            "sonnet".to_string(),
+        )
         .await
         .unwrap();
 
@@ -183,11 +191,7 @@ async fn test_team_coordination_via_registry() {
 
     for (id, agent_type) in &agents {
         registry
-            .register(
-                id.to_string(),
-                agent_type.to_string(),
-                "sonnet".to_string(),
-            )
+            .register(id.to_string(), agent_type.to_string(), "sonnet".to_string())
             .await
             .unwrap();
     }
