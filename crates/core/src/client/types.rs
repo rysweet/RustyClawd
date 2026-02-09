@@ -501,12 +501,9 @@ mod fast_mode_tests {
 
     #[test]
     fn test_fast_mode_with_opus_46() {
-        let request = CreateMessageRequest::new(
-            "claude-opus-4-6",
-            vec![Message::user("Test")],
-            1024,
-        );
-        
+        let request =
+            CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Test")], 1024);
+
         let result = request.with_fast_mode(true);
         assert!(result.is_ok());
         let request = result.unwrap();
@@ -520,7 +517,7 @@ mod fast_mode_tests {
             vec![Message::user("Test")],
             1024,
         );
-        
+
         let result = request.with_fast_mode(true);
         assert!(result.is_err());
         assert_eq!(
@@ -536,7 +533,7 @@ mod fast_mode_tests {
             vec![Message::user("Test")],
             1024,
         );
-        
+
         let result = request.with_fast_mode(false);
         assert!(result.is_ok());
         let request = result.unwrap();
@@ -547,7 +544,7 @@ mod fast_mode_tests {
     fn test_config_with_fast_mode() {
         let api_key = ApiKey::new("sk-ant-test123".to_string()).unwrap();
         let config = Config::new(api_key).with_fast_mode(true);
-        
+
         assert!(config.fast_mode_enabled);
     }
 
@@ -555,7 +552,7 @@ mod fast_mode_tests {
     fn test_config_default_fast_mode_false() {
         let api_key = ApiKey::new("sk-ant-test123".to_string()).unwrap();
         let config = Config::new(api_key);
-        
+
         assert!(!config.fast_mode_enabled);
     }
 }
