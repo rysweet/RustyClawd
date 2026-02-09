@@ -331,7 +331,10 @@ mod tests {
         let blocked = TaskStatus::Blocked;
 
         assert_eq!(serde_json::to_string(&pending).unwrap(), "\"pending\"");
-        assert_eq!(serde_json::to_string(&in_progress).unwrap(), "\"in_progress\"");
+        assert_eq!(
+            serde_json::to_string(&in_progress).unwrap(),
+            "\"in_progress\""
+        );
         assert_eq!(serde_json::to_string(&completed).unwrap(), "\"completed\"");
         assert_eq!(serde_json::to_string(&blocked).unwrap(), "\"blocked\"");
     }
