@@ -8,6 +8,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::str::FromStr;
 
 /// Memory type classification for organizational purposes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -28,19 +29,6 @@ pub enum MemoryType {
 }
 
 impl MemoryType {
-    /// Convert from string representation
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s {
-            "conversation" => Some(Self::Conversation),
-            "decision" => Some(Self::Decision),
-            "pattern" => Some(Self::Pattern),
-            "context" => Some(Self::Context),
-            "learning" => Some(Self::Learning),
-            "artifact" => Some(Self::Artifact),
-            _ => None,
-        }
-    }
-
     /// Convert to string representation
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -50,6 +38,22 @@ impl MemoryType {
             Self::Context => "context",
             Self::Learning => "learning",
             Self::Artifact => "artifact",
+        }
+    }
+}
+
+impl FromStr for MemoryType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "conversation" => Ok(Self::Conversation),
+            "decision" => Ok(Self::Decision),
+            "pattern" => Ok(Self::Pattern),
+            "context" => Ok(Self::Context),
+            "learning" => Ok(Self::Learning),
+            "artifact" => Ok(Self::Artifact),
+            _ => Err(format!("Invalid memory type: {}", s)),
         }
     }
 }
@@ -67,22 +71,25 @@ pub enum MemoryScope {
 }
 
 impl MemoryScope {
-    /// Convert from string representation
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s {
-            "local" => Some(Self::Local),
-            "project" => Some(Self::Project),
-            "user" => Some(Self::User),
-            _ => None,
-        }
-    }
-
     /// Convert to string representation
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Local => "local",
             Self::Project => "project",
             Self::User => "user",
+        }
+    }
+}
+
+impl FromStr for MemoryScope {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "local" => Ok(Self::Local),
+            "project" => Ok(Self::Project),
+            "user" => Ok(Self::User),
+            _ => Err(format!("Invalid memory scope: {}", s)),
         }
     }
 }
@@ -211,7 +218,7 @@ impl MemoryEntry {
 
     /// Check if this memory has expired
     pub fn is_expired(&self) -> bool {
-        self.expires_at.map_or(false, |exp| exp < Utc::now())
+        self.expires_at.is_some_and(|exp| exp < Utc::now())
     }
 }
 
@@ -329,9 +336,9 @@ mod tests {
 
     #[test]
     fn test_memory_type_conversions() {
-        assert_eq!(MemoryType::from_str("decision"), Some(MemoryType::Decision));
+        assert_eq!("decision".parse::<MemoryType>().ok(), Some(MemoryType::Decision));
         assert_eq!(MemoryType::Decision.as_str(), "decision");
-        assert_eq!(MemoryType::from_str("invalid"), None);
+        assert!("invalid".parse::<MemoryType>().is_err());
     }
 
     #[test]
