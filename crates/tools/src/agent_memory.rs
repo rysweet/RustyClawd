@@ -215,10 +215,7 @@ impl AgentMemory {
             MemoryScope::Project => {
                 let pid = project_id.ok_or("Project ID required for project scope")?;
                 let mut memory = self.project_memory.lock().await;
-                Ok(memory
-                    .get_mut(pid)
-                    .and_then(|m| m.remove(key))
-                    .is_some())
+                Ok(memory.get_mut(pid).and_then(|m| m.remove(key)).is_some())
             }
             MemoryScope::Local => {
                 let mut memory = self.local_memory.lock().await;
@@ -370,12 +367,7 @@ mod tests {
 
         // Agent2 in same project can read it
         let entry = memory
-            .get(
-                MemoryScope::Project,
-                "project_key",
-                &agent2,
-                Some(&project),
-            )
+            .get(MemoryScope::Project, "project_key", &agent2, Some(&project))
             .await
             .unwrap()
             .unwrap();
@@ -534,10 +526,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_memory_entry_update() {
-        let mut entry = MemoryEntry::new(
-            serde_json::json!({"count": 1}),
-            "agent1".to_string(),
-        );
+        let mut entry = MemoryEntry::new(serde_json::json!({"count": 1}), "agent1".to_string());
 
         let original_updated_at = entry.updated_at;
 
@@ -570,9 +559,7 @@ mod tests {
         assert!(result.unwrap_err().contains("Project ID required"));
 
         // Get without project_id should fail
-        let result = memory
-            .get(MemoryScope::Project, "key", &agent, None)
-            .await;
+        let result = memory.get(MemoryScope::Project, "key", &agent, None).await;
         assert!(result.is_err());
     }
 

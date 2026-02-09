@@ -536,10 +536,7 @@ impl HookContext {
         agent_id: String,
     ) -> Self {
         let mut additional = HashMap::new();
-        additional.insert(
-            "agent_id".to_string(),
-            serde_json::Value::String(agent_id),
-        );
+        additional.insert("agent_id".to_string(), serde_json::Value::String(agent_id));
         Self {
             session_id,
             transcript_path,
@@ -569,10 +566,7 @@ impl HookContext {
         agent_type: String,
     ) -> Self {
         let mut additional = HashMap::new();
-        additional.insert(
-            "agent_id".to_string(),
-            serde_json::Value::String(agent_id),
-        );
+        additional.insert("agent_id".to_string(), serde_json::Value::String(agent_id));
         additional.insert(
             "agent_type".to_string(),
             serde_json::Value::String(agent_type),
