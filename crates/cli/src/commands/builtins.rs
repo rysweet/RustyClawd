@@ -1073,8 +1073,17 @@ impl BuiltinCommands {
     // ============================================================================
 
     /// /fast - Toggle fast mode (Opus 4.6 only)
+    ///
+    /// Returns a marker string for TUI integration. The TUI handler in
+    /// interactive.rs must detect this marker and toggle `Config.fast_mode_enabled`.
+    ///
+    /// NOTE: TUI handler is NOT yet wired up. This follows the same pattern as
+    /// `[[OPEN_PERMISSIONS_MODAL]]` from the /permissions command. Until the TUI
+    /// handler is implemented, this command will print the marker string literally.
+    /// TUI integration is tracked as follow-up work.
     fn fast_command() -> String {
-        // Return special marker that indicates fast mode toggle requested
+        // Return special marker that indicates fast mode toggle requested.
+        // TUI handler integration is a follow-up task.
         "[[TOGGLE_FAST_MODE]]".to_string()
     }
 }

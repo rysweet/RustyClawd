@@ -203,19 +203,58 @@ impl Client {
         }
     }
 
+    /// Build common headers for API requests, including conditional beta headers.
+    fn build_request_headers(
+        &self,
+        request: &CreateMessageRequest,
+    ) -> reqwest::header::HeaderMap {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            "x-api-key",
+            self.config
+                .api_key
+                .expose_secret()
+                .expose()
+                .parse()
+                .expect("API key should be a valid header value"),
+        );
+        headers.insert(
+            "anthropic-version",
+            self.config
+                .api_version
+                .parse()
+                .expect("API version should be a valid header value"),
+        );
+        headers.insert("content-type", "application/json".parse().unwrap());
+
+        // Add fast mode beta header when speed is set to "fast"
+        if request.requires_fast_mode_beta() {
+            headers.insert(
+                "anthropic-beta",
+                "fast-mode-2026-02-01".parse().unwrap(),
+            );
+        }
+
+        headers
+    }
+
     /// Internal method to execute a single message request without retry
     async fn create_message_internal(
         &self,
         request: &CreateMessageRequest,
     ) -> ClientResult<MessageResponse> {
+        // Validate request before sending
+        request
+            .validate()
+            .map_err(|e| ClientError::Unknown(e))?;
+
         let url = format!("{}/v1/messages", self.config.api_url);
+        let headers = self.build_request_headers(request);
 
         let response = self
             .http_client
             .post(&url)
-            .header("x-api-key", self.config.api_key.expose_secret().expose())
-            .header("anthropic-version", &self.config.api_version)
-            .header("content-type", "application/json")
+            .headers(headers)
             .json(request)
             .send()
             .await?;
@@ -269,15 +308,19 @@ impl Client {
         &self,
         request: &CreateMessageRequest,
     ) -> ClientResult<impl Stream<Item = ClientResult<StreamEvent>>> {
+        // Validate request before sending
+        request
+            .validate()
+            .map_err(|e| ClientError::Unknown(e))?;
+
         let url = format!("{}/v1/messages", self.config.api_url);
+        let mut headers = self.build_request_headers(request);
+        headers.insert("accept", "text/event-stream".parse().unwrap());
 
         let response = self
             .http_client
             .post(&url)
-            .header("x-api-key", self.config.api_key.expose_secret().expose())
-            .header("anthropic-version", &self.config.api_version)
-            .header("content-type", "application/json")
-            .header("accept", "text/event-stream")
+            .headers(headers)
             .json(request)
             .send()
             .await?;

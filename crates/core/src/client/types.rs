@@ -188,9 +188,10 @@ pub struct CreateMessageRequest {
     /// Extended thinking configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking: Option<ThinkingConfig>,
-    /// Fast mode (Opus 4.6 only)
+    /// Speed mode: "fast" for fast mode (Opus 4.6 only), or None for standard speed.
+    /// Requires beta header `anthropic-beta: fast-mode-2026-02-01` when set to "fast".
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub fast_mode: Option<bool>,
+    pub speed: Option<String>,
 }
 
 /// Request metadata
@@ -231,6 +232,9 @@ pub enum ContentBlock {
 pub struct Usage {
     pub input_tokens: u32,
     pub output_tokens: u32,
+    /// Speed used for the response: "fast" or "standard" (when fast mode beta is active)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub speed: Option<String>,
 }
 
 /// Complete message response (non-streaming)
@@ -358,7 +362,7 @@ impl CreateMessageRequest {
             tool_choice: None,
             extra_tool_schemas: None,
             thinking: None,
-            fast_mode: None,
+            speed: None,
         }
     }
 
@@ -424,15 +428,37 @@ impl CreateMessageRequest {
 
     /// Builder: Enable fast mode (Opus 4.6 only)
     ///
-    /// # Errors
-    /// Returns error if fast_mode is enabled for non-Opus 4.6 models
-    pub fn with_fast_mode(mut self, enabled: bool) -> Result<Self, &'static str> {
-        // Validate model supports fast mode
-        if enabled && !self.model.contains("claude-opus-4-6") {
-            return Err("Fast mode only supported on claude-opus-4-6 model");
+    /// Sets `speed` to `"fast"` when enabled, or clears it when disabled.
+    /// Model validation happens at send time via `validate()`.
+    pub fn with_speed(mut self, fast: bool) -> Self {
+        if fast {
+            self.speed = Some("fast".to_string());
+        } else {
+            self.speed = None;
         }
-        self.fast_mode = Some(enabled);
-        Ok(self)
+        self
+    }
+
+    /// Validate the request before sending.
+    ///
+    /// Returns an error message if the request is invalid.
+    /// Called automatically by the client before making API requests.
+    pub fn validate(&self) -> Result<(), String> {
+        // Fast mode is only supported on Opus 4.6 models
+        if self.speed.as_deref() == Some("fast")
+            && !self.model.starts_with("claude-opus-4-6")
+        {
+            return Err(
+                "Fast mode (speed: \"fast\") is only supported on claude-opus-4-6 models"
+                    .to_string(),
+            );
+        }
+        Ok(())
+    }
+
+    /// Returns true if this request requires the fast mode beta header.
+    pub fn requires_fast_mode_beta(&self) -> bool {
+        self.speed.as_deref() == Some("fast")
     }
 }
 
@@ -500,44 +526,106 @@ mod fast_mode_tests {
     use crate::client::{ApiKey, Config};
 
     #[test]
-    fn test_fast_mode_with_opus_46() {
+    fn test_speed_fast_with_opus_46() {
+        let request =
+            CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Test")], 1024)
+                .with_speed(true);
+
+        assert_eq!(request.speed, Some("fast".to_string()));
+        assert!(request.validate().is_ok());
+        assert!(request.requires_fast_mode_beta());
+    }
+
+    #[test]
+    fn test_speed_fast_with_dated_opus_46_model() {
+        // Model IDs may include dates, e.g. "claude-opus-4-6-20260201"
+        let request = CreateMessageRequest::new(
+            "claude-opus-4-6-20260201",
+            vec![Message::user("Test")],
+            1024,
+        )
+        .with_speed(true);
+
+        assert_eq!(request.speed, Some("fast".to_string()));
+        assert!(request.validate().is_ok());
+    }
+
+    #[test]
+    fn test_speed_fast_with_non_opus_fails_validation() {
+        let request = CreateMessageRequest::new(
+            "claude-3-5-sonnet-20241022",
+            vec![Message::user("Test")],
+            1024,
+        )
+        .with_speed(true);
+
+        let result = request.validate();
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("only supported on claude-opus-4-6"));
+    }
+
+    #[test]
+    fn test_speed_disabled_works_with_any_model() {
+        let request = CreateMessageRequest::new(
+            "claude-3-5-sonnet-20241022",
+            vec![Message::user("Test")],
+            1024,
+        )
+        .with_speed(false);
+
+        assert_eq!(request.speed, None);
+        assert!(request.validate().is_ok());
+        assert!(!request.requires_fast_mode_beta());
+    }
+
+    #[test]
+    fn test_speed_fast_builder_chains() {
+        // Verify with_speed returns Self and can be chained
+        let request =
+            CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Test")], 1024)
+                .with_speed(true)
+                .with_stream(true)
+                .with_temperature(0.7);
+
+        assert_eq!(request.speed, Some("fast".to_string()));
+        assert!(request.stream);
+        assert_eq!(request.temperature, Some(0.7));
+    }
+
+    #[test]
+    fn test_speed_serialization() {
+        let request =
+            CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Test")], 1024)
+                .with_speed(true);
+
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains(r#""speed":"fast""#));
+        assert!(!json.contains("fast_mode"));
+    }
+
+    #[test]
+    fn test_speed_none_not_serialized() {
         let request =
             CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Test")], 1024);
 
-        let result = request.with_fast_mode(true);
-        assert!(result.is_ok());
-        let request = result.unwrap();
-        assert_eq!(request.fast_mode, Some(true));
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(!json.contains("speed"));
     }
 
     #[test]
-    fn test_fast_mode_with_non_opus_fails() {
+    fn test_model_matching_rejects_substring() {
+        // "my-custom-claude-opus-4-6-proxy" should NOT pass because starts_with is used
         let request = CreateMessageRequest::new(
-            "claude-3-5-sonnet-20241022",
+            "my-custom-claude-opus-4-6-proxy",
             vec![Message::user("Test")],
             1024,
-        );
+        )
+        .with_speed(true);
 
-        let result = request.with_fast_mode(true);
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            "Fast mode only supported on claude-opus-4-6 model"
-        );
-    }
-
-    #[test]
-    fn test_fast_mode_disabled_works_with_any_model() {
-        let request = CreateMessageRequest::new(
-            "claude-3-5-sonnet-20241022",
-            vec![Message::user("Test")],
-            1024,
-        );
-
-        let result = request.with_fast_mode(false);
-        assert!(result.is_ok());
-        let request = result.unwrap();
-        assert_eq!(request.fast_mode, Some(false));
+        let result = request.validate();
+        assert!(result.is_err(), "Substring model name should be rejected");
     }
 
     #[test]
