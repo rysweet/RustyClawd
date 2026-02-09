@@ -177,10 +177,9 @@ impl Database {
     pub fn store(&self, entry: &MemoryEntry) -> Result<String> {
         let conn = self.lock_conn()?;
 
-        let tags_json = serde_json::to_string(&entry.tags)
-            .context("Failed to serialize tags")?;
-        let metadata_json = serde_json::to_string(&entry.metadata)
-            .context("Failed to serialize metadata")?;
+        let tags_json = serde_json::to_string(&entry.tags).context("Failed to serialize tags")?;
+        let metadata_json =
+            serde_json::to_string(&entry.metadata).context("Failed to serialize metadata")?;
 
         conn.execute(
             "INSERT INTO memory_entries (
@@ -219,15 +218,15 @@ impl Database {
     pub fn update(&self, entry: &MemoryEntry) -> Result<bool> {
         let conn = self.lock_conn()?;
 
-        let tags_json = serde_json::to_string(&entry.tags)
-            .context("Failed to serialize tags")?;
-        let metadata_json = serde_json::to_string(&entry.metadata)
-            .context("Failed to serialize metadata")?;
+        let tags_json = serde_json::to_string(&entry.tags).context("Failed to serialize tags")?;
+        let metadata_json =
+            serde_json::to_string(&entry.metadata).context("Failed to serialize metadata")?;
 
         let now = chrono::Utc::now().to_rfc3339();
 
-        let rows_affected = conn.execute(
-            "UPDATE memory_entries SET
+        let rows_affected = conn
+            .execute(
+                "UPDATE memory_entries SET
                 memory_type = ?1,
                 scope = ?2,
                 title = ?3,
@@ -239,21 +238,21 @@ impl Database {
                 updated_at = ?9,
                 expires_at = ?10
             WHERE id = ?11",
-            params![
-                entry.memory_type.as_str(),
-                entry.scope.as_str(),
-                &entry.title,
-                &entry.content,
-                entry.importance,
-                tags_json,
-                metadata_json,
-                &entry.parent_id,
-                now,
-                entry.expires_at.map(|dt| dt.to_rfc3339()),
-                &entry.id,
-            ],
-        )
-        .with_context(|| format!("Failed to update memory entry: {}", entry.id))?;
+                params![
+                    entry.memory_type.as_str(),
+                    entry.scope.as_str(),
+                    &entry.title,
+                    &entry.content,
+                    entry.importance,
+                    tags_json,
+                    metadata_json,
+                    &entry.parent_id,
+                    now,
+                    entry.expires_at.map(|dt| dt.to_rfc3339()),
+                    &entry.id,
+                ],
+            )
+            .with_context(|| format!("Failed to update memory entry: {}", entry.id))?;
 
         if rows_affected > 0 {
             debug!("Updated memory entry: {}", entry.id);
@@ -414,11 +413,8 @@ impl Database {
     pub fn stats(&self) -> Result<MemoryStats> {
         let conn = self.lock_conn()?;
 
-        let total_entries: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM memory_entries",
-            [],
-            |row| row.get(0),
-        )?;
+        let total_entries: i64 =
+            conn.query_row("SELECT COUNT(*) FROM memory_entries", [], |row| row.get(0))?;
 
         let total_size: i64 = conn.query_row(
             "SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size()",
