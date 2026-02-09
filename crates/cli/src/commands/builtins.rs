@@ -35,7 +35,9 @@ impl BuiltinCommands {
             // P1 Priority commands
             "usage" | "output-style" | "login" | "logout" | "privacy-settings" |
             // P2 Priority commands
-            "statusline" | "terminal-setup" | "vim" | "bug" | "pr_comments"
+            "statusline" | "terminal-setup" | "vim" | "bug" | "pr_comments" |
+            // Performance
+            "fast"
         )
     }
 
@@ -113,6 +115,9 @@ impl BuiltinCommands {
             "vim" => Some(Self::vim_command()),
             "bug" => Some(Self::bug_command()),
             "pr_comments" => Some(Self::pr_comments_command(&cmd.args_str)),
+
+            // Performance
+            "fast" => Some(Self::fast_command()),
 
             _ => None,
         }
@@ -1062,6 +1067,16 @@ impl BuiltinCommands {
                 .to_string(),
         }
     }
+
+    // ============================================================================
+    // Performance Commands
+    // ============================================================================
+
+    /// /fast - Toggle fast mode (Opus 4.6 only)
+    fn fast_command() -> String {
+        // Return special marker that indicates fast mode toggle requested
+        "[[TOGGLE_FAST_MODE]]".to_string()
+    }
 }
 
 #[cfg(test)]
@@ -1738,5 +1753,24 @@ mod tests {
         assert!(result.is_some());
         let output = result.unwrap();
         assert!(output.contains("Invalid") || output.contains("Usage"));
+    }
+
+    // ============================================================================
+    // Performance Commands Tests
+    // ============================================================================
+
+    #[test]
+    fn test_is_builtin_fast() {
+        assert!(BuiltinCommands::is_builtin("fast"));
+    }
+
+    #[test]
+    fn test_execute_fast() {
+        let cmd = Command::new("fast".to_string(), None);
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        let output = result.unwrap();
+        assert!(output.contains("[[TOGGLE_FAST_MODE]]"));
     }
 }

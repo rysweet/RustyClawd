@@ -188,6 +188,9 @@ pub struct CreateMessageRequest {
     /// Extended thinking configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking: Option<ThinkingConfig>,
+    /// Fast mode (Opus 4.6 only)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fast_mode: Option<bool>,
 }
 
 /// Request metadata
@@ -355,6 +358,7 @@ impl CreateMessageRequest {
             tool_choice: None,
             extra_tool_schemas: None,
             thinking: None,
+            fast_mode: None,
         }
     }
 
@@ -416,6 +420,19 @@ impl CreateMessageRequest {
     pub fn with_extra_tool_schemas(mut self, schemas: Vec<ExtraToolSchema>) -> Self {
         self.extra_tool_schemas = Some(schemas);
         self
+    }
+
+    /// Builder: Enable fast mode (Opus 4.6 only)
+    ///
+    /// # Errors
+    /// Returns error if fast_mode is enabled for non-Opus 4.6 models
+    pub fn with_fast_mode(mut self, enabled: bool) -> Result<Self, &'static str> {
+        // Validate model supports fast mode
+        if enabled && !self.model.contains("claude-opus-4-6") {
+            return Err("Fast mode only supported on claude-opus-4-6 model");
+        }
+        self.fast_mode = Some(enabled);
+        Ok(self)
     }
 }
 
