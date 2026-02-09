@@ -471,8 +471,8 @@ mod integration_tests {
         // Simulate binary names for different platforms
         let base_name = "rusty";
 
-        let expected_binary = if platform.binary_extension.is_some() {
-            format!("{}{}", base_name, platform.binary_extension.unwrap())
+        let expected_binary = if let Some(ext) = &platform.binary_extension {
+            format!("{}{}", base_name, ext)
         } else {
             base_name.to_string()
         };
