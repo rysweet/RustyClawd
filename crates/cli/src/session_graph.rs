@@ -121,8 +121,7 @@ impl SessionGraph {
             .join("claude");
 
         // Ensure config directory exists
-        fs::create_dir_all(&config_dir)
-            .context("Failed to create config directory")?;
+        fs::create_dir_all(&config_dir).context("Failed to create config directory")?;
 
         Ok(config_dir.join(GRAPH_FILENAME))
     }
@@ -154,15 +153,23 @@ impl SessionGraph {
 
     /// Save graph to file (atomic write via temp file + rename)
     fn save(&self) -> Result<()> {
-        let contents = serde_json::to_string_pretty(self)
-            .context("Failed to serialize session graph")?;
+        let contents =
+            serde_json::to_string_pretty(self).context("Failed to serialize session graph")?;
 
         let tmp_path = self.storage_path.with_extension("json.tmp");
-        fs::write(&tmp_path, &contents)
-            .with_context(|| format!("Failed to write temp session graph to {}", tmp_path.display()))?;
+        fs::write(&tmp_path, &contents).with_context(|| {
+            format!(
+                "Failed to write temp session graph to {}",
+                tmp_path.display()
+            )
+        })?;
 
-        fs::rename(&tmp_path, &self.storage_path)
-            .with_context(|| format!("Failed to rename temp file to {}", self.storage_path.display()))?;
+        fs::rename(&tmp_path, &self.storage_path).with_context(|| {
+            format!(
+                "Failed to rename temp file to {}",
+                self.storage_path.display()
+            )
+        })?;
 
         Ok(())
     }
@@ -199,10 +206,7 @@ impl SessionGraph {
                 self.edges.remove(child);
             }
 
-            anyhow::bail!(
-                "Adding edge would create cycle: {}",
-                cycle.format()
-            );
+            anyhow::bail!("Adding edge would create cycle: {}", cycle.format());
         }
 
         // Check maximum depth
@@ -416,7 +420,10 @@ mod tests {
         graph.add_edge("child", "parent").unwrap();
 
         assert_eq!(graph.get_parent("child"), Some("parent"));
-        assert_eq!(graph.get_children("parent"), Some(&["child".to_string()][..]));
+        assert_eq!(
+            graph.get_children("parent"),
+            Some(&["child".to_string()][..])
+        );
     }
 
     #[test]
@@ -506,7 +513,10 @@ mod tests {
         graph.remove_session("child-1").unwrap();
 
         assert!(graph.get_parent("child-1").is_none());
-        assert_eq!(graph.get_children("parent"), Some(&["child-2".to_string()][..]));
+        assert_eq!(
+            graph.get_children("parent"),
+            Some(&["child-2".to_string()][..])
+        );
     }
 
     #[test]
@@ -547,7 +557,10 @@ mod tests {
         assert!(graph.get_children("parent-1").is_none());
 
         // parent-2 should have child
-        assert_eq!(graph.get_children("parent-2"), Some(&["child".to_string()][..]));
+        assert_eq!(
+            graph.get_children("parent-2"),
+            Some(&["child".to_string()][..])
+        );
     }
 
     #[test]
