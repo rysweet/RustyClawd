@@ -148,6 +148,18 @@ impl HookRegistry {
                 .iter()
                 .map(|c| c.hooks.len())
                 .sum::<usize>()
+            + self
+                .configuration
+                .teammate_idle
+                .iter()
+                .map(|c| c.hooks.len())
+                .sum::<usize>()
+            + self
+                .configuration
+                .task_completed
+                .iter()
+                .map(|c| c.hooks.len())
+                .sum::<usize>()
     }
 }
 

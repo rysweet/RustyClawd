@@ -16,12 +16,26 @@ use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 
+/// Callback info passed when an agent completes a task
+#[derive(Debug, Clone)]
+pub struct AgentCompletionInfo {
+    pub agent_id: String,
+    pub agent_type: String,
+}
+
+/// Type alias for completion callback.
+/// Called when an agent transitions to Completed status.
+pub type CompletionCallback = Arc<dyn Fn(AgentCompletionInfo) + Send + Sync>;
+
 /// Registry for tracking background agent executions
 ///
 /// Uses Arc<Mutex<>> for thread-safe, concurrent access from multiple tools.
 /// Each agent maintains output buffers that are read by AgentOutput tool.
 pub struct AgentRegistry {
     agents: Arc<Mutex<HashMap<String, AgentHandle>>>,
+    /// Optional callback fired when an agent completes its task.
+    /// Set by the cli layer to fire TaskCompleted hook events.
+    on_task_completed: Arc<Mutex<Option<CompletionCallback>>>,
 }
 
 /// Status of a background agent
@@ -60,7 +74,15 @@ impl AgentRegistry {
     pub fn new() -> Self {
         Self {
             agents: Arc::new(Mutex::new(HashMap::new())),
+            on_task_completed: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Set a callback that fires when an agent completes its task.
+    /// This is used by the cli layer to fire TaskCompleted hook events.
+    pub async fn set_on_task_completed(&self, callback: CompletionCallback) {
+        let mut cb = self.on_task_completed.lock().await;
+        *cb = Some(callback);
     }
 
     /// Generate a unique agent ID
@@ -159,21 +181,37 @@ impl AgentRegistry {
         }
     }
 
-    /// Mark agent as completed
+    /// Mark agent as completed.
+    /// Fires the on_task_completed callback if one is registered.
     pub async fn mark_completed(&self, id: &str) -> Result<(), String> {
-        let mut agents = self.agents.lock().await;
-        if let Some(handle) = agents.get_mut(id) {
-            handle.status = AgentStatus::Completed;
-            handle.completed_at = Some(
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs(),
-            );
-            Ok(())
-        } else {
-            Err(format!("Agent not found: {}", id))
+        let completion_info = {
+            let mut agents = self.agents.lock().await;
+            if let Some(handle) = agents.get_mut(id) {
+                handle.status = AgentStatus::Completed;
+                handle.completed_at = Some(
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
+                );
+                Some(AgentCompletionInfo {
+                    agent_id: handle.id.clone(),
+                    agent_type: handle.agent_type.clone(),
+                })
+            } else {
+                return Err(format!("Agent not found: {}", id));
+            }
+        };
+
+        // Fire callback outside the agents lock to avoid deadlocks
+        if let Some(info) = completion_info {
+            let cb = self.on_task_completed.lock().await;
+            if let Some(callback) = cb.as_ref() {
+                callback(info);
+            }
         }
+
+        Ok(())
     }
 
     /// Mark agent as failed
@@ -236,6 +274,7 @@ impl Clone for AgentRegistry {
     fn clone(&self) -> Self {
         Self {
             agents: Arc::clone(&self.agents),
+            on_task_completed: Arc::clone(&self.on_task_completed),
         }
     }
 }
@@ -443,5 +482,57 @@ mod tests {
             .is_err());
         assert!(registry.get_status("fake").await.is_err());
         assert!(registry.remove("fake").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_task_completed_callback_fires() {
+        let registry = AgentRegistry::new();
+        let id = "callback_test_agent".to_string();
+
+        // Track callback invocations
+        let callback_fired = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let callback_agent_id = Arc::new(Mutex::new(String::new()));
+        let fired_clone = Arc::clone(&callback_fired);
+        let id_clone = Arc::clone(&callback_agent_id);
+
+        registry
+            .set_on_task_completed(Arc::new(move |info: AgentCompletionInfo| {
+                fired_clone.store(true, std::sync::atomic::Ordering::SeqCst);
+                // Use try_lock since we're in a sync callback
+                if let Ok(mut guard) = id_clone.try_lock() {
+                    *guard = info.agent_id.clone();
+                }
+            }))
+            .await;
+
+        registry
+            .register(id.clone(), "builder".to_string(), "sonnet".to_string())
+            .await
+            .unwrap();
+
+        // mark_completed should fire the callback
+        registry.mark_completed(&id).await.unwrap();
+
+        assert!(callback_fired.load(std::sync::atomic::Ordering::SeqCst));
+        let stored_id = callback_agent_id.lock().await;
+        assert_eq!(*stored_id, "callback_test_agent");
+    }
+
+    #[tokio::test]
+    async fn test_mark_completed_without_callback() {
+        // Ensure mark_completed works fine when no callback is set
+        let registry = AgentRegistry::new();
+        let id = "no_callback_agent".to_string();
+
+        registry
+            .register(id.clone(), "builder".to_string(), "sonnet".to_string())
+            .await
+            .unwrap();
+
+        // Should not panic or error
+        registry.mark_completed(&id).await.unwrap();
+
+        let status = registry.get_status(&id).await.unwrap();
+        assert!(matches!(status, AgentStatus::Completed));
     }
 }

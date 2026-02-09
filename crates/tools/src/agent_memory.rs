@@ -42,12 +42,13 @@ pub struct MemoryEntry {
 }
 
 impl MemoryEntry {
-    /// Create a new memory entry
+    /// Create a new memory entry.
+    /// Timestamps are in milliseconds since Unix epoch for precise LRU ordering.
     pub fn new(value: serde_json::Value, agent_id: String) -> Self {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_secs();
+            .as_millis() as u64;
         Self {
             value,
             created_at: now,
@@ -62,11 +63,16 @@ impl MemoryEntry {
         self.updated_at = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_secs();
+            .as_millis() as u64;
     }
 }
 
-/// Agent memory storage with scoped access
+/// Default maximum entries per scope (per agent for local, per project for project, total for user)
+const DEFAULT_MAX_ENTRIES_PER_SCOPE: usize = 1000;
+
+/// Agent memory storage with scoped access.
+/// Each scope has a configurable max_entries limit. When the limit is reached,
+/// the oldest entry (by updated_at timestamp) is evicted (LRU eviction).
 pub struct AgentMemory {
     /// User-scoped memory (shared across all agents for a user)
     user_memory: Arc<Mutex<HashMap<String, MemoryEntry>>>,
@@ -74,16 +80,46 @@ pub struct AgentMemory {
     project_memory: Arc<Mutex<HashMap<String, HashMap<String, MemoryEntry>>>>,
     /// Local agent memory (private to each agent)
     local_memory: Arc<Mutex<HashMap<String, HashMap<String, MemoryEntry>>>>,
+    /// Maximum entries per scope partition (per-agent for local, per-project for project, total for user)
+    max_entries_per_scope: usize,
 }
 
 impl AgentMemory {
-    /// Create a new agent memory system
+    /// Create a new agent memory system with default max entries (1000 per scope)
     pub fn new() -> Self {
+        Self::with_max_entries(DEFAULT_MAX_ENTRIES_PER_SCOPE)
+    }
+
+    /// Create a new agent memory system with a custom max entries limit per scope
+    pub fn with_max_entries(max_entries: usize) -> Self {
         Self {
             user_memory: Arc::new(Mutex::new(HashMap::new())),
             project_memory: Arc::new(Mutex::new(HashMap::new())),
             local_memory: Arc::new(Mutex::new(HashMap::new())),
+            max_entries_per_scope: max_entries,
         }
+    }
+
+    /// Get the configured max entries per scope
+    pub fn max_entries_per_scope(&self) -> usize {
+        self.max_entries_per_scope
+    }
+
+    /// Evict the oldest entry (by updated_at) from a HashMap if it exceeds max_entries.
+    /// Returns the evicted key, if any.
+    fn evict_oldest(map: &mut HashMap<String, MemoryEntry>, max_entries: usize) -> Option<String> {
+        if map.len() <= max_entries {
+            return None;
+        }
+        // Find the key with the smallest updated_at (LRU)
+        let oldest_key = map
+            .iter()
+            .min_by_key(|(_, entry)| entry.updated_at)
+            .map(|(k, _)| k.clone());
+        if let Some(ref key) = oldest_key {
+            map.remove(key);
+        }
+        oldest_key
     }
 
     /// Store a value in memory
@@ -105,24 +141,27 @@ impl AgentMemory {
     ) -> Result<(), String> {
         let entry = MemoryEntry::new(value, agent_id.clone());
 
+        let max = self.max_entries_per_scope;
         match scope {
             MemoryScope::User => {
                 let mut memory = self.user_memory.lock().await;
                 memory.insert(key, entry);
+                Self::evict_oldest(&mut memory, max);
                 Ok(())
             }
             MemoryScope::Project => {
                 let pid = project_id.ok_or("Project ID required for project scope")?;
                 let mut memory = self.project_memory.lock().await;
-                memory.entry(pid).or_insert_with(HashMap::new).insert(key, entry);
+                let project_map = memory.entry(pid).or_insert_with(HashMap::new);
+                project_map.insert(key, entry);
+                Self::evict_oldest(project_map, max);
                 Ok(())
             }
             MemoryScope::Local => {
                 let mut memory = self.local_memory.lock().await;
-                memory
-                    .entry(agent_id)
-                    .or_insert_with(HashMap::new)
-                    .insert(key, entry);
+                let agent_map = memory.entry(agent_id).or_insert_with(HashMap::new);
+                agent_map.insert(key, entry);
+                Self::evict_oldest(agent_map, max);
                 Ok(())
             }
         }
@@ -267,6 +306,7 @@ impl Clone for AgentMemory {
             user_memory: Arc::clone(&self.user_memory),
             project_memory: Arc::clone(&self.project_memory),
             local_memory: Arc::clone(&self.local_memory),
+            max_entries_per_scope: self.max_entries_per_scope,
         }
     }
 }
@@ -501,8 +541,8 @@ mod tests {
 
         let original_updated_at = entry.updated_at;
 
-        // Sleep to ensure different timestamp (at least 1 second for reliable test)
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        // Sleep to ensure different millisecond timestamp
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
         entry.update(serde_json::json!({"count": 2}));
 
@@ -543,5 +583,205 @@ mod tests {
 
         // Should be the same instance
         assert!(Arc::ptr_eq(&memory1, &memory2));
+    }
+
+    #[tokio::test]
+    async fn test_max_entries_per_scope_default() {
+        let memory = AgentMemory::new();
+        assert_eq!(memory.max_entries_per_scope(), 1000);
+    }
+
+    #[tokio::test]
+    async fn test_max_entries_per_scope_custom() {
+        let memory = AgentMemory::with_max_entries(5);
+        assert_eq!(memory.max_entries_per_scope(), 5);
+    }
+
+    #[tokio::test]
+    async fn test_user_scope_eviction() {
+        // Use a small limit to test eviction
+        let memory = AgentMemory::with_max_entries(3);
+        let agent = "agent1".to_string();
+
+        // Insert 3 entries (at limit)
+        for i in 0..3 {
+            memory
+                .set(
+                    MemoryScope::User,
+                    format!("key{}", i),
+                    serde_json::json!(i),
+                    agent.clone(),
+                    None,
+                )
+                .await
+                .unwrap();
+            // Small delay to ensure different timestamps for LRU ordering
+            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+        }
+
+        let keys = memory
+            .list_keys(MemoryScope::User, &agent, None)
+            .await
+            .unwrap();
+        assert_eq!(keys.len(), 3);
+
+        // Insert a 4th entry - should evict the oldest (key0)
+        memory
+            .set(
+                MemoryScope::User,
+                "key3".to_string(),
+                serde_json::json!(3),
+                agent.clone(),
+                None,
+            )
+            .await
+            .unwrap();
+
+        let keys = memory
+            .list_keys(MemoryScope::User, &agent, None)
+            .await
+            .unwrap();
+        assert_eq!(keys.len(), 3);
+        // key0 should have been evicted (oldest updated_at)
+        assert!(!keys.contains(&"key0".to_string()));
+        assert!(keys.contains(&"key1".to_string()));
+        assert!(keys.contains(&"key2".to_string()));
+        assert!(keys.contains(&"key3".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_local_scope_eviction() {
+        let memory = AgentMemory::with_max_entries(2);
+        let agent = "agent1".to_string();
+
+        memory
+            .set(
+                MemoryScope::Local,
+                "a".to_string(),
+                serde_json::json!("first"),
+                agent.clone(),
+                None,
+            )
+            .await
+            .unwrap();
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
+        memory
+            .set(
+                MemoryScope::Local,
+                "b".to_string(),
+                serde_json::json!("second"),
+                agent.clone(),
+                None,
+            )
+            .await
+            .unwrap();
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
+        // At limit (2). Insert a 3rd - should evict "a" (oldest)
+        memory
+            .set(
+                MemoryScope::Local,
+                "c".to_string(),
+                serde_json::json!("third"),
+                agent.clone(),
+                None,
+            )
+            .await
+            .unwrap();
+
+        let keys = memory
+            .list_keys(MemoryScope::Local, &agent, None)
+            .await
+            .unwrap();
+        assert_eq!(keys.len(), 2);
+        assert!(!keys.contains(&"a".to_string()));
+        assert!(keys.contains(&"b".to_string()));
+        assert!(keys.contains(&"c".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_project_scope_eviction() {
+        let memory = AgentMemory::with_max_entries(2);
+        let agent = "agent1".to_string();
+        let project = "proj1".to_string();
+
+        memory
+            .set(
+                MemoryScope::Project,
+                "x".to_string(),
+                serde_json::json!(1),
+                agent.clone(),
+                Some(project.clone()),
+            )
+            .await
+            .unwrap();
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
+        memory
+            .set(
+                MemoryScope::Project,
+                "y".to_string(),
+                serde_json::json!(2),
+                agent.clone(),
+                Some(project.clone()),
+            )
+            .await
+            .unwrap();
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
+        // Insert 3rd entry - evicts "x"
+        memory
+            .set(
+                MemoryScope::Project,
+                "z".to_string(),
+                serde_json::json!(3),
+                agent.clone(),
+                Some(project.clone()),
+            )
+            .await
+            .unwrap();
+
+        let keys = memory
+            .list_keys(MemoryScope::Project, &agent, Some(&project))
+            .await
+            .unwrap();
+        assert_eq!(keys.len(), 2);
+        assert!(!keys.contains(&"x".to_string()));
+        assert!(keys.contains(&"y".to_string()));
+        assert!(keys.contains(&"z".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_cross_project_memory_isolation() {
+        let memory = AgentMemory::new();
+        let agent = "agent1".to_string();
+
+        // Store data in project A
+        memory
+            .set(
+                MemoryScope::Project,
+                "secret".to_string(),
+                serde_json::json!({"data": "project_a_only"}),
+                agent.clone(),
+                Some("project_a".to_string()),
+            )
+            .await
+            .unwrap();
+
+        // Project B should not see project A's data
+        let result = memory
+            .get(MemoryScope::Project, "secret", &agent, Some("project_b"))
+            .await
+            .unwrap();
+        assert!(result.is_none());
+
+        // Project A can see its own data
+        let result = memory
+            .get(MemoryScope::Project, "secret", &agent, Some("project_a"))
+            .await
+            .unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().value["data"], "project_a_only");
     }
 }

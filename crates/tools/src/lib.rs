@@ -36,7 +36,10 @@ pub mod write;
 pub use agent::AgentTool;
 pub use agent_memory::{global_agent_memory, AgentMemory, MemoryEntry, MemoryScope};
 pub use agent_output::AgentOutputTool;
-pub use agent_registry::{global_agent_registry, AgentHandle, AgentRegistry, AgentStatus};
+pub use agent_registry::{
+    global_agent_registry, AgentCompletionInfo, AgentHandle, AgentRegistry, AgentStatus,
+    CompletionCallback,
+};
 pub use ask_user_question::AskUserQuestionTool;
 pub use bash::BashTool;
 pub use bash_output::BashOutputTool;

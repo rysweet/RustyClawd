@@ -526,6 +526,75 @@ impl HookContext {
         }
     }
 
+    /// Create context for TeammateIdle event.
+    /// Fires when an agent becomes idle and available for new tasks.
+    pub fn for_teammate_idle(
+        session_id: String,
+        transcript_path: String,
+        cwd: String,
+        permission_mode: String,
+        agent_id: String,
+    ) -> Self {
+        let mut additional = HashMap::new();
+        additional.insert(
+            "agent_id".to_string(),
+            serde_json::Value::String(agent_id),
+        );
+        Self {
+            session_id,
+            transcript_path,
+            cwd,
+            permission_mode,
+            hook_event_name: HookEvent::TeammateIdle.as_str().to_string(),
+            tool_name: None,
+            tool_use_id: None,
+            tool_params: None,
+            tool_result: None,
+            session_start_matcher: None,
+            session_end_reason: None,
+            notification_type: None,
+            user_prompt: None,
+            additional,
+        }
+    }
+
+    /// Create context for TaskCompleted event.
+    /// Fires when an agent completes its assigned task.
+    pub fn for_task_completed(
+        session_id: String,
+        transcript_path: String,
+        cwd: String,
+        permission_mode: String,
+        agent_id: String,
+        agent_type: String,
+    ) -> Self {
+        let mut additional = HashMap::new();
+        additional.insert(
+            "agent_id".to_string(),
+            serde_json::Value::String(agent_id),
+        );
+        additional.insert(
+            "agent_type".to_string(),
+            serde_json::Value::String(agent_type),
+        );
+        Self {
+            session_id,
+            transcript_path,
+            cwd,
+            permission_mode,
+            hook_event_name: HookEvent::TaskCompleted.as_str().to_string(),
+            tool_name: None,
+            tool_use_id: None,
+            tool_params: None,
+            tool_result: None,
+            session_start_matcher: None,
+            session_end_reason: None,
+            notification_type: None,
+            user_prompt: None,
+            additional,
+        }
+    }
+
     /// Set tool parameters
     pub fn with_tool_params(mut self, params: serde_json::Value) -> Self {
         self.tool_params = Some(params);
@@ -806,5 +875,44 @@ mod tests {
             output.permission_decision_reason,
             Some("Needs user review".to_string())
         );
+    }
+
+    #[test]
+    fn test_teammate_idle_context() {
+        let ctx = HookContext::for_teammate_idle(
+            "session-123".to_string(),
+            "/path/to/transcript".to_string(),
+            "/cwd".to_string(),
+            "auto".to_string(),
+            "agent-42".to_string(),
+        );
+        assert_eq!(ctx.hook_event_name, "TeammateIdle");
+        assert_eq!(
+            ctx.additional.get("agent_id").unwrap(),
+            &serde_json::Value::String("agent-42".to_string())
+        );
+        assert!(ctx.tool_name.is_none());
+    }
+
+    #[test]
+    fn test_task_completed_context() {
+        let ctx = HookContext::for_task_completed(
+            "session-456".to_string(),
+            "/path/to/transcript".to_string(),
+            "/cwd".to_string(),
+            "auto".to_string(),
+            "agent-99".to_string(),
+            "builder".to_string(),
+        );
+        assert_eq!(ctx.hook_event_name, "TaskCompleted");
+        assert_eq!(
+            ctx.additional.get("agent_id").unwrap(),
+            &serde_json::Value::String("agent-99".to_string())
+        );
+        assert_eq!(
+            ctx.additional.get("agent_type").unwrap(),
+            &serde_json::Value::String("builder".to_string())
+        );
+        assert!(ctx.tool_name.is_none());
     }
 }
