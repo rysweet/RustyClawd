@@ -54,6 +54,10 @@ struct Cli {
     #[arg(short = 'r', long = "resume")]
     resume: Option<Option<String>>,
 
+    /// Resume session linked to GitHub PR number
+    #[arg(long = "from-pr")]
+    from_pr: Option<u64>,
+
     /// Model to use (e.g., "claude-sonnet-4-5-20250929")
     #[arg(long)]
     model: Option<String>,
