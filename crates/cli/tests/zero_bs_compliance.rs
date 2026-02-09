@@ -13,7 +13,7 @@
 #![allow(unused_variables)]
 #![allow(unused_mut)]
 #![allow(clippy::unnecessary_map_or)]
-#![allow(clippy::needless_if)]
+#![allow(clippy::needless_ifs)]
 
 use std::fs;
 use std::path::{Path, PathBuf};
