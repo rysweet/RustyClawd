@@ -152,13 +152,17 @@ impl SessionGraph {
         Ok(graph)
     }
 
-    /// Save graph to file
+    /// Save graph to file (atomic write via temp file + rename)
     fn save(&self) -> Result<()> {
         let contents = serde_json::to_string_pretty(self)
             .context("Failed to serialize session graph")?;
 
-        fs::write(&self.storage_path, contents)
-            .with_context(|| format!("Failed to write session graph to {}", self.storage_path.display()))?;
+        let tmp_path = self.storage_path.with_extension("json.tmp");
+        fs::write(&tmp_path, &contents)
+            .with_context(|| format!("Failed to write temp session graph to {}", tmp_path.display()))?;
+
+        fs::rename(&tmp_path, &self.storage_path)
+            .with_context(|| format!("Failed to rename temp file to {}", self.storage_path.display()))?;
 
         Ok(())
     }
@@ -203,7 +207,7 @@ impl SessionGraph {
 
         // Check maximum depth
         let depth = self.max_depth(child);
-        if depth > MAX_CHAIN_DEPTH {
+        if depth >= MAX_CHAIN_DEPTH {
             // Restore old state
             if let Some(old) = old_parent {
                 self.edges.insert(child.to_string(), old);
@@ -231,7 +235,7 @@ impl SessionGraph {
         // Add to children map
         self.children
             .entry(parent.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(child.to_string());
 
         // Update timestamp and save
@@ -243,7 +247,8 @@ impl SessionGraph {
 
     /// Detect cycle starting from a session
     ///
-    /// Uses DFS with visited set to detect cycles.
+    /// Follows the parent chain from session_id. Since each node has at most
+    /// one parent, this is a simple linked-list traversal with a visited set.
     /// Returns the cycle path if found, or None if no cycle.
     ///
     /// # Example
@@ -256,45 +261,25 @@ impl SessionGraph {
     pub fn detect_cycle(&self, session_id: &str) -> Option<Cycle> {
         let mut visited = HashSet::new();
         let mut path = Vec::new();
+        let mut current = session_id;
 
-        self.detect_cycle_dfs(session_id, &mut visited, &mut path)
-    }
+        loop {
+            if visited.contains(current) {
+                // Found a cycle - extract the cycle portion of the path
+                let cycle_start = path.iter().position(|s: &String| s == current).unwrap();
+                let mut cycle_path = path[cycle_start..].to_vec();
+                cycle_path.push(current.to_string()); // Close the cycle
+                return Some(Cycle { path: cycle_path });
+            }
 
-    /// DFS implementation for cycle detection
-    fn detect_cycle_dfs(
-        &self,
-        current: &str,
-        visited: &mut HashSet<String>,
-        path: &mut Vec<String>,
-    ) -> Option<Cycle> {
-        // If we've seen this node in current path, we have a cycle
-        if path.contains(&current.to_string()) {
-            let cycle_start = path.iter().position(|s| s == current).unwrap();
-            let mut cycle_path = path[cycle_start..].to_vec();
-            cycle_path.push(current.to_string()); // Close the cycle
+            visited.insert(current.to_string());
+            path.push(current.to_string());
 
-            return Some(Cycle { path: cycle_path });
-        }
-
-        // If we've visited this node before (but not in current path), no new cycle
-        if visited.contains(current) {
-            return None;
-        }
-
-        // Mark as visited and add to path
-        visited.insert(current.to_string());
-        path.push(current.to_string());
-
-        // Follow parent edge if exists
-        if let Some(parent) = self.edges.get(current) {
-            if let Some(cycle) = self.detect_cycle_dfs(parent, visited, path) {
-                return Some(cycle);
+            match self.edges.get(current) {
+                Some(parent) => current = parent,
+                None => return None, // Reached a root, no cycle
             }
         }
-
-        // Remove from path before backtracking
-        path.pop();
-        None
     }
 
     /// Get full ancestry chain for a session
@@ -359,8 +344,8 @@ impl SessionGraph {
 
     /// Remove a session from the graph
     ///
-    /// Removes the session and updates parent's children list.
-    /// Does not remove children - they become roots.
+    /// Removes the session and all references to it.
+    /// Children of the removed session become roots (their parent edges are removed).
     pub fn remove_session(&mut self, session_id: &str) -> Result<()> {
         // Remove from edges (if it's a child)
         if let Some(parent_id) = self.edges.remove(session_id) {
@@ -373,9 +358,12 @@ impl SessionGraph {
             }
         }
 
-        // Remove from children (if it's a parent)
-        // Note: Children become roots - we don't remove their edges
-        self.children.remove(session_id);
+        // Remove children's edges that point to this session (make them roots)
+        if let Some(child_ids) = self.children.remove(session_id) {
+            for child_id in &child_ids {
+                self.edges.remove(child_id);
+            }
+        }
 
         // Update timestamp and save
         self.last_updated = Some(chrono::Utc::now().to_rfc3339());
@@ -396,7 +384,16 @@ impl SessionGraph {
 
 impl Default for SessionGraph {
     fn default() -> Self {
-        Self::new().expect("Failed to create default session graph")
+        Self::new().unwrap_or_else(|_| {
+            // Fallback to a temp directory if config dir is unavailable
+            let tmp_path = std::env::temp_dir().join(GRAPH_FILENAME);
+            Self {
+                edges: HashMap::new(),
+                children: HashMap::new(),
+                last_updated: None,
+                storage_path: tmp_path,
+            }
+        })
     }
 }
 
@@ -566,5 +563,49 @@ mod tests {
         assert!(children.contains(&"child-1".to_string()));
         assert!(children.contains(&"child-2".to_string()));
         assert!(children.contains(&"child-3".to_string()));
+    }
+
+    #[test]
+    fn test_remove_middle_of_chain() {
+        let (mut graph, _temp) = create_test_graph();
+
+        // Create chain: A -> B -> C
+        graph.add_edge("B", "A").unwrap();
+        graph.add_edge("C", "B").unwrap();
+
+        assert_eq!(graph.get_chain("C"), vec!["C", "B", "A"]);
+
+        // Remove B (middle of chain)
+        graph.remove_session("B").unwrap();
+
+        // C should now be a root (no dangling reference to B)
+        assert!(graph.get_parent("C").is_none());
+        assert_eq!(graph.get_chain("C"), vec!["C"]);
+
+        // B should be completely gone
+        assert!(graph.get_parent("B").is_none());
+        assert!(graph.get_children("B").is_none());
+
+        // A should still exist as a standalone root
+        assert!(graph.get_parent("A").is_none());
+    }
+
+    #[test]
+    fn test_corrupted_json_returns_error() {
+        let temp_dir = TempDir::new().unwrap();
+        let graph_path = temp_dir.path().join("test_graph.json");
+
+        // Write invalid JSON to the file
+        fs::write(&graph_path, "{ not valid json !!!").unwrap();
+
+        // Loading should return an error, not panic
+        let result = SessionGraph::from_path(graph_path);
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("Failed to parse"),
+            "Error should mention parsing failure, got: {}",
+            err_msg
+        );
     }
 }

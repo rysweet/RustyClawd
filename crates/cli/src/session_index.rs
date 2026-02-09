@@ -133,13 +133,17 @@ impl SessionIndex {
         Ok(index)
     }
 
-    /// Save index to file
+    /// Save index to file (atomic write via temp file + rename)
     fn save(&self) -> Result<()> {
         let contents = serde_json::to_string_pretty(self)
             .context("Failed to serialize session index")?;
 
-        fs::write(&self.storage_path, contents)
-            .with_context(|| format!("Failed to write session index to {}", self.storage_path.display()))?;
+        let tmp_path = self.storage_path.with_extension("json.tmp");
+        fs::write(&tmp_path, &contents)
+            .with_context(|| format!("Failed to write temp session index to {}", tmp_path.display()))?;
+
+        fs::rename(&tmp_path, &self.storage_path)
+            .with_context(|| format!("Failed to rename temp file to {}", self.storage_path.display()))?;
 
         Ok(())
     }
@@ -162,15 +166,17 @@ impl SessionIndex {
     pub fn link_pr(&mut self, session_id: &str, pr_number: u64) -> Result<()> {
         // Remove any existing link for this session
         if let Some(old_pr) = self.session_to_pr.get(session_id).copied() {
-            if old_pr != pr_number {
-                self.remove_session_from_pr(session_id, old_pr);
+            if old_pr == pr_number {
+                // Already linked to the same PR - nothing to do
+                return Ok(());
             }
+            self.remove_session_from_pr(session_id, old_pr);
         }
 
         // Add to pr_to_session map
         self.pr_to_session
             .entry(pr_number)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(session_id.to_string());
 
         // Add to session_to_pr map
@@ -260,7 +266,16 @@ impl SessionIndex {
 
 impl Default for SessionIndex {
     fn default() -> Self {
-        Self::new().expect("Failed to create default session index")
+        Self::new().unwrap_or_else(|_| {
+            // Fallback to a temp directory if config dir is unavailable
+            let tmp_path = std::env::temp_dir().join(INDEX_FILENAME);
+            Self {
+                pr_to_session: HashMap::new(),
+                session_to_pr: HashMap::new(),
+                last_updated: None,
+                storage_path: tmp_path,
+            }
+        })
     }
 }
 
@@ -416,5 +431,39 @@ mod tests {
         index.link_pr("session-3", 456).unwrap();
         assert_eq!(index.session_count(), 3);
         assert_eq!(index.pr_count(), 2);
+    }
+
+    #[test]
+    fn test_idempotent_link_pr() {
+        let (mut index, _temp) = create_test_index();
+
+        // Link same session to same PR twice
+        index.link_pr("session-1", 123).unwrap();
+        index.link_pr("session-1", 123).unwrap();
+
+        // Should have exactly one entry, not a duplicate
+        let sessions = index.find_sessions_by_pr(123).unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0], "session-1");
+        assert_eq!(index.session_count(), 1);
+    }
+
+    #[test]
+    fn test_corrupted_json_returns_error() {
+        let temp_dir = TempDir::new().unwrap();
+        let index_path = temp_dir.path().join("test_index.json");
+
+        // Write invalid JSON to the file
+        fs::write(&index_path, "{ this is not valid json !!!").unwrap();
+
+        // Loading should return an error, not panic
+        let result = SessionIndex::from_path(index_path);
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("Failed to parse"),
+            "Error should mention parsing failure, got: {}",
+            err_msg
+        );
     }
 }

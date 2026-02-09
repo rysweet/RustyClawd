@@ -17,6 +17,8 @@ mod permission_mode;
 mod plugins;
 mod schema_validator;
 mod session;
+mod session_graph;
+mod session_index;
 mod session_persistence;
 mod settings;
 mod terminal_guard;
@@ -449,6 +451,31 @@ impl App {
                         std::process::exit(1);
                     }
                 }
+            }
+        } else if let Some(pr_number) = cli.from_pr {
+            // Resume session linked to a GitHub PR number
+            tracing::info!("Looking up session for PR #{}", pr_number);
+            let index = session_index::SessionIndex::new()
+                .context("Failed to load session index")?;
+
+            if let Some(session_id) = index.get_latest_session_for_pr(pr_number) {
+                tracing::info!("Found session {} for PR #{}", session_id, pr_number);
+                let loader = checkpoint::SessionLoader::with_default_storage()
+                    .context("Failed to initialize session loader")?;
+
+                loader
+                    .resume_session(session_id, checkpoint_limit)
+                    .with_context(|| {
+                        format!(
+                            "Failed to resume session {} for PR #{}",
+                            session_id, pr_number
+                        )
+                    })?
+            } else {
+                return Err(anyhow::anyhow!(
+                    "No session found linked to PR #{}. Use `--resume` to resume by session ID.",
+                    pr_number
+                ));
             }
         } else {
             // Generate new session ID
