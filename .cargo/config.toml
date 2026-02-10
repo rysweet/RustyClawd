@@ -27,5 +27,6 @@ incremental = true
 # Limit parallel jobs to reduce peak disk usage
 jobs = 4
 
-# Uncomment to use shared target directory (advanced users)
-# target-dir = "/home/azureuser/.cargo-cache/target"
+# Shared target directory to prevent worktree disk explosion
+# Each worktree would otherwise create a 2GB+ target directory
+target-dir = "/home/azureuser/src/RustyClawd/target"

@@ -20,9 +20,7 @@ enum TestStreamEvent {
 ///
 /// This tests the core state machine that tracks thinking blocks using
 /// the `in_thinking_block` boolean flag.
-fn simulate_stream_events(
-    events: Vec<StreamEvent>,
-) -> Result<Vec<TestStreamEvent>, String> {
+fn simulate_stream_events(events: Vec<StreamEvent>) -> Result<Vec<TestStreamEvent>, String> {
     let (tx, rx) = mpsc::channel();
     let mut in_thinking_block = false;
 

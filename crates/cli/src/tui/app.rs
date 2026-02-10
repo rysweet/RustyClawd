@@ -562,7 +562,9 @@ impl App {
                 // Calculate how much we can append
                 let available = MAX_ACCUMULATED_SIZE.saturating_sub(state.accumulated.len());
                 if available > 0 {
-                    state.accumulated.push_str(&content[..available.min(content.len())]);
+                    state
+                        .accumulated
+                        .push_str(&content[..available.min(content.len())]);
                 }
             } else {
                 state.accumulated.push_str(content);
