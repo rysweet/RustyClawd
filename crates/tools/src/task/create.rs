@@ -261,4 +261,60 @@ mod tests {
         let has_error = events.iter().any(|e| matches!(e, ToolEvent::Error { .. }));
         assert!(has_error);
     }
+
+    #[test]
+    fn test_params_deserialization_full() {
+        // Test full JSON with all fields
+        let json = serde_json::json!({
+            "content": "Fix bug",
+            "activeForm": "Fixing bug",
+            "status": "in_progress",
+            "dependencies": {
+                "blocks": [],
+                "blocked_by": []
+            }
+        });
+
+        let params: TaskCreateParams = serde_json::from_value(json).unwrap();
+        assert_eq!(params.content, "Fix bug");
+        assert_eq!(params.active_form, "Fixing bug");
+        assert_eq!(params.status, Some(TaskStatus::InProgress));
+        assert!(params.dependencies.is_some());
+    }
+
+    #[test]
+    fn test_params_deserialization_minimal() {
+        // Test minimal JSON with only required fields
+        let json = serde_json::json!({
+            "content": "Fix bug",
+            "activeForm": "Fixing bug"
+        });
+
+        let params: TaskCreateParams = serde_json::from_value(json).unwrap();
+        assert_eq!(params.content, "Fix bug");
+        assert_eq!(params.active_form, "Fixing bug");
+        assert!(params.status.is_none());
+        assert!(params.dependencies.is_none());
+    }
+
+    #[test]
+    fn test_params_deserialization_active_form_rename() {
+        // Verify the serde rename attribute works correctly
+        let json_with_camel = serde_json::json!({
+            "content": "Task",
+            "activeForm": "Working"
+        });
+
+        let params: TaskCreateParams = serde_json::from_value(json_with_camel).unwrap();
+        assert_eq!(params.active_form, "Working");
+
+        // Verify snake_case fails (wrong format)
+        let json_with_snake = serde_json::json!({
+            "content": "Task",
+            "active_form": "Working"
+        });
+
+        let result: Result<TaskCreateParams, _> = serde_json::from_value(json_with_snake);
+        assert!(result.is_err(), "Should fail with snake_case field name");
+    }
 }

@@ -323,4 +323,59 @@ mod tests {
         assert_eq!(result.task.active_form, "New form");
         assert_eq!(result.task.status, TaskStatus::InProgress);
     }
+
+    #[test]
+    fn test_params_deserialization_partial() {
+        // Test partial update with only content
+        let task_id = TaskId::new();
+        let json = serde_json::json!({
+            "id": task_id,
+            "content": "Updated content"
+        });
+
+        let params: TaskUpdateParams = serde_json::from_value(json).unwrap();
+        assert_eq!(params.id, task_id);
+        assert_eq!(params.content, Some("Updated content".to_string()));
+        assert!(params.active_form.is_none());
+        assert!(params.status.is_none());
+        assert!(params.dependencies.is_none());
+    }
+
+    #[test]
+    fn test_params_deserialization_active_form_rename() {
+        // Verify the serde rename attribute works correctly
+        let task_id = TaskId::new();
+        let json_with_camel = serde_json::json!({
+            "id": task_id,
+            "activeForm": "Updated form"
+        });
+
+        let params: TaskUpdateParams = serde_json::from_value(json_with_camel).unwrap();
+        assert_eq!(params.active_form, Some("Updated form".to_string()));
+
+        // Verify snake_case fails (wrong format)
+        let json_with_snake = serde_json::json!({
+            "id": task_id,
+            "active_form": "Updated form"
+        });
+
+        let result: Result<TaskUpdateParams, _> = serde_json::from_value(json_with_snake);
+        assert!(result.is_err(), "Should fail with snake_case field name");
+    }
+
+    #[test]
+    fn test_params_deserialization_all_optional_fields() {
+        // Test that omitting all optional fields works
+        let task_id = TaskId::new();
+        let json = serde_json::json!({
+            "id": task_id
+        });
+
+        let params: TaskUpdateParams = serde_json::from_value(json).unwrap();
+        assert_eq!(params.id, task_id);
+        assert!(params.content.is_none());
+        assert!(params.active_form.is_none());
+        assert!(params.status.is_none());
+        assert!(params.dependencies.is_none());
+    }
 }

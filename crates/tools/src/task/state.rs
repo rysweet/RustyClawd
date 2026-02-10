@@ -7,37 +7,24 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, OnceLock, RwLock};
 
 /// Error types for task state operations
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum TaskStateError {
     /// Task not found
+    #[error("Task not found: {0}")]
     TaskNotFound(TaskId),
     /// Circular dependency detected
+    #[error("Circular dependency detected: {0:?}")]
     CircularDependency(Vec<TaskId>),
     /// Dependency references non-existent task
+    #[error("Dependency references non-existent task: {0}")]
     InvalidDependency(TaskId),
     /// Task is already deleted
+    #[error("Task is deleted: {0}")]
     TaskDeleted(TaskId),
     /// Duplicate task ID
+    #[error("Duplicate task ID: {0}")]
     DuplicateTask(TaskId),
 }
-
-impl std::fmt::Display for TaskStateError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TaskStateError::TaskNotFound(id) => write!(f, "Task not found: {}", id),
-            TaskStateError::CircularDependency(cycle) => {
-                write!(f, "Circular dependency detected: {:?}", cycle)
-            }
-            TaskStateError::InvalidDependency(id) => {
-                write!(f, "Dependency references non-existent task: {}", id)
-            }
-            TaskStateError::TaskDeleted(id) => write!(f, "Task is deleted: {}", id),
-            TaskStateError::DuplicateTask(id) => write!(f, "Duplicate task ID: {}", id),
-        }
-    }
-}
-
-impl std::error::Error for TaskStateError {}
 
 /// Global session-scoped task state
 ///
@@ -71,11 +58,13 @@ impl TaskStore {
         Self::validate_dependencies(&task, &state)?;
 
         // Validate on a snapshot: apply proposed changes to a clone, check for cycles
+        // Only check the affected subgraph for performance
         {
             let mut snapshot = state.clone();
             let task_with_deps = Self::sync_bidirectional_deps(task.clone(), &mut snapshot);
-            snapshot.insert(task_with_deps.id, task_with_deps);
-            Self::validate_no_cycles(&snapshot)?;
+            let task_id = task_with_deps.id;
+            snapshot.insert(task_id, task_with_deps);
+            Self::validate_no_cycles_from(task_id, &snapshot)?;
         }
 
         // Validation passed -- now apply mutations to real state
@@ -110,6 +99,7 @@ impl TaskStore {
         Self::validate_dependencies(&task, &state)?;
 
         // Validate on a snapshot: apply proposed changes to a clone, check for cycles
+        // Only check the affected subgraph for performance
         {
             let mut snapshot = state.clone();
             let old_task_clone = snapshot.get(&task.id).cloned();
@@ -117,8 +107,9 @@ impl TaskStore {
                 Self::remove_bidirectional_deps(&old_task, &mut snapshot);
             }
             let task_with_deps = Self::sync_bidirectional_deps(task.clone(), &mut snapshot);
-            snapshot.insert(task_with_deps.id, task_with_deps);
-            Self::validate_no_cycles(&snapshot)?;
+            let task_id = task_with_deps.id;
+            snapshot.insert(task_id, task_with_deps);
+            Self::validate_no_cycles_from(task_id, &snapshot)?;
         }
 
         // Validation passed -- now apply mutations to real state
@@ -245,7 +236,34 @@ impl TaskStore {
         }
     }
 
-    /// Validate no circular dependencies using DFS
+    /// Validate no circular dependencies in affected subgraph
+    ///
+    /// More efficient than full graph validation - only checks the subgraph
+    /// reachable from the modified task and its transitive dependencies/dependents.
+    fn validate_no_cycles_from(
+        task_id: TaskId,
+        state: &HashMap<TaskId, Task>,
+    ) -> Result<(), TaskStateError> {
+        let mut visited = HashSet::new();
+        let mut rec_stack = HashSet::new();
+        let mut path = Vec::new();
+
+        // Only check the subgraph starting from the modified task
+        if let Some(cycle) =
+            Self::detect_cycle_dfs(task_id, state, &mut visited, &mut rec_stack, &mut path)
+        {
+            return Err(TaskStateError::CircularDependency(cycle));
+        }
+
+        Ok(())
+    }
+
+    /// Validate no circular dependencies using DFS (full graph scan)
+    ///
+    /// Used for comprehensive validation when the affected subgraph is unknown.
+    /// For incremental updates where the modified task is known, prefer
+    /// `validate_no_cycles_from` for better performance.
+    #[allow(dead_code)]
     fn validate_no_cycles(state: &HashMap<TaskId, Task>) -> Result<(), TaskStateError> {
         let mut visited = HashSet::new();
         let mut rec_stack = HashSet::new();
