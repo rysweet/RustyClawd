@@ -17,6 +17,8 @@ pub mod permission_mode;
 pub mod plugins;
 pub mod schema_validator;
 pub mod session;
+pub mod session_graph;
+pub mod session_index;
 pub mod session_persistence;
 pub mod settings;
 pub mod terminal_guard;
