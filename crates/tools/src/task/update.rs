@@ -353,14 +353,14 @@ mod tests {
         let params: TaskUpdateParams = serde_json::from_value(json_with_camel).unwrap();
         assert_eq!(params.active_form, Some("Updated form".to_string()));
 
-        // Verify snake_case fails (wrong format)
+        // Verify snake_case fails (only camelCase works with rename)
         let json_with_snake = serde_json::json!({
             "id": task_id,
             "active_form": "Updated form"
         });
 
-        let result: Result<TaskUpdateParams, _> = serde_json::from_value(json_with_snake);
-        assert!(result.is_err(), "Should fail with snake_case field name");
+        let params: TaskUpdateParams = serde_json::from_value(json_with_snake).unwrap();
+        assert!(params.active_form.is_none(), "snake_case should be ignored by serde rename");
     }
 
     #[test]
