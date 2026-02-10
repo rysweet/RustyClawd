@@ -665,6 +665,7 @@ fn test_message_response_fields() {
         usage: Usage {
             input_tokens: 10,
             output_tokens: 20,
+            speed: None,
         },
     };
 
@@ -692,6 +693,7 @@ fn test_message_response_stop_reason_tool_use() {
         usage: Usage {
             input_tokens: 15,
             output_tokens: 25,
+            speed: None,
         },
     };
 
@@ -703,6 +705,7 @@ fn test_usage_statistics() {
     let usage = Usage {
         input_tokens: 100,
         output_tokens: 200,
+        speed: None,
     };
 
     assert_eq!(usage.input_tokens, 100);
@@ -1165,6 +1168,7 @@ fn test_stop_reason_end_turn() {
         usage: Usage {
             input_tokens: 10,
             output_tokens: 5,
+            speed: None,
         },
     };
 
@@ -1188,6 +1192,7 @@ fn test_stop_reason_tool_use() {
         usage: Usage {
             input_tokens: 20,
             output_tokens: 15,
+            speed: None,
         },
     };
 
@@ -1209,6 +1214,7 @@ fn test_stop_reason_max_tokens() {
         usage: Usage {
             input_tokens: 100,
             output_tokens: 1024,
+            speed: None,
         },
     };
 
@@ -1230,6 +1236,7 @@ fn test_stop_reason_stop_sequence() {
         usage: Usage {
             input_tokens: 50,
             output_tokens: 30,
+            speed: None,
         },
     };
 
@@ -1628,6 +1635,7 @@ fn test_usage_zero_tokens() {
     let usage = Usage {
         input_tokens: 0,
         output_tokens: 0,
+        speed: None,
     };
 
     assert_eq!(usage.input_tokens, 0);
@@ -1639,6 +1647,7 @@ fn test_large_token_counts() {
     let usage = Usage {
         input_tokens: 100_000,
         output_tokens: 200_000,
+        speed: None,
     };
 
     assert_eq!(usage.input_tokens, 100_000);
@@ -2086,6 +2095,7 @@ fn test_response_with_mixed_content_blocks() {
         usage: Usage {
             input_tokens: 20,
             output_tokens: 30,
+            speed: None,
         },
     };
 

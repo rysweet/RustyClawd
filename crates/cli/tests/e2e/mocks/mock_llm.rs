@@ -212,6 +212,7 @@ impl MockLLM {
                 usage: Usage {
                     input_tokens: 10,
                     output_tokens: 20,
+                    speed: None,
                 },
             }),
 
@@ -234,6 +235,7 @@ impl MockLLM {
                 usage: Usage {
                     input_tokens: 10,
                     output_tokens: 15,
+                    speed: None,
                 },
             }),
 

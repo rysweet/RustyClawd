@@ -201,6 +201,8 @@ pub struct Config {
     pub api_version: String,
     /// Request timeout in seconds
     pub timeout_secs: u64,
+    /// Fast mode enabled (Opus 4.6 only)
+    pub fast_mode_enabled: bool,
 }
 
 impl Config {
@@ -218,6 +220,7 @@ impl Config {
             api_url: Self::DEFAULT_API_URL.to_string(),
             api_version: Self::DEFAULT_API_VERSION.to_string(),
             timeout_secs: Self::DEFAULT_TIMEOUT_SECS,
+            fast_mode_enabled: false,
         }
     }
 
@@ -234,20 +237,30 @@ impl Config {
     }
 
     /// Builder: Set custom API URL
+    #[must_use]
     pub fn with_api_url(mut self, url: String) -> Self {
         self.api_url = url;
         self
     }
 
     /// Builder: Set custom API version
+    #[must_use]
     pub fn with_api_version(mut self, version: String) -> Self {
         self.api_version = version;
         self
     }
 
     /// Builder: Set custom timeout
+    #[must_use]
     pub fn with_timeout_secs(mut self, timeout: u64) -> Self {
         self.timeout_secs = timeout;
+        self
+    }
+
+    /// Builder: Enable or disable fast mode
+    #[must_use]
+    pub fn with_fast_mode(mut self, enabled: bool) -> Self {
+        self.fast_mode_enabled = enabled;
         self
     }
 }
@@ -260,6 +273,7 @@ impl fmt::Debug for Config {
             .field("api_url", &self.api_url)
             .field("api_version", &self.api_version)
             .field("timeout_secs", &self.timeout_secs)
+            .field("fast_mode_enabled", &self.fast_mode_enabled)
             .finish()
     }
 }

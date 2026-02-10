@@ -1380,6 +1380,7 @@ impl InteractiveSession {
             let mut usage = rustyclawd_core::client::Usage {
                 input_tokens: 0,
                 output_tokens: 0,
+                speed: None,
             };
             let mut stop_reason = None;
             let mut thinking = true; // Start in thinking mode
