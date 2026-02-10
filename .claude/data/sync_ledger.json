@@ -1,0 +1,11 @@
+{
+  "issues": {
+    "mcpsearch": 247,
+    "list_changed": 249,
+    "mcp__server__*": 250,
+    "${claude_plugin_root}": 245,
+    "/permissions": 246,
+    "claude_mcp_serve": 248
+  },
+  "last_sync": "2026-01-20T01:43:09.152223439+00:00"
+}

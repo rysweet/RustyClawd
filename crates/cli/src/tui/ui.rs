@@ -106,6 +106,8 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &mut App, throbber: cha
     let active_tool_name = app.active_tool_name();
     let is_streaming = app.is_streaming();
     let is_thinking = app.is_thinking();
+    let is_extended_thinking = app.is_extended_thinking();
+    let thinking_duration = app.thinking_duration();
     let token_count = app.token_count();
     let debug_visible = app.debug_visible();
     let follow_bottom = app.follow_bottom();
@@ -134,8 +136,11 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &mut App, throbber: cha
         ]
     } else if is_streaming {
         // Show throbber + token count when streaming
-        let status_text = if is_thinking {
-            // Thinking mode - show throbber without token count
+        let status_text = if is_extended_thinking {
+            // Extended thinking mode - show shimmer indicator with duration
+            crate::tui::thinking_indicator::render_thinking_indicator(thinking_duration)
+        } else if is_thinking {
+            // Basic thinking mode - show throbber without token count
             format!("{} Thinking...", throbber)
         } else if let Some(token_count) = token_count {
             // Streaming mode - show throbber with live token count
@@ -145,10 +150,16 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &mut App, throbber: cha
             format!("{} Streaming...", throbber)
         };
 
+        let status_color = if is_extended_thinking {
+            Color::Magenta // Use magenta for extended thinking to distinguish from regular streaming
+        } else {
+            Color::Yellow
+        };
+
         vec![
             Span::styled(mode_text.clone(), mode_style),
             Span::raw(" "),
-            Span::styled(status_text, Style::default().fg(Color::Yellow)),
+            Span::styled(status_text, Style::default().fg(status_color)),
         ]
     } else {
         vec![

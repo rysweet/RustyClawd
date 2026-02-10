@@ -31,10 +31,6 @@
   },
   "enableAllProjectMcpServers": false,
   "enabledMcpjsonServers": [],
-  "statusLine": {
-    "type": "command",
-    "command": "$CLAUDE_PROJECT_DIR/.claude/tools/statusline.sh"
-  },
   "hooks": {
     "SessionStart": [
       {
@@ -80,5 +76,13 @@
         ]
       }
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "$CLAUDE_PROJECT_DIR/.claude/tools/statusline.sh"
+  },
+  "enabledPlugins": {
+    "pyright@claude-code-lsps": true,
+    "rust-analyzer@claude-code-lsps": true
   }
 }

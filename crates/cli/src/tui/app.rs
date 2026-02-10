@@ -3,6 +3,7 @@
 use crate::commands::permissions_search_state::PermissionsSearchState;
 use crate::permission_mode::PermissionMode;
 use crate::tui::message::Message;
+use crate::tui::thinking_state::ThinkingState;
 use crate::tui::token_counter::TokenCount;
 use rat_focus::FocusFlag;
 use ratatui::{
@@ -293,6 +294,12 @@ struct StreamingState {
 
     /// Thinking indicator (true when waiting for first token)
     thinking: bool,
+
+    /// Extended thinking state (tracks thinking phases)
+    thinking_state: ThinkingState,
+
+    /// Whether the "input blocked" debug message has been shown this thinking phase
+    shown_blocked_input_message: bool,
 }
 
 impl App {
@@ -516,6 +523,8 @@ impl App {
             accumulated: String::new(),
             token_count: TokenCount::default(),
             thinking: true, // Start in thinking mode
+            thinking_state: ThinkingState::new(),
+            shown_blocked_input_message: false,
         });
         self.scroll_to_bottom();
         self.mark_dirty();
@@ -523,6 +532,10 @@ impl App {
     }
 
     pub fn append_streaming_content(&mut self, content: &str) {
+        // Maximum accumulated content size (10MB) to prevent OOM
+        // This is well above typical Claude responses but prevents pathological cases
+        const MAX_ACCUMULATED_SIZE: usize = 10 * 1024 * 1024;
+
         // Log only significant chunks (> 10 chars) to reduce spam
         if let Some(ref state) = self.streaming {
             if content.len() > 10 {
@@ -535,9 +548,27 @@ impl App {
             }
         }
 
+        // Check if we need to truncate (before borrowing mutably)
+        let should_truncate = if let Some(ref state) = self.streaming {
+            let new_size = state.accumulated.len() + content.len();
+            new_size > MAX_ACCUMULATED_SIZE
+        } else {
+            false
+        };
+
         // Now do the actual streaming update
         if let Some(ref mut state) = self.streaming {
-            state.accumulated.push_str(content);
+            if should_truncate {
+                // Calculate how much we can append
+                let available = MAX_ACCUMULATED_SIZE.saturating_sub(state.accumulated.len());
+                if available > 0 {
+                    state
+                        .accumulated
+                        .push_str(&content[..available.min(content.len())]);
+                }
+            } else {
+                state.accumulated.push_str(content);
+            }
 
             if let Some(msg) = self.messages.get_mut(state.message_index) {
                 *msg = Message::assistant_partial(state.accumulated.clone());
@@ -545,6 +576,14 @@ impl App {
             // Only auto-scroll if user is already at bottom
             self.scroll_to_bottom_if_at_bottom();
             self.mark_dirty();
+        }
+
+        // Log truncation after we're done with the mutable borrow
+        if should_truncate {
+            self.push_debug_message(format!(
+                "[STREAM] Content size limit reached ({} bytes), truncating",
+                MAX_ACCUMULATED_SIZE
+            ));
         }
     }
 
@@ -1387,6 +1426,64 @@ impl App {
     /// Check if currently in thinking mode (waiting for first token)
     pub fn is_thinking(&self) -> bool {
         self.streaming.as_ref().map(|s| s.thinking).unwrap_or(false)
+    }
+
+    /// Check if in extended thinking phase
+    pub fn is_extended_thinking(&self) -> bool {
+        self.streaming
+            .as_ref()
+            .map(|s| s.thinking_state.is_thinking())
+            .unwrap_or(false)
+    }
+
+    /// Start extended thinking phase (called when ContentBlockStart::Thinking received)
+    pub fn start_extended_thinking(&mut self) {
+        if let Some(ref mut state) = self.streaming {
+            state.thinking_state.start_thinking();
+            state.shown_blocked_input_message = false;
+        }
+        self.push_debug_message("[THINKING] Extended thinking started".to_string());
+        self.mark_dirty();
+    }
+
+    /// Note transition to receiving thinking content (called when ThinkingDelta received)
+    pub fn append_thinking_content(&mut self) {
+        if let Some(ref mut state) = self.streaming {
+            state.thinking_state.append_thinking();
+        }
+        self.mark_dirty();
+    }
+
+    /// Stop extended thinking phase (called when ContentBlockStop received)
+    pub fn stop_extended_thinking(&mut self) {
+        if let Some(ref mut state) = self.streaming {
+            state.thinking_state.stop_thinking();
+            state.shown_blocked_input_message = false;
+        }
+        self.push_debug_message("[THINKING] Extended thinking stopped".to_string());
+        self.mark_dirty();
+    }
+
+    /// Check if the "input blocked" message has been shown this thinking phase
+    pub fn has_shown_blocked_input_message(&self) -> bool {
+        self.streaming
+            .as_ref()
+            .map(|s| s.shown_blocked_input_message)
+            .unwrap_or(false)
+    }
+
+    /// Set the "input blocked" message shown flag
+    pub fn set_shown_blocked_input_message(&mut self, shown: bool) {
+        if let Some(ref mut state) = self.streaming {
+            state.shown_blocked_input_message = shown;
+        }
+    }
+
+    /// Get thinking duration (if in extended thinking phase)
+    pub fn thinking_duration(&self) -> Option<std::time::Duration> {
+        self.streaming
+            .as_ref()
+            .and_then(|s| s.thinking_state.thinking_duration())
     }
 
     // === Autocomplete management ===

@@ -98,3 +98,29 @@
 [2025-12-02T19:45:24.592358] INFO: Injected 9491 characters of context
 [2025-12-02T19:45:24.592393] INFO: Returning output with keys: ['hookSpecificOutput']
 [2025-12-02T19:45:24.592512] INFO: session_start hook completed successfully
+[2026-02-10T04:07:41.750188] INFO: session_start hook starting (Python 3.12.12)
+[2026-02-10T04:07:41.750325] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'hook_event_name', 'source', 'model']
+[2026-02-10T04:07:41.750372] INFO: Event type: SessionStart
+[2026-02-10T04:07:41.754631] WARNING: ⚠️ Version mismatch detected: package=ee77fc6, project=None
+[2026-02-10T04:07:41.754839] INFO: Auto-updating per user preference
+[2026-02-10T04:07:41.925771] INFO: Prompt length: 0
+[2026-02-10T04:07:41.925908] INFO: Neo4j not enabled (use --enable-neo4j-memory to enable)
+[2026-02-10T04:07:41.926233] INFO: Successfully read preferences from: /home/azureuser/src/RustyClawd/.claude/context/USER_PREFERENCES.md
+[2026-02-10T04:07:41.926273] INFO: Injected full USER_PREFERENCES.md content into session
+[2026-02-10T04:07:41.926516] INFO: Session initialized - Original request: ❌
+[2026-02-10T04:07:41.926565] INFO: Injected 9491 characters of context
+[2026-02-10T04:07:41.926608] INFO: Returning output with keys: ['hookSpecificOutput']
+[2026-02-10T04:07:41.926717] INFO: session_start hook completed successfully
+[2026-02-10T04:07:41.987150] INFO: session_start hook starting (Python 3.12.12)
+[2026-02-10T04:07:41.987282] INFO: Received input with keys: ['session_id', 'transcript_path', 'cwd', 'hook_event_name', 'source']
+[2026-02-10T04:07:41.987329] INFO: Event type: SessionStart
+[2026-02-10T04:07:41.991527] WARNING: ⚠️ Version mismatch detected: package=ee77fc6, project=None
+[2026-02-10T04:07:41.991730] INFO: Auto-updating per user preference
+[2026-02-10T04:07:42.019211] INFO: Prompt length: 0
+[2026-02-10T04:07:42.019373] INFO: Neo4j not enabled (use --enable-neo4j-memory to enable)
+[2026-02-10T04:07:42.019818] INFO: Successfully read preferences from: /home/azureuser/src/RustyClawd/.claude/context/USER_PREFERENCES.md
+[2026-02-10T04:07:42.019863] INFO: Injected full USER_PREFERENCES.md content into session
+[2026-02-10T04:07:42.020172] INFO: Session initialized - Original request: ❌
+[2026-02-10T04:07:42.020240] INFO: Injected 9491 characters of context
+[2026-02-10T04:07:42.020287] INFO: Returning output with keys: ['hookSpecificOutput']
+[2026-02-10T04:07:42.020446] INFO: session_start hook completed successfully

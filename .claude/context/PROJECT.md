@@ -10,11 +10,11 @@ Replace the sections below with information about your project.
 
 ---
 
-## Project: [Your Project Name]
+## Project: RustyClawd
 
 ## Overview
 
-[Brief description of what your project does]
+A Rust implementation of a CLI tool compatible with Claude Code. **IMPORTANT**: This is an independent, unofficial open-source project with no affiliation to Anthropic PBC. Not endorsed or sponsored by Anthropic.
 
 ## Architecture
 
@@ -26,10 +26,11 @@ Replace the sections below with information about your project.
 
 ### Technology Stack
 
-- **Language**: [Primary language(s)]
+- **Language**: Python
+- **Language**: JavaScript/TypeScript
+- **Language**: Rust
 - **Framework**: [Main framework if applicable]
 - **Database**: [Database system if applicable]
-- **Other Tools**: [Key dependencies or tools]
 
 ## Development Guidelines
 

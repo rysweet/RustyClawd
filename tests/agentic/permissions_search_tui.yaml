@@ -1,0 +1,187 @@
+---
+# Agentic Test: /permissions Command Search Feature
+# Tests the interactive TUI search functionality added in PR #253
+#
+# Framework: github.com/rysweet/gadugi-agentic-test
+# Test Type: TUI Interactive
+
+name: "RustyClawd /permissions Search Feature"
+version: "1.0.0"
+framework: "gadugi-agentic-test"
+target: "tui"
+description: "Tests the /permissions command search functionality with '/' keyboard shortcut"
+
+setup:
+  - name: "Build RustyClawd binary"
+    command: "cargo build --release"
+    timeout: 120
+
+  - name: "Verify binary exists"
+    command: "test -f target/release/rusty"
+
+environment:
+  binary: "./target/release/rusty"
+  mode: "interactive-tui"
+
+scenarios:
+  - id: "permissions-basic-display"
+    name: "Basic /permissions modal display"
+    description: "Verify /permissions command opens modal with tool list"
+    steps:
+      - action: "launch"
+        command: "./target/release/rusty"
+        wait_for: "rusty>"
+
+      - action: "send_keys"
+        keys: "/permissions"
+        wait_for: "PERMISSIONS"
+
+      - action: "observe"
+        expect:
+          - text: "Tool Name"
+          - text: "Ask"
+          - text: "Auto-Accept"
+          - text: "Plan"
+          - text: "Bash"
+          - text: "Read"
+          - text: "Write"
+
+      - action: "send_keys"
+        keys: "Escape"
+        description: "Close modal"
+
+  - id: "permissions-search-activation"
+    name: "Search mode activation with / key"
+    description: "Verify '/' key activates search mode"
+    steps:
+      - action: "launch"
+        command: "./target/release/rusty"
+        wait_for: "rusty>"
+
+      - action: "send_keys"
+        keys: "/permissions"
+        wait_for: "PERMISSIONS"
+
+      - action: "send_keys"
+        keys: "/"
+        description: "Activate search mode"
+        wait_for: "Search:"
+
+      - action: "observe"
+        expect:
+          - text: "Search:"
+          - pattern: "\\[.*\\]"  # Search input box
+
+      - action: "send_keys"
+        keys: "Escape Escape"
+        description: "Exit search and close modal"
+
+  - id: "permissions-search-filtering"
+    name: "Search filtering by tool name"
+    description: "Verify search filters tools correctly"
+    steps:
+      - action: "launch"
+        command: "./target/release/rusty"
+        wait_for: "rusty>"
+
+      - action: "send_keys"
+        keys: "/permissions"
+        wait_for: "PERMISSIONS"
+
+      - action: "send_keys"
+        keys: "/"
+        wait_for: "Search:"
+
+      - action: "send_keys"
+        keys: "bash"
+        description: "Type search query"
+        wait_for_ms: 500
+
+      - action: "observe"
+        expect:
+          - text: "Bash"
+          - text: "BashOutput"  # Substring match
+          - pattern: "2 of \\d+ matches"  # Should show match count
+        expect_not:
+          - text: "Read"  # Should be filtered out
+          - text: "Write"  # Should be filtered out
+
+      - action: "send_keys"
+        keys: "Escape Escape"
+
+  - id: "permissions-search-backspace"
+    name: "Search backspace handling"
+    description: "Verify backspace removes characters from search"
+    steps:
+      - action: "launch"
+        command: "./target/release/rusty"
+        wait_for: "rusty>"
+
+      - action: "send_keys"
+        keys: "/permissions"
+        wait_for: "PERMISSIONS"
+
+      - action: "send_keys"
+        keys: "/"
+        wait_for: "Search:"
+
+      - action: "send_keys"
+        keys: "test"
+        wait_for_ms: 200
+
+      - action: "send_keys"
+        keys: "Backspace Backspace"  # Remove "st"
+        wait_for_ms: 200
+
+      - action: "observe"
+        expect:
+          - text: "te"  # Should show "te" in search box
+
+      - action: "send_keys"
+        keys: "Escape Escape"
+
+  - id: "permissions-search-case-insensitive"
+    name: "Case-insensitive search"
+    description: "Verify search is case-insensitive"
+    steps:
+      - action: "launch"
+        command: "./target/release/rusty"
+        wait_for: "rusty>"
+
+      - action: "send_keys"
+        keys: "/permissions"
+        wait_for: "PERMISSIONS"
+
+      - action: "send_keys"
+        keys: "/"
+        wait_for: "Search:"
+
+      - action: "send_keys"
+        keys: "BASH"  # Uppercase
+        wait_for_ms: 500
+
+      - action: "observe"
+        expect:
+          - text: "Bash"  # Should still match lowercase tool name
+          - text: "BashOutput"
+
+      - action: "send_keys"
+        keys: "Escape Escape"
+
+success_criteria:
+  - "All scenarios execute without errors"
+  - "/permissions modal displays correctly"
+  - "Search mode activates with '/' key"
+  - "Filtering works case-insensitively"
+  - "Backspace removes characters"
+  - "Match count displays correctly"
+
+notes: |
+  These tests verify the TUI /permissions search feature added in PR #253.
+  The feature allows users to interactively filter permission rules by tool name
+  using the '/' keyboard shortcut.
+
+  Test execution requires:
+  - Terminal with ANSI support
+  - gadugi-agentic-test framework
+  - Release binary built
