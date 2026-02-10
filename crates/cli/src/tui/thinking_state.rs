@@ -27,6 +27,14 @@ pub enum ThinkingPhase {
 }
 
 /// Thinking state (single-threaded, owned by App on the main event loop)
+///
+/// # Clone Semantics
+///
+/// This type implements `Clone`. When cloned, the `started_at` `Instant` is copied,
+/// which means a cloned state's `thinking_duration()` will continue to reflect the
+/// original start time. This is typically correct for snapshots or temporary state
+/// copies. If you need independent duration tracking, create a new `ThinkingState`
+/// and call `start_thinking()` instead of cloning.
 #[derive(Debug, Clone)]
 pub struct ThinkingState {
     /// Current phase

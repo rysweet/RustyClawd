@@ -30,17 +30,30 @@ const SHIMMER_FRAMES: [&str; 8] = [
     "⣀⣀⣀⣿⣿⣿⣿⣦",
 ];
 
+/// Number of shimmer animation frames
+const FRAME_COUNT: usize = SHIMMER_FRAMES.len();
+
 /// Get current shimmer frame based on global animation clock
 ///
 /// Uses system time to ensure synchronized animations across all UI elements.
 /// Frame changes every 100ms for smooth but not too fast animation.
+///
+/// # Note on SystemTime vs Instant
+///
+/// This uses `SystemTime` instead of `Instant` for animation timing.
+/// While `Instant` is more appropriate for monotonic timing, `SystemTime`
+/// is acceptable here because:
+/// - This is a cosmetic animation, not critical timing
+/// - `unwrap_or_default()` handles clock adjustments gracefully
+/// - Animation synchronization across the entire UI is more important
+///   than perfect monotonicity
 fn current_shimmer_frame() -> &'static str {
     let frame_idx = (std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis()
         / 100) as usize
-        % SHIMMER_FRAMES.len();
+        % FRAME_COUNT;
     SHIMMER_FRAMES[frame_idx]
 }
 

@@ -532,6 +532,10 @@ impl App {
     }
 
     pub fn append_streaming_content(&mut self, content: &str) {
+        // Maximum accumulated content size (10MB) to prevent OOM
+        // This is well above typical Claude responses but prevents pathological cases
+        const MAX_ACCUMULATED_SIZE: usize = 10 * 1024 * 1024;
+
         // Log only significant chunks (> 10 chars) to reduce spam
         if let Some(ref state) = self.streaming {
             if content.len() > 10 {
@@ -544,9 +548,25 @@ impl App {
             }
         }
 
+        // Check if we need to truncate (before borrowing mutably)
+        let should_truncate = if let Some(ref state) = self.streaming {
+            let new_size = state.accumulated.len() + content.len();
+            new_size > MAX_ACCUMULATED_SIZE
+        } else {
+            false
+        };
+
         // Now do the actual streaming update
         if let Some(ref mut state) = self.streaming {
-            state.accumulated.push_str(content);
+            if should_truncate {
+                // Calculate how much we can append
+                let available = MAX_ACCUMULATED_SIZE.saturating_sub(state.accumulated.len());
+                if available > 0 {
+                    state.accumulated.push_str(&content[..available.min(content.len())]);
+                }
+            } else {
+                state.accumulated.push_str(content);
+            }
 
             if let Some(msg) = self.messages.get_mut(state.message_index) {
                 *msg = Message::assistant_partial(state.accumulated.clone());
@@ -554,6 +574,14 @@ impl App {
             // Only auto-scroll if user is already at bottom
             self.scroll_to_bottom_if_at_bottom();
             self.mark_dirty();
+        }
+
+        // Log truncation after we're done with the mutable borrow
+        if should_truncate {
+            self.push_debug_message(format!(
+                "[STREAM] Content size limit reached ({} bytes), truncating",
+                MAX_ACCUMULATED_SIZE
+            ));
         }
     }
 

@@ -46,6 +46,9 @@ pub use compat::TuiState;
 pub use message::Message as ChatMessage;
 pub use message::Role as MessageRole;
 
+// Extended thinking exports (for testing)
+pub use thinking_state::{ThinkingPhase, ThinkingState};
+
 // New clean API
 use anyhow::Result;
 use crossterm::{
