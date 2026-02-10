@@ -104,6 +104,16 @@ impl SessionIndex {
         // Ensure config directory exists
         fs::create_dir_all(&config_dir).context("Failed to create config directory")?;
 
+        // Set restrictive permissions (0700) on config directory
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = fs::Permissions::from_mode(0o700);
+            fs::set_permissions(&config_dir, perms).with_context(|| {
+                format!("Failed to set permissions on {}", config_dir.display())
+            })?;
+        }
+
         Ok(config_dir.join(INDEX_FILENAME))
     }
 
@@ -145,6 +155,16 @@ impl SessionIndex {
             )
         })?;
 
+        // Set restrictive permissions (0600) on temp file before rename
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = fs::Permissions::from_mode(0o600);
+            fs::set_permissions(&tmp_path, perms).with_context(|| {
+                format!("Failed to set permissions on {}", tmp_path.display())
+            })?;
+        }
+
         fs::rename(&tmp_path, &self.storage_path).with_context(|| {
             format!(
                 "Failed to rename temp file to {}",
@@ -180,11 +200,11 @@ impl SessionIndex {
             self.remove_session_from_pr(session_id, old_pr);
         }
 
-        // Add to pr_to_session map
-        self.pr_to_session
-            .entry(pr_number)
-            .or_default()
-            .push(session_id.to_string());
+        // Add to pr_to_session map (avoid duplicates)
+        let sessions = self.pr_to_session.entry(pr_number).or_default();
+        if !sessions.contains(&session_id.to_string()) {
+            sessions.push(session_id.to_string());
+        }
 
         // Add to session_to_pr map
         self.session_to_pr.insert(session_id.to_string(), pr_number);
@@ -471,6 +491,33 @@ mod tests {
             err_msg.contains("Failed to parse"),
             "Error should mention parsing failure, got: {}",
             err_msg
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_file_permissions_unix() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp_dir = TempDir::new().unwrap();
+        let index_path = temp_dir.path().join("test_index.json");
+
+        let mut index = SessionIndex::from_path(index_path.clone()).unwrap();
+
+        // Link a session to trigger save
+        index.link_pr("test-session", 123).unwrap();
+
+        // Check file permissions
+        let metadata = fs::metadata(&index_path).unwrap();
+        let permissions = metadata.permissions();
+        let mode = permissions.mode();
+
+        // Verify file has 0600 permissions (user read+write only)
+        assert_eq!(
+            mode & 0o777,
+            0o600,
+            "Session index file should have 0600 permissions, got {:o}",
+            mode & 0o777
         );
     }
 }

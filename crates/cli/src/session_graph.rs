@@ -123,6 +123,16 @@ impl SessionGraph {
         // Ensure config directory exists
         fs::create_dir_all(&config_dir).context("Failed to create config directory")?;
 
+        // Set restrictive permissions (0700) on config directory
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = fs::Permissions::from_mode(0o700);
+            fs::set_permissions(&config_dir, perms).with_context(|| {
+                format!("Failed to set permissions on {}", config_dir.display())
+            })?;
+        }
+
         Ok(config_dir.join(GRAPH_FILENAME))
     }
 
@@ -163,6 +173,16 @@ impl SessionGraph {
                 tmp_path.display()
             )
         })?;
+
+        // Set restrictive permissions (0600) on temp file before rename
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = fs::Permissions::from_mode(0o600);
+            fs::set_permissions(&tmp_path, perms).with_context(|| {
+                format!("Failed to set permissions on {}", tmp_path.display())
+            })?;
+        }
 
         fs::rename(&tmp_path, &self.storage_path).with_context(|| {
             format!(
@@ -619,6 +639,33 @@ mod tests {
             err_msg.contains("Failed to parse"),
             "Error should mention parsing failure, got: {}",
             err_msg
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_file_permissions_unix() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp_dir = TempDir::new().unwrap();
+        let graph_path = temp_dir.path().join("test_graph.json");
+
+        let mut graph = SessionGraph::from_path(graph_path.clone()).unwrap();
+
+        // Add edge to trigger save
+        graph.add_edge("child", "parent").unwrap();
+
+        // Check file permissions
+        let metadata = fs::metadata(&graph_path).unwrap();
+        let permissions = metadata.permissions();
+        let mode = permissions.mode();
+
+        // Verify file has 0600 permissions (user read+write only)
+        assert_eq!(
+            mode & 0o777,
+            0o600,
+            "Session graph file should have 0600 permissions, got {:o}",
+            mode & 0o777
         );
     }
 }
