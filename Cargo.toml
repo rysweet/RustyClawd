@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/cli",
     "crates/core",
+    "crates/memory",
     "crates/tools",
 ]
 exclude = ["# python-sdk"]
