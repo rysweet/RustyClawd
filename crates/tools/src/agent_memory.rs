@@ -1039,8 +1039,14 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(keys.len(), 3);
-        assert!(keys.contains(&"key0".to_string()), "key0 was refreshed, should survive");
-        assert!(!keys.contains(&"key1".to_string()), "key1 should be evicted as oldest");
+        assert!(
+            keys.contains(&"key0".to_string()),
+            "key0 was refreshed, should survive"
+        );
+        assert!(
+            !keys.contains(&"key1".to_string()),
+            "key1 should be evicted as oldest"
+        );
         assert!(keys.contains(&"key2".to_string()));
         assert!(keys.contains(&"key3".to_string()));
     }

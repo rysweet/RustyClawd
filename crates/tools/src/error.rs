@@ -38,7 +38,10 @@ pub enum AgentMemoryError {
     ProjectIdRequired,
 
     #[error("entry value exceeds maximum size of {max_bytes} bytes (got {actual_bytes} bytes)")]
-    EntrySizeLimitExceeded { max_bytes: usize, actual_bytes: usize },
+    EntrySizeLimitExceeded {
+        max_bytes: usize,
+        actual_bytes: usize,
+    },
 }
 
 /// Errors for agent registry operations
