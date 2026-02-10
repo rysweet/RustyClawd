@@ -9,16 +9,22 @@
 //! - Ruthlessly simple: Just key-value storage with scopes
 //! - Zero-BS: No complex indexing or query engines
 //! - Modular: Self-contained with clear public API
+//!
+//! Performance:
+//! - LRU eviction is O(log n) via BTreeMap keyed by (timestamp, key)
+//! - Read-heavy workloads benefit from RwLock over Mutex
 
+use crate::error::AgentMemoryError;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use std::sync::OnceLock;
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 /// Memory scope determines sharing boundaries
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum MemoryScope {
     /// Shared across all agents for a user (widest scope)
     User,
@@ -33,9 +39,9 @@ pub enum MemoryScope {
 pub struct MemoryEntry {
     /// Arbitrary JSON value
     pub value: serde_json::Value,
-    /// When this entry was created (Unix timestamp)
+    /// When this entry was created (Unix timestamp in milliseconds)
     pub created_at: u64,
-    /// When this entry was last updated (Unix timestamp)
+    /// When this entry was last updated (Unix timestamp in milliseconds)
     pub updated_at: u64,
     /// Which agent created this entry
     pub created_by: String,
@@ -70,33 +76,112 @@ impl MemoryEntry {
 /// Default maximum entries per scope (per agent for local, per project for project, total for user)
 const DEFAULT_MAX_ENTRIES_PER_SCOPE: usize = 1000;
 
+/// Default maximum size in bytes for a single entry value (64 KB)
+const DEFAULT_MAX_ENTRY_SIZE_BYTES: usize = 64 * 1024;
+
+/// A scoped memory partition that uses a BTreeMap ordered by (updated_at, key)
+/// so the oldest entry can be evicted in O(log n) instead of O(n).
+struct ScopedMemory {
+    /// Primary lookup: key -> (entry, current_timestamp_in_order_index)
+    entries: HashMap<String, MemoryEntry>,
+    /// Order index: (updated_at, key) for O(log n) eviction of the oldest entry
+    order: BTreeMap<(u64, String), ()>,
+}
+
+impl ScopedMemory {
+    fn new() -> Self {
+        Self {
+            entries: HashMap::new(),
+            order: BTreeMap::new(),
+        }
+    }
+
+    fn get(&self, key: &str) -> Option<&MemoryEntry> {
+        self.entries.get(key)
+    }
+
+    fn keys(&self) -> impl Iterator<Item = &String> {
+        self.entries.keys()
+    }
+
+    fn insert(&mut self, key: String, entry: MemoryEntry) {
+        // Remove old order entry if key already exists
+        if let Some(old_entry) = self.entries.get(&key) {
+            self.order.remove(&(old_entry.updated_at, key.clone()));
+        }
+        self.order.insert((entry.updated_at, key.clone()), ());
+        self.entries.insert(key, entry);
+    }
+
+    fn remove(&mut self, key: &str) -> Option<MemoryEntry> {
+        if let Some(entry) = self.entries.remove(key) {
+            self.order.remove(&(entry.updated_at, key.to_string()));
+            Some(entry)
+        } else {
+            None
+        }
+    }
+
+    fn clear(&mut self) {
+        self.entries.clear();
+        self.order.clear();
+    }
+
+    /// Evict the oldest entry (smallest updated_at) if we exceed max_entries.
+    /// O(log n) because we pop from the front of a BTreeMap.
+    fn evict_oldest(&mut self, max_entries: usize) -> Option<String> {
+        if self.entries.len() <= max_entries {
+            return None;
+        }
+        // Pop the first (smallest) key from the BTreeMap
+        if let Some(((_, key), ())) = self.order.pop_first() {
+            self.entries.remove(&key);
+            Some(key)
+        } else {
+            None
+        }
+    }
+}
+
 /// Agent memory storage with scoped access.
 /// Each scope has a configurable max_entries limit. When the limit is reached,
-/// the oldest entry (by updated_at timestamp) is evicted (LRU eviction).
+/// the oldest entry (by updated_at timestamp) is evicted (LRU eviction) in O(log n).
+///
+/// Uses `RwLock` for read-heavy workloads: multiple readers can proceed concurrently,
+/// only writes take an exclusive lock.
 pub struct AgentMemory {
     /// User-scoped memory (shared across all agents for a user)
-    user_memory: Arc<Mutex<HashMap<String, MemoryEntry>>>,
+    user_memory: Arc<RwLock<ScopedMemory>>,
     /// Project-scoped memory (shared within a project)
-    project_memory: Arc<Mutex<HashMap<String, HashMap<String, MemoryEntry>>>>,
+    project_memory: Arc<RwLock<HashMap<String, ScopedMemory>>>,
     /// Local agent memory (private to each agent)
-    local_memory: Arc<Mutex<HashMap<String, HashMap<String, MemoryEntry>>>>,
+    local_memory: Arc<RwLock<HashMap<String, ScopedMemory>>>,
     /// Maximum entries per scope partition (per-agent for local, per-project for project, total for user)
     max_entries_per_scope: usize,
+    /// Maximum size in bytes for a single entry value (serialized JSON)
+    max_entry_size_bytes: usize,
 }
 
 impl AgentMemory {
-    /// Create a new agent memory system with default max entries (1000 per scope)
+    /// Create a new agent memory system with default limits (1000 entries per scope, 64KB per entry)
     pub fn new() -> Self {
-        Self::with_max_entries(DEFAULT_MAX_ENTRIES_PER_SCOPE)
+        Self::with_limits(DEFAULT_MAX_ENTRIES_PER_SCOPE, DEFAULT_MAX_ENTRY_SIZE_BYTES)
     }
 
     /// Create a new agent memory system with a custom max entries limit per scope
+    /// and default entry size limit (64KB)
     pub fn with_max_entries(max_entries: usize) -> Self {
+        Self::with_limits(max_entries, DEFAULT_MAX_ENTRY_SIZE_BYTES)
+    }
+
+    /// Create a new agent memory system with custom limits
+    pub fn with_limits(max_entries: usize, max_entry_size_bytes: usize) -> Self {
         Self {
-            user_memory: Arc::new(Mutex::new(HashMap::new())),
-            project_memory: Arc::new(Mutex::new(HashMap::new())),
-            local_memory: Arc::new(Mutex::new(HashMap::new())),
+            user_memory: Arc::new(RwLock::new(ScopedMemory::new())),
+            project_memory: Arc::new(RwLock::new(HashMap::new())),
+            local_memory: Arc::new(RwLock::new(HashMap::new())),
             max_entries_per_scope: max_entries,
+            max_entry_size_bytes,
         }
     }
 
@@ -105,21 +190,21 @@ impl AgentMemory {
         self.max_entries_per_scope
     }
 
-    /// Evict the oldest entry (by updated_at) from a HashMap if it exceeds max_entries.
-    /// Returns the evicted key, if any.
-    fn evict_oldest(map: &mut HashMap<String, MemoryEntry>, max_entries: usize) -> Option<String> {
-        if map.len() <= max_entries {
-            return None;
+    /// Get the configured max entry size in bytes
+    pub fn max_entry_size_bytes(&self) -> usize {
+        self.max_entry_size_bytes
+    }
+
+    /// Validate that a value does not exceed the maximum entry size.
+    fn validate_entry_size(&self, value: &serde_json::Value) -> Result<(), AgentMemoryError> {
+        let serialized_size = serde_json::to_vec(value).map(|v| v.len()).unwrap_or(0);
+        if serialized_size > self.max_entry_size_bytes {
+            return Err(AgentMemoryError::EntrySizeLimitExceeded {
+                max_bytes: self.max_entry_size_bytes,
+                actual_bytes: serialized_size,
+            });
         }
-        // Find the key with the smallest updated_at (LRU)
-        let oldest_key = map
-            .iter()
-            .min_by_key(|(_, entry)| entry.updated_at)
-            .map(|(k, _)| k.clone());
-        if let Some(ref key) = oldest_key {
-            map.remove(key);
-        }
-        oldest_key
+        Ok(())
     }
 
     /// Store a value in memory
@@ -131,6 +216,11 @@ impl AgentMemory {
     /// * `value` - JSON value to store
     /// * `agent_id` - ID of the agent storing the value
     /// * `project_id` - Optional project ID (required for project scope)
+    ///
+    /// # Errors
+    ///
+    /// Returns `AgentMemoryError::ProjectIdRequired` if scope is Project and project_id is None.
+    /// Returns `AgentMemoryError::EntrySizeLimitExceeded` if the serialized value exceeds the size limit.
     pub async fn set(
         &self,
         scope: MemoryScope,
@@ -138,30 +228,31 @@ impl AgentMemory {
         value: serde_json::Value,
         agent_id: String,
         project_id: Option<String>,
-    ) -> Result<(), String> {
+    ) -> Result<(), AgentMemoryError> {
+        self.validate_entry_size(&value)?;
         let entry = MemoryEntry::new(value, agent_id.clone());
 
         let max = self.max_entries_per_scope;
         match scope {
             MemoryScope::User => {
-                let mut memory = self.user_memory.lock().await;
+                let mut memory = self.user_memory.write().await;
                 memory.insert(key, entry);
-                Self::evict_oldest(&mut memory, max);
+                memory.evict_oldest(max);
                 Ok(())
             }
             MemoryScope::Project => {
-                let pid = project_id.ok_or("Project ID required for project scope")?;
-                let mut memory = self.project_memory.lock().await;
-                let project_map = memory.entry(pid).or_insert_with(HashMap::new);
+                let pid = project_id.ok_or(AgentMemoryError::ProjectIdRequired)?;
+                let mut memory = self.project_memory.write().await;
+                let project_map = memory.entry(pid).or_insert_with(ScopedMemory::new);
                 project_map.insert(key, entry);
-                Self::evict_oldest(project_map, max);
+                project_map.evict_oldest(max);
                 Ok(())
             }
             MemoryScope::Local => {
-                let mut memory = self.local_memory.lock().await;
-                let agent_map = memory.entry(agent_id).or_insert_with(HashMap::new);
+                let mut memory = self.local_memory.write().await;
+                let agent_map = memory.entry(agent_id).or_insert_with(ScopedMemory::new);
                 agent_map.insert(key, entry);
-                Self::evict_oldest(agent_map, max);
+                agent_map.evict_oldest(max);
                 Ok(())
             }
         }
@@ -181,19 +272,19 @@ impl AgentMemory {
         key: &str,
         agent_id: &str,
         project_id: Option<&str>,
-    ) -> Result<Option<MemoryEntry>, String> {
+    ) -> Result<Option<MemoryEntry>, AgentMemoryError> {
         match scope {
             MemoryScope::User => {
-                let memory = self.user_memory.lock().await;
+                let memory = self.user_memory.read().await;
                 Ok(memory.get(key).cloned())
             }
             MemoryScope::Project => {
-                let pid = project_id.ok_or("Project ID required for project scope")?;
-                let memory = self.project_memory.lock().await;
+                let pid = project_id.ok_or(AgentMemoryError::ProjectIdRequired)?;
+                let memory = self.project_memory.read().await;
                 Ok(memory.get(pid).and_then(|m| m.get(key).cloned()))
             }
             MemoryScope::Local => {
-                let memory = self.local_memory.lock().await;
+                let memory = self.local_memory.read().await;
                 Ok(memory.get(agent_id).and_then(|m| m.get(key).cloned()))
             }
         }
@@ -206,19 +297,19 @@ impl AgentMemory {
         key: &str,
         agent_id: &str,
         project_id: Option<&str>,
-    ) -> Result<bool, String> {
+    ) -> Result<bool, AgentMemoryError> {
         match scope {
             MemoryScope::User => {
-                let mut memory = self.user_memory.lock().await;
+                let mut memory = self.user_memory.write().await;
                 Ok(memory.remove(key).is_some())
             }
             MemoryScope::Project => {
-                let pid = project_id.ok_or("Project ID required for project scope")?;
-                let mut memory = self.project_memory.lock().await;
+                let pid = project_id.ok_or(AgentMemoryError::ProjectIdRequired)?;
+                let mut memory = self.project_memory.write().await;
                 Ok(memory.get_mut(pid).and_then(|m| m.remove(key)).is_some())
             }
             MemoryScope::Local => {
-                let mut memory = self.local_memory.lock().await;
+                let mut memory = self.local_memory.write().await;
                 Ok(memory
                     .get_mut(agent_id)
                     .and_then(|m| m.remove(key))
@@ -233,22 +324,22 @@ impl AgentMemory {
         scope: MemoryScope,
         agent_id: &str,
         project_id: Option<&str>,
-    ) -> Result<Vec<String>, String> {
+    ) -> Result<Vec<String>, AgentMemoryError> {
         match scope {
             MemoryScope::User => {
-                let memory = self.user_memory.lock().await;
+                let memory = self.user_memory.read().await;
                 Ok(memory.keys().cloned().collect())
             }
             MemoryScope::Project => {
-                let pid = project_id.ok_or("Project ID required for project scope")?;
-                let memory = self.project_memory.lock().await;
+                let pid = project_id.ok_or(AgentMemoryError::ProjectIdRequired)?;
+                let memory = self.project_memory.read().await;
                 Ok(memory
                     .get(pid)
                     .map(|m| m.keys().cloned().collect())
                     .unwrap_or_default())
             }
             MemoryScope::Local => {
-                let memory = self.local_memory.lock().await;
+                let memory = self.local_memory.read().await;
                 Ok(memory
                     .get(agent_id)
                     .map(|m| m.keys().cloned().collect())
@@ -263,23 +354,23 @@ impl AgentMemory {
         scope: MemoryScope,
         agent_id: &str,
         project_id: Option<&str>,
-    ) -> Result<(), String> {
+    ) -> Result<(), AgentMemoryError> {
         match scope {
             MemoryScope::User => {
-                let mut memory = self.user_memory.lock().await;
+                let mut memory = self.user_memory.write().await;
                 memory.clear();
                 Ok(())
             }
             MemoryScope::Project => {
-                let pid = project_id.ok_or("Project ID required for project scope")?;
-                let mut memory = self.project_memory.lock().await;
+                let pid = project_id.ok_or(AgentMemoryError::ProjectIdRequired)?;
+                let mut memory = self.project_memory.write().await;
                 if let Some(m) = memory.get_mut(pid) {
                     m.clear();
                 }
                 Ok(())
             }
             MemoryScope::Local => {
-                let mut memory = self.local_memory.lock().await;
+                let mut memory = self.local_memory.write().await;
                 if let Some(m) = memory.get_mut(agent_id) {
                     m.clear();
                 }
@@ -304,6 +395,7 @@ impl Clone for AgentMemory {
             project_memory: Arc::clone(&self.project_memory),
             local_memory: Arc::clone(&self.local_memory),
             max_entries_per_scope: self.max_entries_per_scope,
+            max_entry_size_bytes: self.max_entry_size_bytes,
         }
     }
 }
@@ -556,7 +648,7 @@ mod tests {
             )
             .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Project ID required"));
+        assert_eq!(result.unwrap_err(), AgentMemoryError::ProjectIdRequired);
 
         // Get without project_id should fail
         let result = memory.get(MemoryScope::Project, "key", &agent, None).await;
@@ -770,5 +862,186 @@ mod tests {
             .unwrap();
         assert!(result.is_some());
         assert_eq!(result.unwrap().value["data"], "project_a_only");
+    }
+
+    #[tokio::test]
+    async fn test_entry_size_limit_enforced() {
+        // Use a small size limit for testing (256 bytes)
+        let memory = AgentMemory::with_limits(1000, 256);
+        let agent = "agent1".to_string();
+
+        // A small value should succeed
+        let result = memory
+            .set(
+                MemoryScope::User,
+                "small".to_string(),
+                serde_json::json!({"msg": "hello"}),
+                agent.clone(),
+                None,
+            )
+            .await;
+        assert!(result.is_ok());
+
+        // A large value should fail
+        let large_string = "x".repeat(512);
+        let result = memory
+            .set(
+                MemoryScope::User,
+                "large".to_string(),
+                serde_json::json!({"data": large_string}),
+                agent.clone(),
+                None,
+            )
+            .await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            AgentMemoryError::EntrySizeLimitExceeded {
+                max_bytes,
+                actual_bytes,
+            } => {
+                assert_eq!(max_bytes, 256);
+                assert!(actual_bytes > 256);
+            }
+            other => panic!("Expected EntrySizeLimitExceeded, got {:?}", other),
+        }
+
+        // The large entry should not have been stored
+        let entry = memory
+            .get(MemoryScope::User, "large", &agent, None)
+            .await
+            .unwrap();
+        assert!(entry.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_default_entry_size_limit() {
+        let memory = AgentMemory::new();
+        assert_eq!(memory.max_entry_size_bytes(), 64 * 1024);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_multi_agent_access() {
+        // Spawn multiple tasks that read and write simultaneously to verify
+        // RwLock correctness under contention.
+        let memory = Arc::new(AgentMemory::new());
+        let num_agents = 5;
+        let ops_per_agent = 10;
+
+        let mut handles = Vec::new();
+
+        for agent_idx in 0..num_agents {
+            let mem = Arc::clone(&memory);
+            let handle = tokio::spawn(async move {
+                let agent_id = format!("agent_{}", agent_idx);
+                for op in 0..ops_per_agent {
+                    let key = format!("key_{}_{}", agent_idx, op);
+                    // Write
+                    mem.set(
+                        MemoryScope::User,
+                        key.clone(),
+                        serde_json::json!({"agent": agent_idx, "op": op}),
+                        agent_id.clone(),
+                        None,
+                    )
+                    .await
+                    .unwrap();
+
+                    // Read back (may or may not find it if evicted, but should not panic)
+                    let _ = mem
+                        .get(MemoryScope::User, &key, &agent_id, None)
+                        .await
+                        .unwrap();
+
+                    // Also write to local scope (no contention across agents)
+                    mem.set(
+                        MemoryScope::Local,
+                        key.clone(),
+                        serde_json::json!({"private": true}),
+                        agent_id.clone(),
+                        None,
+                    )
+                    .await
+                    .unwrap();
+
+                    // Read from local scope
+                    let entry = mem
+                        .get(MemoryScope::Local, &key, &agent_id, None)
+                        .await
+                        .unwrap();
+                    assert!(entry.is_some(), "Local scope entry should always be found");
+                }
+            });
+            handles.push(handle);
+        }
+
+        // All tasks should complete without panics or errors
+        for handle in handles {
+            handle.await.unwrap();
+        }
+
+        // Verify the memory is in a consistent state
+        let user_keys = memory
+            .list_keys(MemoryScope::User, "any", None)
+            .await
+            .unwrap();
+        // We inserted num_agents * ops_per_agent = 50 keys, but max is 1000, so all should be present
+        assert_eq!(user_keys.len(), num_agents * ops_per_agent);
+    }
+
+    #[tokio::test]
+    async fn test_update_existing_key_refreshes_order() {
+        // Verify that updating an existing key moves it to the end of the eviction order
+        let memory = AgentMemory::with_max_entries(3);
+        let agent = "agent1".to_string();
+
+        // Insert key0, key1, key2
+        for i in 0..3 {
+            memory
+                .set(
+                    MemoryScope::User,
+                    format!("key{}", i),
+                    serde_json::json!(i),
+                    agent.clone(),
+                    None,
+                )
+                .await
+                .unwrap();
+            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+        }
+
+        // Update key0 so it becomes the newest
+        memory
+            .set(
+                MemoryScope::User,
+                "key0".to_string(),
+                serde_json::json!("updated"),
+                agent.clone(),
+                None,
+            )
+            .await
+            .unwrap();
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
+        // Insert key3 - should evict key1 (now the oldest), NOT key0
+        memory
+            .set(
+                MemoryScope::User,
+                "key3".to_string(),
+                serde_json::json!(3),
+                agent.clone(),
+                None,
+            )
+            .await
+            .unwrap();
+
+        let keys = memory
+            .list_keys(MemoryScope::User, &agent, None)
+            .await
+            .unwrap();
+        assert_eq!(keys.len(), 3);
+        assert!(keys.contains(&"key0".to_string()), "key0 was refreshed, should survive");
+        assert!(!keys.contains(&"key1".to_string()), "key1 should be evicted as oldest");
+        assert!(keys.contains(&"key2".to_string()));
+        assert!(keys.contains(&"key3".to_string()));
     }
 }
