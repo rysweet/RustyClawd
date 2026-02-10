@@ -160,9 +160,8 @@ impl SessionIndex {
         {
             use std::os::unix::fs::PermissionsExt;
             let perms = fs::Permissions::from_mode(0o600);
-            fs::set_permissions(&tmp_path, perms).with_context(|| {
-                format!("Failed to set permissions on {}", tmp_path.display())
-            })?;
+            fs::set_permissions(&tmp_path, perms)
+                .with_context(|| format!("Failed to set permissions on {}", tmp_path.display()))?;
         }
 
         fs::rename(&tmp_path, &self.storage_path).with_context(|| {
