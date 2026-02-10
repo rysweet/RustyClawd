@@ -237,24 +237,28 @@ impl Config {
     }
 
     /// Builder: Set custom API URL
+    #[must_use]
     pub fn with_api_url(mut self, url: String) -> Self {
         self.api_url = url;
         self
     }
 
     /// Builder: Set custom API version
+    #[must_use]
     pub fn with_api_version(mut self, version: String) -> Self {
         self.api_version = version;
         self
     }
 
     /// Builder: Set custom timeout
+    #[must_use]
     pub fn with_timeout_secs(mut self, timeout: u64) -> Self {
         self.timeout_secs = timeout;
         self
     }
 
     /// Builder: Enable or disable fast mode
+    #[must_use]
     pub fn with_fast_mode(mut self, enabled: bool) -> Self {
         self.fast_mode_enabled = enabled;
         self

@@ -50,7 +50,7 @@ pub use config::{ApiKey, Config};
 pub use error::{ClientError, ClientResult};
 pub use stream::{EventStream, SseEvent, SseStream};
 pub use types::{
-    ContentBlock, CreateMessageRequest, ExtraToolSchema, Message, MessageResponse, Role,
+    ContentBlock, CreateMessageRequest, ExtraToolSchema, Message, MessageResponse, Role, Speed,
     StreamEvent, ThinkingConfig, ToolChoice, ToolDefinition, Usage,
 };
 
@@ -550,5 +550,122 @@ mod tests {
         let client = Client::new(config);
         let debug_str = format!("{:?}", client);
         assert!(!debug_str.contains("secret123"));
+    }
+
+    /// Test that build_request_headers includes the fast-mode beta header
+    /// when speed is set to Fast.
+    #[test]
+    fn test_build_request_headers_includes_fast_mode_beta() {
+        let key = ApiKey::new("sk-ant-test123".to_string()).unwrap();
+        let config = Config::new(key);
+        let client = Client::new(config);
+
+        let request =
+            CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Test")], 1024)
+                .with_speed(true);
+
+        let headers = client.build_request_headers(&request);
+
+        assert_eq!(
+            headers.get("anthropic-beta").map(|v| v.to_str().unwrap()),
+            Some("fast-mode-2026-02-01"),
+            "Beta header must be present when speed is Fast"
+        );
+        // Standard headers should still be present
+        assert!(headers.get("x-api-key").is_some());
+        assert!(headers.get("anthropic-version").is_some());
+        assert_eq!(
+            headers.get("content-type").map(|v| v.to_str().unwrap()),
+            Some("application/json")
+        );
+    }
+
+    /// Test that build_request_headers omits the fast-mode beta header
+    /// when speed is not set.
+    #[test]
+    fn test_build_request_headers_omits_beta_without_fast_mode() {
+        let key = ApiKey::new("sk-ant-test123".to_string()).unwrap();
+        let config = Config::new(key);
+        let client = Client::new(config);
+
+        let request =
+            CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Test")], 1024);
+
+        let headers = client.build_request_headers(&request);
+
+        assert!(
+            headers.get("anthropic-beta").is_none(),
+            "Beta header must NOT be present when speed is None"
+        );
+    }
+
+    /// Test requires_fast_mode_beta returns true only for Speed::Fast.
+    #[test]
+    fn test_requires_fast_mode_beta_true_when_fast() {
+        let request =
+            CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Test")], 1024)
+                .with_speed(true);
+
+        assert!(request.requires_fast_mode_beta());
+    }
+
+    /// Test requires_fast_mode_beta returns false when speed is None.
+    #[test]
+    fn test_requires_fast_mode_beta_false_when_none() {
+        let request =
+            CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Test")], 1024);
+
+        assert!(!request.requires_fast_mode_beta());
+    }
+
+    /// Test requires_fast_mode_beta returns false after disabling speed.
+    #[test]
+    fn test_requires_fast_mode_beta_false_after_disable() {
+        let request =
+            CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Test")], 1024)
+                .with_speed(true)
+                .with_speed(false);
+
+        assert!(!request.requires_fast_mode_beta());
+    }
+
+    /// Integration test: construct a full request with speed=Fast,
+    /// verify the serialized JSON contains "speed":"fast" AND
+    /// the headers contain the beta header.
+    #[test]
+    fn test_fast_mode_full_request_json_and_headers() {
+        // 1. Build the request
+        let request =
+            CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Hello")], 2048)
+                .with_speed(true)
+                .with_stream(true);
+
+        // 2. Validate the request passes validation
+        assert!(request.validate().is_ok());
+
+        // 3. Verify serialized JSON contains "speed":"fast"
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(
+            json.contains(r#""speed":"fast""#),
+            "Serialized JSON must contain '\"speed\":\"fast\"', got: {}",
+            json
+        );
+        // Ensure it does NOT contain the old field name
+        assert!(
+            !json.contains("fast_mode"),
+            "JSON must not contain legacy 'fast_mode' field"
+        );
+
+        // 4. Verify headers contain the beta header
+        let key = ApiKey::new("sk-ant-test123".to_string()).unwrap();
+        let config = Config::new(key);
+        let client = Client::new(config);
+        let headers = client.build_request_headers(&request);
+
+        assert_eq!(
+            headers.get("anthropic-beta").map(|v| v.to_str().unwrap()),
+            Some("fast-mode-2026-02-01"),
+            "Headers must contain fast-mode beta header"
+        );
     }
 }

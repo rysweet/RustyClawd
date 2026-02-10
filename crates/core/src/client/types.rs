@@ -135,6 +135,17 @@ impl ToolChoice {
     }
 }
 
+/// Speed mode for the API request.
+///
+/// Currently only `Fast` is supported (Opus 4.6 only).
+/// Requires beta header `anthropic-beta: fast-mode-2026-02-01`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Speed {
+    /// Fast mode - reduced latency with faster output (Opus 4.6 only)
+    Fast,
+}
+
 /// Extended thinking configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThinkingConfig {
@@ -188,10 +199,10 @@ pub struct CreateMessageRequest {
     /// Extended thinking configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking: Option<ThinkingConfig>,
-    /// Speed mode: "fast" for fast mode (Opus 4.6 only), or None for standard speed.
-    /// Requires beta header `anthropic-beta: fast-mode-2026-02-01` when set to "fast".
+    /// Speed mode for the request (Opus 4.6 only).
+    /// Requires beta header `anthropic-beta: fast-mode-2026-02-01` when set to `Fast`.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub speed: Option<String>,
+    pub speed: Option<Speed>,
 }
 
 /// Request metadata
@@ -367,60 +378,70 @@ impl CreateMessageRequest {
     }
 
     /// Builder: Enable streaming
+    #[must_use]
     pub fn with_stream(mut self, stream: bool) -> Self {
         self.stream = stream;
         self
     }
 
     /// Builder: Enable extended thinking with specified token budget
+    #[must_use]
     pub fn with_thinking(mut self, budget_tokens: u32) -> Self {
         self.thinking = Some(ThinkingConfig::new(budget_tokens));
         self
     }
 
     /// Builder: Set system prompt
+    #[must_use]
     pub fn with_system(mut self, system: String) -> Self {
         self.system = Some(system);
         self
     }
 
     /// Builder: Set temperature
+    #[must_use]
     pub fn with_temperature(mut self, temperature: f32) -> Self {
         self.temperature = Some(temperature);
         self
     }
 
     /// Builder: Set top_p
+    #[must_use]
     pub fn with_top_p(mut self, top_p: f32) -> Self {
         self.top_p = Some(top_p);
         self
     }
 
     /// Builder: Set top_k
+    #[must_use]
     pub fn with_top_k(mut self, top_k: u32) -> Self {
         self.top_k = Some(top_k);
         self
     }
 
     /// Builder: Set stop_sequences
+    #[must_use]
     pub fn with_stop_sequences(mut self, stop_sequences: Vec<String>) -> Self {
         self.stop_sequences = Some(stop_sequences);
         self
     }
 
     /// Builder: Set tools
+    #[must_use]
     pub fn with_tools(mut self, tools: Vec<ToolDefinition>) -> Self {
         self.tools = Some(tools);
         self
     }
 
     /// Builder: Set tool choice
+    #[must_use]
     pub fn with_tool_choice(mut self, tool_choice: ToolChoice) -> Self {
         self.tool_choice = Some(tool_choice);
         self
     }
 
     /// Builder: Set extra tool schemas (server-side tools)
+    #[must_use]
     pub fn with_extra_tool_schemas(mut self, schemas: Vec<ExtraToolSchema>) -> Self {
         self.extra_tool_schemas = Some(schemas);
         self
@@ -428,11 +449,12 @@ impl CreateMessageRequest {
 
     /// Builder: Enable fast mode (Opus 4.6 only)
     ///
-    /// Sets `speed` to `"fast"` when enabled, or clears it when disabled.
+    /// Sets `speed` to `Speed::Fast` when enabled, or clears it when disabled.
     /// Model validation happens at send time via `validate()`.
+    #[must_use]
     pub fn with_speed(mut self, fast: bool) -> Self {
         if fast {
-            self.speed = Some("fast".to_string());
+            self.speed = Some(Speed::Fast);
         } else {
             self.speed = None;
         }
@@ -445,7 +467,7 @@ impl CreateMessageRequest {
     /// Called automatically by the client before making API requests.
     pub fn validate(&self) -> Result<(), String> {
         // Fast mode is only supported on Opus 4.6 models
-        if self.speed.as_deref() == Some("fast") && !self.model.starts_with("claude-opus-4-6") {
+        if self.speed == Some(Speed::Fast) && !self.model.starts_with("claude-opus-4-6") {
             return Err(
                 "Fast mode (speed: \"fast\") is only supported on claude-opus-4-6 models"
                     .to_string(),
@@ -455,8 +477,9 @@ impl CreateMessageRequest {
     }
 
     /// Returns true if this request requires the fast mode beta header.
+    #[must_use]
     pub fn requires_fast_mode_beta(&self) -> bool {
-        self.speed.as_deref() == Some("fast")
+        self.speed == Some(Speed::Fast)
     }
 }
 
@@ -529,7 +552,7 @@ mod fast_mode_tests {
             CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Test")], 1024)
                 .with_speed(true);
 
-        assert_eq!(request.speed, Some("fast".to_string()));
+        assert_eq!(request.speed, Some(Speed::Fast));
         assert!(request.validate().is_ok());
         assert!(request.requires_fast_mode_beta());
     }
@@ -544,7 +567,7 @@ mod fast_mode_tests {
         )
         .with_speed(true);
 
-        assert_eq!(request.speed, Some("fast".to_string()));
+        assert_eq!(request.speed, Some(Speed::Fast));
         assert!(request.validate().is_ok());
     }
 
@@ -587,7 +610,7 @@ mod fast_mode_tests {
                 .with_stream(true)
                 .with_temperature(0.7);
 
-        assert_eq!(request.speed, Some("fast".to_string()));
+        assert_eq!(request.speed, Some(Speed::Fast));
         assert!(request.stream);
         assert_eq!(request.temperature, Some(0.7));
     }
@@ -640,5 +663,33 @@ mod fast_mode_tests {
         let config = Config::new(api_key);
 
         assert!(!config.fast_mode_enabled);
+    }
+
+    /// Test Usage.speed deserialization when speed field is present with "fast"
+    #[test]
+    fn test_usage_speed_deserialization_fast() {
+        let json = r#"{"input_tokens": 100, "output_tokens": 50, "speed": "fast"}"#;
+        let usage: Usage = serde_json::from_str(json).unwrap();
+        assert_eq!(usage.speed, Some("fast".to_string()));
+        assert_eq!(usage.input_tokens, 100);
+        assert_eq!(usage.output_tokens, 50);
+    }
+
+    /// Test Usage.speed deserialization when speed field is present with "standard"
+    #[test]
+    fn test_usage_speed_deserialization_standard() {
+        let json = r#"{"input_tokens": 100, "output_tokens": 50, "speed": "standard"}"#;
+        let usage: Usage = serde_json::from_str(json).unwrap();
+        assert_eq!(usage.speed, Some("standard".to_string()));
+    }
+
+    /// Test Usage.speed deserialization backward compatibility - speed field missing
+    #[test]
+    fn test_usage_speed_deserialization_missing() {
+        let json = r#"{"input_tokens": 100, "output_tokens": 50}"#;
+        let usage: Usage = serde_json::from_str(json).unwrap();
+        assert_eq!(usage.speed, None);
+        assert_eq!(usage.input_tokens, 100);
+        assert_eq!(usage.output_tokens, 50);
     }
 }
