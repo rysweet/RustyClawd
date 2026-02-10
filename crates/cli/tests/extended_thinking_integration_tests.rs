@@ -343,11 +343,7 @@ mod thinking_state_tests {
         let original_duration = state.thinking_duration().unwrap();
         let cloned_duration = cloned.thinking_duration().unwrap();
 
-        let diff = if original_duration > cloned_duration {
-            original_duration - cloned_duration
-        } else {
-            cloned_duration - original_duration
-        };
+        let diff = original_duration.abs_diff(cloned_duration);
 
         // Difference should be negligible (< 5ms)
         assert!(
