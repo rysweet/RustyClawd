@@ -360,7 +360,10 @@ mod tests {
         });
 
         let params: TaskUpdateParams = serde_json::from_value(json_with_snake).unwrap();
-        assert!(params.active_form.is_none(), "snake_case should be ignored by serde rename");
+        assert!(
+            params.active_form.is_none(),
+            "snake_case should be ignored by serde rename"
+        );
     }
 
     #[test]
