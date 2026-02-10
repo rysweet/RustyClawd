@@ -25,6 +25,7 @@ pub mod process_registry;
 pub mod read;
 pub mod skill;
 pub mod slash_command;
+pub mod task;
 pub mod todo_write;
 pub mod types;
 pub mod web_fetch;
@@ -59,6 +60,12 @@ pub use process_registry::{global_registry, ProcessHandle, ProcessRegistry, Proc
 pub use read::ReadTool;
 pub use skill::SkillTool;
 pub use slash_command::SlashCommandTool;
+pub use task::{
+    Task, TaskCreateOutput, TaskCreateParams, TaskCreateTool, TaskDeleteOutput, TaskDeleteParams,
+    TaskDeleteTool, TaskDependencies, TaskGetOutput, TaskGetParams, TaskGetTool, TaskId,
+    TaskListOutput, TaskListParams, TaskListTool, TaskStateError, TaskStatus, TaskStore,
+    TaskUpdateOutput, TaskUpdateParams, TaskUpdateTool,
+};
 pub use todo_write::TodoWriteTool;
 pub use types::{ExecutionContext, ToolContext, ToolEvent, ToolMetadata, ToolStream};
 pub use web_fetch::WebFetchTool;
