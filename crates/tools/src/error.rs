@@ -29,3 +29,25 @@ pub enum ToolError {
 
 /// Convenience Result type for tools
 pub type ToolResult<T> = std::result::Result<T, ToolError>;
+
+/// Errors for agent memory operations
+#[derive(Error, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum AgentMemoryError {
+    #[error("project ID is required for project scope operations")]
+    ProjectIdRequired,
+
+    #[error("entry value exceeds maximum size of {max_bytes} bytes (got {actual_bytes} bytes)")]
+    EntrySizeLimitExceeded {
+        max_bytes: usize,
+        actual_bytes: usize,
+    },
+}
+
+/// Errors for agent registry operations
+#[derive(Error, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum AgentRegistryError {
+    #[error("agent not found: {0}")]
+    AgentNotFound(String),
+}

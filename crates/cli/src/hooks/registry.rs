@@ -52,6 +52,8 @@ impl HookRegistry {
             HookEvent::Notification => &mut self.configuration.notification,
             HookEvent::PreCompact => &mut self.configuration.pre_compact,
             HookEvent::PermissionRequest => &mut self.configuration.permission_request,
+            HookEvent::TeammateIdle => &mut self.configuration.teammate_idle,
+            HookEvent::TaskCompleted => &mut self.configuration.task_completed,
         };
         hooks.push(config);
     }
@@ -69,6 +71,8 @@ impl HookRegistry {
             HookEvent::Notification => &mut self.configuration.notification,
             HookEvent::PreCompact => &mut self.configuration.pre_compact,
             HookEvent::PermissionRequest => &mut self.configuration.permission_request,
+            HookEvent::TeammateIdle => &mut self.configuration.teammate_idle,
+            HookEvent::TaskCompleted => &mut self.configuration.task_completed,
         };
         hooks.clear();
     }
@@ -141,6 +145,18 @@ impl HookRegistry {
             + self
                 .configuration
                 .permission_request
+                .iter()
+                .map(|c| c.hooks.len())
+                .sum::<usize>()
+            + self
+                .configuration
+                .teammate_idle
+                .iter()
+                .map(|c| c.hooks.len())
+                .sum::<usize>()
+            + self
+                .configuration
+                .task_completed
                 .iter()
                 .map(|c| c.hooks.len())
                 .sum::<usize>()
