@@ -29,4 +29,5 @@ jobs = 4
 
 # Shared target directory to prevent worktree disk explosion
 # Each worktree would otherwise create a 2GB+ target directory
-target-dir = "/home/azureuser/src/RustyClawd/target"
+# Uncomment and adjust path for your local setup:
+# target-dir = "/home/azureuser/src/RustyClawd/target"
