@@ -9,16 +9,18 @@ use crate::database::{Database, MemoryStats};
 use crate::types::{MemoryEntry, MemoryQuery, MemoryScope, MemoryType};
 use anyhow::Result;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 /// High-level memory manager interface
 ///
 /// Note: `Default` is intentionally not implemented because construction
 /// touches the filesystem (creating directories and the SQLite database),
 /// which can fail. Use `MemoryManager::new()` and handle the Result.
+///
+/// `Database` is already `Clone` via its inner `Arc<RwLock<Connection>>`,
+/// so no additional `Arc` wrapping is needed here.
 #[derive(Clone)]
 pub struct MemoryManager {
-    db: Arc<Database>,
+    db: Database,
     session_id: Option<String>,
 }
 
@@ -33,7 +35,7 @@ impl MemoryManager {
     pub fn with_db_path(path: impl Into<PathBuf>) -> Result<Self> {
         let db = Database::open(path.into())?;
         Ok(Self {
-            db: Arc::new(db),
+            db,
             session_id: None,
         })
     }

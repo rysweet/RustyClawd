@@ -2,15 +2,15 @@
 //
 // Philosophy:
 // - <50ms operations (target: 2-15ms)
-// - Thread-safe via Mutex-guarded connection
+// - Thread-safe via Mutex-guarded connection with poisoning recovery
 // - ACID compliance with WAL mode
 // - Efficient indexing for fast queries
 //
 // Thread safety note:
-// The Connection is wrapped in Arc<Mutex<>> so only one thread accesses it at
-// a time. SQLITE_OPEN_FULL_MUTEX is used as defense-in-depth -- if the outer
-// Mutex is ever removed or bypassed, SQLite's internal mutex still prevents
-// data corruption.
+// The Connection is wrapped in Arc<Mutex<>> which serializes all access.
+// rusqlite::Connection does not implement Sync, so RwLock cannot be used.
+// SQLITE_OPEN_FULL_MUTEX is used as defense-in-depth.
+// Lock poisoning is handled gracefully by recovering the inner guard.
 
 use crate::types::{MemoryEntry, MemoryQuery, MemoryScope, MemoryType};
 use anyhow::{Context, Result};
@@ -20,10 +20,20 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tracing::{debug, info, warn};
 
+/// Maximum allowed content length (1 MB)
+const MAX_CONTENT_LENGTH: usize = 1_048_576;
+/// Maximum allowed title length (1000 characters)
+const MAX_TITLE_LENGTH: usize = 1_000;
+/// Maximum allowed agent_id length (256 characters)
+const MAX_AGENT_ID_LENGTH: usize = 256;
+
 /// Database schema version for migrations
 const SCHEMA_VERSION: i32 = 1;
 
 /// Thread-safe database handle
+///
+/// Uses `Mutex` to serialize all access (rusqlite::Connection is not Sync).
+/// Lock poisoning is handled gracefully by recovering the guard on panic.
 #[derive(Clone)]
 pub struct Database {
     conn: Arc<Mutex<Connection>>,
@@ -39,6 +49,16 @@ impl Database {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+
+            // Set restrictive permissions on parent directory (owner-only)
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o700))
+                    .with_context(|| {
+                        format!("Failed to set directory permissions: {}", parent.display())
+                    })?;
+            }
         }
 
         // Open database with FULL_MUTEX for defense-in-depth thread safety
@@ -50,6 +70,14 @@ impl Database {
         )
         .with_context(|| format!("Failed to open database: {}", path.display()))?;
 
+        // Set restrictive permissions on database file (owner read/write only)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
+                .with_context(|| format!("Failed to set file permissions: {}", path.display()))?;
+        }
+
         // Enable WAL mode for better concurrency
         conn.execute_batch(
             "PRAGMA journal_mode=WAL;
@@ -59,24 +87,32 @@ impl Database {
         )
         .context("Failed to configure database")?;
 
+        info!("Opened memory database at {}", path.display());
+
         let db = Self {
             conn: Arc::new(Mutex::new(conn)),
-            path: path.clone(),
+            path,
         };
 
         // Initialize schema
         db.initialize_schema()
             .context("Failed to initialize database schema")?;
 
-        info!("Opened memory database at {}", path.display());
         Ok(db)
     }
 
-    /// Acquire the database connection lock, returning a meaningful error on poison
+    /// Acquire lock on the database connection
+    ///
+    /// Recovers from poisoned mutex by unwrapping the guard, allowing
+    /// continued operation even if a previous thread panicked while holding the lock.
     fn lock_conn(&self) -> Result<std::sync::MutexGuard<'_, Connection>> {
-        self.conn
-            .lock()
-            .map_err(|e| anyhow::anyhow!("Database lock poisoned: {}", e))
+        match self.conn.lock() {
+            Ok(guard) => Ok(guard),
+            Err(poisoned) => {
+                warn!("Database lock was poisoned, recovering...");
+                Ok(poisoned.into_inner())
+            }
+        }
     }
 
     /// Initialize database schema
@@ -173,8 +209,35 @@ impl Database {
         Ok(())
     }
 
+    /// Validate content length limits on a memory entry
+    fn validate_entry(entry: &MemoryEntry) -> Result<()> {
+        if entry.content.len() > MAX_CONTENT_LENGTH {
+            anyhow::bail!(
+                "Content exceeds maximum length of {} bytes (got {})",
+                MAX_CONTENT_LENGTH,
+                entry.content.len()
+            );
+        }
+        if entry.title.len() > MAX_TITLE_LENGTH {
+            anyhow::bail!(
+                "Title exceeds maximum length of {} characters (got {})",
+                MAX_TITLE_LENGTH,
+                entry.title.len()
+            );
+        }
+        if entry.agent_id.len() > MAX_AGENT_ID_LENGTH {
+            anyhow::bail!(
+                "Agent ID exceeds maximum length of {} characters (got {})",
+                MAX_AGENT_ID_LENGTH,
+                entry.agent_id.len()
+            );
+        }
+        Ok(())
+    }
+
     /// Store a memory entry in the database
     pub fn store(&self, entry: &MemoryEntry) -> Result<String> {
+        Self::validate_entry(entry)?;
         let conn = self.lock_conn()?;
 
         let tags_json = serde_json::to_string(&entry.tags).context("Failed to serialize tags")?;
@@ -216,6 +279,7 @@ impl Database {
     /// scope, memory_type, parent_id, expires_at) and sets updated_at to now.
     /// Returns true if the entry existed and was updated, false if not found.
     pub fn update(&self, entry: &MemoryEntry) -> Result<bool> {
+        Self::validate_entry(entry)?;
         let conn = self.lock_conn()?;
 
         let tags_json = serde_json::to_string(&entry.tags).context("Failed to serialize tags")?;
@@ -790,5 +854,205 @@ mod tests {
 
         let stats = db.stats().unwrap();
         assert_eq!(stats.total_entries, 10);
+    }
+
+    #[test]
+    fn test_corrupted_database_file_returns_error() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("corrupt.db");
+        std::fs::write(&db_path, b"this is not a sqlite database").unwrap();
+
+        let result = Database::open(&db_path);
+        // Should return an error, not panic
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_empty_string_inputs() {
+        let (db, _temp_dir) = create_test_db();
+
+        // Empty title and content should succeed (no validation rejects empty)
+        let entry = MemoryEntry::new("", "", "", MemoryType::Context, MemoryScope::Local);
+        let result = db.store(&entry);
+        assert!(result.is_ok());
+
+        let id = result.unwrap();
+        let retrieved = db.get(&id).unwrap().unwrap();
+        assert_eq!(retrieved.title, "");
+        assert_eq!(retrieved.content, "");
+        assert_eq!(retrieved.agent_id, "");
+    }
+
+    #[test]
+    fn test_concurrent_reads_while_writing() {
+        use std::sync::Barrier;
+
+        let (db, _temp_dir) = create_test_db();
+
+        // Seed some data first
+        for i in 0..5 {
+            let entry = MemoryEntry::new(
+                "agent",
+                format!("Seed {}", i),
+                "Content",
+                MemoryType::Context,
+                MemoryScope::Local,
+            );
+            db.store(&entry).unwrap();
+        }
+
+        let barrier = Arc::new(Barrier::new(12)); // 10 readers + 2 writers
+
+        // Spawn 10 reader threads and 2 writer threads concurrently
+        let mut handles = Vec::new();
+
+        for i in 0..10 {
+            let db = db.clone();
+            let barrier = barrier.clone();
+            handles.push(std::thread::spawn(move || {
+                barrier.wait();
+                // Concurrent read
+                let query = MemoryQuery::new().limit(10);
+                let results = db.query(&query).unwrap();
+                assert!(!results.is_empty(), "Reader {} got no results", i);
+            }));
+        }
+
+        for i in 0..2 {
+            let db = db.clone();
+            let barrier = barrier.clone();
+            handles.push(std::thread::spawn(move || {
+                barrier.wait();
+                // Concurrent write
+                let entry = MemoryEntry::new(
+                    "writer",
+                    format!("Written {}", i),
+                    "New content",
+                    MemoryType::Decision,
+                    MemoryScope::Project,
+                );
+                db.store(&entry).unwrap();
+            }));
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        // Verify all writes completed
+        let stats = db.stats().unwrap();
+        assert_eq!(stats.total_entries, 7); // 5 seeded + 2 written
+    }
+
+    #[test]
+    fn test_content_length_limit_enforced() {
+        let (db, _temp_dir) = create_test_db();
+
+        // Content exceeding 1MB should be rejected
+        let huge_content = "x".repeat(MAX_CONTENT_LENGTH + 1);
+        let entry = MemoryEntry::new(
+            "agent",
+            "Big Entry",
+            huge_content,
+            MemoryType::Context,
+            MemoryScope::Local,
+        );
+        let result = db.store(&entry);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Content exceeds maximum length"));
+    }
+
+    #[test]
+    fn test_title_length_limit_enforced() {
+        let (db, _temp_dir) = create_test_db();
+
+        let huge_title = "t".repeat(MAX_TITLE_LENGTH + 1);
+        let entry = MemoryEntry::new(
+            "agent",
+            huge_title,
+            "Normal content",
+            MemoryType::Context,
+            MemoryScope::Local,
+        );
+        let result = db.store(&entry);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Title exceeds maximum length"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_database_file_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("perms_test").join("test.db");
+        let _db = Database::open(&db_path).unwrap();
+
+        // Verify file permissions are 0600 (owner read/write only)
+        let file_perms = std::fs::metadata(&db_path).unwrap().permissions();
+        assert_eq!(
+            file_perms.mode() & 0o777,
+            0o600,
+            "Database file should have 0600 permissions"
+        );
+
+        // Verify parent directory permissions are 0700 (owner only)
+        let dir_perms = std::fs::metadata(db_path.parent().unwrap())
+            .unwrap()
+            .permissions();
+        assert_eq!(
+            dir_perms.mode() & 0o777,
+            0o700,
+            "Parent directory should have 0700 permissions"
+        );
+    }
+
+    #[test]
+    fn test_database_recovers_from_poisoned_lock() {
+        use std::panic;
+
+        let (db, _temp_dir) = create_test_db();
+        let db_clone = db.clone();
+
+        // Deliberately poison the mutex by panicking while holding the lock
+        let handle = std::thread::spawn(move || {
+            let _ = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+                let _guard = db_clone.lock_conn().unwrap();
+                panic!("Intentional panic to poison the lock");
+            }));
+        });
+
+        let _ = handle.join();
+
+        // The mutex is now poisoned, but lock_conn() should recover
+        // by unwrapping the PoisonError and returning the inner guard
+        let entry = MemoryEntry::new(
+            "test_agent",
+            "After Poison",
+            "Content after recovering from poisoned lock",
+            MemoryType::Context,
+            MemoryScope::Local,
+        );
+
+        // This should succeed because lock_conn() recovers from poisoning
+        let result = db.store(&entry);
+        assert!(
+            result.is_ok(),
+            "Database should recover from poisoned lock and allow operations"
+        );
+
+        // Verify the entry was actually stored
+        let id = result.unwrap();
+        let retrieved = db.get(&id).unwrap();
+        assert!(
+            retrieved.is_some(),
+            "Entry should be retrievable after lock recovery"
+        );
     }
 }
