@@ -123,12 +123,31 @@ class ScenarioRunner:
                 return self._step_launch(step)
             elif action == "send_input":
                 return self._step_send_input(step)
+            elif action == "send_keys":
+                return self._step_send_keys(step)
+            elif action == "send_key":
+                return self._step_send_key(step)
             elif action == "wait_for_text":
                 return self._step_wait_for_text(step)
             elif action == "capture_screenshot":
                 return self._step_capture_screenshot(step)
             elif action == "sleep":
                 return self._step_sleep(step)
+            elif action == "ensure_file":
+                return self._step_ensure_file(step)
+            elif action == "remove_file":
+                return self._step_remove_file(step)
+            elif action == "cleanup_test_files":
+                return self._step_cleanup_test_files(step)
+            elif action == "execute_command":
+                return self._step_execute_command(step)
+            elif action == "resize_terminal":
+                return self._step_resize_terminal(step)
+            elif action == "none":
+                # No-op action for documentation/placeholders
+                if self.verbose:
+                    print("OK (no-op)")
+                return True, None
             else:
                 return False, f"Unknown action: {action}"
         except Exception as e:
@@ -265,6 +284,178 @@ class ScenarioRunner:
         time.sleep(duration)
         if self.verbose:
             print("OK")
+        return True, None
+
+    def _step_send_keys(self, step: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+        """Execute send_keys step: send raw keys without Enter"""
+        keys = step.get("keys", "")
+        wait_time = step.get("wait", 0.5)
+
+        session_quoted = shlex.quote(self.session_name)
+        keys_quoted = shlex.quote(keys)
+
+        bash_cmd = f"""
+            {self._source_framework()}
+            SESSION={session_quoted}
+            send_keys "$SESSION" {keys_quoted} || exit 1
+            sleep {wait_time}
+        """
+
+        exit_code, stdout, stderr = self._run_bash_cmd(bash_cmd)
+
+        if exit_code != 0:
+            return False, f"Failed to send keys: {stderr}"
+
+        if self.verbose:
+            print("OK")
+        return True, None
+
+    def _step_send_key(self, step: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+        """Execute send_key step: send a single special key"""
+        key = step.get("key", "")
+        wait_time = step.get("wait", 0.5)
+
+        # Map common key names to tmux key codes
+        key_map = {
+            "enter": "C-m",
+            "tab": "Tab",
+            "shift-tab": "BTab",
+            "escape": "Escape",
+            "up": "Up",
+            "down": "Down",
+            "left": "Left",
+            "right": "Right",
+            "ctrl-c": "C-c",
+            "ctrl-d": "C-d",
+        }
+
+        tmux_key = key_map.get(key.lower(), key)
+        session_quoted = shlex.quote(self.session_name)
+
+        bash_cmd = f"""
+            {self._source_framework()}
+            SESSION={session_quoted}
+            tmux send-keys -t "$SESSION" {tmux_key} || exit 1
+            sleep {wait_time}
+        """
+
+        exit_code, stdout, stderr = self._run_bash_cmd(bash_cmd)
+
+        if exit_code != 0:
+            return False, f"Failed to send key '{key}': {stderr}"
+
+        if self.verbose:
+            print("OK")
+        return True, None
+
+    def _step_ensure_file(self, step: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+        """Execute ensure_file step: create a test file with content"""
+        path = step.get("path", "")
+        content = step.get("content", "")
+
+        # Validate path for security
+        if not path or ".." in path or path.startswith("/"):
+            return False, f"Invalid file path: {path}"
+
+        # Create in test directory
+        test_dir = Path(__file__).parent / "test_files"
+        test_dir.mkdir(exist_ok=True, parents=True)
+        filepath = test_dir / path
+
+        try:
+            filepath.parent.mkdir(exist_ok=True, parents=True)
+            filepath.write_text(content)
+            if self.verbose:
+                print(f"OK (created {filepath})")
+            return True, None
+        except Exception as e:
+            return False, f"Failed to create file: {e}"
+
+    def _step_remove_file(self, step: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+        """Execute remove_file step: remove a test file"""
+        path = step.get("path", "")
+
+        # Validate path for security
+        if not path or ".." in path or path.startswith("/"):
+            return False, f"Invalid file path: {path}"
+
+        # Remove from test directory
+        test_dir = Path(__file__).parent / "test_files"
+        filepath = test_dir / path
+
+        try:
+            if filepath.exists():
+                filepath.unlink()
+            if self.verbose:
+                print(f"OK (removed {filepath})")
+            return True, None
+        except Exception as e:
+            return False, f"Failed to remove file: {e}"
+
+    def _step_cleanup_test_files(self, step: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+        """Execute cleanup_test_files step: remove all test files"""
+        test_dir = Path(__file__).parent / "test_files"
+
+        try:
+            if test_dir.exists():
+                import shutil
+                shutil.rmtree(test_dir)
+            if self.verbose:
+                print(f"OK (cleaned {test_dir})")
+            return True, None
+        except Exception as e:
+            return False, f"Failed to cleanup test files: {e}"
+
+    def _step_execute_command(self, step: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+        """Execute execute_command step: run a shell command"""
+        command = step.get("command", "")
+        timeout = self._parse_duration(step.get("timeout", "30s"))
+        check_exit_code = step.get("check_exit_code", True)
+
+        if not command:
+            return False, "No command specified"
+
+        try:
+            result = subprocess.run(
+                ["/bin/bash", "-c", command],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=str(Path(__file__).parent.parent.parent)
+            )
+
+            if check_exit_code and result.returncode != 0:
+                return False, f"Command failed (exit {result.returncode}): {result.stderr}"
+
+            if self.verbose:
+                print(f"OK (exit {result.returncode})")
+            return True, None
+        except subprocess.TimeoutExpired:
+            return False, f"Command timed out after {timeout}s"
+        except Exception as e:
+            return False, f"Command failed: {e}"
+
+    def _step_resize_terminal(self, step: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+        """Execute resize_terminal step: resize the tmux pane"""
+        width = step.get("width", 120)
+        height = step.get("height", 40)
+
+        session_quoted = shlex.quote(self.session_name)
+
+        bash_cmd = f"""
+            tmux resize-pane -t {session_quoted} -x {width} -y {height} 2>/dev/null || exit 1
+        """
+
+        exit_code, stdout, stderr = self._run_bash_cmd(bash_cmd)
+
+        if exit_code != 0:
+            return False, f"Failed to resize terminal: {stderr}"
+
+        # Wait a moment for resize to take effect
+        time.sleep(0.5)
+
+        if self.verbose:
+            print(f"OK ({width}x{height})")
         return True, None
 
     def _parse_duration(self, duration_str: str) -> float:

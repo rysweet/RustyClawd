@@ -24,8 +24,8 @@ scenario:
       timeout: 10s
 
     - action: wait_for_text
-      description: "Wait for prompt"
-      contains: "System>"
+      description: "Wait for TUI to load"
+      contains: "RustyClawd"
       timeout: 5s
 
     - action: send_input
@@ -35,7 +35,7 @@ scenario:
 
     - action: wait_for_text
       description: "Wait for response or timeout"
-      contains: "System>"
+      contains: "RustyClawd"
       timeout: 60s
 
     - action: send_input
@@ -45,7 +45,7 @@ scenario:
 
     - action: wait_for_text
       description: "Should respond normally"
-      contains: "System>"
+      contains: "RustyClawd"
       timeout: 15s
 
     - action: capture_screenshot

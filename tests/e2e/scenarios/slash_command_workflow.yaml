@@ -27,7 +27,7 @@ scenario:
 
     - action: wait_for_text
       description: "Wait for welcome message"
-      contains: "System>"
+      contains: "RustyClawd"
       timeout: 5s
 
     # Execute slash command

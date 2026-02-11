@@ -25,7 +25,7 @@ scenario:
 
     - action: wait_for_text
       description: "Wait for ready"
-      contains: "System>"
+      contains: "RustyClawd"
       timeout: 5s
 
     # Test 1: Spawn background agent
