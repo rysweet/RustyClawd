@@ -1,0 +1,77 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:  # Allow manual triggers
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Build rusty binary
+        run: |
+          cargo build --release --bin rusty
+          echo "Binary built at: target/release/rusty"
+          ls -lah target/release/rusty
+      
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml
+      
+      - name: Install tmux (required for E2E tests)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tmux
+      
+      - name: Run E2E tests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RUST_BACKTRACE: 1
+        run: |
+          cd tests/e2e/scenarios
+          python3 runner.py --verbose
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: e2e-test-results
+          path: |
+            tests/e2e/scenarios/screenshots/
+            tests/e2e/scenarios/*.log
+          retention-days: 7
+      
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: e2e-test-logs-failure
+          path: |
+            tests/e2e/scenarios/*.log
+            /tmp/tmux-*.log
+          retention-days: 14
