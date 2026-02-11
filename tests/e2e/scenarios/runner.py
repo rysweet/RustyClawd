@@ -359,9 +359,9 @@ class ScenarioRunner:
             return False, "ensure_file requires 'path' parameter"
         
         # Security: Only allow files in /tmp or specific test directories
-        allowed_prefixes = ["/tmp/", "/var/tmp/", "./test_data/", "test_data/"]
+        allowed_prefixes = ["/tmp/", "/var/tmp/", "./test_data/", "test_data/", "tests/e2e/fixtures/", "./tests/e2e/fixtures/"]
         if not any(path.startswith(prefix) for prefix in allowed_prefixes):
-            return False, f"ensure_file path must be in /tmp or test_data/: {path}"
+            return False, f"ensure_file path must be in /tmp, test_data/, or tests/e2e/fixtures/: {path}"
         
         try:
             # Create parent directory if needed
@@ -385,9 +385,9 @@ class ScenarioRunner:
             return False, "remove_file requires 'path' parameter"
         
         # Security: Only allow files in /tmp or specific test directories
-        allowed_prefixes = ["/tmp/", "/var/tmp/", "./test_data/", "test_data/"]
+        allowed_prefixes = ["/tmp/", "/var/tmp/", "./test_data/", "test_data/", "tests/e2e/fixtures/", "./tests/e2e/fixtures/"]
         if not any(path.startswith(prefix) for prefix in allowed_prefixes):
-            return False, f"remove_file path must be in /tmp or test_data/: {path}"
+            return False, f"remove_file path must be in /tmp, test_data/, or tests/e2e/fixtures/: {path}"
         
         try:
             if os.path.exists(path):
@@ -403,8 +403,8 @@ class ScenarioRunner:
         pattern = step.get("pattern", "/tmp/test_*.txt")
         
         # Security: Only allow cleanup in /tmp or test directories
-        if not pattern.startswith(("/tmp/", "/var/tmp/", "./test_data/", "test_data/")):
-            return False, f"cleanup_test_files pattern must be in /tmp or test_data/: {pattern}"
+        if not pattern.startswith(("/tmp/", "/var/tmp/", "./test_data/", "test_data/", "tests/e2e/fixtures/", "./tests/e2e/fixtures/")):
+            return False, f"cleanup_test_files pattern must be in /tmp, test_data/, or tests/e2e/fixtures/: {pattern}"
         
         try:
             import glob
