@@ -311,6 +311,52 @@ wait_for_text() {
     done
 }
 
+# Wait for text to appear in tmux session (flexible/case-insensitive)
+#
+# Usage: wait_for_text_flexible <session_name> <text> <timeout>
+# Args:
+#   session_name: Target tmux session
+#   text: Text to wait for (case-insensitive, partial match)
+#   timeout: Maximum seconds to wait
+# Returns:
+#   0 if text appears, 1 if timeout or session dies
+wait_for_text_flexible() {
+    local session_name="$1"
+    local text="$2"
+    local timeout="$3"
+
+    local start_time=$(date +%s)
+    local end_time=$((start_time + timeout))
+
+    while true; do
+        local current_time=$(date +%s)
+
+        # Check if timeout reached
+        if [[ $current_time -ge $end_time ]]; then
+            echo "${RED}ERROR${NC}: Timeout waiting for text: '$text' (${timeout}s)\" >&2
+            echo \"Final output:\" >&2
+            echo \"---\" >&2
+            capture_output \"$session_name\" >&2
+            echo \"---\" >&2
+            return 1
+        fi
+
+        # Check if session still exists
+        if ! tmux has-session -t \"$session_name\" 2>/dev/null; then
+            echo \"${RED}ERROR${NC}: Session died while waiting for text\" >&2
+            return 1
+        fi
+
+        # Check if text appears in output (case-insensitive)
+        local output=$(capture_output \"$session_name\" 2>/dev/null || echo \"\")
+        if echo \"$output\" | grep -qiF \"$text\"; then
+            return 0
+        fi
+
+        sleep \"$TMUX_POLL_INTERVAL\"
+    done
+}
+
 #############################################################################
 # Session Status
 #############################################################################
