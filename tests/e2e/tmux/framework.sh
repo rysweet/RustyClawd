@@ -333,27 +333,27 @@ wait_for_text_flexible() {
 
         # Check if timeout reached
         if [[ $current_time -ge $end_time ]]; then
-            echo "${RED}ERROR${NC}: Timeout waiting for text: '$text' (${timeout}s)\" >&2
-            echo \"Final output:\" >&2
-            echo \"---\" >&2
-            capture_output \"$session_name\" >&2
-            echo \"---\" >&2
+            echo "${RED}ERROR${NC}: Timeout waiting for text: '$text' (${timeout}s)" >&2
+            echo "Final output:" >&2
+            echo "---" >&2
+            capture_output "$session_name" >&2
+            echo "---" >&2
             return 1
         fi
 
         # Check if session still exists
-        if ! tmux has-session -t \"$session_name\" 2>/dev/null; then
-            echo \"${RED}ERROR${NC}: Session died while waiting for text\" >&2
+        if ! tmux has-session -t "$session_name" 2>/dev/null; then
+            echo "${RED}ERROR${NC}: Session died while waiting for text" >&2
             return 1
         fi
 
         # Check if text appears in output (case-insensitive)
-        local output=$(capture_output \"$session_name\" 2>/dev/null || echo \"\")
-        if echo \"$output\" | grep -qiF \"$text\"; then
+        local output=$(capture_output "$session_name" 2>/dev/null || echo "")
+        if echo "$output" | grep -qiF "$text"; then
             return 0
         fi
 
-        sleep \"$TMUX_POLL_INTERVAL\"
+        sleep "$TMUX_POLL_INTERVAL"
     done
 }
 
