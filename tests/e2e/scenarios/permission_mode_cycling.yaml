@@ -1,0 +1,81 @@
+# Test Scenario: Permission System - Mode Cycling with Shift+Tab
+#
+# Tests Shift+Tab permission mode cycling
+
+scenario:
+  name: "Permission Mode - Shift+Tab Cycling"
+  description: "Verify Shift+Tab cycles through Ask → AutoAccept → Plan → Ask"
+  type: tui
+  tags: [permissions, keyboard, shift-tab, cycling]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 45s
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd (default Ask mode)"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt, should show Ask mode"
+      contains: "Ask"
+      timeout: 5s
+
+    - action: send_keys
+      description: "Press Shift+Tab once"
+      keys: "S-Tab"
+
+    - action: sleep
+      description: "Wait for mode change"
+      duration: 1s
+
+    - action: capture_screenshot
+      description: "Should now be in AutoAccept mode"
+      filename: "permission_mode_autoaccept.txt"
+
+    - action: send_keys
+      description: "Press Shift+Tab again"
+      keys: "S-Tab"
+
+    - action: sleep
+      description: "Wait for mode change"
+      duration: 1s
+
+    - action: capture_screenshot
+      description: "Should now be in Plan mode"
+      filename: "permission_mode_plan.txt"
+
+    - action: send_keys
+      description: "Press Shift+Tab once more"
+      keys: "S-Tab"
+
+    - action: sleep
+      description: "Wait for mode change"
+      duration: 1s
+
+    - action: capture_screenshot
+      description: "Should cycle back to Ask mode"
+      filename: "permission_mode_ask.txt"
+
+  assertions:
+    - type: text_present
+      value: "Ask"
+      description: "Started in Ask mode"
+
+    # Note: Would need to check screenshot files to verify actual mode cycling
+    # This is a visual test that requires human verification or OCR
+
+  notes: |
+    Tests permission mode cycling with Shift+Tab.
+    Visual verification needed to confirm:
+    1. Starts in Ask mode (? indicator)
+    2. Shift+Tab → AutoAccept mode (✓ indicator)
+    3. Shift+Tab → Plan mode (📋 indicator)
+    4. Shift+Tab → Ask mode (cycle complete)
+    
+    UI should update immediately on key press.

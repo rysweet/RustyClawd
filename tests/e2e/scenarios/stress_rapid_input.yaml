@@ -1,0 +1,92 @@
+# Test Scenario: Stress Test - Rapid Input
+#
+# Tests system stability with rapid-fire input
+
+scenario:
+  name: "Stress Test - Rapid Input Submission"
+  description: "Verify system handles rapid successive inputs without crashing"
+  type: tui
+  tags: [stress-test, performance, stability]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 120s
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Query 1"
+      text: "What is 1+1?"
+      submit: true
+
+    - action: sleep
+      duration: 0.5s
+
+    - action: send_input
+      description: "Query 2 (rapid)"
+      text: "What is 2+2?"
+      submit: true
+
+    - action: sleep
+      duration: 0.5s
+
+    - action: send_input
+      description: "Query 3 (rapid)"
+      text: "What is 3+3?"
+      submit: true
+
+    - action: sleep
+      duration: 0.5s
+
+    - action: send_input
+      description: "Query 4 (rapid)"
+      text: "What is 4+4?"
+      submit: true
+
+    - action: sleep
+      duration: 0.5s
+
+    - action: send_input
+      description: "Query 5 (rapid)"
+      text: "What is 5+5?"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should eventually respond"
+      contains: "System>"
+      timeout: 80s
+
+    - action: capture_screenshot
+      description: "Capture final state"
+      filename: "stress_rapid_input.txt"
+
+  assertions:
+    - type: text_present
+      value: "System>"
+      description: "System still responsive"
+
+    - type: exit_clean
+      description: "Can exit cleanly after stress"
+
+  notes: |
+    Tests system behavior under rapid input stress.
+    System should:
+    - Queue inputs appropriately
+    - Not drop inputs
+    - Not crash or hang
+    - Eventually process all inputs
+    - Remain stable
+    
+    May need to adjust timing based on API rate limits.

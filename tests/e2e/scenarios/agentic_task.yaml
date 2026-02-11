@@ -22,7 +22,7 @@ scenario:
     # Startup
     - action: launch
       description: "Start RustyClawd"
-      target: "cargo run --bin rustyclawd"
+      target: "cargo run --bin rusty"
       timeout: 10s
 
     - action: wait_for_text

@@ -1,0 +1,85 @@
+# Test Scenario: Edge Case - Empty Input
+#
+# Tests system behavior with empty/whitespace input
+
+scenario:
+  name: "Edge Case - Empty Input Handling"
+  description: "Verify system handles empty input gracefully"
+  type: tui
+  tags: [edge-case, input-validation, error-handling]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 30s
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Send empty input (just Enter)"
+      text: ""
+      submit: true
+
+    - action: sleep
+      description: "Wait a moment"
+      duration: 1s
+
+    - action: send_input
+      description: "Send whitespace only"
+      text: "   "
+      submit: true
+
+    - action: sleep
+      description: "Wait a moment"
+      duration: 1s
+
+    - action: send_input
+      description: "Send newlines only"
+      text: "\n\n"
+      submit: true
+
+    - action: sleep
+      description: "Wait a moment"
+      duration: 1s
+
+    - action: send_input
+      description: "Send valid input after empty inputs"
+      text: "hello"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should respond normally"
+      contains: "System>"
+      timeout: 10s
+
+    - action: capture_screenshot
+      description: "Capture empty input handling"
+      filename: "edge_case_empty_input.txt"
+
+  assertions:
+    - type: text_present
+      value: "System>"
+      description: "Prompt still appears after empty inputs"
+
+    - type: text_not_present
+      value: "error"
+      description: "No error messages from empty input"
+
+  notes: |
+    Tests edge case of empty/whitespace input.
+    System should:
+    - Not crash on empty input
+    - Not show errors for whitespace
+    - Continue functioning normally
+    - Respond to valid input after empty inputs

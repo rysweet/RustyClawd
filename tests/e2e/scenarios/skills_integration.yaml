@@ -32,7 +32,7 @@ scenario:
     # Startup
     - action: launch
       description: "Start RustyClawd with test skill directory"
-      target: "cargo run --bin rustyclawd --skill-dir tests/e2e/fixtures/test_skills"
+      target: "cargo run --bin rusty --skill-dir tests/e2e/fixtures/test_skills"
       timeout: 10s
 
     - action: wait_for_text

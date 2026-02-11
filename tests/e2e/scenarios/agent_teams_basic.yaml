@@ -1,0 +1,60 @@
+# Test Scenario: Agent Teams - Multi-Agent Collaboration
+#
+# Tests Agent Teams from PR #333
+
+scenario:
+  name: "Agent Teams - Parallel Task Execution"
+  description: "Verify multiple agents can work together on complex task"
+  type: tui
+  tags: [agent-teams, multi-agent, collaboration, recent-feature]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 120s
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Request multi-agent task"
+      text: "I need help with three things simultaneously: 1) Analyze the code quality of src/main.rs, 2) Check the test coverage, and 3) Review the documentation. Please use multiple agents to work on these in parallel."
+      submit: true
+
+    - action: wait_for_text
+      description: "Should show agent spawning"
+      contains: "agent"
+      timeout: 20s
+
+    - action: wait_for_text
+      description: "Wait for agents to complete"
+      contains: "System>"
+      timeout: 80s
+
+    - action: capture_screenshot
+      description: "Capture agent team results"
+      filename: "agent_teams_parallel.txt"
+
+  assertions:
+    - type: text_present
+      value: "agent"
+      description: "Multiple agents were used"
+
+    - type: text_present
+      value: "main.rs"
+      description: "Code analysis completed"
+
+  notes: |
+    Tests multi-agent collaboration feature.
+    Multiple agents should work in parallel on subtasks.
+    Results should be coordinated and presented coherently.

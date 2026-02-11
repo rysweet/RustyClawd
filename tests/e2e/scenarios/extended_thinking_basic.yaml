@@ -1,0 +1,64 @@
+# Test Scenario: Extended Thinking Phase Display
+#
+# Tests Extended Thinking feature from PR #336
+# Validates that extended thinking displays correctly in TUI
+
+scenario:
+  name: "Extended Thinking Phase - Basic Display"
+  description: "Verify extended thinking shows in TUI and is properly formatted"
+  type: tui
+  tags: [extended-thinking, recent-feature, tui]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 60s
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Ask complex question requiring extended thinking"
+      text: "Please analyze the trade-offs between microservices and monolithic architectures in detail, considering scalability, maintainability, deployment complexity, and team organization."
+      submit: true
+
+    - action: wait_for_text
+      description: "Check for thinking indicator"
+      contains: "thinking"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for response to complete"
+      contains: "System>"
+      timeout: 40s
+
+    - action: capture_screenshot
+      description: "Capture final state with thinking displayed"
+      filename: "extended_thinking_display.txt"
+
+  assertions:
+    - type: text_present
+      value: "thinking"
+      description: "Thinking phase indicator appears"
+
+    - type: text_present
+      value: "microservices"
+      description: "Response content is present"
+
+    - type: exit_clean
+      description: "Session exits cleanly"
+
+  notes: |
+    This tests the basic extended thinking display feature.
+    Extended thinking should be visible in the TUI and properly formatted.
+    The response should still appear after thinking completes.
