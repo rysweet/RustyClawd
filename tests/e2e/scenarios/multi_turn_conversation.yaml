@@ -27,7 +27,7 @@ scenario:
 
     - action: wait_for_text
       description: "Wait for welcome screen"
-      contains: "System>"
+      contains: "RustyClawd"
       timeout: 5s
 
     - action: send_input

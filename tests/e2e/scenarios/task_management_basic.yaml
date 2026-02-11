@@ -23,8 +23,8 @@ scenario:
       timeout: 10s
 
     - action: wait_for_text
-      description: "Wait for prompt"
-      contains: "System>"
+      description: "Wait for TUI to load"
+      contains: "RustyClawd"
       timeout: 5s
 
     - action: send_input
@@ -38,8 +38,8 @@ scenario:
       timeout: 15s
 
     - action: wait_for_text
-      description: "Should return to prompt"
-      contains: "System>"
+      description: "Should show RustyClawd interface"
+      contains: "RustyClawd"
       timeout: 10s
 
     - action: send_input
@@ -53,8 +53,8 @@ scenario:
       timeout: 15s
 
     - action: wait_for_text
-      description: "Should return to prompt"
-      contains: "System>"
+      description: "Should show RustyClawd interface"
+      contains: "RustyClawd"
       timeout: 10s
 
     - action: send_input

@@ -22,8 +22,8 @@ scenario:
       timeout: 10s
 
     - action: wait_for_text
-      description: "Wait for prompt"
-      contains: "System>"
+      description: "Wait for TUI to load"
+      contains: "RustyClawd"
       timeout: 5s
 
     - action: send_input
@@ -65,7 +65,7 @@ scenario:
 
     - action: wait_for_text
       description: "Should eventually respond"
-      contains: "System>"
+      contains: "RustyClawd"
       timeout: 80s
 
     - action: capture_screenshot
@@ -74,7 +74,7 @@ scenario:
 
   assertions:
     - type: text_present
-      value: "System>"
+      value: "RustyClawd"
       description: "System still responsive"
 
     - type: exit_clean

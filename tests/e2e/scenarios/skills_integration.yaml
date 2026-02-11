@@ -37,7 +37,7 @@ scenario:
 
     - action: wait_for_text
       description: "Wait for ready state"
-      contains: "System>"
+      contains: "RustyClawd"
       timeout: 5s
 
     # Establish context

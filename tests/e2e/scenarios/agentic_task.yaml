@@ -27,7 +27,7 @@ scenario:
 
     - action: wait_for_text
       description: "Wait for ready"
-      contains: "System>"
+      contains: "RustyClawd"
       timeout: 5s
 
     # Step 1: Initial analysis request

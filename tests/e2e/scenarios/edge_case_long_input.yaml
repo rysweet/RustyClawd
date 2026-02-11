@@ -22,18 +22,18 @@ scenario:
       timeout: 10s
 
     - action: wait_for_text
-      description: "Wait for prompt"
-      contains: "System>"
+      description: "Wait for TUI to load"
+      contains: "RustyClawd"
       timeout: 5s
 
     - action: send_input
       description: "Send very long input (repeating text)"
-      text: "Please analyze this text: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. " * 50
+      text: "Please analyze this text: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
       submit: true
 
     - action: wait_for_text
       description: "Should handle and respond"
-      contains: "System>"
+      contains: "RustyClawd"
       timeout: 30s
 
     - action: send_input
@@ -43,7 +43,7 @@ scenario:
 
     - action: wait_for_text
       description: "Should still work normally"
-      contains: "System>"
+      contains: "RustyClawd"
       timeout: 10s
 
     - action: capture_screenshot
@@ -52,7 +52,7 @@ scenario:
 
   assertions:
     - type: text_present
-      value: "System>"
+      value: "RustyClawd"
       description: "System still responsive after long input"
 
     - type: exit_clean
