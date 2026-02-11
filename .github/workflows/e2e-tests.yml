@@ -48,6 +48,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y tmux
       
+      - name: Check API Key
+        run: |
+          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "⚠️ ANTHROPIC_API_KEY secret is not configured"
+            echo "E2E tests will be skipped. To run tests, configure the secret in repo settings."
+            exit 0
+          fi
+      
       - name: Run E2E tests
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
