@@ -5,6 +5,7 @@ members = [
     "crates/core",
     "crates/memory",
     "crates/tools",
+    "tools/testing",
 ]
 exclude = ["# python-sdk"]
 
