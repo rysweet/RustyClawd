@@ -923,7 +923,7 @@ fn render_messages(frame: &mut Frame, area: Rect, app: &mut App, throbber: char)
                 Span::styled("🦀", Style::default().fg(RUST_ORANGE)),
             ]),
             Line::from(""),
-            Line::from("Type your message and press Enter to chat with Claude."),
+            Line::from("Type your message and press Enter to start chatting."),
             Line::from(""),
             Line::from(vec![
                 Span::styled(

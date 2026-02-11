@@ -37,7 +37,7 @@ use std::io::{self, IsTerminal, Read};
 #[command(name = "claude")]
 #[command(author = "Anthropic")]
 #[command(version = "0.1.0")]
-#[command(about = "Claude AI assistant command-line interface", long_about = None)]
+#[command(about = "RustyClawd - AI assistant command-line interface", long_about = None)]
 #[command(disable_help_subcommand = true)]
 struct Cli {
     #[command(subcommand)]
@@ -235,7 +235,7 @@ impl App {
             .compact()
             .init();
 
-        tracing::info!("Initializing Claude Code CLI...");
+        tracing::info!("Initializing RustyClawd CLI...");
 
         // 2. Load settings (5-tier hierarchy)
         tracing::debug!("Loading settings hierarchy...");
