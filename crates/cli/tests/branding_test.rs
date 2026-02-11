@@ -7,19 +7,15 @@ mod branding_tests {
     use std::path::Path;
 
     /// UI directories that should not contain "Claude" branding
-    const UI_PATHS: &[&str] = &[
-        "src/tui",
-        "src/main.rs",
-        "src/interactive.rs",
-    ];
+    const UI_PATHS: &[&str] = &["src/tui", "src/main.rs", "src/interactive.rs"];
 
     /// Allowed patterns where "Claude" is acceptable
     const ALLOWED_CONTEXTS: &[&str] = &[
-        "claude-sonnet",  // API model names
-        "claude-opus",    // API model names
-        "claude-haiku",   // API model names
-        ".claude/",       // Directory paths
-        "claude_code",    // Internal variable names
+        "claude-sonnet", // API model names
+        "claude-opus",   // API model names
+        "claude-haiku",  // API model names
+        ".claude/",      // Directory paths
+        "claude_code",   // Internal variable names
     ];
 
     fn should_check_line(line: &str) -> bool {
@@ -75,8 +71,7 @@ mod branding_tests {
             if let Ok(entries) = fs::read_dir(path) {
                 for entry in entries.flatten() {
                     let entry_path = entry.path();
-                    if entry_path.is_file() && entry_path.extension().map_or(false, |e| e == "rs")
-                    {
+                    if entry_path.is_file() && entry_path.extension().map_or(false, |e| e == "rs") {
                         violations.extend(check_file_for_claude_branding(&entry_path));
                     } else if entry_path.is_dir() {
                         // Recursively check subdirectories
@@ -114,9 +109,12 @@ mod branding_tests {
     fn test_allowed_contexts_are_present() {
         // This test verifies that our allowed contexts (like model names) still exist
         // If this fails, we might need to update our ALLOWED_CONTEXTS list
-        
+
         // Just verify the test infrastructure is working
-        assert!(!ALLOWED_CONTEXTS.is_empty(), "Allowed contexts should be defined");
+        assert!(
+            !ALLOWED_CONTEXTS.is_empty(),
+            "Allowed contexts should be defined"
+        );
         assert!(!UI_PATHS.is_empty(), "UI paths should be defined");
     }
 }
