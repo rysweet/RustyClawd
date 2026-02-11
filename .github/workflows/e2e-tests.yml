@@ -52,6 +52,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           RUST_BACKTRACE: 1
+          RUSTYCLAWD_BIN: ${{ github.workspace }}/target/release/rusty
         run: |
           if [ -z "$ANTHROPIC_API_KEY" ]; then
             echo "⚠️ ANTHROPIC_API_KEY is not configured as a repository secret"
