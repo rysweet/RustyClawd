@@ -54,7 +54,7 @@ scenario:
 
   assertions:
     - type: text_present
-      value: "System>"
+      value: "RustyClawd"
       description: "System recovers and shows prompt"
 
     - type: exit_clean

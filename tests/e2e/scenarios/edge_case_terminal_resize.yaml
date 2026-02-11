@@ -65,7 +65,7 @@ scenario:
 
   assertions:
     - type: text_present
-      value: "System>"
+      value: "RustyClawd"
       description: "TUI still functional after resize"
 
     - type: text_present

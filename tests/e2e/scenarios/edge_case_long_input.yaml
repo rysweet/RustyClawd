@@ -52,7 +52,7 @@ scenario:
 
   assertions:
     - type: text_present
-      value: "System>"
+      value: "RustyClawd"
       description: "System still responsive after long input"
 
     - type: exit_clean

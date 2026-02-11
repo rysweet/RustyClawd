@@ -55,7 +55,7 @@ scenario:
 
   assertions:
     - type: text_present
-      value: "System>"
+      value: "RustyClawd"
       description: "Returns to prompt after cancel"
 
     - type: text_not_present

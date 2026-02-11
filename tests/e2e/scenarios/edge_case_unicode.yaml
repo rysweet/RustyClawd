@@ -62,7 +62,7 @@ scenario:
 
   assertions:
     - type: text_present
-      value: "System>"
+      value: "RustyClawd"
       description: "System handles all character types"
 
     - type: exit_clean

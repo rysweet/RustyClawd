@@ -59,7 +59,7 @@ scenario:
 
   assertions:
     - type: text_present
-      value: "System>"
+      value: "RustyClawd"
       description: "TUI shows prompt on startup"
 
     - type: text_present
