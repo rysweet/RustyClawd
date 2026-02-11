@@ -139,22 +139,57 @@ impl CommandLoader {
     /// - {{args}} - full argument string (legacy)
     /// - $1, $2, $3, etc. - individual positional arguments (official docs syntax)
     /// - {0}, {1}, {2}, etc. - individual arguments (legacy)
+    ///
+    /// If the template contains NO argument placeholders and args are provided,
+    /// the arguments are automatically appended to preserve user input.
     pub fn expand_template(&self, template: &str, args: &[String]) -> String {
         let mut result = template.to_string();
+        let mut had_substitution = false;
 
         // Replace $ARGUMENTS with full argument string (official syntax)
         if !args.is_empty() {
             let args_str = args.join(" ");
-            result = result.replace("$ARGUMENTS", &args_str);
+
+            if result.contains("$ARGUMENTS") {
+                result = result.replace("$ARGUMENTS", &args_str);
+                had_substitution = true;
+            }
+
             // Also support legacy {{args}} syntax
-            result = result.replace("{{args}}", &args_str);
+            if result.contains("{{args}}") {
+                result = result.replace("{{args}}", &args_str);
+                had_substitution = true;
+            }
         }
 
         // Replace $1, $2, etc. (official syntax)
         for (i, arg) in args.iter().enumerate() {
-            result = result.replace(&format!("${}", i + 1), arg);
+            let dollar_placeholder = format!("${}", i + 1);
+            let brace_placeholder = format!("{{{}}}", i);
+
+            if result.contains(&dollar_placeholder) {
+                result = result.replace(&dollar_placeholder, arg);
+                had_substitution = true;
+            }
+
             // Also support legacy {0}, {1} syntax
-            result = result.replace(&format!("{{{}}}", i), arg);
+            if result.contains(&brace_placeholder) {
+                result = result.replace(&brace_placeholder, arg);
+                had_substitution = true;
+            }
+        }
+
+        // If no substitutions were made but args were provided, append them
+        // This preserves user input for templates that don't declare placeholders
+        if !had_substitution && !args.is_empty() {
+            let args_str = args.join(" ");
+            // Add separator if template doesn't end with newline
+            if !result.ends_with('\n') {
+                result.push_str("\n\n");
+            } else if !result.ends_with("\n\n") {
+                result.push('\n');
+            }
+            result.push_str(&args_str);
         }
 
         result
@@ -552,5 +587,73 @@ Command content"#;
             loaded.frontmatter.allowed_tools[1],
             "/plugin/root/bin/check"
         );
+    }
+
+    #[test]
+    fn test_expand_template_no_placeholders_appends_args() {
+        let loader = CommandLoader::new();
+        let template = "Engage deep analysis mode.";
+        let args = vec![
+            "there".to_string(),
+            "is".to_string(),
+            "a".to_string(),
+            "bug".to_string(),
+        ];
+
+        let result = loader.expand_template(template, &args);
+
+        // Args should be appended when no placeholders exist
+        assert!(result.contains("Engage deep analysis mode."));
+        assert!(result.contains("there is a bug"));
+        assert_eq!(result, "Engage deep analysis mode.\n\nthere is a bug");
+    }
+
+    #[test]
+    fn test_expand_template_no_placeholders_with_newline() {
+        let loader = CommandLoader::new();
+        let template = "Analyze this problem.\n";
+        let args = vec!["urgent".to_string(), "issue".to_string()];
+
+        let result = loader.expand_template(template, &args);
+
+        // Should add single newline when template ends with one
+        assert_eq!(result, "Analyze this problem.\n\nurgent issue");
+    }
+
+    #[test]
+    fn test_expand_template_no_placeholders_no_args() {
+        let loader = CommandLoader::new();
+        let template = "Simple command";
+        let args: Vec<String> = vec![];
+
+        let result = loader.expand_template(template, &args);
+
+        // Should return template unchanged when no args
+        assert_eq!(result, "Simple command");
+    }
+
+    #[test]
+    fn test_expand_template_with_placeholders_no_append() {
+        let loader = CommandLoader::new();
+        let template = "Review issue {{args}}";
+        let args = vec!["#123".to_string()];
+
+        let result = loader.expand_template(template, &args);
+
+        // Should NOT append args when placeholders are used
+        assert_eq!(result, "Review issue #123");
+        assert_eq!(result.matches("#123").count(), 1); // Only once, not appended
+    }
+
+    #[test]
+    fn test_expand_template_dollar_arguments_syntax() {
+        let loader = CommandLoader::new();
+        let template = "Process $ARGUMENTS carefully";
+        let args = vec!["file1.txt".to_string(), "file2.txt".to_string()];
+
+        let result = loader.expand_template(template, &args);
+
+        // Should use $ARGUMENTS placeholder, not append
+        assert_eq!(result, "Process file1.txt file2.txt carefully");
     }
 }
