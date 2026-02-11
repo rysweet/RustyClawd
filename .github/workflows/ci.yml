@@ -40,6 +40,18 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --all-targets --all-features -- -D warnings
 
+  branding:
+    name: Brand Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for Claude branding in UI
+        run: ./scripts/check-branding.sh
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run branding validation tests
+        run: cargo test --package rustyclawd-cli --test branding_test
+
   build:
     name: Build
     runs-on: ubuntu-latest

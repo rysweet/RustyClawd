@@ -1287,7 +1287,7 @@ impl InteractiveSession {
                             .notify(
                                 &self.session_id,
                                 NotificationType::ElicitationDialog,
-                                "Claude is asking clarifying questions",
+                                "AI is asking clarifying questions",
                             )
                             .await;
                     }
@@ -1990,7 +1990,7 @@ impl InteractiveSession {
             output.push_str(
                 "No rate limit data available yet.\n\
                  Rate limits are captured from API responses during conversation.\n\n\
-                 Tip: Send a message to Claude to populate rate limit information.",
+                 Tip: Send a message to populate rate limit information.",
             );
         } else {
             // Requests per minute
@@ -2110,7 +2110,7 @@ impl InteractiveSession {
             "\nCommands:\n\
              - Use BashOutput tool with bash_id to read output\n\
              - Use KillShell tool with shell_id to terminate\n\n\
-             Example: Ask Claude to check output from a specific shell ID",
+             Example: Ask the assistant to check output from a specific shell ID",
         );
 
         self.tui.add_message(ChatMessage::system(output));

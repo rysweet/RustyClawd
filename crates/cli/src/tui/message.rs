@@ -172,7 +172,7 @@ impl Message {
         let time = self.timestamp.format("%H:%M:%S");
         let role = match self.role {
             Role::User => "You",
-            Role::Assistant => "Claude",
+            Role::Assistant => "Assistant",
             Role::System => "System",
         };
         format!("[{}] {}", time, role)

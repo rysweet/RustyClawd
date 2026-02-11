@@ -424,6 +424,58 @@ Before submitting, ensure:
 - [ ] Clear PR description with context
 - [ ] Tests added for new functionality
 - [ ] No `unwrap()` or `expect()` in production code
+- [ ] **No Claude branding in UI strings** (run `./scripts/check-branding.sh`)
+
+#### Branding Guidelines
+
+**RustyClawd has its own brand identity separate from Claude Code.** When writing user-facing strings:
+
+✅ **USE:**
+- "RustyClawd" - For the application name
+- "Assistant" - For the AI role in messages
+- Generic terms like "AI", "the assistant", or "chatting"
+
+❌ **AVOID:**
+- "Claude" - Except in allowed contexts (see below)
+
+**Allowed "Claude" contexts:**
+- API model names (e.g., `"claude-sonnet-4-5"`)
+- Directory paths (e.g., `.claude/` plugin spec)
+- Internal variable names (e.g., `claude_client`)
+- Comments and documentation (attribution/context)
+- Debug/trace logging (internal only)
+
+**Examples:**
+
+```rust
+// ❌ BAD - Claude branding in UI
+println!("Welcome to Claude!");
+format!("[{}] Claude: {}", timestamp, message);
+
+// ✅ GOOD - RustyClawd branding
+println!("Welcome to RustyClawd!");
+format!("[{}] Assistant: {}", timestamp, message);
+
+// ✅ ALLOWED - API model name
+let model = "claude-sonnet-4-5";
+
+// ✅ ALLOWED - Internal logging
+tracing::debug!("Claude API returned status {}", status);
+```
+
+**Validation:**
+
+Run the branding validation script before submitting:
+
+```bash
+# Check for Claude branding violations
+./scripts/check-branding.sh
+
+# Run branding validation tests
+cargo test --package rustyclawd-cli --test branding_test
+```
+
+Both must pass with no violations before PR submission.
 
 ### Review Process
 

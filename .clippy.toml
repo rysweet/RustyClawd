@@ -1,0 +1,10 @@
+# Clippy configuration for RustyClawd
+
+# Disallowed string patterns in UI code
+# This helps prevent accidental Claude branding in user-facing strings
+disallowed-names = []
+
+# Additional lints to consider
+# Note: Clippy doesn't have direct string content linting,
+# but we use this file to document our standards and can
+# reference it in CI scripts

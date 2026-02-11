@@ -132,7 +132,7 @@ mod tests {
             .notify(
                 "test-session",
                 NotificationType::ElicitationDialog,
-                "Claude is asking questions",
+                "AI is asking questions",
             )
             .await;
     }
