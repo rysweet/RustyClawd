@@ -1,0 +1,67 @@
+# Test Scenario: Slash Commands - Argument Preservation
+#
+# Tests fix from PR #338 - slash commands without placeholders preserve args
+
+scenario:
+  name: "Slash Commands - Argument Preservation"
+  description: "Verify slash commands without placeholders preserve user arguments"
+  type: tui
+  tags: [slash-commands, recent-bugfix, arguments]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 60s
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Use slash command with long argument"
+      text: "/analyze src/main.rs --include-comments --detailed-metrics --show-complexity"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should process command"
+      contains: "main.rs"
+      timeout: 30s
+
+    - action: wait_for_text
+      description: "Should complete"
+      contains: "System>"
+      timeout: 15s
+
+    - action: capture_screenshot
+      description: "Capture command execution"
+      filename: "slash_command_args.txt"
+
+  assertions:
+    - type: text_present
+      value: "main.rs"
+      description: "File path was preserved"
+
+    - type: text_not_present
+      value: "truncated"
+      description: "Arguments were not truncated"
+
+  notes: |
+    Tests that slash commands preserve all user arguments.
+    This is a regression test for issue #338.
+    
+    Previously, long arguments to slash commands without placeholders
+    would be truncated. This should now be fixed.
+    
+    The command should preserve:
+    - File path (src/main.rs)
+    - All flags (--include-comments, --detailed-metrics, --show-complexity)
+    - Complete argument string

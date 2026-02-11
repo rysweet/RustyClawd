@@ -1,0 +1,70 @@
+# Test Scenario: Fast Mode - Performance Comparison
+#
+# Tests Fast Mode from PR #331
+
+scenario:
+  name: "Fast Mode - Response Time"
+  description: "Verify --fast flag enables faster responses"
+  type: tui
+  tags: [fast-mode, performance, recent-feature]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 60s
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd with fast mode"
+      target: "cargo run --bin rusty -- --fast"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Ask simple question"
+      text: "What is the capital of France?"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should get quick response"
+      contains: "Paris"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Should return to prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Ask another question to verify fast mode persists"
+      text: "What is 2 + 2?"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should get quick response"
+      contains: "4"
+      timeout: 10s
+
+    - action: capture_screenshot
+      description: "Capture fast mode responses"
+      filename: "fast_mode_performance.txt"
+
+  assertions:
+    - type: text_present
+      value: "Paris"
+      description: "First response completed"
+
+    - type: text_present
+      value: "4"
+      description: "Second response completed"
+
+  notes: |
+    Tests fast mode feature.
+    Responses should be noticeably faster than normal mode.
+    Quality should still be acceptable for simple queries.

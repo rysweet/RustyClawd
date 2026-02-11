@@ -1,0 +1,61 @@
+# Test Scenario: MCP Tools - Basic Tool Loading and Execution
+#
+# Tests MCP integration
+
+scenario:
+  name: "MCP Tools - Load and Execute"
+  description: "Verify MCP server tools load and can be executed"
+  type: tui
+  tags: [mcp, tools, integration]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 60s
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "List available MCP tools"
+      text: "What MCP tools are available?"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should list tools"
+      contains: "tool"
+      timeout: 15s
+
+    - action: wait_for_text
+      description: "Should return to prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: capture_screenshot
+      description: "Capture MCP tool list"
+      filename: "mcp_tools_available.txt"
+
+  assertions:
+    - type: text_present
+      value: "tool"
+      description: "MCP tools are listed"
+
+  notes: |
+    Tests MCP server integration.
+    System should:
+    - Load MCP servers on startup
+    - List available tools
+    - Tools should be accessible for execution
+    
+    Note: This test requires MCP servers to be configured.
+    If no MCP servers configured, test may show empty list.

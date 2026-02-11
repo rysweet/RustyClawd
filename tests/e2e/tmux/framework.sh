@@ -17,7 +17,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Default configuration
-RUSTYCLAWD_BIN="${RUSTYCLAWD_BIN:-/home/azureuser/src/RustyClawd/target/debug/claude}"
+RUSTYCLAWD_BIN="${RUSTYCLAWD_BIN:-/home/azureuser/src/RustyClawd/target/debug/rusty}"
 TMUX_DEFAULT_TIMEOUT="${TMUX_DEFAULT_TIMEOUT:-10}"
 TMUX_POLL_INTERVAL="${TMUX_POLL_INTERVAL:-0.1}"
 

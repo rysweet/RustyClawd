@@ -1,0 +1,73 @@
+# Test Scenario: Error Recovery - API Timeout
+#
+# Tests system recovery from API timeouts
+
+scenario:
+  name: "Error Recovery - API Timeout Handling"
+  description: "Verify system recovers gracefully from API timeouts"
+  type: tui
+  tags: [error-handling, recovery, network, timeouts]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 90s
+    # Note: This test would need a way to simulate timeout
+    # Could use --fallback-model or network condition simulation
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Send query that might timeout"
+      text: "Please analyze this extremely complex task with many steps..."
+      submit: true
+
+    - action: wait_for_text
+      description: "Wait for response or timeout"
+      contains: "System>"
+      timeout: 60s
+
+    - action: send_input
+      description: "Send normal query after potential timeout"
+      text: "Hello, are you still working?"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should respond normally"
+      contains: "System>"
+      timeout: 15s
+
+    - action: capture_screenshot
+      description: "Capture recovery state"
+      filename: "error_recovery_timeout.txt"
+
+  assertions:
+    - type: text_present
+      value: "System>"
+      description: "System recovers and shows prompt"
+
+    - type: exit_clean
+      description: "Session can exit cleanly after timeout"
+
+  notes: |
+    Tests API timeout handling and recovery.
+    System should:
+    - Detect timeout condition
+    - Show appropriate error message
+    - Return to normal operation
+    - Not crash or hang
+    - Allow subsequent queries
+    
+    Note: Hard to test without network simulation.
+    May need mock API or network condition tooling.

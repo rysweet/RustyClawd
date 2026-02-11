@@ -1,0 +1,83 @@
+# Test Scenario: Tool Execution - Read and Write Combination
+#
+# Tests chaining of Read and Write tools
+
+scenario:
+  name: "Tool Chain - Read then Write"
+  description: "Verify Read tool output can be used in Write tool"
+  type: tui
+  tags: [tools, tool-chain, integration]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 60s
+
+  steps:
+    - action: ensure_file
+      description: "Create test file to read"
+      path: "/tmp/test_source.txt"
+      content: "Original content for testing"
+
+    - action: launch
+      description: "Start RustyClawd in AutoAccept mode"
+      target: "cargo run --bin rusty -- --dangerously-skip-permissions"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Ask to read and transform content"
+      text: "Read the file /tmp/test_source.txt, convert its content to uppercase, and write the result to /tmp/test_output.txt"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should show Read tool execution"
+      contains: "Read"
+      timeout: 15s
+
+    - action: wait_for_text
+      description: "Should show Write tool execution"
+      contains: "Write"
+      timeout: 15s
+
+    - action: wait_for_text
+      description: "Should complete"
+      contains: "System>"
+      timeout: 10s
+
+    - action: capture_screenshot
+      description: "Capture tool chain execution"
+      filename: "tool_chain_read_write.txt"
+
+  assertions:
+    - type: file_exists
+      value: "/tmp/test_output.txt"
+      description: "Output file was created"
+
+    - type: text_present
+      value: "Read"
+      description: "Read tool was used"
+
+    - type: text_present
+      value: "Write"
+      description: "Write tool was used"
+
+  cleanup:
+    - action: remove_file
+      path: "/tmp/test_source.txt"
+    - action: remove_file
+      path: "/tmp/test_output.txt"
+
+  notes: |
+    Tests tool chaining - using output of one tool as input to another.
+    System should:
+    - Execute Read tool first
+    - Use Read output in processing
+    - Execute Write tool with transformed content
+    - Complete workflow successfully

@@ -1,0 +1,67 @@
+# Test Scenario: Edge Case - Very Long Input
+#
+# Tests system with extremely long input strings
+
+scenario:
+  name: "Edge Case - Very Long Input"
+  description: "Verify system handles very long input (10KB+) without crashing"
+  type: tui
+  tags: [edge-case, stress-test, input-validation]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 60s
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Send very long input (repeating text)"
+      text: "Please analyze this text: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. " * 50
+      submit: true
+
+    - action: wait_for_text
+      description: "Should handle and respond"
+      contains: "System>"
+      timeout: 30s
+
+    - action: send_input
+      description: "Send normal input after long input"
+      text: "hello"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should still work normally"
+      contains: "System>"
+      timeout: 10s
+
+    - action: capture_screenshot
+      description: "Capture long input handling"
+      filename: "edge_case_long_input.txt"
+
+  assertions:
+    - type: text_present
+      value: "System>"
+      description: "System still responsive after long input"
+
+    - type: exit_clean
+      description: "Session exits cleanly"
+
+  notes: |
+    Tests handling of very long input strings.
+    System should:
+    - Not crash or hang
+    - Process input (even if truncated)
+    - Return to normal operation
+    - Not have memory issues

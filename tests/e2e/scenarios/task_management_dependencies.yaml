@@ -1,0 +1,85 @@
+# Test Scenario: Task Management - Dependencies
+#
+# Tests task dependency tracking from PR #335
+
+scenario:
+  name: "Task Management - Dependency Validation"
+  description: "Verify tasks with dependencies can't be completed out of order"
+  type: tui
+  tags: [task-management, dependencies, validation, edge-case]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 90s
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Create tasks with dependencies"
+      text: "Create 3 tasks: Task A (setup environment), Task B (run tests - depends on A), Task C (deploy - depends on B). Set up the dependencies correctly."
+      submit: true
+
+    - action: wait_for_text
+      description: "Wait for task creation"
+      contains: "Task"
+      timeout: 15s
+
+    - action: wait_for_text
+      description: "Should return to prompt"
+      contains: "System>"
+      timeout: 10s
+
+    - action: send_input
+      description: "Try to complete Task C before dependencies"
+      text: "Mark Task C as completed."
+      submit: true
+
+    - action: wait_for_text
+      description: "Should see error about dependencies"
+      contains: "depend"
+      timeout: 15s
+
+    - action: wait_for_text
+      description: "Should return to prompt"
+      contains: "System>"
+      timeout: 10s
+
+    - action: send_input
+      description: "Complete tasks in correct order"
+      text: "Complete Task A first, then Task B, then Task C."
+      submit: true
+
+    - action: wait_for_text
+      description: "Should complete successfully"
+      contains: "completed"
+      timeout: 20s
+
+    - action: capture_screenshot
+      description: "Capture dependency validation"
+      filename: "task_dependencies.txt"
+
+  assertions:
+    - type: text_present
+      value: "depend"
+      description: "Dependency error message appears"
+
+    - type: text_present
+      value: "completed"
+      description: "Tasks complete in correct order"
+
+  notes: |
+    Tests dependency validation in task management.
+    Should prevent completing tasks when dependencies aren't met.
+    Should allow completion when dependencies are satisfied.

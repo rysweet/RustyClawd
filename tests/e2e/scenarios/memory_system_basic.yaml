@@ -1,0 +1,86 @@
+# Test Scenario: Memory System - Basic Save and Recall
+#
+# Tests Memory System from PR #332
+
+scenario:
+  name: "Memory System - Save and Recall"
+  description: "Verify memories are saved and can be recalled later"
+  type: tui
+  tags: [memory, sqlite, persistence, recent-feature]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 90s
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Provide information to remember"
+      text: "Please remember this important fact: The project deadline is March 15th, 2026."
+      submit: true
+
+    - action: wait_for_text
+      description: "Wait for acknowledgment"
+      contains: "System>"
+      timeout: 15s
+
+    - action: send_input
+      description: "Exit to save memory"
+      text: "/exit"
+      submit: true
+
+    - action: sleep
+      description: "Wait for clean exit"
+      duration: 2s
+
+    # Restart and test recall
+    - action: launch
+      description: "Restart RustyClawd (new session)"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Ask about saved information"
+      text: "What is the project deadline that I told you about earlier?"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should recall the deadline"
+      contains: "March"
+      timeout: 15s
+
+    - action: capture_screenshot
+      description: "Capture memory recall"
+      filename: "memory_recall.txt"
+
+  assertions:
+    - type: text_present
+      value: "March"
+      description: "Memory was recalled correctly"
+
+    - type: text_present
+      value: "15"
+      description: "Specific date was remembered"
+
+  notes: |
+    Tests basic memory persistence across sessions.
+    Memory should be saved to SQLite when session ends.
+    Memory should be loaded when new session starts.
+    Information from previous session should be accessible.

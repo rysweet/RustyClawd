@@ -1,0 +1,82 @@
+# Test Scenario: Edge Case - Terminal Resize
+#
+# Tests TUI behavior when terminal is resized during operation
+
+scenario:
+  name: "Edge Case - Terminal Resize During Operation"
+  description: "Verify TUI redraws correctly after terminal resize"
+  type: tui
+  tags: [edge-case, tui, resize, display]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 45s
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd in 120x40 terminal"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Start a query"
+      text: "Please write a detailed explanation of how HTTP works."
+      submit: true
+
+    - action: wait_for_text
+      description: "Wait for response to start"
+      contains: "HTTP"
+      timeout: 10s
+
+    - action: resize_terminal
+      description: "Resize to small terminal"
+      width: 60
+      height: 20
+
+    - action: sleep
+      description: "Let TUI redraw"
+      duration: 1s
+
+    - action: resize_terminal
+      description: "Resize back to large terminal"
+      width: 140
+      height: 50
+
+    - action: sleep
+      description: "Let TUI redraw again"
+      duration: 1s
+
+    - action: wait_for_text
+      description: "Wait for response to complete"
+      contains: "System>"
+      timeout: 15s
+
+    - action: capture_screenshot
+      description: "Capture final state after resizes"
+      filename: "edge_case_resize.txt"
+
+  assertions:
+    - type: text_present
+      value: "System>"
+      description: "TUI still functional after resize"
+
+    - type: text_present
+      value: "HTTP"
+      description: "Content still visible"
+
+  notes: |
+    Tests TUI behavior during terminal resize.
+    System should:
+    - Detect resize events
+    - Redraw TUI correctly
+    - Not lose content
+    - Continue functioning normally
+    - Handle multiple resizes

@@ -1,0 +1,96 @@
+# Test Scenario: Session Resume - Basic Resume
+#
+# Tests session resume from PR #334
+
+scenario:
+  name: "Session Resume - Basic Resume"
+  description: "Verify session can be resumed and context is preserved"
+  type: tui
+  tags: [session-resume, persistence, recent-feature]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 90s
+
+  steps:
+    # Session 1: Create context
+    - action: launch
+      description: "Start first session"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Establish context"
+      text: "My favorite programming language is Rust. Remember this."
+      submit: true
+
+    - action: wait_for_text
+      description: "Wait for acknowledgment"
+      contains: "System>"
+      timeout: 15s
+
+    - action: send_input
+      description: "Get session ID"
+      text: "What is the current session ID?"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should show session ID"
+      contains: "session"
+      timeout: 10s
+
+    - action: capture_screenshot
+      description: "Capture session ID"
+      filename: "session_original.txt"
+
+    - action: send_input
+      description: "Exit first session"
+      text: "/exit"
+      submit: true
+
+    - action: sleep
+      description: "Wait for clean exit"
+      duration: 2s
+
+    # Session 2: Resume
+    - action: launch
+      description: "Start with --continue flag"
+      target: "cargo run --bin rusty -- --continue"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Ask about previous context"
+      text: "What is my favorite programming language?"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should recall Rust"
+      contains: "Rust"
+      timeout: 15s
+
+    - action: capture_screenshot
+      description: "Capture resumed session"
+      filename: "session_resumed.txt"
+
+  assertions:
+    - type: text_present
+      value: "Rust"
+      description: "Context was preserved across sessions"
+
+  notes: |
+    Tests basic session resume functionality.
+    Context established in first session should be available
+    when resuming with --continue flag.

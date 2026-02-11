@@ -1,0 +1,93 @@
+# Test Scenario: Task Management - Basic CRUD
+#
+# Tests TodoWrite tool from PR #335
+# Validates task creation, updates, and completion
+
+scenario:
+  name: "Task Management - Create and Complete Tasks"
+  description: "Verify TodoWrite tool creates, updates, and completes tasks"
+  type: tui
+  tags: [task-management, todos, recent-feature]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 90s
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Ask to create tasks"
+      text: "Please create a todo list with 3 tasks: 1) Review code, 2) Write tests, 3) Update docs. All should start as pending."
+      submit: true
+
+    - action: wait_for_text
+      description: "Wait for task creation confirmation"
+      contains: "pending"
+      timeout: 15s
+
+    - action: wait_for_text
+      description: "Should return to prompt"
+      contains: "System>"
+      timeout: 10s
+
+    - action: send_input
+      description: "Ask to mark first task in progress"
+      text: "Please update the first task to in_progress status."
+      submit: true
+
+    - action: wait_for_text
+      description: "Wait for update confirmation"
+      contains: "in_progress"
+      timeout: 15s
+
+    - action: wait_for_text
+      description: "Should return to prompt"
+      contains: "System>"
+      timeout: 10s
+
+    - action: send_input
+      description: "Ask to complete the first task"
+      text: "Please mark the first task as completed."
+      submit: true
+
+    - action: wait_for_text
+      description: "Wait for completion confirmation"
+      contains: "completed"
+      timeout: 15s
+
+    - action: capture_screenshot
+      description: "Capture final task state"
+      filename: "task_management_basic.txt"
+
+  assertions:
+    - type: text_present
+      value: "pending"
+      description: "Tasks created with pending status"
+
+    - type: text_present
+      value: "in_progress"
+      description: "Task updated to in_progress"
+
+    - type: text_present
+      value: "completed"
+      description: "Task marked as completed"
+
+  notes: |
+    Tests basic task management CRUD operations.
+    TodoWrite tool should:
+    - Create tasks with pending status
+    - Update task status to in_progress
+    - Mark tasks as completed
+    - Display task list properly in TUI

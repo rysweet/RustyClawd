@@ -1,0 +1,68 @@
+# Test Scenario: Extended Thinking Phase - Cancellation
+#
+# Tests that extended thinking can be cancelled mid-stream
+
+scenario:
+  name: "Extended Thinking - Cancel During Thinking"
+  description: "Verify Ctrl+C works during extended thinking phase"
+  type: tui
+  tags: [extended-thinking, cancellation, edge-case]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 30s
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Ask very complex question to trigger long thinking"
+      text: "Please write a comprehensive analysis of quantum computing, covering quantum superposition, entanglement, quantum gates, error correction, current hardware implementations, and future prospects. Include mathematical foundations and practical applications."
+      submit: true
+
+    - action: wait_for_text
+      description: "Wait for thinking to start"
+      contains: "thinking"
+      timeout: 10s
+
+    - action: sleep
+      description: "Let thinking run for a moment"
+      duration: 2s
+
+    - action: send_keys
+      description: "Send Ctrl+C to cancel"
+      keys: "C-c"
+
+    - action: wait_for_text
+      description: "Should return to prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: capture_screenshot
+      description: "Capture cancelled state"
+      filename: "extended_thinking_cancelled.txt"
+
+  assertions:
+    - type: text_present
+      value: "System>"
+      description: "Returns to prompt after cancel"
+
+    - type: text_not_present
+      value: "quantum computing"
+      description: "Response was cancelled, not completed"
+
+  notes: |
+    Tests cancellation during extended thinking.
+    User should be able to interrupt long thinking phases.
+    System should recover gracefully and return to prompt.

@@ -1,0 +1,39 @@
+# Test Scenario: Binary Help and Version Check
+#
+# Minimal smoke test to verify the binary works
+
+scenario:
+  name: "Binary Help and Version"
+  description: "Verify rusty binary responds to --help and --version"
+  type: cli
+  tags: [smoke, quick, non-interactive]
+  status: "ready"
+
+  environment:
+    timeout: 10s
+
+  steps:
+    - action: execute_command
+      description: "Test --help flag"
+      command: "cd /home/azureuser/src/RustyClawd && target/debug/rusty --help"
+      expected_exit_code: 0
+      timeout: 3s
+
+    - action: execute_command
+      description: "Test --version flag"
+      command: "cd /home/azureuser/src/RustyClawd && target/debug/rusty --version"
+      expected_exit_code: 0
+      timeout: 3s
+
+  assertions:
+    - type: text_present
+      value: "RustyClawd"
+      description: "Help text shows application name"
+
+    - type: text_present
+      value: "Usage"
+      description: "Help shows usage information"
+
+  notes: |
+    This is a very basic smoke test that just verifies the binary
+    can be executed and responds to basic flags.

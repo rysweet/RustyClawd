@@ -1,0 +1,77 @@
+# Test Scenario: Edge Case - Special Characters and Unicode
+#
+# Tests handling of special characters, emoji, and Unicode
+
+scenario:
+  name: "Edge Case - Special Characters and Unicode"
+  description: "Verify system handles emoji, Unicode, and special characters"
+  type: tui
+  tags: [edge-case, unicode, internationalization]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 45s
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for prompt"
+      contains: "System>"
+      timeout: 5s
+
+    - action: send_input
+      description: "Send emoji"
+      text: "What does this emoji mean? 🚀"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should respond"
+      contains: "System>"
+      timeout: 15s
+
+    - action: send_input
+      description: "Send Unicode characters"
+      text: "Translate: 你好世界 (Chinese for 'Hello World')"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should handle Unicode"
+      contains: "System>"
+      timeout: 15s
+
+    - action: send_input
+      description: "Send special characters"
+      text: "Process this: !@#$%^&*()_+-=[]{}|;':\",./<>?"
+      submit: true
+
+    - action: wait_for_text
+      description: "Should handle special chars"
+      contains: "System>"
+      timeout: 15s
+
+    - action: capture_screenshot
+      description: "Capture special character handling"
+      filename: "edge_case_unicode.txt"
+
+  assertions:
+    - type: text_present
+      value: "System>"
+      description: "System handles all character types"
+
+    - type: exit_clean
+      description: "No crashes from special characters"
+
+  notes: |
+    Tests Unicode and special character handling.
+    System should properly display and process:
+    - Emoji
+    - International characters (Chinese, Arabic, etc.)
+    - Special punctuation and symbols
+    - Mixed content

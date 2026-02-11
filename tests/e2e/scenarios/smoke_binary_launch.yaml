@@ -1,0 +1,44 @@
+# Test Scenario: Binary Launch and Help
+#
+# Minimal smoke test to verify the binary launches and shows help
+
+scenario:
+  name: "Binary Launch Smoke Test"
+  description: "Verify rusty binary launches and exits cleanly"
+  type: tui
+  tags: [smoke, quick]
+  status: "ready"
+
+  environment:
+    terminal_size:
+      width: 100
+      height: 30
+    timeout: 15s
+
+  steps:
+    # Test 1: Launch with --help
+    - action: launch
+      description: "Launch rusty with --help flag"
+      target: "cargo run --bin rusty -- --help"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for help text to appear"
+      contains: "Usage"
+      timeout: 3s
+
+    - action: capture_screenshot
+      description: "Capture help output"
+      filename: "help_output.txt"
+
+  assertions:
+    - type: text_present
+      value: "Usage"
+      description: "Help text displays"
+
+    - type: exit_clean
+      description: "Process exits cleanly"
+
+  notes: |
+    This is a minimal smoke test that doesn't require API key.
+    Just verifies the binary builds and launches.
