@@ -301,7 +301,7 @@ class ScenarioRunner:
         bash_cmd = f"""
             {self._source_framework()}
             SESSION={session_quoted}
-            send_keys_to_session "$SESSION" {keys_quoted}
+            send_keys "$SESSION" {keys_quoted}
         """
         
         exit_code, stdout, stderr = self._run_bash_cmd(bash_cmd)
@@ -323,6 +323,7 @@ class ScenarioRunner:
         key_map = {
             "Tab": "Tab",
             "Shift+Tab": "BTab",
+            "BackTab": "BTab",  # Alternative name for Shift+Tab
             "Escape": "Escape",
             "Enter": "Enter",
             "Space": "Space",
@@ -338,7 +339,7 @@ class ScenarioRunner:
         bash_cmd = f"""
             {self._source_framework()}
             SESSION={session_quoted}
-            send_keys_to_session "$SESSION" {tmux_key}
+            send_keys "$SESSION" {tmux_key}
         """
         
         exit_code, stdout, stderr = self._run_bash_cmd(bash_cmd)
