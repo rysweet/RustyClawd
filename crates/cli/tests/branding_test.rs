@@ -71,7 +71,7 @@ mod branding_tests {
             if let Ok(entries) = fs::read_dir(path) {
                 for entry in entries.flatten() {
                     let entry_path = entry.path();
-                    if entry_path.is_file() && entry_path.extension().map_or(false, |e| e == "rs") {
+                    if entry_path.is_file() && entry_path.extension().is_some_and(|e| e == "rs") {
                         violations.extend(check_file_for_claude_branding(&entry_path));
                     } else if entry_path.is_dir() {
                         // Recursively check subdirectories
