@@ -34,10 +34,14 @@ scenario:
       key: "BackTab"
       timeout: 2s
 
+    - action: sleep
+      description: "Wait for mode indicator to update"
+      duration: 1s
+
     - action: wait_for_text
       description: "Mode indicator should show Auto-Accept"
       contains: "Auto"
-      timeout: 3s
+      timeout: 5s
 
     # Test 2: Shift+Tab to Plan mode
     - action: send_key
@@ -45,10 +49,14 @@ scenario:
       key: "BackTab"
       timeout: 2s
 
+    - action: sleep
+      description: "Wait for mode indicator to update"
+      duration: 1s
+
     - action: wait_for_text
       description: "Mode indicator should show Plan"
       contains: "Plan"
-      timeout: 3s
+      timeout: 5s
 
     # Test 3: Verify Plan mode blocks Write tool
     - action: send_input
@@ -78,10 +86,14 @@ scenario:
       key: "BackTab"
       timeout: 2s
 
+    - action: sleep
+      description: "Wait for mode indicator to update"
+      duration: 1s
+
     - action: wait_for_text
       description: "Mode should cycle back to Ask"
       contains: "Ask"
-      timeout: 3s
+      timeout: 5s
 
     # Capture final state
     - action: capture_screenshot

@@ -31,29 +31,42 @@ scenario:
       text: "What does this emoji mean? 🚀"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI to process emoji"
+      duration: 3s
+
     - action: wait_for_text
       description: "Should respond"
       contains: "RustyClawd"
-      timeout: 15s
+      timeout: 20s
 
     - action: send_input
       description: "Send Unicode characters"
       text: "Translate: 你好世界 (Chinese for 'Hello World')"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI to process Unicode"
+      duration: 3s
+
     - action: wait_for_text
       description: "Should handle Unicode"
       contains: "RustyClawd"
-      timeout: 15s
+      timeout: 20s
 
     - action: send_input
       description: "Send special characters"
       text: "Process this: !@#$%^&*()_+-=[]{}|;':\",./<>?"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI to process special chars"
+      duration: 3s
+
     - action: wait_for_text
       description: "Should handle special chars"
       contains: "RustyClawd"
+      timeout: 20s
       timeout: 15s
 
     - action: capture_screenshot

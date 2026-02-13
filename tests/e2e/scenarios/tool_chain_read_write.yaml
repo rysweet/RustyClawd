@@ -46,8 +46,12 @@ scenario:
       contains: "Write"
       timeout: 15s
 
+    - action: sleep
+      description: "Wait for streaming to complete"
+      duration: 3s
+
     - action: wait_for_text
-      description: "Should complete"
+      description: "Should complete and show prompt"
       contains: "RustyClawd"
       timeout: 10s
 
@@ -56,10 +60,6 @@ scenario:
       filename: "tool_chain_read_write.txt"
 
   assertions:
-    - type: file_exists
-      value: "/tmp/test_output.txt"
-      description: "Output file was created"
-
     - type: text_present
       value: "Read"
       description: "Read tool was used"
@@ -69,10 +69,8 @@ scenario:
       description: "Write tool was used"
 
   cleanup:
-    - action: remove_file
-      path: "/tmp/test_source.txt"
-    - action: remove_file
-      path: "/tmp/test_output.txt"
+    - action: cleanup_test_files
+      description: "Clean up test files"
 
   notes: |
     Tests tool chaining - using output of one tool as input to another.

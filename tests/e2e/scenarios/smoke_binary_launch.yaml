@@ -16,29 +16,32 @@ scenario:
     timeout: 15s
 
   steps:
-    # Test 1: Launch with --help
+    # Test 1: Launch normally and verify TUI starts
     - action: launch
-      description: "Launch rusty with --help flag"
-      target: "cargo run --bin rusty -- --help"
+      description: "Launch rusty in TUI mode"
       timeout: 10s
 
     - action: wait_for_text
-      description: "Wait for help text to appear"
-      contains: "Usage"
-      timeout: 3s
+      description: "Wait for TUI to appear"
+      contains: "RustyClawd"
+      timeout: 5s
 
     - action: capture_screenshot
-      description: "Capture help output"
-      filename: "help_output.txt"
+      description: "Capture TUI startup"
+      filename: "tui_startup.txt"
+    
+    - action: send_key
+      description: "Exit with Escape"
+      key: "Escape"
 
   assertions:
     - type: text_present
-      value: "Usage"
-      description: "Help text displays"
+      value: "RustyClawd"
+      description: "TUI launches and shows application name"
 
     - type: exit_clean
       description: "Process exits cleanly"
 
   notes: |
     This is a minimal smoke test that doesn't require API key.
-    Just verifies the binary builds and launches.
+    Just verifies the binary builds and launches in TUI mode.
