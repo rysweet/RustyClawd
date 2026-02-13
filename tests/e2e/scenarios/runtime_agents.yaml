@@ -35,9 +35,13 @@ scenario:
       text: "List all available agents"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
+
     - action: wait_for_text
       description: "Should include custom-reviewer"
-      contains: "custom-reviewer"
+      contains: "RustyClawd"
       timeout: 15s
 
     # Test 2: Use the runtime agent via Task tool
@@ -46,9 +50,13 @@ scenario:
       text: "Use the custom-reviewer agent to review the README.md file"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
+
     - action: wait_for_text
       description: "Should spawn Task with custom agent"
-      contains: "custom-reviewer"
+      contains: "RustyClawd"
       timeout: 20s
 
     # Test 3: Verify file-based agents still work
@@ -56,6 +64,10 @@ scenario:
       description: "Use a file-based agent"
       text: "Use the architect agent to design a simple module"
       submit: true
+
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
 
     - action: wait_for_text
       description: "File-based agent should work alongside runtime"

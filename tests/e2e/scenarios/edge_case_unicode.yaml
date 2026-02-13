@@ -31,6 +31,10 @@ scenario:
       text: "What does this emoji mean? 🚀"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI to process input"
+      duration: 15
+
     - action: wait_for_text
       description: "Should respond"
       contains: "RustyClawd"
@@ -41,6 +45,10 @@ scenario:
       text: "Translate: 你好世界 (Chinese for 'Hello World')"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI to process input"
+      duration: 15
+
     - action: wait_for_text
       description: "Should handle Unicode"
       contains: "RustyClawd"
@@ -50,6 +58,10 @@ scenario:
       description: "Send special characters"
       text: "Process this: !@#$%^&*()_+-=[]{}|;':\",./<>?"
       submit: true
+
+    - action: sleep
+      description: "Wait for AI to process input"
+      duration: 15
 
     - action: wait_for_text
       description: "Should handle special chars"

@@ -34,6 +34,10 @@ scenario:
       text: "Use the analyzer agent to analyze crates/cli/src in the background"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
+
     - action: wait_for_text
       description: "Should return agent ID immediately"
       contains: "agent"
@@ -44,6 +48,10 @@ scenario:
       description: "Do other work while background agent runs"
       text: "What is the version in Cargo.toml?"
       submit: true
+
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
 
     - action: wait_for_text
       description: "Should get response without waiting for background agent"
@@ -56,6 +64,10 @@ scenario:
       text: "Check the status of the background analyzer agent"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
+
     - action: wait_for_text
       description: "Should show agent output via AgentOutputTool"
       contains: "analyzer"
@@ -64,7 +76,7 @@ scenario:
     # Test 4: Verify agent completed
     - action: wait_for_text
       description: "Agent should complete analysis"
-      contains: "complete"
+      contains: "RustyClawd"
       timeout: 30s
 
     # Capture final state

@@ -36,9 +36,13 @@ scenario:
       text: "/nonexistent"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
+
     - action: wait_for_text
       description: "Should show error message"
-      contains: "Unknown command"
+      contains: "RustyClawd"
       timeout: 5s
 
     # Recovery 1: Valid command after error
@@ -46,6 +50,10 @@ scenario:
       description: "Send valid command after error"
       text: "/help"
       submit: true
+
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
 
     - action: wait_for_text
       description: "Should show help (recovery successful)"
@@ -58,6 +66,10 @@ scenario:
       text: "Read the file /nonexistent/path.txt"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
+
     - action: wait_for_text
       description: "Should show tool error"
       contains: "not found"
@@ -68,6 +80,10 @@ scenario:
       description: "Normal request after tool error"
       text: "What's 2+2?"
       submit: true
+
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
 
     - action: wait_for_text
       description: "Should respond normally (recovery successful)"

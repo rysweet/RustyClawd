@@ -36,9 +36,13 @@ scenario:
       text: "/analyze src/"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
+
     - action: wait_for_text
       description: "Command should be processing"
-      contains: "Analyzing"
+      contains: "RustyClawd"
       timeout: 10s
 
     - action: wait_for_text

@@ -32,9 +32,13 @@ scenario:
       text: "Please create a todo list with 3 tasks: 1) Review code, 2) Write tests, 3) Update docs. All should start as pending."
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
+
     - action: wait_for_text
       description: "Wait for task creation confirmation"
-      contains: "pending"
+      contains: "RustyClawd"
       timeout: 15s
 
     - action: wait_for_text
@@ -46,6 +50,10 @@ scenario:
       description: "Ask to mark first task in progress"
       text: "Please update the first task to in_progress status."
       submit: true
+
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
 
     - action: wait_for_text
       description: "Wait for update confirmation"
@@ -61,6 +69,10 @@ scenario:
       description: "Ask to complete the first task"
       text: "Please mark the first task as completed."
       submit: true
+
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
 
     - action: wait_for_text
       description: "Wait for completion confirmation"

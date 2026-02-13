@@ -20,7 +20,7 @@ scenario:
     # Startup in default (Ask) mode
     - action: launch
       description: "Start RustyClawd"
-      target: "cargo run --bin claude"
+      target: "cargo run --bin rusty"
       timeout: 10s
 
     - action: wait_for_text

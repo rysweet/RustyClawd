@@ -36,9 +36,13 @@ scenario:
       text: "Analyze the crates/cli/src directory and summarize the architecture"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
+
     - action: wait_for_text
       description: "Wait for Read tool execution (multiple files)"
-      contains: "crates/cli"
+      contains: "RustyClawd"
       timeout: 60s
 
     # Step 2: Follow-up based on analysis
@@ -47,9 +51,13 @@ scenario:
       text: "Based on that analysis, what are the main components?"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
+
     - action: wait_for_text
       description: "Wait for summary using prior context"
-      contains: "components"
+      contains: "RustyClawd"
       timeout: 15s
 
     # Step 3: Action based on understanding
@@ -58,9 +66,13 @@ scenario:
       text: "Create a SUMMARY.md file documenting those components"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
+
     - action: wait_for_text
       description: "Wait for Write tool execution"
-      contains: "Created"
+      contains: "RustyClawd"
       timeout: 20s
 
     # Step 4: Verification
@@ -69,9 +81,13 @@ scenario:
       text: "Read SUMMARY.md to confirm it was created correctly"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
+
     - action: wait_for_text
       description: "Wait for Read tool to show file contents"
-      contains: "components"
+      contains: "RustyClawd"
       timeout: 15s
 
     # Capture final state

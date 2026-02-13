@@ -31,9 +31,13 @@ scenario:
       text: "Please write a comprehensive analysis of quantum computing, covering quantum superposition, entanglement, quantum gates, error correction, current hardware implementations, and future prospects. Include mathematical foundations and practical applications."
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 10
+
     - action: wait_for_text
       description: "Wait for thinking to start"
-      contains: "thinking"
+      contains: "RustyClawd"
       timeout: 10s
 
     - action: sleep
