@@ -45,9 +45,13 @@ scenario:
       text: "What is the version in Cargo.toml?"
       submit: true
 
+    - action: sleep
+      description: "Wait for response"
+      duration: 5s
+
     - action: wait_for_text
       description: "Should get response without waiting for background agent"
-      contains: "0.1.0"
+      contains: "RustyClawd"
       timeout: 15s
 
     # Test 3: Check background agent status

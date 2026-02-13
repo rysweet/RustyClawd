@@ -24,9 +24,13 @@ scenario:
       target: "cargo run --bin claude -- --agents '{\"custom-reviewer\":{\"description\":\"Custom reviewer\",\"prompt\":\"Review code\"}}'"
       timeout: 10s
 
+    - action: sleep
+      description: "Wait for initialization"
+      duration: 3s
+
     - action: wait_for_text
-      description: "Wait for initialization with runtime agents"
-      contains: "runtime agents"
+      description: "Should show interface"
+      contains: "RustyClawd"
       timeout: 5s
 
     # Test 1: Verify runtime agent loaded

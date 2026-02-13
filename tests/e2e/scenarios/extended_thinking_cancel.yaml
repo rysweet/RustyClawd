@@ -44,6 +44,10 @@ scenario:
       description: "Send Ctrl+C to cancel"
       keys: "C-c"
 
+    - action: sleep
+      description: "Wait for cancel to process"
+      duration: 3s
+
     - action: wait_for_text
       description: "Should show RustyClawd interface"
       contains: "RustyClawd"

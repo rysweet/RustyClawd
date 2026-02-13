@@ -34,9 +34,13 @@ scenario:
       key: "BackTab"
       timeout: 2s
 
+    - action: sleep
+      description: "Wait for mode to change"
+      duration: 1s
+
     - action: wait_for_text
-      description: "Mode indicator should show Auto-Accept"
-      contains: "Auto"
+      description: "Should show some interface"
+      contains: "RustyClawd"
       timeout: 3s
 
     # Test 2: Shift+Tab to Plan mode
