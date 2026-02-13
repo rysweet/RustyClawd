@@ -34,6 +34,10 @@ scenario:
       text: "Use the analyzer agent to analyze crates/cli/src in the background"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI to process"
+      duration: 5s
+
     - action: wait_for_text
       description: "Should return agent ID immediately"
       contains: "agent"
@@ -45,6 +49,10 @@ scenario:
       text: "What is the version in Cargo.toml?"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI to process"
+      duration: 5s
+
     - action: wait_for_text
       description: "Should get response without waiting for background agent"
       contains: "0.1.0"
@@ -55,6 +63,10 @@ scenario:
       description: "Check background agent output"
       text: "Check the status of the background analyzer agent"
       submit: true
+
+    - action: sleep
+      description: "Wait for AI to process"
+      duration: 5s
 
     - action: wait_for_text
       description: "Should show agent output via AgentOutputTool"
@@ -77,6 +89,10 @@ scenario:
       description: "Exit"
       text: "/exit"
       submit: true
+
+    - action: sleep
+      description: "Wait for AI to process"
+      duration: 5s
 
   assertions:
     - type: text_present

@@ -46,6 +46,10 @@ scenario:
       text: "Here's a function: fn add(a: i32, b: i32) -> i32 { a + b }"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI to process"
+      duration: 5s
+
     - action: wait_for_text
       description: "Wait for acknowledgment"
       contains: "function"
@@ -56,6 +60,10 @@ scenario:
       description: "Invoke code-analyzer skill"
       text: "Use code-analyzer skill on that function"
       submit: true
+
+    - action: sleep
+      description: "Wait for AI to process"
+      duration: 5s
 
     - action: wait_for_text
       description: "Skill should execute"
@@ -78,6 +86,10 @@ scenario:
       description: "Exit"
       text: "/exit"
       submit: true
+
+    - action: sleep
+      description: "Wait for AI to process"
+      duration: 5s
 
   assertions:
     - type: text_present

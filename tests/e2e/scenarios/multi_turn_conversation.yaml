@@ -35,6 +35,10 @@ scenario:
       text: "What's in the README.md file?"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI to process"
+      duration: 5s
+
     - action: wait_for_text
       description: "Wait for Read tool execution"
       contains: "README"
@@ -46,6 +50,10 @@ scenario:
       text: "What are the key points from that file?"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI to process"
+      duration: 5s
+
     - action: wait_for_text
       description: "Wait for summary response"
       contains: "key points"
@@ -56,6 +64,10 @@ scenario:
       description: "Third turn referencing prior discussion"
       text: "Can you create a summary file based on those ideas?"
       submit: true
+
+    - action: sleep
+      description: "Wait for AI to process"
+      duration: 5s
 
     - action: wait_for_text
       description: "Wait for Write tool execution"
@@ -72,6 +84,10 @@ scenario:
       description: "Exit session"
       text: "/exit"
       submit: true
+
+    - action: sleep
+      description: "Wait for AI to process"
+      duration: 5s
 
   assertions:
     - type: text_present
