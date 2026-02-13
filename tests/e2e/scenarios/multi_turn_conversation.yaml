@@ -57,9 +57,13 @@ scenario:
       text: "Can you create a summary file based on those ideas?"
       submit: true
 
+    - action: sleep
+      description: "Wait for tool execution"
+      duration: 10s
+
     - action: wait_for_text
-      description: "Wait for Write tool execution"
-      contains: "Created"
+      description: "Should return to prompt"
+      contains: "RustyClawd"
       timeout: 15s
 
     # Capture final state

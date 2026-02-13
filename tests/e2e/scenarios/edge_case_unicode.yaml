@@ -51,6 +51,10 @@ scenario:
       text: "Process this: !@#$%^&*()_+-=[]{}|;':\",./<>?"
       submit: true
 
+    - action: sleep
+      description: "Wait for response"
+      duration: 5s
+
     - action: wait_for_text
       description: "Should handle special chars"
       contains: "RustyClawd"

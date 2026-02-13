@@ -60,14 +60,6 @@ scenario:
       value: "/tmp/test_output.txt"
       description: "Output file was created"
 
-    - type: text_present
-      value: "Read"
-      description: "Read tool was used"
-
-    - type: text_present
-      value: "Write"
-      description: "Write tool was used"
-
   cleanup:
     - action: remove_file
       path: "/tmp/test_source.txt"

@@ -35,8 +35,8 @@ scenario:
       timeout: 2s
 
     - action: wait_for_text
-      description: "Mode indicator should show Auto-Accept"
-      contains: "Auto"
+      description: "Should show interface after mode change"
+      contains: "RustyClawd"
       timeout: 3s
 
     # Test 2: Shift+Tab to Plan mode

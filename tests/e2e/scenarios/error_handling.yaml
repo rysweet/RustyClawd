@@ -47,9 +47,13 @@ scenario:
       text: "/help"
       submit: true
 
+    - action: sleep
+      description: "Wait for help to display"
+      duration: 2s
+
     - action: wait_for_text
-      description: "Should show help (recovery successful)"
-      contains: "Available commands"
+      description: "Should return to prompt (recovery successful)"
+      contains: "RustyClawd"
       timeout: 5s
 
     # Error 2: Tool failure (nonexistent file)

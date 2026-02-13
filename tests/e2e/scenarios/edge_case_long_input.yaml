@@ -41,6 +41,10 @@ scenario:
       text: "hello"
       submit: true
 
+    - action: sleep
+      description: "Wait for second response"
+      duration: 5s
+
     - action: wait_for_text
       description: "Should still work normally"
       contains: "RustyClawd"
