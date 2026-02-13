@@ -21,7 +21,7 @@ scenario:
     - action: launch
       description: "Start RustyClawd"
       target: "cargo run --bin rusty"
-      timeout: 10s
+      timeout: 15s
 
     - action: wait_for_text
       description: "Wait for prompt showing Ask mode"

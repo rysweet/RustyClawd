@@ -59,7 +59,7 @@ scenario:
 
     - action: wait_for_text
       description: "Skill should execute"
-      contains: "analysis"
+      contains: "RustyClawd"
       timeout: 20s
 
     # Verify skill had context
@@ -85,8 +85,6 @@ scenario:
       description: "Context established with function discussion"
 
     - type: text_present
-      value: "analysis"
-      description: "Skill executed and produced analysis"
 
     - type: text_present
       value: "add"

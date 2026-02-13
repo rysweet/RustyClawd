@@ -19,7 +19,7 @@ scenario:
     - action: launch
       description: "Start RustyClawd"
       target: "cargo run --bin rusty"
-      timeout: 10s
+      timeout: 15s
 
     - action: wait_for_text
       description: "Wait for TUI to load"
@@ -33,7 +33,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 10
+      duration: 20
 
     - action: wait_for_text
       description: "Wait for thinking to start"

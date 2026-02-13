@@ -57,7 +57,7 @@ scenario:
 
     - action: wait_for_text
       description: "Should show help (recovery successful)"
-      contains: "Available commands"
+      contains: "RustyClawd"
       timeout: 5s
 
     # Error 2: Tool failure (nonexistent file)

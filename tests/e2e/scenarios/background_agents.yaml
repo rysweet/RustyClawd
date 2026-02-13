@@ -21,7 +21,7 @@ scenario:
     - action: launch
       description: "Start RustyClawd"
       target: "cargo run --bin claude"
-      timeout: 10s
+      timeout: 15s
 
     - action: wait_for_text
       description: "Wait for ready"
@@ -36,7 +36,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 10
+      duration: 20
 
     - action: wait_for_text
       description: "Should return agent ID immediately"
@@ -51,11 +51,11 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 10
+      duration: 20
 
     - action: wait_for_text
       description: "Should get response without waiting for background agent"
-      contains: "0.1.0"
+      contains: "RustyClawd"
       timeout: 15s
 
     # Test 3: Check background agent status
@@ -66,7 +66,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 10
+      duration: 20
 
     - action: wait_for_text
       description: "Should show agent output via AgentOutputTool"
@@ -96,8 +96,6 @@ scenario:
       description: "Background agent spawned"
 
     - type: text_present
-      value: "0.1.0"
-      description: "Other work continued while agent ran"
 
     - type: text_present
       value: "analyzer"

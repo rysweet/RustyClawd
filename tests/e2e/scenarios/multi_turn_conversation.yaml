@@ -23,7 +23,7 @@ scenario:
     - action: launch
       description: "Start RustyClawd TUI"
       target: "cargo run --bin rusty"
-      timeout: 10s
+      timeout: 15s
 
     - action: wait_for_text
       description: "Wait for welcome screen"
@@ -37,7 +37,7 @@ scenario:
 
     - action: sleep
       description: "Wait for Read tool and AI response"
-      duration: 15
+      duration: 25
 
     - action: wait_for_text
       description: "Wait for prompt after first turn"
@@ -52,7 +52,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response using context"
-      duration: 15
+      duration: 25
 
     - action: wait_for_text
       description: "Wait for prompt after second turn"
@@ -67,7 +67,7 @@ scenario:
 
     - action: sleep
       description: "Wait for Write tool and AI response"
-      duration: 15
+      duration: 25
 
     - action: wait_for_text
       description: "Wait for prompt after third turn"

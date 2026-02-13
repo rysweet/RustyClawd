@@ -19,7 +19,7 @@ scenario:
     - action: launch
       description: "Start RustyClawd"
       target: "cargo run --bin rusty"
-      timeout: 10s
+      timeout: 15s
 
     - action: wait_for_text
       description: "Wait for TUI to load"
@@ -33,7 +33,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI to process input"
-      duration: 15
+      duration: 25
 
     - action: wait_for_text
       description: "Should respond"
@@ -47,7 +47,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI to process input"
-      duration: 15
+      duration: 25
 
     - action: wait_for_text
       description: "Should handle Unicode"
@@ -61,7 +61,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI to process input"
-      duration: 15
+      duration: 25
 
     - action: wait_for_text
       description: "Should handle special chars"

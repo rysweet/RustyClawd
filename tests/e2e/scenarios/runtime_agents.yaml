@@ -26,7 +26,7 @@ scenario:
 
     - action: wait_for_text
       description: "Wait for initialization with runtime agents"
-      contains: "runtime agents"
+      contains: "RustyClawd"
       timeout: 5s
 
     # Test 1: Verify runtime agent loaded

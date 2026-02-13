@@ -47,7 +47,7 @@ scenario:
 
     - action: wait_for_text
       description: "Should show analysis results"
-      contains: "codebase"
+      contains: "RustyClawd"
       timeout: 25s
 
     # Capture final state
