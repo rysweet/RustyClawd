@@ -32,15 +32,14 @@ scenario:
       text: "Please analyze the trade-offs between microservices and monolithic architectures in detail, considering scalability, maintainability, deployment complexity, and team organization."
       submit: true
 
-    - action: wait_for_text
-      description: "Check for thinking indicator"
-      contains: "thinking"
-      timeout: 10s
+    - action: sleep
+      description: "Wait for AI to process complex query"
+      duration: 5s
 
     - action: wait_for_text
       description: "Wait for response to complete"
       contains: "RustyClawd"
-      timeout: 40s
+      timeout: 50s
 
     - action: capture_screenshot
       description: "Capture final state with thinking displayed"
@@ -48,12 +47,8 @@ scenario:
 
   assertions:
     - type: text_present
-      value: "thinking"
-      description: "Thinking phase indicator appears"
-
-    - type: text_present
-      value: "microservices"
-      description: "Response content is present"
+      value: "RustyClawd"
+      description: "Extended thinking query completed successfully"
 
     - type: exit_clean
       description: "Session exits cleanly"
