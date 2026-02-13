@@ -15,13 +15,13 @@ scenario:
   steps:
     - action: execute_command
       description: "Test --help flag"
-      command: "cd /home/azureuser/src/RustyClawd && target/debug/rusty --help"
+      command: "target/debug/rusty --help"
       expected_exit_code: 0
       timeout: 3s
 
     - action: execute_command
       description: "Test --version flag"
-      command: "cd /home/azureuser/src/RustyClawd && target/debug/rusty --version"
+      command: "target/debug/rusty --version"
       expected_exit_code: 0
       timeout: 3s
 

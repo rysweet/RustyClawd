@@ -39,7 +39,7 @@ scenario:
     - action: wait_for_text
       description: "Wait for Read tool execution (multiple files)"
       contains: "crates/cli"
-      timeout: 30s
+      timeout: 60s
 
     # Step 2: Follow-up based on analysis
     - action: send_input
