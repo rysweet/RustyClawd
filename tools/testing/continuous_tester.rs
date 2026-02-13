@@ -7,13 +7,13 @@
 //! colored = "2.0"
 //! ```
 
-use std::process::{Command, Stdio};
-use std::io::{BufRead, BufReader, Write};
-use std::time::{Duration, Instant};
-use std::path::PathBuf;
-use std::fs;
-use colored::*;
 use chrono::Local;
+use colored::*;
+use std::fs;
+use std::io::{BufRead, BufReader, Write};
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
 
 /// Configuration for continuous testing
 #[derive(Debug)]
@@ -30,39 +30,45 @@ struct TestConfig {
 impl TestConfig {
     fn from_args() -> Self {
         let args: Vec<String> = std::env::args().collect();
-        
-        let max_iterations = args.iter()
+
+        let max_iterations = args
+            .iter()
             .position(|a| a == "--max-iterations")
             .and_then(|i| args.get(i + 1))
             .and_then(|s| s.parse().ok());
-        
-        let delay_secs = args.iter()
+
+        let delay_secs = args
+            .iter()
             .position(|a| a == "--delay")
             .and_then(|i| args.get(i + 1))
             .and_then(|s| s.parse().ok())
             .unwrap_or(30);
-        
-        let rusty_binary = args.iter()
+
+        let rusty_binary = args
+            .iter()
             .position(|a| a == "--binary")
             .and_then(|i| args.get(i + 1))
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("rusty"));
-        
-        let test_scenario = args.iter()
+
+        let test_scenario = args
+            .iter()
             .position(|a| a == "--scenario")
             .and_then(|i| args.get(i + 1))
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("test-all-features"));
-        
-        let output_dir = args.iter()
+
+        let output_dir = args
+            .iter()
             .position(|a| a == "--output")
             .and_then(|i| args.get(i + 1))
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("/tmp/rustyclawd-continuous-tests"));
-        
+
         let cleanup_builds = args.iter().any(|a| a == "--cleanup");
-        
-        let cleanup_interval = args.iter()
+
+        let cleanup_interval = args
+            .iter()
             .position(|a| a == "--cleanup-interval")
             .and_then(|i| args.get(i + 1))
             .and_then(|s| s.parse().ok())
@@ -82,6 +88,7 @@ impl TestConfig {
 
 /// Result of a single test run
 #[derive(Debug)]
+#[allow(dead_code)]
 struct TestResult {
     iteration: usize,
     timestamp: String,
@@ -102,9 +109,8 @@ struct ContinuousTester {
 impl ContinuousTester {
     fn new(config: TestConfig) -> Self {
         // Ensure output directory exists
-        fs::create_dir_all(&config.output_dir)
-            .expect("Failed to create output directory");
-        
+        fs::create_dir_all(&config.output_dir).expect("Failed to create output directory");
+
         ContinuousTester {
             config,
             results: Vec::new(),
@@ -118,27 +124,29 @@ impl ContinuousTester {
         println!("Binary: {}", self.config.rusty_binary.display());
         println!("Scenario: {}", self.config.test_scenario.display());
         println!("Output: {}", self.config.output_dir.display());
-        
+
         if let Some(max) = self.config.max_iterations {
             println!("Max iterations: {}", max);
         } else {
             println!("Max iterations: {}", "unlimited".yellow());
         }
-        
+
         println!("Delay: {:?}", self.config.delay_between_runs);
-        
+
         if self.config.cleanup_builds {
-            println!("Cleanup: {} (every {} iterations)", 
-                     "enabled".green(), 
-                     self.config.cleanup_interval);
+            println!(
+                "Cleanup: {} (every {} iterations)",
+                "enabled".green(),
+                self.config.cleanup_interval
+            );
         } else {
             println!("Cleanup: {}", "disabled".dimmed());
         }
-        
+
         println!("{}", "\nPress Ctrl+C to stop\n".dimmed());
 
         let mut iteration = 1;
-        
+
         loop {
             // Check if we should stop
             if let Some(max) = self.config.max_iterations {
@@ -148,18 +156,21 @@ impl ContinuousTester {
             }
 
             // Run cleanup if needed
-            if self.config.cleanup_builds && iteration > 1 && (iteration - 1) % self.config.cleanup_interval == 0 {
+            if self.config.cleanup_builds
+                && iteration > 1
+                && (iteration - 1) % self.config.cleanup_interval == 0
+            {
                 self.cleanup_builds();
             }
 
             // Run test
             println!("{} Iteration #{}", "▶".green().bold(), iteration);
             let result = self.run_test_iteration(iteration);
-            
+
             // Display result
             self.display_result(&result);
             self.results.push(result);
-            
+
             // Check if we should continue
             if let Some(max) = self.config.max_iterations {
                 if iteration >= max {
@@ -168,10 +179,13 @@ impl ContinuousTester {
             }
 
             // Wait before next iteration
-            println!("\n{} Waiting {:?} before next run...\n", 
-                     "⏳".yellow(), self.config.delay_between_runs);
+            println!(
+                "\n{} Waiting {:?} before next run...\n",
+                "⏳".yellow(),
+                self.config.delay_between_runs
+            );
             std::thread::sleep(self.config.delay_between_runs);
-            
+
             iteration += 1;
         }
 
@@ -180,66 +194,75 @@ impl ContinuousTester {
     }
 
     fn cleanup_builds(&self) {
-        println!("{} Running cleanup...", "🧹".yellow());
-        
+        println!("🧹 Running cleanup...");
+
         // Find all RustyClawd target directories
         let target_dirs = vec![
             PathBuf::from("/home/azureuser/src/RustyClawd/target"),
             PathBuf::from(std::env::var("HOME").unwrap_or_default()).join("src/RustyClawd/target"),
         ];
-        
+
         let mut total_freed_mb = 0u64;
-        
+
         for target_dir in &target_dirs {
             if !target_dir.exists() {
                 continue;
             }
-            
+
             // Calculate size before cleanup
             let size_before = Self::get_dir_size(target_dir);
-            
+
             // Clean up incrementals, debug artifacts, but preserve release builds
             let dirs_to_clean = vec![
                 target_dir.join("debug/incremental"),
                 target_dir.join("debug/deps/.fingerprint"),
                 target_dir.join("debug/build"),
             ];
-            
+
             for dir in dirs_to_clean {
                 if dir.exists() {
                     if let Err(e) = fs::remove_dir_all(&dir) {
-                        println!("  {} Failed to remove {}: {}", "⚠".yellow(), dir.display(), e);
+                        println!(
+                            "  {} Failed to remove {}: {}",
+                            "⚠".yellow(),
+                            dir.display(),
+                            e
+                        );
                     } else {
                         println!("  {} Removed {}", "✓".green(), dir.display());
                     }
                 }
             }
-            
+
             // Calculate size after cleanup
             let size_after = Self::get_dir_size(target_dir);
             let freed_mb = (size_before.saturating_sub(size_after)) / (1024 * 1024);
             total_freed_mb += freed_mb;
-            
+
             if freed_mb > 0 {
-                println!("  {} Freed {} MB from {}", 
-                         "💾".cyan(), freed_mb, target_dir.display());
+                println!(
+                    "  {} Freed {} MB from {}",
+                    "💾".cyan(),
+                    freed_mb,
+                    target_dir.display()
+                );
             }
         }
-        
+
         if total_freed_mb > 0 {
             println!("{} Total freed: {} MB\n", "✨".green(), total_freed_mb);
         } else {
             println!("{} No space to free (already clean)\n", "✓".green());
         }
     }
-    
+
     fn get_dir_size(path: &PathBuf) -> u64 {
         if !path.exists() {
             return 0;
         }
-        
+
         let mut total = 0u64;
-        
+
         if let Ok(entries) = fs::read_dir(path) {
             for entry in entries.flatten() {
                 let path = entry.path();
@@ -250,14 +273,17 @@ impl ContinuousTester {
                 }
             }
         }
-        
+
         total
     }
 
     fn run_test_iteration(&self, iteration: usize) -> TestResult {
         let start = Instant::now();
         let timestamp = Local::now().format("%Y%m%d_%H%M%S").to_string();
-        let output_file = self.config.output_dir.join(format!("run_{:04}_{}.log", iteration, timestamp));
+        let output_file = self
+            .config
+            .output_dir
+            .join(format!("run_{:04}_{}.log", iteration, timestamp));
 
         // Prepare the prompt
         let prompt = format!(
@@ -267,11 +293,13 @@ impl ContinuousTester {
         );
 
         println!("  {} Launching rusty subprocess...", "→".dimmed());
-        
+
         // Run rusty in subprocess with depth limit
         let mut child = match Command::new(&self.config.rusty_binary)
-            .arg("--mode").arg("cli")
-            .arg("--max-depth").arg("1")  // Prevent infinite recursion
+            .arg("--mode")
+            .arg("cli")
+            .arg("--max-depth")
+            .arg("1") // Prevent infinite recursion
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -299,10 +327,10 @@ impl ContinuousTester {
 
         // Capture output
         let mut output_content = String::new();
-        
+
         if let Some(stdout) = child.stdout.take() {
             let reader = BufReader::new(stdout);
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(Result::ok) {
                 println!("    {}", line.dimmed());
                 output_content.push_str(&line);
                 output_content.push('\n');
@@ -331,23 +359,29 @@ impl ContinuousTester {
             duration: start.elapsed(),
             success,
             output_file,
-            error: if success { None } else { Some("Test failed".to_string()) },
+            error: if success {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             cleanup_freed_mb: None,
         }
     }
 
     fn display_result(&self, result: &TestResult) {
         let status_icon = if result.success { "✅" } else { "❌" };
-        let status_text = if result.success { 
-            "PASSED".green().bold() 
-        } else { 
-            "FAILED".red().bold() 
+        let status_text = if result.success {
+            "PASSED".green().bold()
+        } else {
+            "FAILED".red().bold()
         };
 
-        println!("  {} Test {} in {:.2?}", 
-                 status_icon, status_text, result.duration);
+        println!(
+            "  {} Test {} in {:.2?}",
+            status_icon, status_text, result.duration
+        );
         println!("  {} Log: {}", "📄".dimmed(), result.output_file.display());
-        
+
         if let Some(ref error) = result.error {
             println!("  {} Error: {}", "⚠".red(), error);
         }
@@ -358,34 +392,48 @@ impl ContinuousTester {
         let total = self.results.len();
         let passed = self.results.iter().filter(|r| r.success).count();
         let failed = total - passed;
-        let success_rate = if total > 0 { 
-            (passed as f64 / total as f64) * 100.0 
-        } else { 
-            0.0 
+        let success_rate = if total > 0 {
+            (passed as f64 / total as f64) * 100.0
+        } else {
+            0.0
         };
 
-        println!("\n{}", "═══════════════════════════════════════".bright_cyan());
+        println!(
+            "\n{}",
+            "═══════════════════════════════════════".bright_cyan()
+        );
         println!("{}", "📊 CONTINUOUS TESTING SUMMARY".bright_cyan().bold());
-        println!("{}", "═══════════════════════════════════════".bright_cyan());
-        println!("\n{} Duration: {:.2?}", "⏱", total_duration);
-        println!("{} Total runs: {}", "🔢", total);
-        println!("{} Passed: {}", "✅", passed.to_string().green());
-        println!("{} Failed: {}", "❌", failed.to_string().red());
-        println!("{} Success rate: {:.1}%", "📈", success_rate);
-        
+        println!(
+            "{}",
+            "═══════════════════════════════════════".bright_cyan()
+        );
+        println!("\n⏱ Duration: {:.2?}", total_duration);
+        println!("🔢 Total runs: {}", total);
+        println!("✅ Passed: {}", passed.to_string().green());
+        println!("❌ Failed: {}", failed.to_string().red());
+        println!("📈 Success rate: {:.1}%", success_rate);
+
         println!("\n{}", "Output files:".bold());
         for result in &self.results {
             let icon = if result.success { "✅" } else { "❌" };
-            println!("  {} Run #{:04}: {}", icon, result.iteration, result.output_file.display());
+            println!(
+                "  {} Run #{:04}: {}",
+                icon,
+                result.iteration,
+                result.output_file.display()
+            );
         }
-        
+
         println!("\n{}", "Testing complete! 🦀".bright_cyan().bold());
     }
 }
 
-fn wait_with_timeout(child: &mut std::process::Child, timeout: Duration) -> std::io::Result<std::process::ExitStatus> {
+fn wait_with_timeout(
+    child: &mut std::process::Child,
+    timeout: Duration,
+) -> std::io::Result<std::process::ExitStatus> {
     let start = Instant::now();
-    
+
     loop {
         match child.try_wait()? {
             Some(status) => return Ok(status),
@@ -393,7 +441,7 @@ fn wait_with_timeout(child: &mut std::process::Child, timeout: Duration) -> std:
                 if start.elapsed() > timeout {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::TimedOut,
-                        "Process timed out"
+                        "Process timed out",
                     ));
                 }
                 std::thread::sleep(Duration::from_millis(100));
@@ -423,7 +471,7 @@ fn print_usage() {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    
+
     if args.iter().any(|a| a == "--help" || a == "-h") {
         print_usage();
         return;
