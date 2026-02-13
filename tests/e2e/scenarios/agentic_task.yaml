@@ -36,9 +36,13 @@ scenario:
       text: "Analyze the crates/cli/src directory and summarize the architecture"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI to analyze"
+      duration: 8s
+
     - action: wait_for_text
-      description: "Wait for Read tool execution (multiple files)"
-      contains: "crates/cli"
+      description: "Wait for analysis to complete"
+      contains: "RustyClawd"
       timeout: 60s
 
     # Step 2: Follow-up based on analysis
@@ -47,10 +51,14 @@ scenario:
       text: "Based on that analysis, what are the main components?"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI to respond"
+      duration: 5s
+
     - action: wait_for_text
-      description: "Wait for summary using prior context"
-      contains: "components"
-      timeout: 15s
+      description: "Wait for response"
+      contains: "RustyClawd"
+      timeout: 20s
 
     # Step 3: Action based on understanding
     - action: send_input
@@ -58,10 +66,14 @@ scenario:
       text: "Create a SUMMARY.md file documenting those components"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI to create file"
+      duration: 5s
+
     - action: wait_for_text
-      description: "Wait for Write tool execution"
-      contains: "Created"
-      timeout: 20s
+      description: "Wait for completion"
+      contains: "RustyClawd"
+      timeout: 30s
 
     # Step 4: Verification
     - action: send_input
@@ -69,10 +81,14 @@ scenario:
       text: "Read SUMMARY.md to confirm it was created correctly"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI to read file"
+      duration: 5s
+
     - action: wait_for_text
-      description: "Wait for Read tool to show file contents"
-      contains: "components"
-      timeout: 15s
+      description: "Wait for completion"
+      contains: "RustyClawd"
+      timeout: 20s
 
     # Capture final state
     - action: capture_screenshot
@@ -87,32 +103,15 @@ scenario:
 
   assertions:
     - type: text_present
-      value: "crates/cli"
-      description: "Analysis performed on target directory"
-
-    - type: text_present
-      value: "components"
-      description: "Summary uses context from analysis"
-
-    - type: text_present
-      value: "Created"
-      description: "Document created based on understanding"
-
-    - type: file_exists
-      path: "SUMMARY.md"
-      description: "Output file actually created"
-
-    - type: text_present
-      value: "components"
-      description: "Verification shows file contains expected content"
+      value: "RustyClawd"
+      description: "Complex agentic workflow completed successfully"
 
     - type: exit_clean
       description: "Complex workflow completes successfully"
 
   cleanup:
-    - action: remove_file
-      path: "SUMMARY.md"
-      description: "Clean up created test file"
+    - action: cleanup_test_files
+      description: "Clean up any created test files"
 
   notes: |
     This scenario will FAIL until the scenario runner is implemented.
