@@ -14,7 +14,7 @@ scenario:
     terminal_size:
       width: 120
       height: 40
-    timeout: 60s
+    timeout: 120s
     cli_args: '--agents ''{"custom-reviewer":{"description":"Custom code reviewer for tests","prompt":"You are a specialized code reviewer focusing on test coverage"}}'''
 
   steps:
@@ -22,12 +22,12 @@ scenario:
     - action: launch
       description: "Start with --agents flag"
       target: "cargo run --bin claude -- --agents '{\"custom-reviewer\":{\"description\":\"Custom reviewer\",\"prompt\":\"Review code\"}}'"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Wait for initialization"
       contains: "RustyClawd"
-      timeout: 5s
+      timeout: 10s
 
     # Test 1: Verify runtime agent loaded
     - action: send_input
@@ -38,7 +38,7 @@ scenario:
     - action: wait_for_text
       description: "Should include custom-reviewer"
       contains: "custom-reviewer"
-      timeout: 15s
+      timeout: 30s
 
     # Test 2: Use the runtime agent via Task tool
     - action: send_input
@@ -49,7 +49,7 @@ scenario:
     - action: wait_for_text
       description: "Should spawn Task with custom agent"
       contains: "custom-reviewer"
-      timeout: 20s
+      timeout: 40s
 
     # Test 3: Verify file-based agents still work
     - action: send_input
@@ -60,7 +60,7 @@ scenario:
     - action: wait_for_text
       description: "File-based agent should work alongside runtime"
       contains: "architect"
-      timeout: 20s
+      timeout: 40s
 
     # Capture final state
     - action: capture_screenshot

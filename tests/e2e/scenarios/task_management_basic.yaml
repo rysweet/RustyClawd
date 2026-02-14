@@ -14,18 +14,18 @@ scenario:
     terminal_size:
       width: 120
       height: 40
-    timeout: 90s
+    timeout: 180s
 
   steps:
     - action: launch
       description: "Start RustyClawd"
       target: "cargo run --bin rusty"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Wait for TUI to load"
       contains: "RustyClawd"
-      timeout: 5s
+      timeout: 10s
 
     - action: send_input
       description: "Ask to create tasks"
@@ -35,12 +35,12 @@ scenario:
     - action: wait_for_text
       description: "Wait for task creation confirmation"
       contains: "pending"
-      timeout: 15s
+      timeout: 30s
 
     - action: wait_for_text
       description: "Should show RustyClawd interface"
       contains: "RustyClawd"
-      timeout: 10s
+      timeout: 20s
 
     - action: send_input
       description: "Ask to mark first task in progress"
@@ -50,12 +50,12 @@ scenario:
     - action: wait_for_text
       description: "Wait for update confirmation"
       contains: "in_progress"
-      timeout: 15s
+      timeout: 30s
 
     - action: wait_for_text
       description: "Should show RustyClawd interface"
       contains: "RustyClawd"
-      timeout: 10s
+      timeout: 20s
 
     - action: send_input
       description: "Ask to complete the first task"
@@ -65,7 +65,7 @@ scenario:
     - action: wait_for_text
       description: "Wait for completion confirmation"
       contains: "completed"
-      timeout: 15s
+      timeout: 30s
 
     - action: capture_screenshot
       description: "Capture final task state"

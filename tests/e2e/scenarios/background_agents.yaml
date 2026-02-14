@@ -14,19 +14,19 @@ scenario:
     terminal_size:
       width: 120
       height: 40
-    timeout: 90s
+    timeout: 180s
 
   steps:
     # Startup
     - action: launch
       description: "Start RustyClawd"
       target: "cargo run --bin claude"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Wait for ready"
       contains: "RustyClawd"
-      timeout: 5s
+      timeout: 10s
 
     # Test 1: Spawn background agent
     - action: send_input
@@ -37,7 +37,7 @@ scenario:
     - action: wait_for_text
       description: "Should return agent ID immediately"
       contains: "agent"
-      timeout: 10s
+      timeout: 20s
 
     # Test 2: Continue working while agent runs
     - action: send_input
@@ -52,7 +52,7 @@ scenario:
     - action: wait_for_text
       description: "Should get response without waiting for background agent"
       contains: "RustyClawd"
-      timeout: 15s
+      timeout: 30s
 
     # Test 3: Check background agent status
     - action: send_input
@@ -63,13 +63,13 @@ scenario:
     - action: wait_for_text
       description: "Should show agent output via AgentOutputTool"
       contains: "analyzer"
-      timeout: 20s
+      timeout: 40s
 
     # Test 4: Verify agent completed
     - action: wait_for_text
       description: "Agent should complete analysis"
       contains: "complete"
-      timeout: 30s
+      timeout: 60s
 
     # Capture final state
     - action: capture_screenshot

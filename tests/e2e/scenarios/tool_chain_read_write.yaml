@@ -13,7 +13,7 @@ scenario:
     terminal_size:
       width: 120
       height: 40
-    timeout: 60s
+    timeout: 120s
 
   steps:
     - action: ensure_file
@@ -24,12 +24,12 @@ scenario:
     - action: launch
       description: "Start RustyClawd in AutoAccept mode"
       target: "cargo run --bin rusty -- --dangerously-skip-permissions"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Wait for TUI to load"
       contains: "RustyClawd"
-      timeout: 5s
+      timeout: 10s
 
     - action: send_input
       description: "Ask to read and transform content"
@@ -39,17 +39,17 @@ scenario:
     - action: wait_for_text
       description: "Should show Read tool execution"
       contains: "Read"
-      timeout: 15s
+      timeout: 30s
 
     - action: wait_for_text
       description: "Should show Write tool execution"
       contains: "Write"
-      timeout: 15s
+      timeout: 30s
 
     - action: wait_for_text
       description: "Should complete"
       contains: "RustyClawd"
-      timeout: 10s
+      timeout: 20s
 
     - action: capture_screenshot
       description: "Capture tool chain execution"

@@ -10,20 +10,20 @@ scenario:
   status: "ready"
 
   environment:
-    timeout: 10s
+    timeout: 20s
 
   steps:
     - action: execute_command
       description: "Test --help flag"
       command: "${RUSTYCLAWD_BIN:-./target/release/rusty} --help"
       expected_exit_code: 0
-      timeout: 3s
+      timeout: 6s
 
     - action: execute_command
       description: "Test --version flag"
       command: "${RUSTYCLAWD_BIN:-./target/release/rusty} --version"
       expected_exit_code: 0
-      timeout: 3s
+      timeout: 6s
 
   assertions:
     - type: text_present

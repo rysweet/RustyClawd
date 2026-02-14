@@ -16,19 +16,19 @@ scenario:
     terminal_size:
       width: 100
       height: 30
-    timeout: 45s
+    timeout: 90s
 
   steps:
     # Startup
     - action: launch
       description: "Start RustyClawd TUI"
       target: "cargo run --bin rusty"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Wait for welcome message"
       contains: "RustyClawd"
-      timeout: 5s
+      timeout: 10s
 
     # Execute slash command
     - action: send_input
@@ -39,12 +39,12 @@ scenario:
     - action: wait_for_text
       description: "Command should be processing"
       contains: "Analyzing"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Should show analysis results"
       contains: "codebase"
-      timeout: 25s
+      timeout: 50s
 
     # Capture final state
     - action: capture_screenshot

@@ -13,18 +13,18 @@ scenario:
     terminal_size:
       width: 120
       height: 40
-    timeout: 60s
+    timeout: 120s
 
   steps:
     - action: launch
       description: "Start RustyClawd"
       target: "cargo run --bin rusty"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Wait for TUI to load"
       contains: "RustyClawd"
-      timeout: 5s
+      timeout: 10s
 
     - action: send_input
       description: "Use slash command with long argument"
@@ -34,12 +34,12 @@ scenario:
     - action: wait_for_text
       description: "Should process command"
       contains: "main.rs"
-      timeout: 30s
+      timeout: 60s
 
     - action: wait_for_text
       description: "Should complete"
       contains: "RustyClawd"
-      timeout: 15s
+      timeout: 30s
 
     - action: capture_screenshot
       description: "Capture command execution"

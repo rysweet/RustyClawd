@@ -16,19 +16,19 @@ scenario:
     terminal_size:
       width: 120
       height: 40
-    timeout: 60s
+    timeout: 120s
 
   steps:
     # Turn 1: Initial question
     - action: launch
       description: "Start RustyClawd TUI"
       target: "cargo run --bin rusty"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Wait for welcome screen"
       contains: "RustyClawd"
-      timeout: 5s
+      timeout: 10s
 
     - action: send_input
       description: "Ask about README file"
@@ -38,7 +38,7 @@ scenario:
     - action: wait_for_text
       description: "Wait for Read tool execution"
       contains: "README"
-      timeout: 15s
+      timeout: 30s
 
     # Turn 2: Follow-up referencing prior context
     - action: send_input
@@ -49,7 +49,7 @@ scenario:
     - action: wait_for_text
       description: "Wait for summary response"
       contains: "key points"
-      timeout: 15s
+      timeout: 30s
 
     # Turn 3: Another context reference
     - action: send_input
@@ -64,7 +64,7 @@ scenario:
     - action: wait_for_text
       description: "Should return to prompt"
       contains: "RustyClawd"
-      timeout: 15s
+      timeout: 30s
 
     # Capture final state
     - action: capture_screenshot

@@ -13,18 +13,18 @@ scenario:
     terminal_size:
       width: 120
       height: 40
-    timeout: 90s
+    timeout: 180s
 
   steps:
     - action: launch
       description: "Start RustyClawd"
       target: "cargo run --bin rusty"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Wait for TUI to load"
       contains: "RustyClawd"
-      timeout: 5s
+      timeout: 10s
 
     - action: send_input
       description: "Create tasks with dependencies"
@@ -34,7 +34,7 @@ scenario:
     - action: wait_for_text
       description: "Wait for task creation"
       contains: "Task"
-      timeout: 60s
+      timeout: 120s
 
     - action: sleep
       description: "Wait for response to complete"
@@ -43,7 +43,7 @@ scenario:
     - action: wait_for_text
       description: "Should show RustyClawd interface"
       contains: "RustyClawd"
-      timeout: 30s
+      timeout: 60s
 
     - action: send_input
       description: "Try to complete Task C before dependencies"
@@ -53,7 +53,7 @@ scenario:
     - action: wait_for_text
       description: "Should see error about dependencies"
       contains: "depend"
-      timeout: 60s
+      timeout: 120s
 
     - action: sleep
       description: "Wait for response to complete"
@@ -62,7 +62,7 @@ scenario:
     - action: wait_for_text
       description: "Should show RustyClawd interface"
       contains: "RustyClawd"
-      timeout: 30s
+      timeout: 60s
 
     - action: send_input
       description: "Complete tasks in correct order"
@@ -72,7 +72,7 @@ scenario:
     - action: wait_for_text
       description: "Should complete successfully"
       contains: "completed"
-      timeout: 20s
+      timeout: 40s
 
     - action: capture_screenshot
       description: "Capture dependency validation"

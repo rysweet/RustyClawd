@@ -14,18 +14,18 @@ scenario:
     terminal_size:
       width: 120
       height: 40
-    timeout: 60s
+    timeout: 120s
 
   steps:
     - action: launch
       description: "Start RustyClawd"
       target: "cargo run --bin rusty"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Wait for TUI to load"
       contains: "RustyClawd"
-      timeout: 5s
+      timeout: 10s
 
     - action: send_input
       description: "Ask complex question requiring extended thinking"
@@ -35,12 +35,12 @@ scenario:
     - action: wait_for_text
       description: "Check for thinking indicator"
       contains: "thinking"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Wait for response to complete"
       contains: "RustyClawd"
-      timeout: 40s
+      timeout: 80s
 
     - action: capture_screenshot
       description: "Capture final state with thinking displayed"

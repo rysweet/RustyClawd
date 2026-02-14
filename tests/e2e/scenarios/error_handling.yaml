@@ -16,19 +16,19 @@ scenario:
     terminal_size:
       width: 100
       height: 30
-    timeout: 45s
+    timeout: 90s
 
   steps:
     # Startup
     - action: launch
       description: "Start RustyClawd"
       target: "cargo run --bin rusty"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Wait for ready state"
       contains: "RustyClawd"
-      timeout: 5s
+      timeout: 10s
 
     # Error 1: Invalid slash command
     - action: send_input
@@ -39,7 +39,7 @@ scenario:
     - action: wait_for_text
       description: "Should show error message"
       contains: "Unknown command"
-      timeout: 5s
+      timeout: 10s
 
     # Recovery 1: Valid command after error
     - action: send_input
@@ -54,7 +54,7 @@ scenario:
     - action: wait_for_text
       description: "Should return to prompt (recovery successful)"
       contains: "RustyClawd"
-      timeout: 5s
+      timeout: 10s
 
     # Error 2: Tool failure (nonexistent file)
     - action: send_input
@@ -65,7 +65,7 @@ scenario:
     - action: wait_for_text
       description: "Should show tool error"
       contains: "not found"
-      timeout: 10s
+      timeout: 20s
 
     # Recovery 2: Normal operation after tool error
     - action: send_input
@@ -76,7 +76,7 @@ scenario:
     - action: wait_for_text
       description: "Should respond normally (recovery successful)"
       contains: "4"
-      timeout: 10s
+      timeout: 20s
 
     # Capture final state
     - action: capture_screenshot

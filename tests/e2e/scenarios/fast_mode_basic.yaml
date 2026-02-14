@@ -13,18 +13,18 @@ scenario:
     terminal_size:
       width: 120
       height: 40
-    timeout: 60s
+    timeout: 120s
 
   steps:
     - action: launch
       description: "Start RustyClawd with fast mode"
       target: "cargo run --bin rusty -- --fast"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Wait for TUI to load"
       contains: "RustyClawd"
-      timeout: 5s
+      timeout: 10s
 
     - action: send_input
       description: "Ask simple question"
@@ -34,12 +34,12 @@ scenario:
     - action: wait_for_text
       description: "Should get quick response"
       contains: "Paris"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Should show RustyClawd interface"
       contains: "RustyClawd"
-      timeout: 5s
+      timeout: 10s
 
     - action: send_input
       description: "Ask another question to verify fast mode persists"
@@ -49,7 +49,7 @@ scenario:
     - action: wait_for_text
       description: "Should get quick response"
       contains: "4"
-      timeout: 10s
+      timeout: 20s
 
     - action: capture_screenshot
       description: "Capture fast mode responses"

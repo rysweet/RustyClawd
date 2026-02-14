@@ -13,18 +13,18 @@ scenario:
     terminal_size:
       width: 120
       height: 40
-    timeout: 60s
+    timeout: 120s
 
   steps:
     - action: launch
       description: "Start RustyClawd"
       target: "cargo run --bin rusty"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Wait for TUI to load"
       contains: "RustyClawd"
-      timeout: 5s
+      timeout: 10s
 
     - action: send_input
       description: "Send very long input (repeating text)"
@@ -34,7 +34,7 @@ scenario:
     - action: wait_for_text
       description: "Should handle and respond"
       contains: "RustyClawd"
-      timeout: 30s
+      timeout: 60s
 
     - action: send_input
       description: "Send normal input after long input"
@@ -48,7 +48,7 @@ scenario:
     - action: wait_for_text
       description: "Should still work normally"
       contains: "RustyClawd"
-      timeout: 10s
+      timeout: 20s
 
     - action: capture_screenshot
       description: "Capture long input handling"

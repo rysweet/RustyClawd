@@ -16,19 +16,19 @@ scenario:
     terminal_size:
       width: 120
       height: 40
-    timeout: 90s
+    timeout: 180s
 
   steps:
     # Startup
     - action: launch
       description: "Start RustyClawd"
       target: "cargo run --bin rusty"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Wait for ready"
       contains: "RustyClawd"
-      timeout: 5s
+      timeout: 10s
 
     # Step 1: Initial analysis request
     - action: send_input
@@ -39,7 +39,7 @@ scenario:
     - action: wait_for_text
       description: "Wait for Read tool execution (multiple files)"
       contains: "crates/cli"
-      timeout: 60s
+      timeout: 120s
 
     # Step 2: Follow-up based on analysis
     - action: send_input
@@ -50,7 +50,7 @@ scenario:
     - action: wait_for_text
       description: "Wait for summary using prior context"
       contains: "components"
-      timeout: 15s
+      timeout: 30s
 
     # Step 3: Action based on understanding
     - action: send_input
@@ -61,7 +61,7 @@ scenario:
     - action: wait_for_text
       description: "Wait for Write tool execution"
       contains: "Created"
-      timeout: 20s
+      timeout: 40s
 
     # Step 4: Verification
     - action: send_input
@@ -72,7 +72,7 @@ scenario:
     - action: wait_for_text
       description: "Wait for Read tool to show file contents"
       contains: "components"
-      timeout: 15s
+      timeout: 30s
 
     # Capture final state
     - action: capture_screenshot

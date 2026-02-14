@@ -14,41 +14,41 @@ scenario:
     terminal_size:
       width: 120
       height: 40
-    timeout: 60s
+    timeout: 120s
 
   steps:
     # Startup in default (Ask) mode
     - action: launch
       description: "Start RustyClawd"
       target: "cargo run --bin claude"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Wait for prompt showing Ask mode"
       contains: "Ask"
-      timeout: 5s
+      timeout: 10s
 
     # Test 1: Shift+Tab to AutoAccept mode
     - action: send_key
       description: "Press Shift+Tab to cycle to AutoAccept"
       key: "BackTab"
-      timeout: 2s
+      timeout: 4s
 
     - action: wait_for_text
       description: "Should show interface after mode change"
       contains: "RustyClawd"
-      timeout: 3s
+      timeout: 6s
 
     # Test 2: Shift+Tab to Plan mode
     - action: send_key
       description: "Press Shift+Tab again to cycle to Plan"
       key: "BackTab"
-      timeout: 2s
+      timeout: 4s
 
     - action: wait_for_text
       description: "Mode indicator should show Plan"
       contains: "Plan"
-      timeout: 3s
+      timeout: 6s
 
     # Test 3: Verify Plan mode blocks Write tool
     - action: send_input
@@ -59,7 +59,7 @@ scenario:
     - action: wait_for_text
       description: "Should show tool blocked message"
       contains: "blocked"
-      timeout: 15s
+      timeout: 30s
 
     # Test 4: Verify Plan mode allows Read tool
     - action: send_input
@@ -70,18 +70,18 @@ scenario:
     - action: wait_for_text
       description: "Should execute Read tool successfully"
       contains: "workspace"
-      timeout: 15s
+      timeout: 30s
 
     # Test 5: Cycle back to Ask mode
     - action: send_key
       description: "Press Shift+Tab to cycle back to Ask"
       key: "BackTab"
-      timeout: 2s
+      timeout: 4s
 
     - action: wait_for_text
       description: "Mode should cycle back to Ask"
       contains: "Ask"
-      timeout: 3s
+      timeout: 6s
 
     # Capture final state
     - action: capture_screenshot

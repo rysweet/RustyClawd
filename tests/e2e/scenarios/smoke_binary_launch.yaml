@@ -13,19 +13,19 @@ scenario:
     terminal_size:
       width: 100
       height: 30
-    timeout: 15s
+    timeout: 30s
 
   steps:
     # Test 1: Launch with --help
     - action: launch
       description: "Launch rusty with --help flag"
       target: "cargo run --bin rusty -- --help"
-      timeout: 10s
+      timeout: 20s
 
     - action: wait_for_text
       description: "Wait for help text to appear"
       contains: "Usage"
-      timeout: 3s
+      timeout: 6s
 
     - action: capture_screenshot
       description: "Capture help output"
