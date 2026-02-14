@@ -32,7 +32,7 @@ scenario:
 
     - action: sleep
       description: "Wait for mode change"
-      duration: 1s
+      duration: 3s
 
     - action: capture_screenshot
       description: "Should now be in AutoAccept mode"
@@ -44,7 +44,7 @@ scenario:
 
     - action: sleep
       description: "Wait for mode change"
-      duration: 1s
+      duration: 3s
 
     - action: capture_screenshot
       description: "Should now be in Plan mode"
@@ -56,7 +56,7 @@ scenario:
 
     - action: sleep
       description: "Wait for mode change"
-      duration: 1s
+      duration: 3s
 
     - action: capture_screenshot
       description: "Should cycle back to Ask mode"

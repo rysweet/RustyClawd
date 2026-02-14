@@ -33,7 +33,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 20
+      duration: 30
 
     - action: wait_for_text
       description: "Wait for thinking to start"
