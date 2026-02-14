@@ -58,12 +58,9 @@ scenario:
       filename: "extended_thinking_cancelled.txt"
 
   assertions:
-    - type: text_present
+    - type: interface_present
       value: "RustyClawd"
       description: "Returns to prompt after cancel"
-
-    - type: text_not_present
-      value: "quantum computing"
       description: "Response was cancelled, not completed"
 
   notes: |

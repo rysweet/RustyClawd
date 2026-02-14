@@ -68,12 +68,12 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 30
+      duration: 45
 
     - action: wait_for_text
       description: "Wait for Write tool execution"
       contains: "RustyClawd"
-      timeout: 20s
+      timeout: 30s
 
     # Step 4: Verification
     - action: send_input

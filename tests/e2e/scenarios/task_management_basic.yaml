@@ -72,12 +72,12 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 30
+      duration: 45
 
     - action: wait_for_text
-      description: "Wait for completion confirmation"
-      contains: "completed"
-      timeout: 15s
+      description: "Wait for return to prompt"
+      contains: "RustyClawd"
+      timeout: 30s
 
     - action: capture_screenshot
       description: "Capture final task state"

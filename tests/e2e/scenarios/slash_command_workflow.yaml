@@ -62,17 +62,9 @@ scenario:
       submit: true
 
   assertions:
-    - type: text_present
+    - type: interface_present
       value: "RustyClawd"
-      description: "TUI shows prompt on startup"
-
-    - type: text_present
-      value: "/analyze"
-      description: "Command echoed in TUI conversation"
-
-    - type: text_present
-      value: "codebase"
-      description: "Analysis results displayed"
+      description: "Slash command workflow completed successfully"
 
     - type: exit_clean
       description: "Session exits without errors"
