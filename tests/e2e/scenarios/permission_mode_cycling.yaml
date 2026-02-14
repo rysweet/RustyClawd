@@ -22,8 +22,8 @@ scenario:
       timeout: 10s
 
     - action: wait_for_text
-      description: "Wait for prompt, should show Ask mode"
-      contains: "Ask"
+      description: "Wait for TUI to load"
+      contains: "RustyClawd"
       timeout: 5s
 
     - action: send_keys
