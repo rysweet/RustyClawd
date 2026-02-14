@@ -91,7 +91,7 @@ scenario:
       submit: true
 
   assertions:
-    - type: interface_present
+    - type: text_present
       value: "RustyClawd"
       description: "Background agent workflow completed successfully"
 

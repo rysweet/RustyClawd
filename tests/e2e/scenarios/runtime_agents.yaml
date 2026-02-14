@@ -86,7 +86,7 @@ scenario:
       submit: true
 
   assertions:
-    - type: interface_present
+    - type: text_present
       value: "RustyClawd"
       description: "Interface remains responsive after using agents"
 

@@ -69,7 +69,7 @@ scenario:
       filename: "task_dependencies.txt"
 
   assertions:
-    - type: interface_present
+    - type: text_present
       value: "RustyClawd"
       description: "Task dependency workflow completed successfully"
 

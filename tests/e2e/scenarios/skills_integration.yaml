@@ -77,7 +77,7 @@ scenario:
       submit: true
 
   assertions:
-    - type: interface_present
+    - type: text_present
       value: "RustyClawd"
       description: "Skills executed successfully and interface remained responsive"
 

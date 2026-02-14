@@ -45,7 +45,7 @@ scenario:
       filename: "slash_command_args.txt"
 
   assertions:
-    - type: interface_present
+    - type: text_present
       value: "RustyClawd"
       description: "Command executed successfully"
 
