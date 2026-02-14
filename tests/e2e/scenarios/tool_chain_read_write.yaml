@@ -38,7 +38,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 45s
+      duration: 60s
 
     - action: wait_for_text
       description: "Should complete and show interface"

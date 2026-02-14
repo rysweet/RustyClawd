@@ -38,7 +38,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 30
+      duration: 60
 
     - action: wait_for_text
       description: "Wait for Read tool execution (multiple files)"
@@ -53,7 +53,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 30
+      duration: 60
 
     - action: wait_for_text
       description: "Wait for summary using prior context"
@@ -68,7 +68,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 45
+      duration: 60
 
     - action: wait_for_text
       description: "Wait for Write tool execution"
@@ -83,7 +83,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 30
+      duration: 60
 
     - action: wait_for_text
       description: "Wait for Read tool to show file contents"

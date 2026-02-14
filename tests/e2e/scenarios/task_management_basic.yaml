@@ -34,7 +34,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 30
+      duration: 60
 
     - action: wait_for_text
       description: "Wait for task creation confirmation"
@@ -53,7 +53,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 45
+      duration: 60
 
     - action: wait_for_text
       description: "Should show RustyClawd interface"
@@ -67,7 +67,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 45
+      duration: 60
 
     - action: wait_for_text
       description: "Wait for return to prompt"
