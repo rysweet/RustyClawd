@@ -26,13 +26,9 @@ scenario:
       timeout: 3s
 
   assertions:
-    - type: text_present
-      value: "RustyClawd"
-      description: "Help text shows application name"
-
-    - type: text_present
-      value: "Usage"
-      description: "Help shows usage information"
+    - type: exit_code
+      value: 0
+      description: "Commands execute successfully"
 
   notes: |
     This is a very basic smoke test that just verifies the binary

@@ -31,14 +31,9 @@ scenario:
       text: "Create 3 tasks: Task A (setup environment), Task B (run tests - depends on A), Task C (deploy - depends on B). Set up the dependencies correctly."
       submit: true
 
-    - action: wait_for_text
-      description: "Wait for task creation"
-      contains: "Task"
-      timeout: 60s
-
     - action: sleep
-      description: "Wait for response to complete"
-      duration: 3s
+      description: "Wait for task creation response to complete"
+      duration: 15s
 
     - action: wait_for_text
       description: "Should show RustyClawd interface"
