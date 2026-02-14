@@ -3,18 +3,18 @@
 │$ Please analyze this extremely complex task with many steps...                                                                                                                           │
 │  Hello, are you still working?                                                                                                                                                           │
 │                                                                                                                                                                                          │
-│● Hello! Yes, I'm here and working! 👋                                                                                                                                                    │
+│● Hello! Yes, I'm here and ready to help! 👋                                                                                                                                              │
 │                                                                                                                                                                                          │
-│  You mentioned analyzing an "extremely complex task with many steps," but I don't see the actual task details in your message. Could you please provide the specific task or problem     │
-│  you'd like me to analyze?                                                                                                                                                               │
+│  You mentioned analyzing an extremely complex task with many steps, but I don't see the actual task description in your message. Could you please provide the details of what you'd      │
+│  like me to analyze?                                                                                                                                                                     │
 │                                                                                                                                                                                          │
-│  Once you share the details, I'll be happy to:                                                                                                                                           │
-│  - Break it down into manageable steps                                                                                                                                                   │
-│  - Identify dependencies and requirements                                                                                                                                                │
-│  - Create a structured plan                                                                                                                                                              │
-│  - Help execute it systematically                                                                                                                                                        │
+│  Feel free to share:                                                                                                                                                                     │
+│  - The task or problem you need help with                                                                                                                                                │
+│  - Any relevant files, code, or documentation                                                                                                                                            │
+│  - Specific goals or requirements                                                                                                                                                        │
+│  - Any constraints or preferences                                                                                                                                                        │
 │                                                                                                                                                                                          │
-│  What would you like me to help you with?                                                                                                                                                │
+│  I'm ready to dive in and help you break down and tackle whatever complex task you have in mind!                                                                                         │
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │

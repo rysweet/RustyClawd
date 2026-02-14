@@ -2,7 +2,7 @@
 ┌💬 Messages───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │$ hello                                                                                                                                                                                   │
 │                                                                                                                                                                                          │
-│● Hello! 👋 How can I help you today?                                                                                                                                                     │
+│● Hello! 👋 How can I help you today? I have access to various tools for working with files, executing commands, searching code, and more. What would you like to do?                     │
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │

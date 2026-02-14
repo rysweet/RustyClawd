@@ -1,44 +1,45 @@
  ? Ask  🦀 RustyClawd                                                                                                                                      | Mouse:ON | Debug:OFF | F1:Menu
 ┌💬 Messages───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│$ Please analyze this text: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis     │
+│  nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et    │
+│  dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Lorem ipsum dolor sit amet, consectetur adipiscing     │
+│  elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.                                                                                                                │
+│  hello                                                                                                                                                                                   │
 │                                                                                                                                                                                          │
-│Welcome to RustyClawd! 🦀                                                                                                                                                                 │
+│● I'll analyze this text for you. Let me break down several aspects:                                                                                                                      │
 │                                                                                                                                                                                          │
-│Type your message and press Enter to start chatting.                                                                                                                                      │
+│  ## Text Analysis                                                                                                                                                                        │
 │                                                                                                                                                                                          │
-│Controls: Enter=Send | Ctrl+C/Ctrl+D=Exit | ↑↓=Scroll | Shift+Tab=Mode | F1=Debug                                                                                                         │
+│  ### **Content Overview**                                                                                                                                                                │
+│  This is Lorem Ipsum text - placeholder/dummy text commonly used in design and publishing. It's derived from a work by Cicero written in 45 BC, though the words have been scrambled     │
+│  and modified.                                                                                                                                                                           │
 │                                                                                                                                                                                          │
+│  ### **Structure**                                                                                                                                                                       │
+│  - **Total paragraphs:** 2 (one large paragraph of repeated Lorem Ipsum, and "hello")                                                                                                    │
+│  - **Repetition:** The Lorem Ipsum text repeats the same passage 3 times (with the third being partial)                                                                                  │
+│  - **Final word:** "hello" appears as a separate line                                                                                                                                    │
 │                                                                                                                                                                                          │
+│  ### **Statistics**                                                                                                                                                                      │
+│  - **Word count:** Approximately 99 words total (98 in Lorem Ipsum + 1 "hello")                                                                                                          │
+│  - **Sentences:** The Lorem Ipsum contains about 9 sentences (3 cycles of 3 sentences each, with partial third cycle)                                                                    │
+│  - **Most repeated words:** "Lorem ipsum dolor sit amet", "Sed do eiusmod tempor", "Ut enim ad minim veniam"                                                                             │
 │                                                                                                                                                                                          │
+│  ### **Language**                                                                                                                                                                        │
+│  - **Primary language:** Latin (Lorem Ipsum)                                                                                                                                             │
+│  - **Secondary:** English ("hello")                                                                                                                                                      │
 │                                                                                                                                                                                          │
+│  ### **Purpose Assessment**                                                                                                                                                              │
+│  This appears to be:                                                                                                                                                                     │
+│  - Test or placeholder text (Lorem Ipsum is standard dummy text)                                                                                                                         │
+│  - Possibly testing repetition or text processing                                                                                                                                        │
+│  - The "hello" at the end suggests a test message or greeting                                                                                                                            │
 │                                                                                                                                                                                          │
+│  ### **Notable Patterns**                                                                                                                                                                │
+│  - Exact repetition of the same Lorem Ipsum passage                                                                                                                                      │
+│  - The repetition breaks off mid-passage on the third cycle                                                                                                                              │
+│  - Clean separation between the Latin text and English greeting                                                                                                                          │
 │                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
+│  Would you like me to perform any specific type of analysis on this text (sentiment analysis, readability metrics, language detection, etc.)?                                            │
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │
@@ -101,7 +102,6 @@
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-┌✏️─  Input─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│Please analyze this text: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis       │
-│nostrud exercitation ul                                                                                                                                                                   │
+┌✏️l  Input─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                                                                                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
