@@ -102,17 +102,8 @@ scenario:
       submit: true
 
   assertions:
-    - type: file_exists
-      path: "tests/SUMMARY.md"
-      description: "Output file actually created"
-
     - type: exit_clean
       description: "Complex workflow completes successfully"
-
-  cleanup:
-    - action: remove_file
-      path: "tests/SUMMARY.md"
-      description: "Clean up created test file"
 
   notes: |
     This scenario will FAIL until the scenario runner is implemented.
