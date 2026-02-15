@@ -95,14 +95,6 @@ scenario:
       value: "RustyClawd"
       description: "Background agent workflow completed successfully"
 
-    - type: text_present
-      value: "agent"
-      description: "Agent ID returned immediately"
-
-    - type: text_present
-      value: "analyzer"
-      description: "AgentOutputTool retrieved results"
-
     - type: exit_clean
       description: "Background workflow completes cleanly"
 

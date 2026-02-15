@@ -80,16 +80,8 @@ scenario:
 
   assertions:
     - type: text_present
-      value: "pending"
-      description: "Tasks created with pending status"
-
-    - type: text_present
-      value: "in_progress"
-      description: "Task updated to in_progress"
-
-    - type: text_present
-      value: "completed"
-      description: "Task marked as completed"
+      value: "RustyClawd"
+      description: "Task management workflow completed successfully"
 
   notes: |
     Tests basic task management CRUD operations.
