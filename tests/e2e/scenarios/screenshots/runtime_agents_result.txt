@@ -1,106 +1,106 @@
  ? Ask  🦀 RustyClawd                                                                                                                                      | Mouse:ON | Debug:OFF | F1:Menu
 ┌💬 Messages───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────↑
-│  impl InMemoryUserRepository {                                                                                                                                                           ║
-│      pub fn new() -> Self {                                                                                                                                                              ║
-│          Self {                                                                                                                                                                          ║
-│              users: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),                                                                                     ║
-│          }                                                                                                                                                                               ║
-│      }                                                                                                                                                                                   ║
-│  }                                                                                                                                                                                       ║
 │                                                                                                                                                                                          ║
-│  #[async_trait]                                                                                                                                                                          ║
-│  impl UserRepository for InMemoryUserRepository {                                                                                                                                        ║
-│      async fn save(&self, user: &User) -> AuthResult<()> {                                                                                                                               ║
-│          let mut users = self.users.write().await;                                                                                                                                       ║
-│          users.insert(user.id, user.clone());                                                                                                                                            ║
-│          Ok(())                                                                                                                                                                          ║
-│      }                                                                                                                                                                                   ║
+│  ---                                                                                                                                                                                     ║
 │                                                                                                                                                                                          ║
-│      async fn update(&self, user: &User) -> AuthResult<()> {                                                                                                                             ║
-│          let mut users = self.users.write().await;                                                                                                                                       ║
-│          users.insert(user.id, user.clone());                                                                                                                                            ║
-│          Ok(())                                                                                                                                                                          ║
-│      }                                                                                                                                                                                   ║
+│  ### **Data Models**                                                                                                                                                                     ║
 │                                                                                                                                                                                          ║
-│      async fn find_by_id(&self, id: UserId) -> AuthResult<Option<User>> {                                                                                                                ║
-│          let users = self.users.read().await;                                                                                                                                            ║
-│          Ok(users.get(&id).cloned())                                                                                                                                                     ║
-│      }                                                                                                                                                                                   ║
+│  **User Model:**                                                                                                                                                                         ║
+│  - Email, username, password hash                                                                                                                                                        ║
+│  - Security fields: failed login attempts, account lockout                                                                                                                               ║
+│  - Timestamps: created_at, updated_at                                                                                                                                                    ║
 │                                                                                                                                                                                          ║
-│      async fn find_by_email(&self, email: &str) -> AuthResult<Option<User>> {                                                                                                            ║
-│          let users = self.users.read().await;                                                                                                                                            ║
-│          Ok(users.values().find(|u| u.email == email).cloned())                                                                                                                          ║
-│      }                                                                                                                                                                                   ║
+│  **Session Model:**                                                                                                                                                                      ║
+│  - Secure token, user ID                                                                                                                                                                 ║
+│  - Expiration and activity tracking                                                                                                                                                      ║
+│  - IP address & user agent for security                                                                                                                                                  ║
 │                                                                                                                                                                                          ║
-│      async fn delete(&self, id: UserId) -> AuthResult<()> {                                                                                                                              ║
-│          let mut users = self.users.write().await;                                                                                                                                       ║
-│          users.remove(&id);                                                                                                                                                              ║
-│          Ok(())                                                                                                                                                                          ║
-│      }                                                                                                                                                                                   ║
-│  }                                                                                                                                                                                       ║
+│  ---                                                                                                                                                                                     ║
+│                                                                                                                                                                                          ║
+│  ### **Design Patterns Used**                                                                                                                                                            ║
+│                                                                                                                                                                                          ║
+│  1. **Facade Pattern** - AuthService simplifies complex subsystem                                                                                                                        ║
+│  2. **Repository Pattern** - Abstract data access layer                                                                                                                                  ║
+│  3. **Strategy Pattern** - Pluggable password hashing & validation                                                                                                                       ║
+│  4. **Factory Pattern** - Session creation with proper defaults                                                                                                                          ║
+│                                                                                                                                                                                          ║
+│  ---                                                                                                                                                                                     ║
+│                                                                                                                                                                                          ║
+│  ### **Security Features**                                                                                                                                                               ║
+│                                                                                                                                                                                          ║
+│  ✅ **Password Security**: bcrypt hashing with salt                                                                                                                                      ║
+│  ✅ **Account Lockout**: 5 failed attempts = 30 min lock                                                                                                                                 ║
+│  ✅ **Session Security**: Secure token generation, IP validation                                                                                                                         ║
+│  ✅ **Input Validation**: Password strength requirements                                                                                                                                 ║
+│  ✅ **Token Expiry**: Automatic session cleanup                                                                                                                                          ║
+│                                                                                                                                                                                          ║
+│  ---                                                                                                                                                                                     ║
+│                                                                                                                                                                                          ║
+│  ### **Exception Hierarchy**                                                                                                                                                             ║
+│  ```                                                                                                                                                                                     ║
+│  AuthenticationError (base)                                                                                                                                                              ║
+│  ├── InvalidCredentialsError                                                                                                                                                             ║
+│  ├── UserAlreadyExistsError                                                                                                                                                              ║
+│  ├── SessionExpiredError                                                                                                                                                                 ║
+│  ├── AccountLockedException                                                                                                                                                              ║
+│  └── PasswordValidationError                                                                                                                                                             ║
 │  ```                                                                                                                                                                                     ║
 │                                                                                                                                                                                          ║
-│  ## 7. Design Patterns                                                                                                                                                                   ║
+│  ---                                                                                                                                                                                     ║
 │                                                                                                                                                                                          ║
-│  ### 7.1 **Dependency Injection via Generics**                                                                                                                                           ║
-│  The `AuthenticationService` uses generic type parameters for its dependencies, allowing for:                                                                                            ║
-│  - Easy testing with mock implementations                                                                                                                                                ║
-│  - Flexibility to swap implementations                                                                                                                                                   ║
-│  - Compile-time verification of interface compliance                                                                                                                                     ║
+│  ### **Testing Strategy**                                                                                                                                                                ║
 │                                                                                                                                                                                          ║
-│  ### 7.2 **Repository Pattern**                                                                                                                                                          ║
-│  The `UserRepository` trait abstracts data storage:                                                                                                                                      ║
-│  - Decouples business logic from storage implementation                                                                                                                                  ║
-│  - Enables in-memory testing                                                                                                                                                             ║
-│  - Supports multiple backends (PostgreSQL, MongoDB, etc.)                                                                                                                                ║
+│  - **Unit Tests**: Individual components (PasswordManager, validators)                                                                                                                   ║
+│  - **Integration Tests**: Full authentication flows (register → login → validate)                                                                                                        ║
+│  - **Mock Repositories**: In-memory implementations for fast testing                                                                                                                     ║
+│  - **Security Tests**: Password hashing, session validation, rate limiting                                                                                                               ║
 │                                                                                                                                                                                          ║
-│  ### 7.3 **Strategy Pattern**                                                                                                                                                            ║
-│  Both `PasswordHasher` and `TokenGenerator` are traits:                                                                                                                                  ║
-│  - Different hashing algorithms can be used (bcrypt, argon2, scrypt)                                                                                                                     ║
-│  - Different token strategies (JWT, opaque tokens, OAuth)                                                                                                                                ║
-│                                                                                                                                                                                          ║
-│  ### 7.4 **Builder Pattern** (Optional)                                                                                                                                                  ║
-│  For complex configuration:                                                                                                                                                              ║
-│  ```rust                                                                                                                                                                                 ║
-│  let auth_service = AuthenticationServiceBuilder::new()                                                                                                                                  ║
-│      .with_bcrypt_hasher(12)                                                                                                                                                             ║
-│      .with_jwt_tokens("secret", 24)                                                                                                                                                      ║
-│      .with_postgres_repository(pool)                                                                                                                                                     ║
-│      .build();                                                                                                                                                                           ║
-│  ```                                                                                                                                                                                     ║
-│                                                                                                                                                                                          ║
-│  ## 8. Error Handling                                                                                                                                                                    ║
-│                                                                                                                                                                                          ║
-│  ```rust                                                                                                                                                                                 ║
-│  // src/auth/error.rs                                                                                                                                                                    ║
-│  use std::fmt;                                                                                                                                                                           ║
-│                                                                                                                                                                                          ║
-│  pub type AuthResult<T> = Result<T, AuthError>;                                                                                                                                          ║
-│                                                                                                                                                                                          ║
-│  #[derive(Debug, Clone)]                                                                                                                                                                 ║
-│  pub enum AuthError {                                                                                                                                                                    ║
-│      // User-related errors                                                                                                                                                              ║
-│      UserAlreadyExists,                                                                                                                                                                  ║
-│      UserNotFound,                                                                                                                                                                       ║
-│      InvalidCredentials,                                                                                                                                                                 ║
-│                                                                                                                                                                                          ║
-│                                                                                                                                                                                          ║
-│      // Validation errors                                                                                                                                                                █
-│      InvalidEmail,                                                                                                                                                                       █
-│      InvalidUsername,                                                                                                                                                                    █
-│      WeakPassword,                                                                                                                                                                       █
+│  ---                                                                                                                                                                                     ║
 │                                                                                                                                                                                          █
+│  ### **Trade-offs & Decisions**                                                                                                                                                          █
 │                                                                                                                                                                                          █
-│      // Token errors                                                                                                                                                                     █
-│      InvalidToken,                                                                                                                                                                       █
-│      TokenExpired,                                                                                                                                                                       █
+│  | Decision | Chosen | Alternative | Rationale |                                                                                                                                         █
+│  |----------|--------|-------------|-----------|                                                                                                                                         █
+│  | Session Type | Stateful (server-side) | JWT tokens | Better security, instant revocation |                                                                                            █
+│  | Auth Identifier | Email + Username | Email only | User flexibility |                                                                                                                  █
+│  | Data Access | Repository pattern | Direct ORM | Database agnostic, testable |                                                                                                         █
 │                                                                                                                                                                                          █
+│  ---                                                                                                                                                                                     █
 │                                                                                                                                                                                          █
-│      // Cryptographic errors                                                                                                                                                             █
-│      HashingError(String),                                                                                                                                                               █
-│      TokenGenerationError(String),                                                                                                                                                       █
+│  ### **Implementation Example**                                                                                                                                                          █
 │                                                                                                                                                                                          █
+│  ```python                                                                                                                                                                               █
+│  # Setup                                                                                                                                                                                 █
+│  user_repo = PostgresUserRepository(db_connection)                                                                                                                                       █
+│  session_repo = RedisSessionRepository(redis_client)                                                                                                                                     █
+│  password_manager = SecurePasswordManager()                                                                                                                                              █
 │                                                                                                                                                                                          █
+│  auth_service = AuthService(                                                                                                                                                             █
+│      user_manager=UserManager(user_repo),                                                                                                                                                █
+│      session_manager=SessionManager(session_repo),                                                                                                                                       █
+│      password_manager=password_manager                                                                                                                                                   █
+│  )                                                                                                                                                                                       █
+│                                                                                                                                                                                          █
+│  # Usage                                                                                                                                                                                 █
+│  response = auth_service.register(                                                                                                                                                       █
+│      email="user@example.com",                                                                                                                                                           █
+│      username="john",                                                                                                                                                                    █
+│      password="SecurePass123!"                                                                                                                                                           █
+│  )                                                                                                                                                                                       █
+│  ```                                                                                                                                                                                     █
+│                                                                                                                                                                                          █
+│  ---                                                                                                                                                                                     █
+│                                                                                                                                                                                          █
+│  ### **Future Extension Points**                                                                                                                                                         █
+│                                                                                                                                                                                          █
+│  - OAuth/SAML integration                                                                                                                                                                █
+│  - Two-factor authentication (2FA)                                                                                                                                                       █
+│  - Email verification                                                                                                                                                                    █
+│  - Password reset flows                                                                                                                                                                  █
+│  - Audit logging                                                                                                                                                                         █
+│  - Rate limiting middleware                                                                                                                                                              █
+│                                                                                                                                                                                          █
+│  The design provides a robust, production-ready authentication system with excellent security practices and clean architecture! 🎯                                                       █
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────↓
 ┌✏️   Input─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                                                                                                                                                                          │

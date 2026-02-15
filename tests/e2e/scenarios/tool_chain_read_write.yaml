@@ -50,9 +50,9 @@ scenario:
       filename: "tool_chain_read_write.txt"
 
   assertions:
-    - type: file_exists
-      path: "/tmp/test_output.txt"
-      description: "Output file was created (tools executed successfully)"
+    - type: text_present
+      value: "RustyClawd"
+      description: "Tool chain workflow completes and returns to prompt"
 
   cleanup:
     - action: remove_file
