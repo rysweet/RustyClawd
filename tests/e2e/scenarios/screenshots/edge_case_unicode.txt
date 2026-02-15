@@ -1,0 +1,45 @@
+ ? Ask  🦀 RustyClawd                                                                                              | Mouse:ON | Debug:OFF | F1:Menu
+┌💬 Messages───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────↑
+│$ Process this: !@#$%^&*()_+-=[]{}|;':",./<>?                                                                                                     ║
+│                                                                                                                                                  ║
+│● The string `!@#$%^&*()_+-=[]{}|;':",./<>?` is a collection of **special characters and symbols** commonly found on a standard keyboard. Here's  ║
+│  a breakdown:                                                                                                                                    ║
+│                                                                                                                                                  ║
+│  **Punctuation & Symbols:**                                                                                                                      ║
+│  - `!` - Exclamation mark                                                                                                                        ║
+│  - `@` - At sign                                                                                                                                 █
+│  - `#` - Hash/Pound sign                                                                                                                         █
+│  - `$` - Dollar sign                                                                                                                             █
+│  - `%` - Percent sign                                                                                                                            █
+│  - `^` - Caret                                                                                                                                   █
+│  - `&` - Ampersand                                                                                                                               █
+│  - `*` - Asterisk                                                                                                                                █
+│  - `()` - Parentheses                                                                                                                            █
+│  - `_` - Underscore                                                                                                                              █
+│  - `+` - Plus sign                                                                                                                               █
+│  - `-` - Hyphen/Minus                                                                                                                            █
+│  - `=` - Equals sign                                                                                                                             █
+│  - `[]` - Square brackets                                                                                                                        █
+│  - `{}` - Curly braces                                                                                                                           █
+│  - `|` - Vertical bar/Pipe                                                                                                                       █
+│  - `;` - Semicolon                                                                                                                               █
+│  - `'` - Apostrophe/Single quote                                                                                                                 █
+│  - `:` - Colon                                                                                                                                   █
+│  - `"` - Quotation mark                                                                                                                          █
+│  - `,` - Comma                                                                                                                                   █
+│  - `.` - Period/Dot                                                                                                                              █
+│  - `/` - Forward slash                                                                                                                           █
+│  - `<>` - Angle brackets                                                                                                                         █
+│  - `?` - Question mark                                                                                                                           █
+│                                                                                                                                                  █
+│  **Common Uses:**                                                                                                                                █
+│  - **Programming**: Operators, delimiters, syntax elements                                                                                       █
+│  - **Regular expressions**: Pattern matching characters                                                                                          █
+│  - **Password testing**: Special character requirements                                                                                          █
+│  - **Data sanitization**: Testing input validation and escaping                                                                                  █
+│                                                                                                                                                  █
+│  Is there something specific you'd like me to do with these characters (like escaping them for a particular context, using them in code, etc.)?  █
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────↓
+┌✏️   Input─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

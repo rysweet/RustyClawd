@@ -1,27 +1,27 @@
  ? Ask  🦀 RustyClawd                                                                                              | Mouse:ON | Debug:OFF | F1:Menu
 ┌💬 Messages───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│▶ Built-in Commands:                                                                                                                              │
+│    /exit, /quit - Exit the session                                                                                                               │
+│    /clea...                                                                                                                                      │
 │                                                                                                                                                  │
-│Welcome to RustyClawd! 🦀                                                                                                                         │
+│$ Read the file /nonexistent/path.txt                                                                                                             │
 │                                                                                                                                                  │
-│Type your message and press Enter to start chatting.                                                                                              │
+│● I'll attempt to read the file at that path.                                                                                                     │
 │                                                                                                                                                  │
-│Controls: Enter=Send | Ctrl+C/Ctrl+D=Exit | ↑↓=Scroll | Shift+Tab=Mode | F1=Debug                                                                 │
+│▶ ● Read(file_path: "/nonexistent/path.txt") (0s)                                                                                                 │
 │                                                                                                                                                  │
+│● The file `/nonexistent/path.txt` does not exist. The error indicates that there is no file or directory at that path.                           │
 │                                                                                                                                                  │
+│  If you'd like to:                                                                                                                               │
+│  - Create this file, I can help with that                                                                                                        │
+│  - Read a different file that exists, please provide the correct path                                                                            │
+│  - Search for a file with a similar name, I can help locate it                                                                                   │
 │                                                                                                                                                  │
+│  What would you like to do?                                                                                                                      │
 │                                                                                                                                                  │
+│$ What's 2+2?                                                                                                                                     │
 │                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
+│● 2 + 2 = 4                                                                                                                                       │
 │                                                                                                                                                  │
 │                                                                                                                                                  │
 │                                                                                                                                                  │
