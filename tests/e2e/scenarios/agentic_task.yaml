@@ -63,7 +63,7 @@ scenario:
     # Step 3: Action based on understanding
     - action: send_input
       description: "Request document creation based on understanding"
-      text: "Create a SUMMARY.md file documenting those components"
+      text: "Create a tests/SUMMARY.md file documenting those components"
       submit: true
 
     - action: sleep
@@ -78,7 +78,7 @@ scenario:
     # Step 4: Verification
     - action: send_input
       description: "Verify the created file"
-      text: "Read SUMMARY.md to confirm it was created correctly"
+      text: "Read tests/SUMMARY.md to confirm it was created correctly"
       submit: true
 
     - action: sleep
@@ -103,7 +103,7 @@ scenario:
 
   assertions:
     - type: file_exists
-      path: "/home/azureuser/src/RustyClawd/tests/SUMMARY.md"
+      path: "tests/SUMMARY.md"
       description: "Output file actually created"
 
     - type: exit_clean
@@ -111,7 +111,7 @@ scenario:
 
   cleanup:
     - action: remove_file
-      path: "/home/azureuser/src/RustyClawd/tests/SUMMARY.md"
+      path: "tests/SUMMARY.md"
       description: "Clean up created test file"
 
   notes: |
