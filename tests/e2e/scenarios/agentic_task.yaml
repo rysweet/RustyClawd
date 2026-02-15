@@ -53,12 +53,12 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 90
+      duration: 120
 
     - action: wait_for_text
       description: "Wait for summary using prior context"
       contains: "RustyClawd"
-      timeout: 30s
+      timeout: 60s
 
     # Step 3: Action based on understanding
     - action: send_input
