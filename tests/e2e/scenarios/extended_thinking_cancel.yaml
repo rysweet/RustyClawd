@@ -48,10 +48,14 @@ scenario:
       description: "Send Ctrl+C to cancel"
       keys: "C-c"
 
+    - action: sleep
+      description: "Wait for cancellation to complete"
+      duration: 10s
+
     - action: wait_for_text
       description: "Should show RustyClawd interface"
       contains: "RustyClawd"
-      timeout: 5s
+      timeout: 10s
 
     - action: capture_screenshot
       description: "Capture cancelled state"

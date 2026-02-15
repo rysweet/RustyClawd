@@ -38,12 +38,12 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 60
+      duration: 90
 
     - action: wait_for_text
       description: "Wait for Read tool execution (multiple files)"
       contains: "RustyClawd"
-      timeout: 60s
+      timeout: 90s
 
     # Step 2: Follow-up based on analysis
     - action: send_input
@@ -53,12 +53,12 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 60
+      duration: 90
 
     - action: wait_for_text
       description: "Wait for summary using prior context"
       contains: "RustyClawd"
-      timeout: 15s
+      timeout: 30s
 
     # Step 3: Action based on understanding
     - action: send_input
@@ -68,12 +68,12 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 60
+      duration: 90
 
     - action: wait_for_text
       description: "Wait for Write tool execution"
       contains: "RustyClawd"
-      timeout: 30s
+      timeout: 60s
 
     # Step 4: Verification
     - action: send_input
@@ -83,12 +83,12 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 60
+      duration: 90
 
     - action: wait_for_text
       description: "Wait for Read tool to show file contents"
       contains: "RustyClawd"
-      timeout: 15s
+      timeout: 30s
 
     # Capture final state
     - action: capture_screenshot

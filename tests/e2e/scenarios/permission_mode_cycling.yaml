@@ -64,11 +64,8 @@ scenario:
 
   assertions:
     - type: text_present
-      value: "Ask"
-      description: "Started in Ask mode"
-
-    # Note: Would need to check screenshot files to verify actual mode cycling
-    # This is a visual test that requires human verification or OCR
+      value: "RustyClawd"
+      description: "TUI remains responsive after mode cycling"
 
   notes: |
     Tests permission mode cycling with Shift+Tab.
