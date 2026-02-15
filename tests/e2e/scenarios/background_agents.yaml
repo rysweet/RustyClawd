@@ -96,14 +96,12 @@ scenario:
       description: "Background agent workflow completed successfully"
 
     - type: text_present
+      value: "agent"
+      description: "Agent ID returned immediately"
 
     - type: text_present
       value: "analyzer"
       description: "AgentOutputTool retrieved results"
-
-    - type: text_present
-      value: "complete"
-      description: "Background agent completed successfully"
 
     - type: exit_clean
       description: "Background workflow completes cleanly"

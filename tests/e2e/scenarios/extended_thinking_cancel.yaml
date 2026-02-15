@@ -60,8 +60,7 @@ scenario:
   assertions:
     - type: text_present
       value: "RustyClawd"
-      description: "Returns to prompt after cancel"
-      description: "Response was cancelled, not completed"
+      description: "Returns to prompt after cancel (response was cancelled, not completed)"
 
   notes: |
     Tests cancellation during extended thinking.

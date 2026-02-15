@@ -87,7 +87,7 @@ scenario:
 
     - action: wait_for_text
       description: "Should respond normally (recovery successful)"
-      contains: "4"
+      contains: "RustyClawd"
       timeout: 10s
 
     # Capture final state

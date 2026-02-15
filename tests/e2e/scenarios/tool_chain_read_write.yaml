@@ -51,7 +51,7 @@ scenario:
 
   assertions:
     - type: file_exists
-      value: "/tmp/test_output.txt"
+      path: "/tmp/test_output.txt"
       description: "Output file was created (tools executed successfully)"
 
   cleanup:
