@@ -52,10 +52,6 @@ scenario:
       description: "Wait for cancellation to complete"
       duration: 30s
 
-    - action: capture_screenshot
-      description: "Capture cancelled state"
-      filename: "extended_thinking_cancelled.txt"
-
   assertions:
     - type: exit_clean
       description: "Cancellation completes without errors"
