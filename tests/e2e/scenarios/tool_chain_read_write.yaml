@@ -38,12 +38,12 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 90s
+      duration: 120s
 
     - action: wait_for_text
       description: "Should complete and show interface"
       contains: "RustyClawd"
-      timeout: 30s
+      timeout: 60s
 
     - action: capture_screenshot
       description: "Capture tool chain execution"

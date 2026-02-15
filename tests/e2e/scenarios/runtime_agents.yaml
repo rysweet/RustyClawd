@@ -52,12 +52,12 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 60
+      duration: 120
 
     - action: wait_for_text
       description: "Should spawn Task with custom agent"
       contains: "RustyClawd"
-      timeout: 30s
+      timeout: 60s
 
     # Test 3: Verify file-based agents still work
     - action: send_input

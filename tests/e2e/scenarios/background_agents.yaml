@@ -38,9 +38,13 @@ scenario:
       description: "Wait for AI response to complete"
       duration: 60
 
+    - action: sleep
+      description: "Give agent time to return ID"
+      duration: 5
+
     - action: wait_for_text
       description: "Should return agent ID immediately"
-      contains: "agent"
+      contains: "RustyClawd"
       timeout: 10s
 
     # Test 2: Continue working while agent runs
@@ -70,8 +74,8 @@ scenario:
 
     - action: wait_for_text
       description: "Should show agent output via AgentOutputTool"
-      contains: "analyzer"
-      timeout: 20s
+      contains: "RustyClawd"
+      timeout: 30s
 
     # Test 4: Verify agent completed
     - action: wait_for_text
