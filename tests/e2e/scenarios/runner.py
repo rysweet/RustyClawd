@@ -518,9 +518,14 @@ class ScenarioRunner:
                     print(f"  ✓ {description}")
 
             elif assertion_type == "file_exists":
-                filepath = Path(value)
+                # Support both 'path' and 'value' for backwards compatibility
+                filepath_str = assertion.get("path") or value
+                if not filepath_str:
+                    errors.append(f"FAIL: {description} - no path or value specified")
+                    continue
+                filepath = Path(filepath_str)
                 if not filepath.exists():
-                    errors.append(f"FAIL: {description} - file not found: {value}")
+                    errors.append(f"FAIL: {description} - file not found: {filepath_str}")
                 elif self.verbose:
                     print(f"  ✓ {description}")
 
