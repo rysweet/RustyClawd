@@ -6,22 +6,22 @@
 │                                                                                                                                                                                          │
 │$ Read the file /nonexistent/path.txt                                                                                                                                                     │
 │                                                                                                                                                                                          │
-│● I'll attempt to read the file at `/nonexistent/path.txt`.                                                                                                                               │
+│● I'll attempt to read the file at that path.                                                                                                                                             │
 │                                                                                                                                                                                          │
 │▶ ● Read(file_path: "/nonexistent/path.txt") (0s)                                                                                                                                         │
 │                                                                                                                                                                                          │
-│● The file `/nonexistent/path.txt` does not exist. The error indicates that there is no such file or directory at that path.                                                              │
+│● The file `/nonexistent/path.txt` does not exist. The system returned an error indicating "No such file or directory".                                                                   │
 │                                                                                                                                                                                          │
-│  Would you like me to:                                                                                                                                                                   │
-│  1. Check if a similar file exists in a different location?                                                                                                                              │
-│  2. Create a new file at that path (if the directory exists)?                                                                                                                            │
-│  3. Help you locate the file you're looking for?                                                                                                                                         │
+│  If you'd like to:                                                                                                                                                                       │
+│  - Create this file with some content, I can help with that                                                                                                                              │
+│  - Read a different file that exists, please provide the correct path                                                                                                                    │
+│  - Check what files exist in a particular directory, I can list those for you                                                                                                            │
+│                                                                                                                                                                                          │
+│  What would you like to do?                                                                                                                                                              │
 │                                                                                                                                                                                          │
 │$ What's 2+2?                                                                                                                                                                             │
 │                                                                                                                                                                                          │
 │● 2 + 2 = 4                                                                                                                                                                               │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │

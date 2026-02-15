@@ -2,26 +2,26 @@
 ┌💬 Messages───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │$ What are the key points from that file?                                                                                                                                                 │
 │                                                                                                                                                                                          │
-│● I don't see any file that was previously mentioned or shared in our conversation. Could you please specify which file you'd like me to analyze? You can either:                         │
+│● I don't see any file that has been shared or referenced in our conversation yet. Could you please either:                                                                               │
 │                                                                                                                                                                                          │
-│  1. Provide the file path                                                                                                                                                                │
-│  2. Share the file name                                                                                                                                                                  │
-│  3. Upload or paste the content you'd like me to review                                                                                                                                  │
+│  1. Provide the file path you'd like me to read, or                                                                                                                                      │
+│  2. Share the file content directly, or                                                                                                                                                  │
+│  3. Let me know which file you're referring to?                                                                                                                                          │
 │                                                                                                                                                                                          │
-│  Once you let me know which file you're referring to, I'll be happy to extract and summarize the key points for you.                                                                     │
+│  Once you point me to the specific file, I'll be happy to summarize the key points for you.                                                                                              │
 │                                                                                                                                                                                          │
 │$ Can you create a summary file based on those ideas?                                                                                                                                     │
 │                                                                                                                                                                                          │
-│● I don't have any previous context about specific ideas or files from our conversation. This appears to be the start of our discussion, so I don't have any content to create a summary  │
-│  from.                                                                                                                                                                                   │
+│● I don't have any previous context about specific ideas or content to summarize. It seems like this might be a continuation of a previous conversation, but I don't have access to       │
+│  that history.                                                                                                                                                                           │
 │                                                                                                                                                                                          │
 │  Could you please:                                                                                                                                                                       │
 │                                                                                                                                                                                          │
-│  1. **Share the file path** of the document you want me to summarize, or                                                                                                                 │
-│  2. **Upload/paste the content** you'd like me to create a summary from, or                                                                                                              │
-│  3. **Describe the ideas** you want included in the summary file                                                                                                                         │
+│  1. **Share the file or content** you'd like me to create a summary from, or                                                                                                             │
+│  2. **Describe the ideas** you want summarized, or                                                                                                                                       │
+│  3. **Provide the file path** to the document containing these ideas                                                                                                                     │
 │                                                                                                                                                                                          │
-│  Once you provide the source material, I'll be happy to create a well-organized summary file for you!                                                                                    │
+│  Once you provide the source material, I'll be happy to create a summary file for you!                                                                                                   │
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │

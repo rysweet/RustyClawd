@@ -2,16 +2,16 @@
 ┌💬 Messages───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │$ Use code-analyzer skill on that function                                                                                                                                                │
 │                                                                                                                                                                                          │
-│● I'll help you analyze a function using the code-analyzer skill, but I need to know which function you'd like me to analyze. Could you please:                                           │
+│⣟ I need to see what files are available to identify the function you're referring to. Let me first check the current                                                                     │
 │                                                                                                                                                                                          │
-│  1. Specify which function you want analyzed (e.g., provide the file path and function name)                                                                                             │
-│  2. Or share the function code directly                                                                                                                                                  │
-│  3. Or let me know if you want me to search for a specific function in the current directory                                                                                             │
+│▶ ● Bash(command: "ls -la", description: "List files in current direc...") (0s)                                                                                                           │
+│└─ total 268                                                                                                                                                                              │
 │                                                                                                                                                                                          │
-│  Once you provide this information, I'll use the code-analyzer skill to perform a detailed analysis.                                                                                     │
+│● Could you please clarify which function you'd like me to analyze? I can see several files here. Could you either:                                                                       │
+│  1. Point me to a specific file and function name, or                                                                                                                                    │
+│  2. Let me know if you were referring to a function from a previous conversation                                                                                                         │
 │                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
-│                                                                                                                                                                                          │
+│  If you'd like, I can show you the available functions in any of these files to help you identify which one you want analyzed.                                                           │
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │

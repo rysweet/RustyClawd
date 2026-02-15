@@ -6,24 +6,24 @@
 │                                                                                                                                                                                          │
 │▶ ● Read(file_path: "Cargo.toml") (0s)                                                                                                                                                    │
 │                                                                                                                                                                                          │
-│⣟ Let me search for Cargo.toml files in the current directory and subdirectories.                                                                                                         │
+│● Let me search for the Cargo.toml file first:                                                                                                                                            │
 │                                                                                                                                                                                          │
 │▶ ● Glob(pattern: "**/Cargo.toml") (0s)                                                                                                                                                   │
 │                                                                                                                                                                                          │
-│● It appears there is no Cargo.toml file in the current directory or its subdirectories. This suggests the current project might not be a Rust project. Could you provide more context    │
-│  about where the Cargo.toml file is located, or would you like me to check what type of project this is?                                                                                 │
+│● It appears there is no Cargo.toml file in this directory or its subdirectories. This might not be a Rust project. Would you like me to:                                                 │
+│  1. Check what type of project this is?                                                                                                                                                  │
+│  2. Look for other configuration files (like package.json, pyproject.toml, etc.)?                                                                                                        │
 │                                                                                                                                                                                          │
 │$ Check the status of the background analyzer agent                                                                                                                                       │
 │                                                                                                                                                                                          │
-│● I don't have any information about a background analyzer agent that's currently running. To check on a background agent, I would need the agent ID that was returned when it was        │
-│  started.                                                                                                                                                                                │
+│● I don't have any information about a background analyzer agent currently running. To check on a background agent, I would need its agent ID.                                            │
 │                                                                                                                                                                                          │
 │  Could you provide:                                                                                                                                                                      │
-│  1. The agent ID of the background analyzer agent you want to check on, or                                                                                                               │
-│  2. Let me know if you'd like me to help you start a new background agent?                                                                                                               │
+│  1. The agent ID of the background analyzer you want to check on?                                                                                                                        │
 │                                                                                                                                                                                          │
-│  If you recently started a background agent in this conversation, please share the agent ID so I can retrieve its output for you.                                                        │
-│                                                                                                                                                                                          │
+│  Or would you like me to help you:                                                                                                                                                       │
+│  - Start a new background analyzer agent?                                                                                                                                                │
+│  - List any background processes that might be running?                                                                                                                                  │
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │
