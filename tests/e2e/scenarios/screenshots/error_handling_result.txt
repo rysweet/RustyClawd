@@ -1,45 +1,107 @@
- ? Ask  🦀 RustyClawd                                                                                              | Mouse:ON | Debug:OFF | F1:Menu
-┌💬 Messages───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│▶ Built-in Commands:                                                                                                                              │
-│    /exit, /quit - Exit the session                                                                                                               │
-│    /clea...                                                                                                                                      │
-│                                                                                                                                                  │
-│$ Read the file /nonexistent/path.txt                                                                                                             │
-│                                                                                                                                                  │
-│● I'll attempt to read the file at that path.                                                                                                     │
-│                                                                                                                                                  │
-│▶ ● Read(file_path: "/nonexistent/path.txt") (0s)                                                                                                 │
-│                                                                                                                                                  │
-│● The file `/nonexistent/path.txt` does not exist. The error indicates that there is no file or directory at that path.                           │
-│                                                                                                                                                  │
-│  If you'd like to:                                                                                                                               │
-│  - Create this file, I can help with that                                                                                                        │
-│  - Read a different file that exists, please provide the correct path                                                                            │
-│  - Search for a file with a similar name, I can help locate it                                                                                   │
-│                                                                                                                                                  │
-│  What would you like to do?                                                                                                                      │
-│                                                                                                                                                  │
-│$ What's 2+2?                                                                                                                                     │
-│                                                                                                                                                  │
-│● 2 + 2 = 4                                                                                                                                       │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-│                                                                                                                                                  │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-┌✏️   Input─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                                                                                                                                  │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+ ? Ask  🦀 RustyClawd                                                                                                                                      | Mouse:ON | Debug:OFF | F1:Menu
+┌💬 Messages───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│▶ Built-in Commands:                                                                                                                                                                      │
+│    /exit, /quit - Exit the session                                                                                                                                                       │
+│    /clea...                                                                                                                                                                              │
+│                                                                                                                                                                                          │
+│$ Read the file /nonexistent/path.txt                                                                                                                                                     │
+│                                                                                                                                                                                          │
+│● I'll attempt to read the file at `/nonexistent/path.txt`.                                                                                                                               │
+│                                                                                                                                                                                          │
+│▶ ● Read(file_path: "/nonexistent/path.txt") (0s)                                                                                                                                         │
+│                                                                                                                                                                                          │
+│● The file `/nonexistent/path.txt` does not exist. The error indicates that there is no such file or directory at that path.                                                              │
+│                                                                                                                                                                                          │
+│  Would you like me to:                                                                                                                                                                   │
+│  1. Check if a similar file exists in a different location?                                                                                                                              │
+│  2. Create a new file at that path (if the directory exists)?                                                                                                                            │
+│  3. Help you locate the file you're looking for?                                                                                                                                         │
+│                                                                                                                                                                                          │
+│$ What's 2+2?                                                                                                                                                                             │
+│                                                                                                                                                                                          │
+│● 2 + 2 = 4                                                                                                                                                                               │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌✏️   Input─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                                                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

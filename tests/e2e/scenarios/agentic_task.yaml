@@ -103,7 +103,7 @@ scenario:
 
   assertions:
     - type: file_exists
-      path: "SUMMARY.md"
+      path: "tests/SUMMARY.md"
       description: "Output file actually created"
 
     - type: exit_clean
@@ -111,7 +111,7 @@ scenario:
 
   cleanup:
     - action: remove_file
-      path: "SUMMARY.md"
+      path: "tests/SUMMARY.md"
       description: "Clean up created test file"
 
   notes: |

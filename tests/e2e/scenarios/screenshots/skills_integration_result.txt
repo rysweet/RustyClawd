@@ -2,13 +2,13 @@
 ┌💬 Messages───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │$ Use code-analyzer skill on that function                                                                                                                                                │
 │                                                                                                                                                                                          │
-│● I'd be happy to use the code-analyzer skill, but I need to know which function you'd like me to analyze. Could you please:                                                              │
+│● I'll help you analyze a function using the code-analyzer skill, but I need to know which function you'd like me to analyze. Could you please:                                           │
 │                                                                                                                                                                                          │
-│  1. Share the code of the function you want analyzed, or                                                                                                                                 │
-│  2. Point me to a file and function name, or                                                                                                                                             │
-│  3. Let me know what you're referring to from our previous conversation                                                                                                                  │
+│  1. Specify which function you want analyzed (e.g., provide the file path and function name)                                                                                             │
+│  2. Or share the function code directly                                                                                                                                                  │
+│  3. Or let me know if you want me to search for a specific function in the current directory                                                                                             │
 │                                                                                                                                                                                          │
-│  Once you provide the function, I'll run the code-analyzer skill on it.                                                                                                                  │
+│  Once you provide this information, I'll use the code-analyzer skill to perform a detailed analysis.                                                                                     │
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │
 │                                                                                                                                                                                          │

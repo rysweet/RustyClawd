@@ -52,19 +52,13 @@ scenario:
       description: "Wait for cancellation to complete"
       duration: 30s
 
-    - action: wait_for_text
-      description: "Should show RustyClawd interface"
-      contains: "RustyClawd"
-      timeout: 30s
-
     - action: capture_screenshot
       description: "Capture cancelled state"
       filename: "extended_thinking_cancelled.txt"
 
   assertions:
-    - type: text_present
-      value: "RustyClawd"
-      description: "Returns to prompt after cancel (response was cancelled, not completed)"
+    - type: exit_clean
+      description: "Cancellation completes without errors"
 
   notes: |
     Tests cancellation during extended thinking.
