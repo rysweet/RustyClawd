@@ -36,7 +36,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 60
+      duration: 30  # Reduced from 60s - most AI responses complete faster
 
     - action: sleep
       description: "Give agent time to return ID"
@@ -55,7 +55,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 60
+      duration: 30  # Reduced from 60s - most AI responses complete faster
 
     - action: wait_for_text
       description: "Should get response without waiting for background agent"
@@ -70,7 +70,7 @@ scenario:
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 60
+      duration: 30  # Reduced from 60s - most AI responses complete faster
 
     - action: wait_for_text
       description: "Should show agent output via AgentOutputTool"
