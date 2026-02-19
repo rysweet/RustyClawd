@@ -629,8 +629,12 @@ class ScenarioManager:
                         tags = scenario.get("tags", [])
                         if tag in tags:
                             filtered.append(scenario_file)
-                except:
-                    pass
+                except yaml.YAMLError as e:
+                    print(f"Warning: Failed to parse YAML in {scenario_file}: {e}")
+                    continue
+                except Exception as e:
+                    print(f"Warning: Error processing {scenario_file}: {e}")
+                    continue
             scenarios = filtered
 
         return scenarios
