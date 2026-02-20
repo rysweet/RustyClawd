@@ -561,15 +561,11 @@ mod tests {
 
     #[test]
     fn test_model_support_detection() {
-        assert!(WebSearchTool::is_model_supported(
-            "claude-opus-4-20250514"
-        ));
+        assert!(WebSearchTool::is_model_supported("claude-opus-4-20250514"));
         assert!(WebSearchTool::is_model_supported(
             "claude-sonnet-4-5-20250929"
         ));
-        assert!(WebSearchTool::is_model_supported(
-            "claude-haiku-4-20250514"
-        ));
+        assert!(WebSearchTool::is_model_supported("claude-haiku-4-20250514"));
         assert!(WebSearchTool::is_model_supported(
             "claude-3-5-sonnet-20241022"
         ));

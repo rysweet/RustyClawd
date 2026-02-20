@@ -466,9 +466,8 @@ fn todowrite_tool_definition() -> ToolDefinition {
 fn web_fetch_tool_definition() -> ToolDefinition {
     ToolDefinition {
         name: "WebFetch".to_string(),
-        description:
-            "Fetches content from a URL, converts HTML to markdown, and processes with AI"
-                .to_string(),
+        description: "Fetches content from a URL, converts HTML to markdown, and processes with AI"
+            .to_string(),
         input_schema: json!({
             "type": "object",
             "properties": {
