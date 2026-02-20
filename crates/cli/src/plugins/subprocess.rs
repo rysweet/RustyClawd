@@ -57,8 +57,6 @@ impl PluginExecutionResult {
 /// Kill a process and its children
 #[cfg(unix)]
 async fn kill_process(child: &mut Child) -> Result<(), String> {
-    use std::os::unix::process::ExitStatusExt;
-
     let pid = child.id() as i32;
 
     // First try SIGTERM to the process group (negative PID kills the group)
