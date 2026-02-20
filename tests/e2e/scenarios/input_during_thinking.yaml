@@ -38,7 +38,7 @@ scenario:
 
     - action: wait_for_text
       description: "Wait for thinking indicator to appear"
-      contains: "Thinking"
+      contains: "Extended thinking"
       timeout: 5s
 
     # CRITICAL TEST: Type while thinking indicator is visible
