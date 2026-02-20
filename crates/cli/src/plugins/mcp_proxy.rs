@@ -12,6 +12,7 @@ use crate::plugins::mcp_types::{
 };
 
 // Re-export public types so existing consumers keep working via mcp_proxy::Type
+#[allow(unused_imports)]
 pub use crate::plugins::mcp_types::{
     McpCallToolResult, McpNotification, McpNotificationType, McpPromptDefinition, McpPromptResult,
     Resource, ResourceContents,
