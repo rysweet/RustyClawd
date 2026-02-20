@@ -140,6 +140,7 @@ impl Default for SoftWrapState {
     }
 }
 
+#[allow(dead_code)] // Soft wrap tracking API used by rendering layer
 impl SoftWrapState {
     /// Check if a line ends with a soft break
     pub fn is_soft_break(&self, line_idx: usize) -> bool {

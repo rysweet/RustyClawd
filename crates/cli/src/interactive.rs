@@ -11,7 +11,6 @@
 use crate::commands::SlashCommands;
 use crate::hooks;
 use crate::mcp_commands;
-use crate::permission_mode::PermissionMode;
 use crate::plugins::mcp_proxy::McpProxy;
 
 // Import notification types
@@ -21,8 +20,7 @@ use crate::session::SessionStats;
 use crate::session_persistence::{SessionInfo, SessionPersistence};
 use crate::terminal_guard;
 use crate::tool_executor;
-use crate::tool_formatter;
-use crate::tui::{ChatMessage, MessageRole as TuiMessageRole, TuiState};
+use crate::tui::{ChatMessage, TuiState};
 use anyhow::Result;
 use futures::StreamExt;
 use rustyclawd_core::{
@@ -70,6 +68,7 @@ enum StreamingChannelEvent {
 
 /// Events sent from background tool execution tasks to main event loop
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // Variants are part of the event protocol; some not yet emitted
 enum ToolExecutionEvent {
     /// Tool execution started
     Started {
@@ -2119,6 +2118,7 @@ impl InteractiveSession {
     }
 
     /// Format network errors with user-friendly messages and troubleshooting hints
+    #[allow(dead_code)] // Will be used when network error display is wired into TUI
     fn format_network_error(&self, error: &ClientError) -> String {
         match error {
             ClientError::Timeout(msg) => {

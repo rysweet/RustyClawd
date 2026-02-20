@@ -14,6 +14,7 @@ use std::sync::Arc;
 pub use crate::hooks::NotificationType;
 
 /// Sanitize message to prevent terminal injection attacks
+#[allow(dead_code)] // Security utility to be wired into notification display
 fn sanitize_message(msg: &str) -> String {
     msg.chars()
         .filter(|c| !c.is_control() || *c == '\n' || *c == '\t')

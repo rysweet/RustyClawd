@@ -3,17 +3,15 @@
 //! Provides high-level interface for update operations triggered from CLI.
 
 use crate::update::backup::BackupManager;
-use crate::update::config::UpdateConfig;
 use crate::update::downloader::BinaryDownloader;
 use crate::update::error::UpdateError;
 use crate::update::github_client::GitHubClient;
 use crate::update::installer::{BinaryInstaller, InstallerConfig};
 use crate::update::scheduler::UpdateScheduler;
-use crate::update::state::{UpdateRecord, UpdateStateManager, UpdateStatus};
 use crate::update::version::Version;
 use std::env;
 use std::path::PathBuf;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 /// Overall result of an update operation
 #[derive(Debug, Clone)]

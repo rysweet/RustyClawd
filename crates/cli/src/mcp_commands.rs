@@ -10,8 +10,8 @@
 //!
 //! Used by both CLI (claude mcp ...) and TUI (/mcp-... commands)
 
-use crate::plugins::mcp_proxy::{McpCallToolResult, McpProxy, McpServerInstance};
-use crate::schema_validator::{SchemaValidator, ValidationResult};
+use crate::plugins::mcp_proxy::McpProxy;
+use crate::schema_validator::SchemaValidator;
 use crate::tool_definitions;
 use serde::{Deserialize, Serialize};
 use std::io::{self, BufRead, Write};
@@ -23,6 +23,7 @@ pub type McpCommandResult = Result<String, String>;
 
 /// JSON-RPC 2.0 request
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)] // Fields populated by JSON deserialization
 struct JsonRpcRequest {
     jsonrpc: String,
     id: serde_json::Value,

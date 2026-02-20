@@ -5,10 +5,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::process::Stdio;
-use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child as TokioChild, Command as TokioCommand};
-use tokio::sync::{mpsc, Mutex as TokioMutex};
 
 use crate::plugins::manifest::{McpServerDefinition, McpTransportConfig};
 
@@ -176,6 +174,7 @@ struct McpRequest {
 
 /// MCP response message
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)] // Fields populated by JSON deserialization
 struct McpResponse {
     jsonrpc: String,
     id: u64,
@@ -197,6 +196,7 @@ pub struct McpNotification {
 /// JSON-RPC message (can be response or notification)
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
+#[allow(dead_code)] // Used by serde for untagged deserialization dispatch
 enum JsonRpcMessage {
     Response(McpResponse),
     Notification(McpNotification),
@@ -235,6 +235,7 @@ impl McpNotificationType {
 
 /// MCP error structure
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)] // Fields populated by JSON deserialization
 struct McpError {
     code: i32,
     message: String,
@@ -642,6 +643,7 @@ impl McpProxy {
     }
 
     /// List resources from a server (internal helper)
+    #[allow(dead_code)] // MCP resource listing not yet wired into CLI commands
     async fn list_resources_internal(
         &mut self,
         _server_id: &str,
@@ -703,6 +705,7 @@ impl McpProxy {
     }
 
     /// List prompts from a server (internal helper)
+    #[allow(dead_code)] // MCP prompt listing not yet wired into CLI commands
     async fn list_prompts_internal(
         &mut self,
         _server_id: &str,
@@ -909,6 +912,7 @@ impl McpProxy {
     }
 
     /// Handle a notification from an MCP server
+    #[allow(dead_code)] // MCP notification handling not yet wired into event loop
     async fn handle_notification(
         &mut self,
         server_id: &str,
