@@ -1,247 +1,21 @@
 //! MCP Server Proxy - Manages MCP server lifecycle and proxies tool calls
 //!
 //! Handles starting, stopping, and communicating with MCP servers defined in plugins.
+//! Types are defined in `mcp_types`, transport logic in `mcp_transport`.
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::process::Stdio;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child as TokioChild, Command as TokioCommand};
 
 use crate::plugins::manifest::{McpServerDefinition, McpTransportConfig};
+use crate::plugins::mcp_transport;
+use crate::plugins::mcp_types::{
+    McpCapabilities, McpConnection, McpRequest, McpServerInstance, McpToolDefinition,
+};
 
-/// MCP connection type
-#[derive(Debug)]
-pub enum McpConnection {
-    /// Standard I/O connection with child process
-    Stdio {
-        process: TokioChild,
-        /// Handle to notification listener task (if started)
-        notification_task: Option<tokio::task::JoinHandle<()>>,
-    },
-    /// HTTP connection with reqwest client
-    Http {
-        client: reqwest::Client,
-        url: String,
-    },
-}
-
-/// MCP server instance state
-#[derive(Debug)]
-pub struct McpServerInstance {
-    /// Server definition
-    pub definition: McpServerDefinition,
-    /// Active connection (if started)
-    pub connection: Option<McpConnection>,
-    /// Server capabilities discovered at startup
-    pub capabilities: Option<McpCapabilities>,
-    /// Available tools from this server
-    pub tools: Vec<McpToolDefinition>,
-    /// Available resources from this server
-    pub resources: Vec<Resource>,
-    /// Available prompts from this server
-    pub prompts: Vec<McpPromptDefinition>,
-}
-
-/// MCP server capabilities
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct McpCapabilities {
-    /// Tools capability
-    #[serde(default)]
-    pub tools: bool,
-    /// Resources capability
-    #[serde(default)]
-    pub resources: bool,
-    /// Prompts capability
-    #[serde(default)]
-    pub prompts: bool,
-}
-
-/// MCP tool definition from server
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct McpToolDefinition {
-    /// Tool name (will be prefixed with mcp__{server_id}__)
-    pub name: String,
-    /// Tool description
-    pub description: String,
-    /// JSON Schema for input
-    #[serde(rename = "inputSchema")]
-    pub input_schema: serde_json::Value,
-}
-
-/// MCP CallToolResult per MCP spec (2025-11-25)
-///
-/// Represents the result of executing a tool via tools/call.
-/// Includes both human-readable content and optional structured JSON data.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct McpCallToolResult {
-    /// Array of content blocks (text, images, etc.) for human-readable output
-    pub content: Vec<serde_json::Value>,
-    /// Optional structured JSON result matching the tool's declared outputSchema.
-    /// Use this when returning typed data that callers can parse programmatically.
-    #[serde(rename = "structuredContent")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub structured_content: Option<serde_json::Value>,
-    /// Whether this is an error response
-    #[serde(rename = "isError")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_error: Option<bool>,
-}
-
-/// MCP resource definition from server
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Resource {
-    /// Resource URI (e.g., file:///path/to/file, http://example.com/resource)
-    pub uri: String,
-    /// Human-readable resource name
-    pub name: String,
-    /// Resource description
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    /// MIME type of the resource
-    #[serde(rename = "mimeType")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mime_type: Option<String>,
-}
-
-/// MCP resource contents
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ResourceContents {
-    /// Resource URI
-    pub uri: String,
-    /// MIME type of the contents
-    #[serde(rename = "mimeType")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mime_type: Option<String>,
-    /// Text contents (for text-based resources)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub text: Option<String>,
-    /// Binary contents (base64 encoded, for binary resources)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub blob: Option<String>,
-}
-
-/// MCP prompt definition from server
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct McpPromptDefinition {
-    /// Prompt name (unique identifier)
-    pub name: String,
-    /// Human-readable description
-    pub description: String,
-    /// Optional list of arguments
-    #[serde(default)]
-    pub arguments: Vec<McpPromptArgument>,
-}
-
-/// Argument for MCP prompt
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct McpPromptArgument {
-    /// Argument name
-    pub name: String,
-    /// Argument description
-    pub description: String,
-    /// Whether this argument is required
-    pub required: bool,
-}
-
-/// Message in a prompt response
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct McpPromptMessage {
-    /// Message role (user, assistant, system)
-    pub role: String,
-    /// Message content (structured JSON)
-    pub content: serde_json::Value,
-}
-
-/// Result from prompts/get
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct McpPromptResult {
-    /// Prompt description
-    #[serde(default)]
-    pub description: Option<String>,
-    /// List of messages
-    pub messages: Vec<McpPromptMessage>,
-}
-
-/// MCP request message
-#[derive(Debug, Serialize)]
-struct McpRequest {
-    jsonrpc: String,
-    id: u64,
-    method: String,
-    params: serde_json::Value,
-}
-
-/// MCP response message
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)] // Fields populated by JSON deserialization
-struct McpResponse {
-    jsonrpc: String,
-    id: u64,
-    #[serde(default)]
-    result: Option<serde_json::Value>,
-    #[serde(default)]
-    error: Option<McpError>,
-}
-
-/// MCP notification message (no id field)
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct McpNotification {
-    pub jsonrpc: String,
-    pub method: String,
-    #[serde(default)]
-    pub params: serde_json::Value,
-}
-
-/// JSON-RPC message (can be response or notification)
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-#[allow(dead_code)] // Used by serde for untagged deserialization dispatch
-enum JsonRpcMessage {
-    Response(McpResponse),
-    Notification(McpNotification),
-}
-
-/// Types of MCP notifications we handle
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum McpNotificationType {
-    ToolsListChanged,
-    ResourcesListChanged,
-    PromptsListChanged,
-    Unknown(String),
-}
-
-impl McpNotificationType {
-    /// Parse notification type from method string
-    pub fn from_method(method: &str) -> Self {
-        match method {
-            "notifications/tools/list_changed" => Self::ToolsListChanged,
-            "notifications/resources/list_changed" => Self::ResourcesListChanged,
-            "notifications/prompts/list_changed" => Self::PromptsListChanged,
-            _ => Self::Unknown(method.to_string()),
-        }
-    }
-
-    /// Convert to method string
-    pub fn to_method(&self) -> String {
-        match self {
-            Self::ToolsListChanged => "notifications/tools/list_changed".to_string(),
-            Self::ResourcesListChanged => "notifications/resources/list_changed".to_string(),
-            Self::PromptsListChanged => "notifications/prompts/list_changed".to_string(),
-            Self::Unknown(method) => method.clone(),
-        }
-    }
-}
-
-/// MCP error structure
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)] // Fields populated by JSON deserialization
-struct McpError {
-    code: i32,
-    message: String,
-    #[serde(default)]
-    data: Option<serde_json::Value>,
-}
+// Re-export public types so existing consumers keep working via mcp_proxy::Type
+pub use crate::plugins::mcp_types::{
+    McpNotification, McpNotificationType, McpPromptDefinition, McpPromptResult, Resource,
+    ResourceContents,
+};
 
 /// MCP server proxy manager
 pub struct McpProxy {
@@ -301,10 +75,10 @@ impl McpProxy {
                     .get(server_id)
                     .map(|s| s.definition.env.clone())
                     .unwrap_or_default();
-                self.start_stdio_connection(&command, &args, &env).await?
+                mcp_transport::start_stdio_connection(&command, &args, &env).await?
             }
             McpTransportConfig::Http { url, headers } => {
-                self.start_http_connection(&url, headers.as_ref()).await?
+                mcp_transport::start_http_connection(&url, headers.as_ref()).await?
             }
         };
 
@@ -323,73 +97,13 @@ impl McpProxy {
     /// Manually refresh all registries for a server (tools, resources, prompts)
     /// This can be called periodically or after operations to sync with server state
     pub async fn refresh_server_registries(&mut self, server_id: &str) -> Result<(), String> {
-        // Refresh all three registries
-        self.refresh_tools(server_id).await?;
-        self.refresh_resources(server_id).await?;
-        self.refresh_prompts(server_id).await?;
+        self.refresh_registry(server_id, "tools/list", "tools")
+            .await?;
+        self.refresh_registry(server_id, "resources/list", "resources")
+            .await?;
+        self.refresh_registry(server_id, "prompts/list", "prompts")
+            .await?;
         Ok(())
-    }
-
-    /// Start stdio connection to MCP server
-    async fn start_stdio_connection(
-        &self,
-        command: &str,
-        args: &[String],
-        env: &HashMap<String, String>,
-    ) -> Result<McpConnection, String> {
-        let mut cmd = TokioCommand::new(command);
-        cmd.args(args);
-        cmd.envs(env.iter());
-        cmd.stdin(Stdio::piped());
-        cmd.stdout(Stdio::piped());
-        cmd.stderr(Stdio::piped());
-
-        let child = cmd
-            .spawn()
-            .map_err(|e| format!("Failed to start MCP server: {}", e))?;
-
-        Ok(McpConnection::Stdio {
-            process: child,
-            notification_task: None,
-        })
-    }
-
-    /// Start HTTP connection to MCP server
-    async fn start_http_connection(
-        &self,
-        url: &str,
-        headers: Option<&HashMap<String, String>>,
-    ) -> Result<McpConnection, String> {
-        let mut client_builder = reqwest::Client::builder();
-
-        // Add default headers
-        let mut header_map = reqwest::header::HeaderMap::new();
-        header_map.insert(
-            reqwest::header::CONTENT_TYPE,
-            reqwest::header::HeaderValue::from_static("application/json"),
-        );
-
-        // Add custom headers if provided
-        if let Some(headers) = headers {
-            for (key, value) in headers {
-                let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
-                    .map_err(|e| format!("Invalid header name: {}", e))?;
-                let header_value = reqwest::header::HeaderValue::from_str(value)
-                    .map_err(|e| format!("Invalid header value: {}", e))?;
-                header_map.insert(header_name, header_value);
-            }
-        }
-
-        client_builder = client_builder.default_headers(header_map);
-
-        let client = client_builder
-            .build()
-            .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
-
-        Ok(McpConnection::Http {
-            client,
-            url: url.to_string(),
-        })
     }
 
     /// Initialize connection and discover capabilities/tools
@@ -413,15 +127,7 @@ impl McpProxy {
         };
         self.next_request_id += 1;
 
-        let init_response = match connection {
-            McpConnection::Stdio {
-                process,
-                notification_task: _,
-            } => self.send_stdio_request_mut(process, &init_request).await?,
-            McpConnection::Http { client, url } => {
-                self.send_http_request(client, url, &init_request).await?
-            }
-        };
+        let init_response = mcp_transport::send_request(connection, &init_request).await?;
 
         let capabilities = if let Some(result) = init_response.result {
             serde_json::from_value(result["capabilities"].clone()).ok()
@@ -438,15 +144,7 @@ impl McpProxy {
         };
         self.next_request_id += 1;
 
-        let list_response = match connection {
-            McpConnection::Stdio {
-                process,
-                notification_task: _,
-            } => self.send_stdio_request_mut(process, &list_request).await?,
-            McpConnection::Http { client, url } => {
-                self.send_http_request(client, url, &list_request).await?
-            }
-        };
+        let list_response = mcp_transport::send_request(connection, &list_request).await?;
 
         let tools = if let Some(result) = list_response.result {
             serde_json::from_value(result["tools"].clone())
@@ -456,30 +154,6 @@ impl McpProxy {
         };
 
         Ok((capabilities, tools))
-    }
-
-    /// Send request via HTTP
-    async fn send_http_request(
-        &self,
-        client: &reqwest::Client,
-        url: &str,
-        request: &McpRequest,
-    ) -> Result<McpResponse, String> {
-        let response = client
-            .post(url)
-            .json(request)
-            .send()
-            .await
-            .map_err(|e| format!("HTTP request failed: {}", e))?;
-
-        if !response.status().is_success() {
-            return Err(format!("HTTP error: {}", response.status()));
-        }
-
-        response
-            .json::<McpResponse>()
-            .await
-            .map_err(|e| format!("Failed to parse response: {}", e))
     }
 
     /// Stop an MCP server
@@ -577,16 +251,8 @@ impl McpProxy {
         // Take connection temporarily
         let mut connection = self.take_connection(server_id)?;
 
-        // Send request through appropriate transport
-        let response = match &mut connection {
-            McpConnection::Stdio {
-                process,
-                notification_task: _,
-            } => self.send_stdio_request_mut(process, &call_request).await?,
-            McpConnection::Http { client, url } => {
-                self.send_http_request(client, url, &call_request).await?
-            }
-        };
+        // Send request through transport
+        let response = mcp_transport::send_request(&mut connection, &call_request).await?;
 
         // Restore connection
         self.restore_connection(server_id, connection);
@@ -598,173 +264,6 @@ impl McpProxy {
         response
             .result
             .ok_or_else(|| "No result from MCP server".to_string())
-    }
-
-    /// Send request via stdio with mutable process access
-    async fn send_stdio_request_mut(
-        &self,
-        process: &mut TokioChild,
-        request: &McpRequest,
-    ) -> Result<McpResponse, String> {
-        // Send request
-        if let Some(stdin) = process.stdin.as_mut() {
-            let request_str = serde_json::to_string(request)
-                .map_err(|e| format!("Failed to serialize request: {}", e))?;
-            stdin
-                .write_all(request_str.as_bytes())
-                .await
-                .map_err(|e| format!("Failed to write to MCP server: {}", e))?;
-            stdin
-                .write_all(b"\n")
-                .await
-                .map_err(|e| format!("Failed to write newline: {}", e))?;
-            stdin
-                .flush()
-                .await
-                .map_err(|e| format!("Failed to flush: {}", e))?;
-        }
-
-        // Read response
-        if let Some(stdout) = process.stdout.as_mut() {
-            let mut reader = BufReader::new(stdout);
-            let mut line = String::new();
-            reader
-                .read_line(&mut line)
-                .await
-                .map_err(|e| format!("Failed to read response: {}", e))?;
-
-            let response: McpResponse = serde_json::from_str(&line)
-                .map_err(|e| format!("Failed to parse response: {}", e))?;
-
-            return Ok(response);
-        }
-
-        Err("No response from MCP server".to_string())
-    }
-
-    /// List resources from a server (internal helper)
-    #[allow(dead_code)] // MCP resource listing not yet wired into CLI commands
-    async fn list_resources_internal(
-        &mut self,
-        _server_id: &str,
-        child: &mut TokioChild,
-    ) -> Result<Vec<Resource>, String> {
-        let list_request = McpRequest {
-            jsonrpc: "2.0".to_string(),
-            id: self.next_request_id,
-            method: "resources/list".to_string(),
-            params: serde_json::json!({}),
-        };
-        self.next_request_id += 1;
-
-        // Send request
-        if let Some(stdin) = child.stdin.as_mut() {
-            let request_str = serde_json::to_string(&list_request)
-                .map_err(|e| format!("Failed to serialize request: {}", e))?;
-            stdin
-                .write_all(request_str.as_bytes())
-                .await
-                .map_err(|e| format!("Failed to write to MCP server: {}", e))?;
-            stdin
-                .write_all(b"\n")
-                .await
-                .map_err(|e| format!("Failed to write newline: {}", e))?;
-            stdin
-                .flush()
-                .await
-                .map_err(|e| format!("Failed to flush: {}", e))?;
-        }
-
-        // Read response
-        if let Some(stdout) = child.stdout.as_mut() {
-            let mut reader = BufReader::new(stdout);
-            let mut line = String::new();
-            reader
-                .read_line(&mut line)
-                .await
-                .map_err(|e| format!("Failed to read resources list: {}", e))?;
-
-            let response: McpResponse = serde_json::from_str(&line)
-                .map_err(|e| format!("Failed to parse resources list response: {}", e))?;
-
-            if let Some(error) = response.error {
-                return Err(format!(
-                    "MCP server error listing resources: {}",
-                    error.message
-                ));
-            }
-
-            if let Some(result) = response.result {
-                let resources: Vec<Resource> = serde_json::from_value(result["resources"].clone())
-                    .map_err(|e| format!("Failed to parse resources: {}", e))?;
-                return Ok(resources);
-            }
-        }
-
-        Ok(Vec::new())
-    }
-
-    /// List prompts from a server (internal helper)
-    #[allow(dead_code)] // MCP prompt listing not yet wired into CLI commands
-    async fn list_prompts_internal(
-        &mut self,
-        _server_id: &str,
-        child: &mut TokioChild,
-    ) -> Result<Vec<McpPromptDefinition>, String> {
-        let list_request = McpRequest {
-            jsonrpc: "2.0".to_string(),
-            id: self.next_request_id,
-            method: "prompts/list".to_string(),
-            params: serde_json::json!({}),
-        };
-        self.next_request_id += 1;
-
-        // Send request
-        if let Some(stdin) = child.stdin.as_mut() {
-            let request_str = serde_json::to_string(&list_request)
-                .map_err(|e| format!("Failed to serialize request: {}", e))?;
-            stdin
-                .write_all(request_str.as_bytes())
-                .await
-                .map_err(|e| format!("Failed to write to MCP server: {}", e))?;
-            stdin
-                .write_all(b"\n")
-                .await
-                .map_err(|e| format!("Failed to write newline: {}", e))?;
-            stdin
-                .flush()
-                .await
-                .map_err(|e| format!("Failed to flush: {}", e))?;
-        }
-
-        // Read response
-        if let Some(stdout) = child.stdout.as_mut() {
-            let mut reader = BufReader::new(stdout);
-            let mut line = String::new();
-            reader
-                .read_line(&mut line)
-                .await
-                .map_err(|e| format!("Failed to read prompts list: {}", e))?;
-
-            let response: McpResponse = serde_json::from_str(&line)
-                .map_err(|e| format!("Failed to parse prompts list response: {}", e))?;
-
-            if let Some(error) = response.error {
-                return Err(format!(
-                    "MCP server error listing prompts: {}",
-                    error.message
-                ));
-            }
-
-            if let Some(result) = response.result {
-                let prompts: Vec<McpPromptDefinition> =
-                    serde_json::from_value(result["prompts"].clone())
-                        .map_err(|e| format!("Failed to parse prompts: {}", e))?;
-                return Ok(prompts);
-            }
-        }
-
-        Ok(Vec::new())
     }
 
     /// List all available resources from a server
@@ -814,16 +313,8 @@ impl McpProxy {
         // Take connection temporarily
         let mut connection = self.take_connection(server_id)?;
 
-        // Send request through appropriate transport
-        let response = match &mut connection {
-            McpConnection::Stdio {
-                process,
-                notification_task: _,
-            } => self.send_stdio_request_mut(process, &read_request).await?,
-            McpConnection::Http { client, url } => {
-                self.send_http_request(client, url, &read_request).await?
-            }
-        };
+        // Send request through transport
+        let response = mcp_transport::send_request(&mut connection, &read_request).await?;
 
         // Restore connection
         self.restore_connection(server_id, connection);
@@ -862,16 +353,8 @@ impl McpProxy {
         // Take connection temporarily
         let mut connection = self.take_connection(server_id)?;
 
-        // Send request through appropriate transport
-        let response = match &mut connection {
-            McpConnection::Stdio {
-                process,
-                notification_task: _,
-            } => self.send_stdio_request_mut(process, &get_request).await?,
-            McpConnection::Http { client, url } => {
-                self.send_http_request(client, url, &get_request).await?
-            }
-        };
+        // Send request through transport
+        let response = mcp_transport::send_request(&mut connection, &get_request).await?;
 
         // Restore connection
         self.restore_connection(server_id, connection);
@@ -911,49 +394,26 @@ impl McpProxy {
         Ok(())
     }
 
-    /// Handle a notification from an MCP server
-    #[allow(dead_code)] // MCP notification handling not yet wired into event loop
-    async fn handle_notification(
+    /// Generic refresh for any registry (tools, resources, or prompts).
+    ///
+    /// Sends a list request for the given `method` (e.g. "tools/list"),
+    /// extracts the array at `result_key` (e.g. "tools") from the response,
+    /// and updates the corresponding field on the server instance.
+    async fn refresh_registry(
         &mut self,
         server_id: &str,
-        notification: McpNotification,
+        method: &str,
+        result_key: &str,
     ) -> Result<(), String> {
-        let notification_type = McpNotificationType::from_method(&notification.method);
-
-        match notification_type {
-            McpNotificationType::ToolsListChanged => {
-                self.refresh_tools(server_id).await?;
-            }
-            McpNotificationType::ResourcesListChanged => {
-                self.refresh_resources(server_id).await?;
-            }
-            McpNotificationType::PromptsListChanged => {
-                self.refresh_prompts(server_id).await?;
-            }
-            McpNotificationType::Unknown(method) => {
-                // Log unknown notifications but don't fail
-                eprintln!(
-                    "Received unknown notification from server '{}': {}",
-                    server_id, method
-                );
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Refresh tools list for a server
-    async fn refresh_tools(&mut self, server_id: &str) -> Result<(), String> {
-        // Create list request
         let list_request = McpRequest {
             jsonrpc: "2.0".to_string(),
             id: self.next_request_id,
-            method: "tools/list".to_string(),
+            method: method.to_string(),
             params: serde_json::json!({}),
         };
         self.next_request_id += 1;
 
-        // Get server and extract connection temporarily
+        // Take connection temporarily
         let server = self
             .servers
             .get_mut(server_id)
@@ -965,120 +425,31 @@ impl McpProxy {
             .ok_or_else(|| format!("Server not started: {}", server_id))?;
 
         // Send request
-        let response = match &mut connection {
-            McpConnection::Stdio {
-                process,
-                notification_task: _,
-            } => self.send_stdio_request_mut(process, &list_request).await?,
-            McpConnection::Http { client, url } => {
-                self.send_http_request(client, url, &list_request).await?
-            }
-        };
+        let response = mcp_transport::send_request(&mut connection, &list_request).await?;
 
         // Restore connection
         let server = self.servers.get_mut(server_id).unwrap();
         server.connection = Some(connection);
 
-        // Update tools list
+        // Update the appropriate registry based on result_key
         if let Some(result) = response.result {
-            let tools: Vec<McpToolDefinition> = serde_json::from_value(result["tools"].clone())
-                .map_err(|e| format!("Failed to parse tools: {}", e))?;
-            server.tools = tools;
-        }
-
-        Ok(())
-    }
-
-    /// Refresh resources list for a server
-    async fn refresh_resources(&mut self, server_id: &str) -> Result<(), String> {
-        // Create list request
-        let list_request = McpRequest {
-            jsonrpc: "2.0".to_string(),
-            id: self.next_request_id,
-            method: "resources/list".to_string(),
-            params: serde_json::json!({}),
-        };
-        self.next_request_id += 1;
-
-        // Get server and extract connection temporarily
-        let server = self
-            .servers
-            .get_mut(server_id)
-            .ok_or_else(|| format!("Server not found: {}", server_id))?;
-
-        let mut connection = server
-            .connection
-            .take()
-            .ok_or_else(|| format!("Server not started: {}", server_id))?;
-
-        // Send request
-        let response = match &mut connection {
-            McpConnection::Stdio {
-                process,
-                notification_task: _,
-            } => self.send_stdio_request_mut(process, &list_request).await?,
-            McpConnection::Http { client, url } => {
-                self.send_http_request(client, url, &list_request).await?
+            match result_key {
+                "tools" => {
+                    server.tools = serde_json::from_value(result["tools"].clone())
+                        .map_err(|e| format!("Failed to parse tools: {}", e))?;
+                }
+                "resources" => {
+                    server.resources = serde_json::from_value(result["resources"].clone())
+                        .map_err(|e| format!("Failed to parse resources: {}", e))?;
+                }
+                "prompts" => {
+                    server.prompts = serde_json::from_value(result["prompts"].clone())
+                        .map_err(|e| format!("Failed to parse prompts: {}", e))?;
+                }
+                _ => {
+                    return Err(format!("Unknown registry key: {}", result_key));
+                }
             }
-        };
-
-        // Restore connection
-        let server = self.servers.get_mut(server_id).unwrap();
-        server.connection = Some(connection);
-
-        // Update resources list
-        if let Some(result) = response.result {
-            let resources: Vec<Resource> = serde_json::from_value(result["resources"].clone())
-                .map_err(|e| format!("Failed to parse resources: {}", e))?;
-            server.resources = resources;
-        }
-
-        Ok(())
-    }
-
-    /// Refresh prompts list for a server
-    async fn refresh_prompts(&mut self, server_id: &str) -> Result<(), String> {
-        // Create list request
-        let list_request = McpRequest {
-            jsonrpc: "2.0".to_string(),
-            id: self.next_request_id,
-            method: "prompts/list".to_string(),
-            params: serde_json::json!({}),
-        };
-        self.next_request_id += 1;
-
-        // Get server and extract connection temporarily
-        let server = self
-            .servers
-            .get_mut(server_id)
-            .ok_or_else(|| format!("Server not found: {}", server_id))?;
-
-        let mut connection = server
-            .connection
-            .take()
-            .ok_or_else(|| format!("Server not started: {}", server_id))?;
-
-        // Send request
-        let response = match &mut connection {
-            McpConnection::Stdio {
-                process,
-                notification_task: _,
-            } => self.send_stdio_request_mut(process, &list_request).await?,
-            McpConnection::Http { client, url } => {
-                self.send_http_request(client, url, &list_request).await?
-            }
-        };
-
-        // Restore connection
-        let server = self.servers.get_mut(server_id).unwrap();
-        server.connection = Some(connection);
-
-        // Update prompts list
-        if let Some(result) = response.result {
-            let prompts: Vec<McpPromptDefinition> =
-                serde_json::from_value(result["prompts"].clone())
-                    .map_err(|e| format!("Failed to parse prompts: {}", e))?;
-            server.prompts = prompts;
         }
 
         Ok(())
