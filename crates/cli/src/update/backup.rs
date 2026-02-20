@@ -7,7 +7,7 @@ use crate::update::error::UpdateError;
 use chrono::{DateTime, Local, TimeZone};
 use std::fs;
 use std::path::{Path, PathBuf};
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Represents a single backup entry
 #[derive(Debug, Clone)]

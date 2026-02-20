@@ -8,7 +8,7 @@
 //! Note: This module is #[cfg(test)] - test-only code
 
 use super::*;
-use crate::commands::loader::{CommandLoader, FrontMatter, LoadedCommand};
+use crate::commands::loader::{FrontMatter, LoadedCommand};
 use crate::commands::registry::Registry;
 use std::path::PathBuf;
 
@@ -255,7 +255,7 @@ mod integration_tests {
     #[tokio::test]
     async fn test_registry_discovery_preserves_disable_model_invocation() {
         // This test will fail until FrontMatter properly deserializes the field
-        use std::path::PathBuf;
+        
         use tokio::fs;
 
         let temp_dir = std::env::temp_dir().join("test_commands_126");

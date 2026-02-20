@@ -47,16 +47,25 @@ pub mod subprocess;
 pub mod tool_search_config;
 
 pub use agent_discovery::{
-    parse_runtime_agents, validate_runtime_agents, AgentDiscovery, RuntimeAgentDefinition,
+    parse_runtime_agents, validate_runtime_agents, RuntimeAgentDefinition,
 };
 pub use discovery::PluginDiscovery;
 pub use executor::PluginExecutor;
-pub use frontmatter_substitution::{Substituter, SubstitutionContext, Variable};
-pub use hooks_integration::{register_plugin_hooks, PluginHooksIntegrator};
+pub use frontmatter_substitution::{Substituter, SubstitutionContext};
 pub use loader::PluginLoader;
-pub use manager::{PluginManager, PluginSystemSummary};
-pub use mcp_proxy::{McpCallToolResult, McpNotification, McpNotificationType, McpProxy};
-pub use tool_search_config::{ToolSearchConfig, ToolSearchConfigError, DEFAULT_THRESHOLD_PERCENT};
+
+// Re-exports for library consumers and integration tests.
+// These are unused by the binary target but needed for the lib API.
+#[allow(unused_imports)]
+pub use agent_discovery::AgentDiscovery;
+#[allow(unused_imports)]
+pub use hooks_integration::PluginHooksIntegrator;
+#[allow(unused_imports)]
+pub use manager::PluginManager;
+#[allow(unused_imports)]
+pub use mcp_proxy::{McpNotification, McpNotificationType, McpProxy};
+#[allow(unused_imports)]
+pub use tool_search_config::ToolSearchConfig;
 
 /// Plugin system version
 pub const PLUGIN_VERSION: &str = "1.0.0";

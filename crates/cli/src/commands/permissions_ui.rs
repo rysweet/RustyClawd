@@ -8,8 +8,8 @@ use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, Paragraph, Row, Table, Widget, Wrap},
+    text::{Line, Span},
+    widgets::{Block, Borders, Clear, Paragraph, Row, Table, Widget},
 };
 
 use super::permissions_search_state::PermissionsSearchState;

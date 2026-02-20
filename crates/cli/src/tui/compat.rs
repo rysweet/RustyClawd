@@ -336,7 +336,7 @@ impl TuiState {
 
     /// Discover available memory destinations
     fn discover_memory_destinations(&self) -> Vec<super::MemoryDestination> {
-        use std::path::Path;
+        
         let mut destinations = Vec::new();
 
         // 1. User memory (~/.claude/CLAUDE.md)

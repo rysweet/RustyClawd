@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Status of an update operation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]

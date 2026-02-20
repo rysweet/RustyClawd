@@ -2,7 +2,6 @@
 
 use crate::update::error::UpdateError;
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
 
 /// Represents a semantic version (major.minor.patch)
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]

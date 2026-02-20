@@ -35,12 +35,10 @@
 use crate::checkpoint::{
     loader::SessionLoader,
     saver::SessionSaver,
-    storage::CheckpointStorage,
-    types::{Checkpoint, CheckpointMessage, RestoreScope, Session, SessionState},
+    types::{CheckpointMessage, Session, SessionState},
 };
 use anyhow::{Context as AnyhowContext, Result};
 use rustyclawd_core::{Message, MessageRole};
-use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Maximum age for a session to be considered resumable (24 hours)
@@ -388,7 +386,7 @@ impl SessionPersistence {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::Duration;
+    
 
     fn temp_session_id() -> String {
         format!(

@@ -34,19 +34,20 @@ mod ui;
 
 // Re-export for backward compatibility with existing code
 pub use app::{
-    App, AutocompleteState, CompletionItem, LayoutCache, MemoryDestination, MemoryModalState,
-    ToolMessageState, ToolResult,
+    App, CompletionItem, LayoutCache, MemoryDestination, ToolResult,
 };
 pub use event::{handle_event, poll_event, EventResult};
-pub use message::{Message, MessageStatus, Role};
+pub use message::Message;
+#[allow(unused_imports)] // Re-export for library consumers and tests
+pub use message::Role as MessageRole;
 pub use ui::render;
 
 // Legacy exports (kept for compatibility with interactive.rs)
 pub use compat::TuiState;
 pub use message::Message as ChatMessage;
-pub use message::Role as MessageRole;
 
 // Extended thinking exports (for testing)
+#[allow(unused_imports)] // Re-export for library consumers and tests
 pub use thinking_state::{ThinkingPhase, ThinkingState};
 
 // New clean API

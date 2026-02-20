@@ -9,7 +9,7 @@
 //! - Required field presence checks
 
 use serde_json::Value;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 /// Result of schema validation
 #[derive(Debug, Clone, PartialEq, Eq)]

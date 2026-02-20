@@ -1,11 +1,7 @@
 //! RustyClawd CLI library
 //!
-//! Infrastructure modules that aren't yet fully integrated.
-//! Allow dead code temporarily while features are being completed.
-
-#![allow(dead_code)]
-#![allow(unused_imports)]
-#![allow(deprecated)] // TODO: Migrate from ClientError::Api to specific error types
+//! Public API modules for the CLI crate. These modules expose types and
+//! functions for external consumers and the binary target.
 
 pub mod checkpoint;
 pub mod commands;
@@ -23,6 +19,8 @@ pub mod session_persistence;
 pub mod settings;
 pub mod terminal_guard;
 pub mod tool_definitions;
+// TODO: Migrate from ClientError::Api to specific error types (BadRequest, Unknown, etc.)
+#[allow(deprecated)]
 pub mod tool_executor;
 pub mod tool_formatter;
 pub mod tui;

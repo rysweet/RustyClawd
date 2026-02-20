@@ -7,7 +7,6 @@ use crate::update::config::UpdateConfig;
 use crate::update::error::UpdateError;
 use crate::update::github_client::{GitHubClient, UpdateInfo};
 use crate::update::version::Version;
-use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use tracing::{debug, info, warn};

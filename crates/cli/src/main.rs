@@ -3,9 +3,10 @@
 //! This is a Rust implementation that matches Claude Code's exact CLI interface
 //! as documented at https://code.claude.com/docs/en/cli-reference
 
+// These modules mirror lib.rs's public API. Items not used directly by main.rs
+// are still part of the library's public interface and used at runtime via
+// module-internal wiring (hooks, plugins, TUI, etc.).
 #![allow(dead_code)]
-#![allow(unused_imports)]
-#![allow(deprecated)] // TODO: Migrate from ClientError::Api to specific error types
 
 mod checkpoint;
 mod commands;
@@ -23,13 +24,14 @@ mod session_persistence;
 mod settings;
 mod terminal_guard;
 mod tool_definitions;
+// TODO: Migrate from ClientError::Api to specific error types (BadRequest, Unknown, etc.)
+#[allow(deprecated)]
 mod tool_executor;
 mod tool_formatter;
 mod tui;
 
 use anyhow::{Context as AnyhowContext, Result};
 use clap::{Parser, Subcommand};
-use futures::StreamExt;
 use std::io::{self, IsTerminal, Read};
 
 /// Claude - AI assistant with tool use capabilities
@@ -1001,9 +1003,9 @@ impl App {
     /// Run in print mode (one-shot execution) - matches Claude Code's behavior
     async fn run_print_mode(&mut self, prompt: &str) -> Result<()> {
         use rustyclawd_core::client::{
-            Client, Config, CreateMessageRequest, Message as ApiMessage, StreamEvent,
+            Client, Config, CreateMessageRequest, Message as ApiMessage,
         };
-        use std::io::Write;
+        
 
         // Load API configuration
         let config = Config::from_default_location().await?;

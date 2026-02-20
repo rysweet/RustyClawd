@@ -6,7 +6,7 @@ use crossterm::event::{
     KeyModifiers,
 };
 use rat_event::Outcome;
-use rat_focus::{Focus, FocusBuilder, HasFocus};
+use rat_focus::{FocusBuilder, HasFocus};
 use std::io;
 use std::time::Duration;
 
