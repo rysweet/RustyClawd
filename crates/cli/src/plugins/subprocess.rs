@@ -56,8 +56,6 @@ impl PluginExecutionResult {
 /// Kill a process and its children
 #[cfg(unix)]
 fn kill_process(child: &mut Child) -> Result<(), String> {
-    
-
     let pid = child.id() as i32;
 
     // First try SIGTERM to the process group (negative PID kills the group)

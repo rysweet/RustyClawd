@@ -1005,7 +1005,6 @@ impl App {
         use rustyclawd_core::client::{
             Client, Config, CreateMessageRequest, Message as ApiMessage,
         };
-        
 
         // Load API configuration
         let config = Config::from_default_location().await?;

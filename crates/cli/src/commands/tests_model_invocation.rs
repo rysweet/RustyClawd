@@ -255,7 +255,7 @@ mod integration_tests {
     #[tokio::test]
     async fn test_registry_discovery_preserves_disable_model_invocation() {
         // This test will fail until FrontMatter properly deserializes the field
-        
+
         use tokio::fs;
 
         let temp_dir = std::env::temp_dir().join("test_commands_126");

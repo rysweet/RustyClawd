@@ -414,8 +414,6 @@ fn wrap_value_with_indent(
     continuation_prefix: &str,
     max_width: usize,
 ) -> Vec<String> {
-    
-
     if text.is_empty() {
         return vec![format!("{}", first_line_prefix)];
     }

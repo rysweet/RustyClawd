@@ -386,7 +386,6 @@ impl SessionPersistence {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     fn temp_session_id() -> String {
         format!(

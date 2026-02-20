@@ -46,9 +46,7 @@ pub mod mcp_proxy;
 pub mod subprocess;
 pub mod tool_search_config;
 
-pub use agent_discovery::{
-    parse_runtime_agents, validate_runtime_agents, RuntimeAgentDefinition,
-};
+pub use agent_discovery::{parse_runtime_agents, validate_runtime_agents, RuntimeAgentDefinition};
 pub use discovery::PluginDiscovery;
 pub use executor::PluginExecutor;
 pub use frontmatter_substitution::{Substituter, SubstitutionContext};

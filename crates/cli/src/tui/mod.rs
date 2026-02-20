@@ -32,9 +32,7 @@ mod token_counter;
 mod ui;
 
 // Re-export for backward compatibility with existing code
-pub use app::{
-    App, CompletionItem, LayoutCache, MemoryDestination, ToolResult,
-};
+pub use app::{App, CompletionItem, LayoutCache, MemoryDestination, ToolResult};
 pub use event::{handle_event, poll_event, EventResult};
 pub use message::Message;
 #[allow(unused_imports)] // Re-export for library consumers and tests

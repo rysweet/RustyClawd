@@ -106,7 +106,6 @@ impl SessionSaver {
 mod tests {
     use super::*;
     use crate::checkpoint::types::SessionState;
-    
 
     fn temp_storage() -> CheckpointStorage {
         // Use a unique name combining process ID and a random component to avoid conflicts
