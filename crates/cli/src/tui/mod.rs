@@ -23,7 +23,6 @@ mod app;
 mod click_region;
 mod compat;
 mod event;
-mod input_guard;
 mod keybindings;
 mod layout;
 mod message;

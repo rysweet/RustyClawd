@@ -14,7 +14,7 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 
 # HTTP client with streaming support
-reqwest = { version = "0.12", features = ["json", "stream"] }
+reqwest = { workspace = true }
 
 # Async runtime and utilities
 tokio = { version = "1.0", features = ["fs", "io-util"] }

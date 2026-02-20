@@ -251,15 +251,10 @@ impl BuiltinCommands {
     }
 
     /// /compact - Compact conversation history
-    ///
-    /// NOTE: PreCompact hook integration is COMPLETE in interactive.rs (async context).
-    /// This synchronous command stub shows hook intent for documentation.
-    /// When full compaction logic is implemented, wire PreCompact hook here.
-    /// See interactive.rs:285-326 for reference implementation pattern.
     fn compact_command() -> String {
-        "Compacting conversation history...\n\n\
-         NOTE: PreCompact hook will fire when full compaction is implemented.\n\
-         Hook integration ready, awaiting compaction logic."
+        "Compaction is not yet implemented.\n\n\
+         When implemented, this command will summarize and compact\n\
+         the conversation history to free up context window space."
             .to_string()
     }
 
@@ -370,81 +365,37 @@ impl BuiltinCommands {
 
     /// /bashes - List and manage background bash shells
     fn bashes_command() -> String {
-        // Note: This is a basic implementation
-        // In a full implementation, this would query the actual bash shell manager
-        // and display real shell IDs, statuses, and commands
-        "Background Bash Shells:\n\n\
-         No background shells currently running.\n\n\
-         Tips:\n\
-         - Background shells are created when using run_in_background parameter\n\
-         - Use BashOutput tool to read shell output\n\
-         - Use KillShell tool to terminate shells"
+        "Bash session tracking is not yet implemented.\n\n\
+         When implemented, this command will display active\n\
+         background bash shells and their status."
             .to_string()
     }
 
     /// /context - Visualize current context usage
     fn context_command() -> String {
-        // Note: This is a basic implementation
-        // In a full implementation, this would query actual token counts from the API
-        const MAX_TOKENS: u64 = 200_000; // Claude's context window
-        let used_tokens: u64 = 0; // Would be populated from actual usage
-        let percentage = (used_tokens as f64 / MAX_TOKENS as f64 * 100.0) as u64;
-
-        format!(
-            "Context Window Usage:\n\n\
-             Used:      {used_tokens:>7} tokens ({percentage}%)\n\
-             Available: {MAX_TOKENS:>7} tokens\n\n\
-             Visual: [{}{}] {percentage}%\n\n\
-             Note: Context tracking will be implemented in future updates.",
-            "=".repeat((percentage / 2) as usize),
-            " ".repeat(50 - (percentage / 2) as usize),
-        )
+        "Context tracking is not yet implemented.\n\n\
+         When implemented, this command will display:\n\
+         - Current token usage in the context window\n\
+         - Available remaining context capacity\n\
+         - Visual progress bar"
+            .to_string()
     }
 
     /// /cost - Display token usage statistics and cost estimates
     fn cost_command() -> String {
-        // Note: This is a basic implementation
-        // Pricing as of 2025 (approximate):
-        // Claude Sonnet 4.5: $3 per million input tokens, $15 per million output tokens
-        const INPUT_COST_PER_MILLION: f64 = 3.0;
-        const OUTPUT_COST_PER_MILLION: f64 = 15.0;
-
-        let input_tokens: u64 = 0; // Would be populated from session stats
-        let output_tokens: u64 = 0; // Would be populated from session stats
-        let total_tokens = input_tokens + output_tokens;
-
-        let input_cost = (input_tokens as f64 / 1_000_000.0) * INPUT_COST_PER_MILLION;
-        let output_cost = (output_tokens as f64 / 1_000_000.0) * OUTPUT_COST_PER_MILLION;
-        let total_cost = input_cost + output_cost;
-
-        format!(
-            "Token Usage & Cost Estimate:\n\n\
-             Session Statistics:\n\
-             - Input tokens:  {input_tokens:>8}\n\
-             - Output tokens: {output_tokens:>8}\n\
-             - Total tokens:  {total_tokens:>8}\n\n\
-             Estimated Cost (Claude Sonnet 4.5):\n\
-             - Input:  ${input_cost:>7.4} ({input_tokens} tokens @ ${INPUT_COST_PER_MILLION}/M)\n\
-             - Output: ${output_cost:>7.4} ({output_tokens} tokens @ ${OUTPUT_COST_PER_MILLION}/M)\n\
-             - Total:  ${total_cost:>7.4}\n\n\
-             Note: Cost tracking will be implemented with full session integration."
-        )
+        "Cost tracking is not yet implemented.\n\n\
+         When implemented, this command will display:\n\
+         - Input and output token counts for the session\n\
+         - Estimated cost based on current model pricing\n\
+         - Running total across the session"
+            .to_string()
     }
 
     /// /todos - List current todo items
     fn todos_command() -> String {
-        // Note: This is a basic implementation
-        // In a full implementation, this would track actual todos from TodoWrite tool calls
-        "Current Todo Items:\n\n\
-         No todos tracked in this session.\n\n\
-         Todo items will appear here when:\n\
-         - Claude uses the TodoWrite tool to track tasks\n\
-         - Complex multi-step operations are in progress\n\
-         - Multiple features are being implemented\n\n\
-         Todo Status Legend:\n\
-         - [ ] pending      - Not yet started\n\
-         - [~] in_progress  - Currently working on\n\
-         - [x] completed    - Finished successfully"
+        "Todo tracking is not yet implemented.\n\n\
+         When implemented, this command will display todo items\n\
+         created via the TodoWrite tool during the session."
             .to_string()
     }
 
@@ -454,44 +405,14 @@ impl BuiltinCommands {
 
     /// /usage - Show plan usage limits and rate limit status
     fn usage_command() -> String {
-        // Note: This is a basic implementation
-        // In a full implementation, this would query the Anthropic API for actual usage
-        // Anthropic API headers include rate limit information:
-        // - anthropic-ratelimit-requests-limit
-        // - anthropic-ratelimit-requests-remaining
-        // - anthropic-ratelimit-tokens-limit
-        // - anthropic-ratelimit-tokens-remaining
-
-        const PLAN_TIER: &str = "Pro"; // Would be fetched from API/config
-        const REQUESTS_LIMIT: u32 = 1000;
-        const REQUESTS_REMAINING: u32 = 847;
-        const TOKENS_LIMIT: u64 = 5_000_000;
-        const TOKENS_REMAINING: u64 = 3_421_000;
-
-        let requests_used = REQUESTS_LIMIT - REQUESTS_REMAINING;
-        let tokens_used = TOKENS_LIMIT - TOKENS_REMAINING;
-        let requests_percent = (requests_used as f64 / REQUESTS_LIMIT as f64 * 100.0) as u32;
-        let tokens_percent = (tokens_used as f64 / TOKENS_LIMIT as f64 * 100.0) as u32;
-
-        format!(
-            "API Usage & Rate Limits:\n\n\
-             Plan: {PLAN_TIER} Tier\n\n\
-             Rate Limits (Per Minute):\n\
-             - Requests:  {requests_used:>6} / {REQUESTS_LIMIT:<6} used ({requests_percent}%)\n\
-             - Remaining: {REQUESTS_REMAINING:>6} requests\n\n\
-             Token Limits (Per Month):\n\
-             - Tokens:    {tokens_used:>10} / {TOKENS_LIMIT:<10} used ({tokens_percent}%)\n\
-             - Remaining: {TOKENS_REMAINING:>10} tokens\n\n\
-             Visual Progress:\n\
-             Requests: [{}{}] {requests_percent}%\n\
-             Tokens:   [{}{}] {tokens_percent}%\n\n\
-             Note: Rate limit data will be populated from live API responses in future updates.\n\
-             Current values are placeholders for demonstration.",
-            "=".repeat(requests_percent as usize / 2),
-            " ".repeat(50 - (requests_percent as usize / 2)),
-            "=".repeat(tokens_percent as usize / 2),
-            " ".repeat(50 - (tokens_percent as usize / 2)),
-        )
+        "Usage tracking is not yet implemented.\n\n\
+         Check your API dashboard for current usage:\n\
+         https://console.anthropic.com\n\n\
+         When implemented, this command will display:\n\
+         - Rate limit status from API response headers\n\
+         - Token usage for the current session\n\
+         - Plan tier information"
+            .to_string()
     }
 
     /// /output-style [style] - Set output style
@@ -557,64 +478,29 @@ impl BuiltinCommands {
 
     /// /login - Switch Anthropic accounts
     fn login_command() -> String {
-        // Note: This is a basic implementation
-        // In a full implementation, this would integrate with authentication system
-        // and potentially open a browser for OAuth flow
+        let has_api_key = std::env::var("ANTHROPIC_API_KEY").is_ok();
 
-        const CURRENT_USER: &str = "user@example.com"; // Would be fetched from auth
-        const IS_AUTHENTICATED: bool = true;
-
-        if IS_AUTHENTICATED {
-            format!(
-                "Account Information:\n\n\
-                 Currently logged in as: {CURRENT_USER}\n\n\
-                 To switch accounts:\n\
-                 1. Use /logout to sign out of current account\n\
-                 2. Run: claude login\n\
-                 3. Follow browser authentication flow\n\
-                 4. Complete OAuth authorization\n\n\
-                 Account switching will preserve your local settings and preferences.\n\n\
-                 Note: Full authentication flow will be implemented in future updates."
-            )
+        if has_api_key {
+            "Authentication status: ANTHROPIC_API_KEY environment variable is set.\n\n\
+             Full account login flow (OAuth browser authentication) is not yet implemented.\n\
+             Currently, authentication is handled via the ANTHROPIC_API_KEY environment variable."
+                .to_string()
         } else {
-            "Not currently logged in.\n\n\
-             To authenticate:\n\
-             1. Run: claude login\n\
-             2. Your browser will open for authentication\n\
-             3. Sign in with your Anthropic account\n\
-             4. Authorize the CLI application\n\n\
-             After authentication, your API key will be securely stored.\n\n\
-             Note: Full authentication flow will be implemented in future updates."
+            "Authentication status: ANTHROPIC_API_KEY environment variable is NOT set.\n\n\
+             To authenticate, set your API key:\n\
+             export ANTHROPIC_API_KEY=your-key-here\n\n\
+             You can find your API key at: https://console.anthropic.com\n\n\
+             Full account login flow (OAuth browser authentication) is not yet implemented."
                 .to_string()
         }
     }
 
     /// /logout - Sign out from account
     fn logout_command() -> String {
-        // Note: This is a basic implementation
-        // In a full implementation, this would:
-        // - Clear stored API keys from keychain/secure storage
-        // - Invalidate any active sessions
-        // - Clear cached authentication tokens
-
-        const IS_AUTHENTICATED: bool = true; // Would be checked from auth state
-
-        if IS_AUTHENTICATED {
-            "Logging out...\n\n\
-             The following actions will be performed:\n\
-             - Clear stored API key from secure storage\n\
-             - Invalidate active session\n\
-             - Remove cached authentication tokens\n\n\
-             Your local settings and preferences will be preserved.\n\n\
-             To log back in, use: claude login\n\n\
-             Note: Authentication token management will be implemented in future updates."
-                .to_string()
-        } else {
-            "Not currently logged in.\n\n\
-             No authentication tokens to clear.\n\n\
-             To authenticate, use: claude login"
-                .to_string()
-        }
+        "Logout is not yet implemented.\n\n\
+         To revoke API access, remove your ANTHROPIC_API_KEY environment variable:\n\
+         unset ANTHROPIC_API_KEY"
+            .to_string()
     }
 
     /// /privacy-settings - View/update privacy settings
@@ -915,7 +801,7 @@ impl BuiltinCommands {
         // - Guide the user through GitHub issue creation
         // - Optionally submit the bug report automatically
 
-        const GITHUB_ISSUES_URL: &str = "https://github.com/anthropics/anthropic-sdk-rust/issues";
+        const GITHUB_ISSUES_URL: &str = "https://github.com/rysweet/RustyClawd/issues";
         const VERSION: &str = env!("CARGO_PKG_VERSION");
 
         format!(
@@ -1074,16 +960,12 @@ impl BuiltinCommands {
 
     /// /fast - Toggle fast mode (Opus 4.6 only)
     ///
-    /// Returns a marker string for TUI integration. The TUI handler in
-    /// interactive.rs must detect this marker and toggle `Config.fast_mode_enabled`.
-    ///
-    /// NOTE: TUI handler is NOT yet wired up. This follows the same pattern as
-    /// `[[OPEN_PERMISSIONS_MODAL]]` from the /permissions command. Until the TUI
-    /// handler is implemented, this command will print the marker string literally.
-    /// TUI integration is tracked as follow-up work.
+    /// Returns a special IPC marker string that the TUI layer detects to toggle
+    /// fast mode. This is intentionally NOT a human-readable message -- the TUI
+    /// intercepts it before display, similar to how /permissions returns
+    /// `[[OPEN_PERMISSIONS_MODAL]]`. If no TUI handler is wired up yet, the
+    /// marker will be printed literally as a no-op.
     fn fast_command() -> String {
-        // Return special marker that indicates fast mode toggle requested.
-        // TUI handler integration is a follow-up task.
         "[[TOGGLE_FAST_MODE]]".to_string()
     }
 }
@@ -1262,8 +1144,7 @@ mod tests {
 
         assert!(result.is_some());
         let output = result.unwrap();
-        assert!(output.contains("Background Bash"));
-        assert!(output.contains("shells") || output.contains("Shells"));
+        assert!(output.contains("not yet implemented"));
     }
 
     #[test]
@@ -1273,9 +1154,7 @@ mod tests {
 
         assert!(result.is_some());
         let output = result.unwrap();
-        assert!(output.contains("Context"));
-        assert!(output.contains("tokens"));
-        assert!(output.contains("Available"));
+        assert!(output.contains("not yet implemented"));
     }
 
     #[test]
@@ -1285,9 +1164,7 @@ mod tests {
 
         assert!(result.is_some());
         let output = result.unwrap();
-        assert!(output.contains("Cost") || output.contains("Token"));
-        assert!(output.contains("tokens"));
-        assert!(output.contains("$"));
+        assert!(output.contains("not yet implemented"));
     }
 
     #[test]
@@ -1297,12 +1174,7 @@ mod tests {
 
         assert!(result.is_some());
         let output = result.unwrap();
-        assert!(output.contains("Todo"));
-        assert!(
-            output.contains("pending")
-                || output.contains("in_progress")
-                || output.contains("completed")
-        );
+        assert!(output.contains("not yet implemented"));
     }
 
     // P1 Priority Commands Tests
@@ -1339,9 +1211,8 @@ mod tests {
 
         assert!(result.is_some());
         let output = result.unwrap();
-        assert!(output.contains("Usage") || output.contains("Rate Limit"));
-        assert!(output.contains("Plan"));
-        assert!(output.contains("Requests") || output.contains("Tokens"));
+        assert!(output.contains("not yet implemented"));
+        assert!(output.contains("console.anthropic.com"));
     }
 
     #[test]
@@ -1419,11 +1290,7 @@ mod tests {
 
         assert!(result.is_some());
         let output = result.unwrap();
-        assert!(
-            output.contains("Account")
-                || output.contains("login")
-                || output.contains("authenticate")
-        );
+        assert!(output.contains("ANTHROPIC_API_KEY"));
     }
 
     #[test]
@@ -1433,11 +1300,8 @@ mod tests {
 
         assert!(result.is_some());
         let output = result.unwrap();
-        assert!(
-            output.contains("Logging out")
-                || output.contains("logout")
-                || output.contains("logged in")
-        );
+        assert!(output.contains("not yet implemented"));
+        assert!(output.contains("ANTHROPIC_API_KEY"));
     }
 
     #[test]
@@ -1681,9 +1545,8 @@ mod tests {
 
         assert!(result.is_some());
         let output = result.unwrap();
-        assert!(output.contains("Bug Report") || output.contains("bug"));
-        assert!(output.contains("GitHub") || output.contains("issue"));
-        assert!(output.contains("Anthropic"));
+        assert!(output.contains("Bug Report"));
+        assert!(output.contains("rysweet/RustyClawd"));
     }
 
     #[test]
