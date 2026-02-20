@@ -52,8 +52,6 @@ impl PluginExecutor {
         command_name: &str,
         _args: serde_json::Value,
     ) -> Result<PluginExecutionResult, String> {
-        let start = Instant::now();
-
         // Get plugin
         let plugin = self
             .plugins

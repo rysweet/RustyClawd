@@ -122,7 +122,7 @@ impl SessionLoader {
         // for all scopes (ConversationOnly, CodeOnly, Both)
         session
             .restore_checkpoint(checkpoint_id, scope)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+            .map_err(io::Error::other)
     }
 
     /// Load checkpoint metadata without full content
