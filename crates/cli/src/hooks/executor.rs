@@ -180,7 +180,8 @@ impl HookExecutor {
         let config = Config::from_default_location()
             .await
             .context("Failed to load API configuration")?;
-        let client = AnthropicClient::new(config);
+        let client = AnthropicClient::new(config)
+            .context("Failed to build HTTP client")?;
 
         // Build the prompt with context information
         let prompt = Self::build_hook_prompt(hook, context);

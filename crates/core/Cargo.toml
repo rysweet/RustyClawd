@@ -34,6 +34,9 @@ regex = "1.10"
 # For SSE stream parsing
 pin-project = "1.1"
 
+# Random number generation (for retry jitter)
+rand = "0.8"
+
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
 tokio = { workspace = true }

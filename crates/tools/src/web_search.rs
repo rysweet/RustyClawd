@@ -160,7 +160,15 @@ impl crate::Tool for WebSearchTool {
 
             // Load client configuration
             let client = match rustyclawd_core::client::Config::from_default_location().await {
-                Ok(config) => Client::new(config),
+                Ok(config) => match Client::new(config) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        yield ToolEvent::Error {
+                            message: format!("Failed to build HTTP client: {}", e),
+                        };
+                        return;
+                    }
+                },
                 Err(e) => {
                     yield ToolEvent::Error {
                         message: format!("Failed to load API configuration: {}", e),

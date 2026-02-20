@@ -1007,7 +1007,7 @@ impl App {
 
         // Load API configuration
         let config = Config::from_default_location().await?;
-        let client = Client::new(config);
+        let client = Client::new(config)?;
 
         // Execute UserPromptSubmit hook BEFORE processing prompt
         let context = hooks::HookContext::for_user_prompt(

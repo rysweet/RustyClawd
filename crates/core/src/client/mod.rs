@@ -19,7 +19,7 @@
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Load config from ~/.claude-msec-k
 //!     let config = Config::from_default_location().await?;
-//!     let client = Client::new(config);
+//!     let client = Client::new(config)?;
 //!
 //!     // Create a simple request
 //!     let request = CreateMessageRequest::new(
@@ -110,17 +110,8 @@ impl RetryConfig {
 }
 
 /// Generate a random factor between 0.0 and 1.0 for jitter calculation.
-/// Uses a simple pseudo-random approach based on system time for minimal dependencies.
 fn random_factor() -> f64 {
-    use std::time::SystemTime;
-
-    let nanos = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| d.subsec_nanos())
-        .unwrap_or(0);
-
-    // Convert nanoseconds to a value between 0.0 and 1.0
-    (nanos as f64) / 1_000_000_000.0
+    rand::random::<f64>()
 }
 
 /// Anthropic API client
@@ -132,35 +123,35 @@ pub struct Client {
 
 impl Client {
     /// Create a new client with the given configuration and default retry settings
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config) -> ClientResult<Self> {
         let timeout = Duration::from_secs(config.timeout_secs);
 
         let http_client = HttpClient::builder()
             .timeout(timeout)
             .build()
-            .expect("Failed to build HTTP client");
+            .map_err(|e| ClientError::Unknown(format!("Failed to build HTTP client: {}", e)))?;
 
-        Self {
+        Ok(Self {
             config,
             http_client,
             retry_config: RetryConfig::default(),
-        }
+        })
     }
 
     /// Create a new client with custom retry configuration
-    pub fn with_retry_config(config: Config, retry_config: RetryConfig) -> Self {
+    pub fn with_retry_config(config: Config, retry_config: RetryConfig) -> ClientResult<Self> {
         let timeout = Duration::from_secs(config.timeout_secs);
 
         let http_client = HttpClient::builder()
             .timeout(timeout)
             .build()
-            .expect("Failed to build HTTP client");
+            .map_err(|e| ClientError::Unknown(format!("Failed to build HTTP client: {}", e)))?;
 
-        Self {
+        Ok(Self {
             config,
             http_client,
             retry_config,
-        }
+        })
     }
 
     /// Create a message (non-streaming) with automatic retry logic
@@ -386,7 +377,7 @@ impl Client {
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let config = Config::from_default_location().await?;
-    ///     let client = Client::new(config);
+    ///     let client = Client::new(config)?;
     ///
     ///     let request = CreateMessageRequest::new(
     ///         "claude-sonnet-4-5-20250929",
@@ -547,7 +538,7 @@ mod tests {
     fn test_client_no_leak_in_debug() {
         let key = ApiKey::new("sk-ant-secret123".to_string()).unwrap();
         let config = Config::new(key);
-        let client = Client::new(config);
+        let client = Client::new(config).unwrap();
         let debug_str = format!("{:?}", client);
         assert!(!debug_str.contains("secret123"));
     }
@@ -558,7 +549,7 @@ mod tests {
     fn test_build_request_headers_includes_fast_mode_beta() {
         let key = ApiKey::new("sk-ant-test123".to_string()).unwrap();
         let config = Config::new(key);
-        let client = Client::new(config);
+        let client = Client::new(config).unwrap();
 
         let request =
             CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Test")], 1024)
@@ -586,7 +577,7 @@ mod tests {
     fn test_build_request_headers_omits_beta_without_fast_mode() {
         let key = ApiKey::new("sk-ant-test123".to_string()).unwrap();
         let config = Config::new(key);
-        let client = Client::new(config);
+        let client = Client::new(config).unwrap();
 
         let request =
             CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Test")], 1024);
@@ -659,7 +650,7 @@ mod tests {
         // 4. Verify headers contain the beta header
         let key = ApiKey::new("sk-ant-test123".to_string()).unwrap();
         let config = Config::new(key);
-        let client = Client::new(config);
+        let client = Client::new(config).unwrap();
         let headers = client.build_request_headers(&request);
 
         assert_eq!(

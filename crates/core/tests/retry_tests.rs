@@ -34,9 +34,9 @@ fn test_client_with_default_retry_config() {
     // Create a minimal config for testing
     let api_key = rustyclawd_core::client::ApiKey::new("sk-ant-test123".to_string()).unwrap();
     let config = Config::new(api_key);
-    let client = Client::new(config);
+    let client = Client::new(config).unwrap();
 
-    // Verify client was created successfully (no panic)
+    // Verify client was created successfully
     assert_eq!(client.config().timeout_secs, 120); // Default timeout
 }
 
@@ -52,7 +52,7 @@ fn test_client_with_custom_retry_config() {
         jitter_factor: 0.15,
     };
 
-    let client = Client::with_retry_config(config, retry_config);
+    let client = Client::with_retry_config(config, retry_config).unwrap();
     assert_eq!(client.config().timeout_secs, 120);
 }
 
