@@ -1,0 +1,178 @@
+# Test Scenario: Input During Thinking (Non-Blocking)
+#
+# Tests that users can type in the input field while RustyClawd is thinking
+# or streaming responses. This is the E2E test for issue #367.
+#
+# DESIRED BEHAVIOR: Input field accepts typing during thinking
+# CURRENT BEHAVIOR: Input is blocked (test will FAIL)
+
+scenario:
+  name: "Input During Thinking - Non-Blocking Input"
+  description: "Verify users can type while thinking indicator is active"
+  type: tui
+  tags: [tui, input-handling, thinking, user-experience, issue-367]
+  status: "failing"  # Expected to fail until fix is implemented
+
+  environment:
+    terminal_size:
+      width: 120
+      height: 40
+    timeout: 90s
+
+  steps:
+    - action: launch
+      description: "Start RustyClawd"
+      target: "cargo run --bin rusty"
+      timeout: 10s
+
+    - action: wait_for_text
+      description: "Wait for TUI to load"
+      contains: "RustyClawd"
+      timeout: 5s
+
+    - action: send_input
+      description: "Send prompt that triggers extended thinking"
+      text: "Explain the concept of quantum entanglement in detail"
+      submit: true
+      notes: "This prompt should trigger extended thinking mode"
+
+    - action: wait_for_text
+      description: "Wait for thinking indicator to appear"
+      contains: "Thinking"
+      timeout: 5s
+
+    # CRITICAL TEST: Type while thinking indicator is visible
+    - action: send_input
+      description: "Start typing WHILE thinking (should NOT be blocked)"
+      text: "What is the speed of light?"
+      submit: false
+      notes: "Characters should appear in input field during thinking"
+
+    - action: sleep
+      duration: 1s
+      description: "Give user time to observe typing during thinking"
+
+    - action: verify_text
+      description: "Verify typed text is visible in input field"
+      contains: "What is the speed of light?"
+      notes: "DESIRED: Text should be visible. CURRENT: Will fail (input blocked)"
+
+    # Test editing during thinking
+    - action: send_key
+      description: "Test Backspace during thinking"
+      key: "Backspace"
+      repeat: 5
+
+    - action: verify_text
+      description: "Verify editing worked"
+      contains: "What is the speed of"
+      notes: "Backspace should work during thinking"
+
+    - action: send_key
+      description: "Test arrow key navigation during thinking"
+      key: "Home"
+
+    - action: send_input
+      description: "Type at cursor position"
+      text: "NEW: "
+      submit: false
+
+    - action: verify_text
+      description: "Verify cursor movement and insert worked"
+      contains: "NEW: What is the speed of"
+      notes: "Cursor navigation should work during thinking"
+
+    # Test that submission is blocked during thinking
+    - action: send_key
+      description: "Try to submit during thinking (should be blocked)"
+      key: "Enter"
+
+    - action: verify_text
+      description: "Verify submission was blocked"
+      contains: "blocked"
+      notes: "Should show message about blocked submission"
+
+    # Wait for thinking to complete
+    - action: wait_for_text
+      description: "Wait for thinking to complete"
+      not_contains: "Thinking"
+      timeout: 60s
+
+    # Verify input persists after thinking completes
+    - action: verify_text
+      description: "Verify typed input persisted after thinking"
+      contains: "NEW: What is the speed of"
+      notes: "Input buffer should persist across state transitions"
+
+    # Test that submission works after thinking completes
+    - action: send_key
+      description: "Submit the typed input (should work now)"
+      key: "Enter"
+
+    - action: wait_for_text
+      description: "Verify submission worked"
+      contains: "RustyClawd"
+      timeout: 5s
+
+    - action: capture_screenshot
+      description: "Capture final state"
+      filename: "input_during_thinking.txt"
+
+  assertions:
+    - type: text_present
+      value: "RustyClawd"
+      description: "TUI is responsive"
+
+    - type: custom
+      description: "Input field accepted typing during thinking"
+      notes: "Manual verification required - check screenshot"
+
+    - type: custom
+      description: "Editing (Backspace/arrows) worked during thinking"
+      notes: "Manual verification required - check screenshot"
+
+    - type: custom
+      description: "Submission was blocked during thinking"
+      notes: "Should have seen blocking message"
+
+    - type: custom
+      description: "Input persisted after thinking completed"
+      notes: "Buffer should not have been cleared"
+
+    - type: exit_clean
+      description: "Can exit cleanly after test"
+
+  notes: |
+    This test verifies the fix for issue #367: Input blocking during thinking.
+
+    DESIRED BEHAVIOR:
+    - Users can type freely while thinking indicator is visible
+    - Characters appear in input field immediately
+    - Backspace and arrow keys work for editing
+    - Submission (Enter) is blocked with clear message
+    - Ctrl+C interrupts thinking (existing behavior)
+    - Input persists after thinking completes
+
+    CURRENT BEHAVIOR (before fix):
+    - All input is blocked during thinking
+    - Users see "Input blocked" message for any key
+    - Only Ctrl+C and Ctrl+D work
+    - Poor user experience
+
+    TEST STATUS: Expected to FAIL until fix is implemented.
+    After fix, this test should PASS.
+
+    MANUAL VERIFICATION STEPS:
+    1. Run test with: cargo test --test e2e input_during_thinking
+    2. Observe thinking indicator appearing
+    3. Verify typed text appears in input field
+    4. Verify cursor movement works
+    5. Verify submission blocked with message
+    6. Verify input persists after thinking
+
+    EDGE CASES TO TEST:
+    - Empty input buffer during thinking
+    - Very long input (>1000 chars) during thinking
+    - Unicode characters (🦀) during thinking
+    - Rapid state transitions (thinking → streaming → idle)
+    - Multiple thinking cycles without clearing buffer
