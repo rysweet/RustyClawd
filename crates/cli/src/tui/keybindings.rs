@@ -7,6 +7,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 /// Action to take when a keybinding is triggered
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)] // Variants defined for complete keybinding coverage; some not yet bound
 pub enum KeyAction {
     /// Exit the application
     Exit,
@@ -64,6 +65,7 @@ pub enum KeyAction {
 
 /// A keybinding maps key events to actions
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // description used for help display
 pub struct KeyBinding {
     pub key: KeyPattern,
     pub action: KeyAction,
@@ -79,6 +81,7 @@ pub struct KeyPattern {
 
 /// Pattern for matching key codes
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)] // Complete key code coverage; some not yet used in bindings
 pub enum KeyCodePattern {
     Char(char),
     F(u8),
@@ -360,6 +363,7 @@ impl KeyBindings {
     }
 
     /// Check if a key event is a control key (should NOT be inserted as text)
+    #[allow(dead_code)] // Utility for input handling; will be used when text input is refined
     pub fn is_control_key(&self, event: &KeyEvent) -> bool {
         // Any key with modifiers (except Shift for uppercase) is a control key
         if event.modifiers.contains(KeyModifiers::CONTROL)

@@ -1,7 +1,7 @@
 //! Rendering layer for TUI - pure functions, no state mutation
 
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
     widgets::{
@@ -13,7 +13,6 @@ use ratatui::{
 use unicode_width::UnicodeWidthStr;
 
 use crate::commands::permissions_ui;
-use crate::permission_mode::PermissionMode;
 use crate::tui::app::{App, LayoutCache};
 use crate::tui::layout::{LayoutConfig, LayoutOrganizer};
 use crate::tui::message::{Message, Role};
@@ -415,8 +414,6 @@ fn wrap_value_with_indent(
     continuation_prefix: &str,
     max_width: usize,
 ) -> Vec<String> {
-    use textwrap::{wrap, Options};
-
     if text.is_empty() {
         return vec![format!("{}", first_line_prefix)];
     }
@@ -607,6 +604,7 @@ fn format_response_content(
 }
 
 /// Truncate output for display (keep last N chars)
+#[allow(dead_code)] // Utility for tool output display
 fn truncate_output(output: &str, max_chars: usize) -> String {
     if output.len() <= max_chars {
         output.to_string()
