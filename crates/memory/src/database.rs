@@ -116,10 +116,19 @@ impl Database {
     }
 
     /// Initialize database schema
+    ///
+    /// Uses BEGIN EXCLUSIVE to serialize concurrent schema initialization.
+    /// The version check runs INSIDE the exclusive transaction to prevent
+    /// a TOCTOU race where another process could initialize the schema
+    /// between the version read and the lock acquisition.
     fn initialize_schema(&self) -> Result<()> {
         let conn = self.lock_conn()?;
 
-        // Check if schema exists
+        // Acquire exclusive lock FIRST, then check version inside the transaction
+        // to eliminate the TOCTOU race condition (issue #378).
+        conn.execute_batch("BEGIN EXCLUSIVE")?;
+
+        // Check if schema exists (now safely inside the exclusive transaction)
         let version: i32 = conn
             .query_row(
                 "SELECT version FROM schema_version ORDER BY version DESC LIMIT 1",
@@ -130,13 +139,11 @@ impl Database {
 
         if version >= SCHEMA_VERSION {
             debug!("Schema version {} is current", version);
+            conn.execute_batch("COMMIT")?;
             return Ok(());
         }
 
         info!("Initializing database schema version {}", SCHEMA_VERSION);
-
-        // Wrap schema init in a transaction to avoid races on concurrent first-open
-        conn.execute_batch("BEGIN EXCLUSIVE")?;
 
         // Create schema_version table
         conn.execute(
