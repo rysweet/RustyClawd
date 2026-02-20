@@ -259,18 +259,23 @@ fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<EventResult> {
         return Ok(EventResult::Continue);
     }
 
-    // Block input during extended thinking (except Ctrl+C interruption)
-    let is_extended_thinking = app.is_extended_thinking();
-    if crate::tui::input_guard::should_block_input(is_extended_thinking, &key) {
-        // Emit blocked-input debug message only once per thinking phase
-        // to avoid flooding the debug panel on repeated keypresses.
-        if !app.has_shown_blocked_input_message() {
-            let msg = crate::tui::input_guard::get_blocked_input_message();
-            app.push_debug_message(msg.to_string());
-            app.set_shown_blocked_input_message(true);
-        }
-        return Ok(EventResult::Continue);
-    }
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Non-Blocking Input Design (Issue #367)
+    // ═══════════════════════════════════════════════════════════════════════════
+    //
+    // PHILOSOPHY: Input field is ALWAYS interactive during thinking/streaming.
+    // Users can type, edit, and navigate at any time for better UX.
+    //
+    // SUBMISSION GATING: Submission (Enter key) is blocked via existing
+    // is_streaming() checks in handle_key_action() at lines 432, 463, etc.
+    // This prevents accidental double-submission while AI is working.
+    //
+    // INTERRUPTION: Ctrl+C still works via KeyAction::Exit handler (line 331).
+    //
+    // RATIONALE: Ruthless simplicity - removed unnecessary blocking logic.
+    // The input guard module (input_guard.rs) is now deprecated.
+    //
+    // ═══════════════════════════════════════════════════════════════════════════
 
     // Special handling: backslash-escaped Enter inserts newline
     // Check if Enter key pressed WITHOUT Shift modifier AND input ends with backslash
