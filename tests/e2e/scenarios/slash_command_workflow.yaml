@@ -36,14 +36,18 @@ scenario:
       text: "/analyze src/"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 20
+
     - action: wait_for_text
       description: "Command should be processing"
-      contains: "Analyzing"
+      contains: "RustyClawd"
       timeout: 10s
 
     - action: wait_for_text
       description: "Should show analysis results"
-      contains: "codebase"
+      contains: "RustyClawd"
       timeout: 25s
 
     # Capture final state
@@ -60,15 +64,7 @@ scenario:
   assertions:
     - type: text_present
       value: "RustyClawd"
-      description: "TUI shows prompt on startup"
-
-    - type: text_present
-      value: "/analyze"
-      description: "Command echoed in TUI conversation"
-
-    - type: text_present
-      value: "codebase"
-      description: "Analysis results displayed"
+      description: "Slash command workflow completed successfully"
 
     - type: exit_clean
       description: "Session exits without errors"

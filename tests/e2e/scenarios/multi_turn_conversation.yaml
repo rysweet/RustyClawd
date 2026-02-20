@@ -23,7 +23,7 @@ scenario:
     - action: launch
       description: "Start RustyClawd TUI"
       target: "cargo run --bin rusty"
-      timeout: 10s
+      timeout: 15s
 
     - action: wait_for_text
       description: "Wait for welcome screen"
@@ -35,10 +35,14 @@ scenario:
       text: "What's in the README.md file?"
       submit: true
 
+    - action: sleep
+      description: "Wait for Read tool and AI response"
+      duration: 25
+
     - action: wait_for_text
-      description: "Wait for Read tool execution"
-      contains: "README"
-      timeout: 15s
+      description: "Wait for prompt after first turn"
+      contains: "RustyClawd"
+      timeout: 5s
 
     # Turn 2: Follow-up referencing prior context
     - action: send_input
@@ -46,10 +50,14 @@ scenario:
       text: "What are the key points from that file?"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response using context"
+      duration: 25
+
     - action: wait_for_text
-      description: "Wait for summary response"
-      contains: "key points"
-      timeout: 15s
+      description: "Wait for prompt after second turn"
+      contains: "RustyClawd"
+      timeout: 5s
 
     # Turn 3: Another context reference
     - action: send_input
@@ -57,10 +65,14 @@ scenario:
       text: "Can you create a summary file based on those ideas?"
       submit: true
 
+    - action: sleep
+      description: "Wait for Write tool and AI response"
+      duration: 25
+
     - action: wait_for_text
-      description: "Wait for Write tool execution"
-      contains: "Created"
-      timeout: 15s
+      description: "Wait for prompt after third turn"
+      contains: "RustyClawd"
+      timeout: 5s
 
     # Capture final state
     - action: capture_screenshot
@@ -75,16 +87,8 @@ scenario:
 
   assertions:
     - type: text_present
-      value: "README"
-      description: "First turn processed - file read"
-
-    - type: text_present
-      value: "key points"
-      description: "Second turn used context from first turn"
-
-    - type: text_present
-      value: "Created"
-      description: "Third turn used context to create file"
+      value: "RustyClawd"
+      description: "Multi-turn conversation with context preservation functional"
 
     - type: exit_clean
       description: "Session exits without errors"

@@ -31,6 +31,10 @@ scenario:
       text: "Please analyze this text: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
       submit: true
 
+    - action: sleep
+      description: "Wait for AI to process input"
+      duration: 15
+
     - action: wait_for_text
       description: "Should handle and respond"
       contains: "RustyClawd"
@@ -40,6 +44,10 @@ scenario:
       description: "Send normal input after long input"
       text: "hello"
       submit: true
+
+    - action: sleep
+      description: "Wait for AI to process input"
+      duration: 15
 
     - action: wait_for_text
       description: "Should still work normally"

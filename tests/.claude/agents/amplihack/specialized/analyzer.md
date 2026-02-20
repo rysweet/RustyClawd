@@ -1,0 +1,1 @@
+/home/azureuser/src/RustyClawd/.claude/agents/amplihack/specialized/analyzer.md

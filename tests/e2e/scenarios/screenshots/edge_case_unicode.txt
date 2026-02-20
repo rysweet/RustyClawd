@@ -1,0 +1,107 @@
+ ? Ask  🦀 RustyClawd                                                                                                                                      | Mouse:ON | Debug:OFF | F1:Menu
+┌💬 Messages───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│$ Translate: 你好世界 (Chinese for 'Hello World')                                                                                                                                         │
+│                                                                                                                                                                                          │
+│● The Chinese phrase "你好世界" (nǐ hǎo shì jiè) translates to **"Hello World"** in English.                                                                                              │
+│                                                                                                                                                                                          │
+│  Breaking it down:                                                                                                                                                                       │
+│  - 你好 (nǐ hǎo) = "Hello" (literally "you good")                                                                                                                                        │
+│  - 世界 (shì jiè) = "World"                                                                                                                                                              │
+│                                                                                                                                                                                          │
+│  This is the standard Chinese translation of the famous "Hello World" phrase commonly used in programming tutorials and examples.                                                        │
+│                                                                                                                                                                                          │
+│$ Process this: !@#$%^&*()_+-=[]{}|;':",./<>?                                                                                                                                             │
+│                                                                                                                                                                                          │
+│● The string you've provided: **!@#$%^&*()_+-=[]{}|;':",./<>?**                                                                                                                           │
+│                                                                                                                                                                                          │
+│  This is a collection of **special characters and symbols** commonly found on a standard keyboard. Here's a breakdown by category:                                                       │
+│                                                                                                                                                                                          │
+│  **Punctuation & Typography:**                                                                                                                                                           │
+│  - `!` - Exclamation mark                                                                                                                                                                │
+│  - `,` - Comma                                                                                                                                                                           │
+│  - `.` - Period/dot                                                                                                                                                                      │
+│  - `;` - Semicolon                                                                                                                                                                       │
+│  - `:` - Colon                                                                                                                                                                           │
+│  - `'` - Apostrophe/single quote                                                                                                                                                         │
+│  - `"` - Double quote                                                                                                                                                                    │
+│  - `?` - Question mark                                                                                                                                                                   │
+│                                                                                                                                                                                          │
+│  **Mathematical/Operators:**                                                                                                                                                             │
+│  - `+` - Plus                                                                                                                                                                            │
+│  - `-` - Minus/hyphen                                                                                                                                                                    │
+│  - `=` - Equals                                                                                                                                                                          │
+│  - `*` - Asterisk                                                                                                                                                                        │
+│  - `/` - Forward slash                                                                                                                                                                   │
+│  - `<` - Less than                                                                                                                                                                       │
+│  - `>` - Greater than                                                                                                                                                                    │
+│                                                                                                                                                                                          │
+│  **Symbols:**                                                                                                                                                                            │
+│  - `@` - At symbol                                                                                                                                                                       │
+│  - `#` - Hash/pound/number sign                                                                                                                                                          │
+│  - `$` - Dollar sign                                                                                                                                                                     │
+│  - `%` - Percent                                                                                                                                                                         │
+│  - `^` - Caret                                                                                                                                                                           │
+│  - `&` - Ampersand                                                                                                                                                                       │
+│  - `_` - Underscore                                                                                                                                                                      │
+│  - `|` - Pipe/vertical bar                                                                                                                                                               │
+│                                                                                                                                                                                          │
+│  **Brackets/Grouping:**                                                                                                                                                                  │
+│  - `()` - Parentheses                                                                                                                                                                    │
+│  - `[]` - Square brackets                                                                                                                                                                │
+│  - `{}` - Curly braces                                                                                                                                                                   │
+│                                                                                                                                                                                          │
+│  These characters are often used in programming, regular expressions, passwords, and for testing character encoding/handling in software systems.                                        │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌✏️   Input─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                                                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

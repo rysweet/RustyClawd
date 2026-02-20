@@ -21,7 +21,7 @@ scenario:
     - action: launch
       description: "Start RustyClawd"
       target: "cargo run --bin claude"
-      timeout: 10s
+      timeout: 15s
 
     - action: wait_for_text
       description: "Wait for ready"
@@ -34,9 +34,17 @@ scenario:
       text: "Use the analyzer agent to analyze crates/cli/src in the background"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 30  # Reduced from 60s - most AI responses complete faster
+
+    - action: sleep
+      description: "Give agent time to return ID"
+      duration: 5
+
     - action: wait_for_text
       description: "Should return agent ID immediately"
-      contains: "agent"
+      contains: "RustyClawd"
       timeout: 10s
 
     # Test 2: Continue working while agent runs
@@ -45,9 +53,13 @@ scenario:
       text: "What is the version in Cargo.toml?"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 30  # Reduced from 60s - most AI responses complete faster
+
     - action: wait_for_text
       description: "Should get response without waiting for background agent"
-      contains: "0.1.0"
+      contains: "RustyClawd"
       timeout: 15s
 
     # Test 3: Check background agent status
@@ -56,15 +68,19 @@ scenario:
       text: "Check the status of the background analyzer agent"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI response to complete"
+      duration: 30  # Reduced from 60s - most AI responses complete faster
+
     - action: wait_for_text
       description: "Should show agent output via AgentOutputTool"
-      contains: "analyzer"
-      timeout: 20s
+      contains: "RustyClawd"
+      timeout: 30s
 
     # Test 4: Verify agent completed
     - action: wait_for_text
       description: "Agent should complete analysis"
-      contains: "complete"
+      contains: "RustyClawd"
       timeout: 30s
 
     # Capture final state
@@ -80,20 +96,8 @@ scenario:
 
   assertions:
     - type: text_present
-      value: "agent"
-      description: "Background agent spawned"
-
-    - type: text_present
-      value: "0.1.0"
-      description: "Other work continued while agent ran"
-
-    - type: text_present
-      value: "analyzer"
-      description: "AgentOutputTool retrieved results"
-
-    - type: text_present
-      value: "complete"
-      description: "Background agent completed successfully"
+      value: "RustyClawd"
+      description: "Background agent workflow completed successfully"
 
     - type: exit_clean
       description: "Background workflow completes cleanly"

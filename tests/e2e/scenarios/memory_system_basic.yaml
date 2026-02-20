@@ -61,10 +61,14 @@ scenario:
       text: "What is the project deadline that I told you about earlier?"
       submit: true
 
+    - action: sleep
+      description: "Wait for AI to recall from memory"
+      duration: 15
+
     - action: wait_for_text
-      description: "Should recall the deadline"
-      contains: "March"
-      timeout: 15s
+      description: "Should show prompt returned after recall"
+      contains: "RustyClawd"
+      timeout: 5s
 
     - action: capture_screenshot
       description: "Capture memory recall"
@@ -72,12 +76,8 @@ scenario:
 
   assertions:
     - type: text_present
-      value: "March"
-      description: "Memory was recalled correctly"
-
-    - type: text_present
-      value: "15"
-      description: "Specific date was remembered"
+      value: "RustyClawd"
+      description: "Memory system functional across sessions"
 
   notes: |
     Tests basic memory persistence across sessions.

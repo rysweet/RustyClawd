@@ -62,3 +62,6 @@ Screenshots/*
 # Python cache
 __pycache__/
 *.pyc
+
+# Amplihack runtime directories (auto-generated)
+.claude/logs/

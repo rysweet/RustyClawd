@@ -1,0 +1,107 @@
+2026-02-15T06:57:47.352868Z  INFO Initializing RustyClawd CLI...
+2026-02-15T06:57:47.353006Z  INFO Settings loaded and validated
+2026-02-15T06:57:47.353036Z  INFO Discovered 0 plugins
+2026-02-15T06:57:47.353456Z  INFO Slash command system initialized
+2026-02-15T06:57:47.353491Z  INFO Starting new session: session-1771138667
+2026-02-15T06:57:47.353519Z  INFO Performing scheduled background update check
+S-Tab2026-02-15T06:57:47.382674Z  WARN Using legacy API key location ~/.claude-msec-k. Consider setting ANTHROPIC_API_KEY environment variable instead.
+
+Previous session found:
+  Messages: 4
+  Last saved: 0 minutes ago
+
+Resume session? [Y/n]: S-TabS-Tab
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

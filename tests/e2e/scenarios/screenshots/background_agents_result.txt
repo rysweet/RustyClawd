@@ -1,0 +1,107 @@
+ ? Ask  🦀 RustyClawd                                                                                                                                      | Mouse:ON | Debug:OFF | F1:Menu
+┌💬 Messages───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│$ What is the version in Cargo.toml?                                                                                                                                                      │
+│                                                                                                                                                                                          │
+│● I'll check the version in the Cargo.toml file for you.                                                                                                                                  │
+│                                                                                                                                                                                          │
+│▶ ● Read(file_path: "Cargo.toml") (0s)                                                                                                                                                    │
+│                                                                                                                                                                                          │
+│● Let me search for the Cargo.toml file first:                                                                                                                                            │
+│                                                                                                                                                                                          │
+│▶ ● Glob(pattern: "**/Cargo.toml") (0s)                                                                                                                                                   │
+│                                                                                                                                                                                          │
+│● It appears there is no Cargo.toml file in this directory or its subdirectories. This might not be a Rust project. Would you like me to:                                                 │
+│  1. Check what type of project this is?                                                                                                                                                  │
+│  2. Look for other configuration files (like package.json, pyproject.toml, etc.)?                                                                                                        │
+│                                                                                                                                                                                          │
+│$ Check the status of the background analyzer agent                                                                                                                                       │
+│                                                                                                                                                                                          │
+│● I don't have any information about a background analyzer agent currently running. To check on a background agent, I would need its agent ID.                                            │
+│                                                                                                                                                                                          │
+│  Could you provide:                                                                                                                                                                      │
+│  1. The agent ID of the background analyzer you want to check on?                                                                                                                        │
+│                                                                                                                                                                                          │
+│  Or would you like me to help you:                                                                                                                                                       │
+│  - Start a new background analyzer agent?                                                                                                                                                │
+│  - List any background processes that might be running?                                                                                                                                  │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+│                                                                                                                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌✏️   Input─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                                                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
