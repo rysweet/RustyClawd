@@ -22,6 +22,8 @@ pub fn get_all_tool_definitions() -> Vec<ToolDefinition> {
         task_tool_definition(),
         agent_output_tool_definition(),
         todowrite_tool_definition(),
+        web_fetch_tool_definition(),
+        web_search_tool_definition(),
         mcp_search_tool_definition(),
     ]
 }
@@ -455,6 +457,63 @@ fn todowrite_tool_definition() -> ToolDefinition {
                 }
             },
             "required": ["todos"]
+        }),
+        strict: None,
+    }
+}
+
+/// WebFetch tool definition
+fn web_fetch_tool_definition() -> ToolDefinition {
+    ToolDefinition {
+        name: "WebFetch".to_string(),
+        description:
+            "Fetches content from a URL, converts HTML to markdown, and processes with AI"
+                .to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "The URL to fetch content from",
+                    "format": "uri"
+                },
+                "prompt": {
+                    "type": "string",
+                    "description": "The prompt to run on the fetched content"
+                }
+            },
+            "required": ["url", "prompt"]
+        }),
+        strict: None,
+    }
+}
+
+/// WebSearch tool definition
+fn web_search_tool_definition() -> ToolDefinition {
+    ToolDefinition {
+        name: "WebSearch".to_string(),
+        description: "Searches the web using Claude's server-side tool and returns ranked results"
+            .to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The search query to use (minimum 2 characters)",
+                    "minLength": 2
+                },
+                "allowed_domains": {
+                    "type": "array",
+                    "description": "Only include search results from these domains",
+                    "items": { "type": "string" }
+                },
+                "blocked_domains": {
+                    "type": "array",
+                    "description": "Never include search results from these domains",
+                    "items": { "type": "string" }
+                }
+            },
+            "required": ["query"]
         }),
         strict: None,
     }
