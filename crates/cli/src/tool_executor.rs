@@ -433,261 +433,103 @@ pub async fn execute_tool_with_hooks(
     result
 }
 
+/// Collect the result from a tool's event stream.
+///
+/// This is the shared helper that eliminates boilerplate across all tool executors.
+/// It iterates the stream, returning the first Result event as a serialized JSON value,
+/// or an error if the stream yields an Error event or completes without a result.
+async fn collect_tool_stream<T: serde::Serialize>(
+    tool_name: &str,
+    mut stream: rustyclawd_tools::ToolStream<T>,
+) -> Result<Value, ClientError> {
+    while let Some(event) = stream.next().await {
+        match event {
+            ToolEvent::Result(output) => {
+                return serde_json::to_value(&output).map_err(|e| {
+                    ClientError::Api(format!("Failed to serialize {} output: {}", tool_name, e))
+                });
+            }
+            ToolEvent::Error { message } => {
+                return Err(ClientError::Api(format!(
+                    "{} tool error: {}",
+                    tool_name, message
+                )));
+            }
+            ToolEvent::Progress { .. } => {}
+        }
+    }
+    Err(ClientError::Api(format!(
+        "{} tool completed without result",
+        tool_name
+    )))
+}
+
+/// Generic tool execution: deserialize params, run tool, collect stream.
+///
+/// Handles the full lifecycle for any tool that implements the Tool trait.
+/// The `tool` parameter is the constructed tool instance (unit struct or ::new()).
+async fn execute_tool_generic<T: Tool>(
+    tool_name: &str,
+    input: Value,
+    ctx: &ToolContext,
+    tool: T,
+) -> Result<Value, ClientError> {
+    let params: T::Params = serde_json::from_value(input)
+        .map_err(|e| create_schema_error(tool_name, &e.to_string()))?;
+    let stream = tool
+        .execute(params, ctx)
+        .await
+        .map_err(|e| ClientError::Api(format!("{} tool execution failed: {}", tool_name, e)))?;
+    collect_tool_stream(tool_name, stream).await
+}
+
 /// Execute Bash tool
 async fn execute_bash_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
     // NOTE: TerminalGuard is NOT used here because bash tools now execute in background tasks
     // during TUI mode. Suspending terminal state would black out the TUI and break interactivity.
     // Instead, bash subprocesses are isolated from terminal via proper stdio redirection
     // (stdin redirected to /dev/null, stdout/stderr captured).
-
-    let params: rustyclawd_tools::bash::BashParams =
-        serde_json::from_value(input).map_err(|e| create_schema_error("Bash", &e.to_string()))?;
-
-    let tool = BashTool;
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("Bash tool execution failed: {}", e)))?;
-
-    // Collect the result from the stream
-    while let Some(event) = stream.next().await {
-        match event {
-            ToolEvent::Result(output) => {
-                return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize Bash output: {}", e))
-                });
-            }
-            ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!("Bash tool error: {}", message)));
-            }
-            ToolEvent::Progress { .. } => {
-                // Log progress but continue
-            }
-        }
-    }
-
-    Err(ClientError::Api(
-        "Bash tool completed without result".to_string(),
-    ))
+    execute_tool_generic("Bash", input, ctx, BashTool).await
 }
 
 /// Execute Read tool
 async fn execute_read_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::read::ReadParams =
-        serde_json::from_value(input).map_err(|e| create_schema_error("Read", &e.to_string()))?;
-
-    let tool = ReadTool;
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("Read tool execution failed: {}", e)))?;
-
-    while let Some(event) = stream.next().await {
-        match event {
-            ToolEvent::Result(output) => {
-                return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize Read output: {}", e))
-                });
-            }
-            ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!("Read tool error: {}", message)));
-            }
-            ToolEvent::Progress { .. } => {}
-        }
-    }
-
-    Err(ClientError::Api(
-        "Read tool completed without result".to_string(),
-    ))
+    execute_tool_generic("Read", input, ctx, ReadTool).await
 }
 
 /// Execute Write tool
 async fn execute_write_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::write::WriteParams =
-        serde_json::from_value(input).map_err(|e| create_schema_error("Write", &e.to_string()))?;
-
-    let tool = WriteTool;
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("Write tool execution failed: {}", e)))?;
-
-    while let Some(event) = stream.next().await {
-        match event {
-            ToolEvent::Result(output) => {
-                return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize Write output: {}", e))
-                });
-            }
-            ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!("Write tool error: {}", message)));
-            }
-            ToolEvent::Progress { .. } => {}
-        }
-    }
-
-    Err(ClientError::Api(
-        "Write tool completed without result".to_string(),
-    ))
+    execute_tool_generic("Write", input, ctx, WriteTool).await
 }
 
 /// Execute Edit tool
 async fn execute_edit_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::edit::EditParams =
-        serde_json::from_value(input).map_err(|e| create_schema_error("Edit", &e.to_string()))?;
-
-    let tool = EditTool;
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("Edit tool execution failed: {}", e)))?;
-
-    while let Some(event) = stream.next().await {
-        match event {
-            ToolEvent::Result(output) => {
-                return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize Edit output: {}", e))
-                });
-            }
-            ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!("Edit tool error: {}", message)));
-            }
-            ToolEvent::Progress { .. } => {}
-        }
-    }
-
-    Err(ClientError::Api(
-        "Edit tool completed without result".to_string(),
-    ))
+    execute_tool_generic("Edit", input, ctx, EditTool).await
 }
 
 /// Execute Glob tool
 async fn execute_glob_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::glob_tool::GlobParams =
-        serde_json::from_value(input).map_err(|e| create_schema_error("Glob", &e.to_string()))?;
-
-    let tool = GlobTool;
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("Glob tool execution failed: {}", e)))?;
-
-    while let Some(event) = stream.next().await {
-        match event {
-            ToolEvent::Result(output) => {
-                return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize Glob output: {}", e))
-                });
-            }
-            ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!("Glob tool error: {}", message)));
-            }
-            ToolEvent::Progress { .. } => {}
-        }
-    }
-
-    Err(ClientError::Api(
-        "Glob tool completed without result".to_string(),
-    ))
+    execute_tool_generic("Glob", input, ctx, GlobTool).await
 }
 
 /// Execute Grep tool
 async fn execute_grep_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::grep::GrepParams =
-        serde_json::from_value(input).map_err(|e| create_schema_error("Grep", &e.to_string()))?;
-
-    let tool = GrepTool;
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("Grep tool execution failed: {}", e)))?;
-
-    while let Some(event) = stream.next().await {
-        match event {
-            ToolEvent::Result(output) => {
-                return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize Grep output: {}", e))
-                });
-            }
-            ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!("Grep tool error: {}", message)));
-            }
-            ToolEvent::Progress { .. } => {}
-        }
-    }
-
-    Err(ClientError::Api(
-        "Grep tool completed without result".to_string(),
-    ))
+    execute_tool_generic("Grep", input, ctx, GrepTool).await
 }
 
 /// Execute BashOutput tool
 async fn execute_bash_output_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::bash_output::BashOutputParams = serde_json::from_value(input)
-        .map_err(|e| create_schema_error("BashOutput", &e.to_string()))?;
-
-    let tool = BashOutputTool;
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("BashOutput tool execution failed: {}", e)))?;
-
-    while let Some(event) = stream.next().await {
-        match event {
-            ToolEvent::Result(output) => {
-                return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize BashOutput output: {}", e))
-                });
-            }
-            ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!(
-                    "BashOutput tool error: {}",
-                    message
-                )));
-            }
-            ToolEvent::Progress { .. } => {}
-        }
-    }
-
-    Err(ClientError::Api(
-        "BashOutput tool completed without result".to_string(),
-    ))
+    execute_tool_generic("BashOutput", input, ctx, BashOutputTool).await
 }
 
 /// Execute KillShell tool
 async fn execute_kill_shell_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::kill_shell::KillShellParams = serde_json::from_value(input)
-        .map_err(|e| create_schema_error("KillShell", &e.to_string()))?;
-
-    let tool = KillShellTool;
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("KillShell tool execution failed: {}", e)))?;
-
-    while let Some(event) = stream.next().await {
-        match event {
-            ToolEvent::Result(output) => {
-                return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize KillShell output: {}", e))
-                });
-            }
-            ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!(
-                    "KillShell tool error: {}",
-                    message
-                )));
-            }
-            ToolEvent::Progress { .. } => {}
-        }
-    }
-
-    Err(ClientError::Api(
-        "KillShell tool completed without result".to_string(),
-    ))
+    execute_tool_generic("KillShell", input, ctx, KillShellTool).await
 }
 
 /// Execute AskUserQuestion tool
+///
+/// Special case: uses TerminalGuard and prints progress to stderr.
 async fn execute_ask_user_question_tool(
     input: Value,
     ctx: &ToolContext,
@@ -738,228 +580,37 @@ async fn execute_ask_user_question_tool(
 
 /// Execute Skill tool
 async fn execute_skill_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::skill::SkillParams =
-        serde_json::from_value(input).map_err(|e| create_schema_error("Skill", &e.to_string()))?;
-
-    let tool = SkillTool;
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("Skill tool execution failed: {}", e)))?;
-
-    while let Some(event) = stream.next().await {
-        match event {
-            ToolEvent::Result(output) => {
-                return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize Skill output: {}", e))
-                });
-            }
-            ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!("Skill tool error: {}", message)));
-            }
-            ToolEvent::Progress { .. } => {}
-        }
-    }
-
-    Err(ClientError::Api(
-        "Skill tool completed without result".to_string(),
-    ))
+    execute_tool_generic("Skill", input, ctx, SkillTool).await
 }
 
 /// Execute SlashCommand tool
 async fn execute_slash_command_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::slash_command::SlashCommandParams = serde_json::from_value(input)
-        .map_err(|e| create_schema_error("SlashCommand", &e.to_string()))?;
-
-    let tool = SlashCommandTool;
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("SlashCommand tool execution failed: {}", e)))?;
-
-    while let Some(event) = stream.next().await {
-        match event {
-            ToolEvent::Result(output) => {
-                return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize SlashCommand output: {}", e))
-                });
-            }
-            ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!(
-                    "SlashCommand tool error: {}",
-                    message
-                )));
-            }
-            ToolEvent::Progress { .. } => {}
-        }
-    }
-
-    Err(ClientError::Api(
-        "SlashCommand tool completed without result".to_string(),
-    ))
+    execute_tool_generic("SlashCommand", input, ctx, SlashCommandTool).await
 }
 
 /// Execute TodoWrite tool
 async fn execute_todowrite_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::todo_write::TodoWriteParams = serde_json::from_value(input)
-        .map_err(|e| create_schema_error("TodoWrite", &e.to_string()))?;
-
-    let tool = TodoWriteTool;
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("TodoWrite tool execution failed: {}", e)))?;
-
-    while let Some(event) = stream.next().await {
-        match event {
-            ToolEvent::Result(output) => {
-                return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize TodoWrite output: {}", e))
-                });
-            }
-            ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!(
-                    "TodoWrite tool error: {}",
-                    message
-                )));
-            }
-            ToolEvent::Progress { .. } => {}
-        }
-    }
-
-    Err(ClientError::Api(
-        "TodoWrite tool completed without result".to_string(),
-    ))
+    execute_tool_generic("TodoWrite", input, ctx, TodoWriteTool).await
 }
 
 /// Execute Agent/Task tool
 async fn execute_agent_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::agent::AgentParams =
-        serde_json::from_value(input).map_err(|e| create_schema_error("Task", &e.to_string()))?;
-
-    let tool = AgentTool;
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("Task tool execution failed: {}", e)))?;
-
-    while let Some(event) = stream.next().await {
-        match event {
-            ToolEvent::Result(output) => {
-                return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize Task output: {}", e))
-                });
-            }
-            ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!("Task tool error: {}", message)));
-            }
-            ToolEvent::Progress { .. } => {}
-        }
-    }
-
-    Err(ClientError::Api(
-        "Task tool completed without result".to_string(),
-    ))
+    execute_tool_generic("Task", input, ctx, AgentTool).await
 }
 
 /// Execute AgentOutput tool
 async fn execute_agent_output_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::agent_output::AgentOutputParams =
-        serde_json::from_value(input)
-            .map_err(|e| create_schema_error("AgentOutput", &e.to_string()))?;
-
-    let tool = AgentOutputTool;
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("AgentOutput tool execution failed: {}", e)))?;
-
-    while let Some(event) = stream.next().await {
-        match event {
-            ToolEvent::Result(output) => {
-                return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize AgentOutput output: {}", e))
-                });
-            }
-            ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!(
-                    "AgentOutput tool error: {}",
-                    message
-                )));
-            }
-            ToolEvent::Progress { .. } => {}
-        }
-    }
-
-    Err(ClientError::Api(
-        "AgentOutput tool completed without result".to_string(),
-    ))
+    execute_tool_generic("AgentOutput", input, ctx, AgentOutputTool).await
 }
 
 /// Execute WebFetch tool
 async fn execute_web_fetch_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::web_fetch::WebFetchParams = serde_json::from_value(input)
-        .map_err(|e| create_schema_error("WebFetch", &e.to_string()))?;
-
-    let tool = WebFetchTool::new();
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("WebFetch tool execution failed: {}", e)))?;
-
-    while let Some(event) = stream.next().await {
-        match event {
-            ToolEvent::Result(output) => {
-                return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize WebFetch output: {}", e))
-                });
-            }
-            ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!(
-                    "WebFetch tool error: {}",
-                    message
-                )));
-            }
-            ToolEvent::Progress { .. } => {}
-        }
-    }
-
-    Err(ClientError::Api(
-        "WebFetch tool completed without result".to_string(),
-    ))
+    execute_tool_generic("WebFetch", input, ctx, WebFetchTool::new()).await
 }
 
 /// Execute WebSearch tool
 async fn execute_web_search_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
-    let params: rustyclawd_tools::web_search::WebSearchParams = serde_json::from_value(input)
-        .map_err(|e| create_schema_error("WebSearch", &e.to_string()))?;
-
-    let tool = WebSearchTool::new();
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("WebSearch tool execution failed: {}", e)))?;
-
-    while let Some(event) = stream.next().await {
-        match event {
-            ToolEvent::Result(output) => {
-                return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize WebSearch output: {}", e))
-                });
-            }
-            ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!(
-                    "WebSearch tool error: {}",
-                    message
-                )));
-            }
-            ToolEvent::Progress { .. } => {}
-        }
-    }
-
-    Err(ClientError::Api(
-        "WebSearch tool completed without result".to_string(),
-    ))
+    execute_tool_generic("WebSearch", input, ctx, WebSearchTool::new()).await
 }
 
 #[cfg(test)]
