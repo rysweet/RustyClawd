@@ -14,7 +14,7 @@ fn create_test_client(api_url: &str, retry_config: RetryConfig) -> Client {
     let config = Config::new(api_key)
         .with_api_url(api_url.to_string())
         .with_timeout_secs(10); // Short timeout for tests
-    Client::with_retry_config(config, retry_config)
+    Client::with_retry_config(config, retry_config).expect("Failed to build HTTP client")
 }
 
 /// Helper to create a test request

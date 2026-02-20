@@ -62,14 +62,18 @@ impl PluginHooksIntegrator {
             HookType::Prompt
         };
 
-        // Create command to execute the handler
+        // Create command to execute the handler.
+        // Use shell-escaped quoting to prevent command injection via crafted paths.
         let command = match hook_type {
             HookType::Command => {
-                // For JS files, use node; for sh files, use bash
+                // For JS files, use node; for sh files, use bash.
+                // The path is quoted to prevent shell injection from paths containing
+                // special characters like spaces, semicolons, backticks, etc.
+                let escaped_path = shell_escape_path(&handler_path);
                 if handler_path.extension().and_then(|s| s.to_str()) == Some("js") {
-                    format!("node {}", handler_path.display())
+                    format!("node {}", escaped_path)
                 } else {
-                    format!("bash {}", handler_path.display())
+                    format!("bash {}", escaped_path)
                 }
             }
             HookType::Prompt => {
@@ -129,6 +133,18 @@ impl PluginHooksIntegrator {
             _ => Err(format!("Unknown hook event: {}", event_str)),
         }
     }
+}
+
+/// Shell-escape a file path for safe inclusion in shell command strings.
+/// Wraps the path in single quotes and escapes any embedded single quotes
+/// using the standard shell idiom: ' → '\''
+/// This prevents command injection via crafted file paths containing
+/// spaces, semicolons, backticks, $(), or other shell metacharacters.
+fn shell_escape_path(path: &std::path::Path) -> String {
+    let path_str = path.display().to_string();
+    // Replace any single quotes with the shell escape sequence: end quote, escaped quote, start quote
+    let escaped = path_str.replace('\'', "'\\''");
+    format!("'{}'", escaped)
 }
 
 /// Register all hooks from multiple plugins
@@ -425,5 +441,73 @@ mod tests {
             hooks_bash.is_empty(),
             "Hook should NOT match 'Bash' (not in regex)"
         );
+    }
+
+    #[test]
+    fn test_shell_escape_path_simple() {
+        let path = PathBuf::from("/usr/local/bin/handler.js");
+        let escaped = super::shell_escape_path(&path);
+        assert_eq!(escaped, "'/usr/local/bin/handler.js'");
+    }
+
+    #[test]
+    fn test_shell_escape_path_with_spaces() {
+        let path = PathBuf::from("/path/with spaces/handler.js");
+        let escaped = super::shell_escape_path(&path);
+        assert_eq!(escaped, "'/path/with spaces/handler.js'");
+    }
+
+    #[test]
+    fn test_shell_escape_path_with_special_chars() {
+        let path = PathBuf::from("/path/with;injection/handler.js");
+        let escaped = super::shell_escape_path(&path);
+        // Should be safely quoted
+        assert_eq!(escaped, "'/path/with;injection/handler.js'");
+    }
+
+    #[test]
+    fn test_shell_escape_path_with_single_quotes() {
+        let path = PathBuf::from("/path/with'quote/handler.js");
+        let escaped = super::shell_escape_path(&path);
+        // Single quotes in path should be properly escaped
+        assert_eq!(escaped, "'/path/with'\\''quote/handler.js'");
+    }
+
+    #[test]
+    fn test_shell_escape_path_with_backticks() {
+        let path = PathBuf::from("/path/`whoami`/handler.js");
+        let escaped = super::shell_escape_path(&path);
+        // Backticks inside single quotes are literal, not executed
+        assert_eq!(escaped, "'/path/`whoami`/handler.js'");
+    }
+
+    #[test]
+    fn test_shell_escape_path_with_dollar_sign() {
+        let path = PathBuf::from("/path/$(rm -rf /)/handler.js");
+        let escaped = super::shell_escape_path(&path);
+        // $() inside single quotes is literal, not executed
+        assert_eq!(escaped, "'/path/$(rm -rf /)/handler.js'");
+    }
+
+    #[test]
+    fn test_register_js_hook_uses_escaped_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let plugin_path = temp_dir.path().to_path_buf();
+
+        // Create a handler file with a space in the directory name
+        let handler_content = "console.log('Hook executed');";
+        fs::write(plugin_path.join("handler.js"), handler_content).unwrap();
+
+        let integrator = PluginHooksIntegrator::new("test".to_string(), plugin_path);
+
+        let hook_def = HookDefinition {
+            event: "PreToolUse".to_string(),
+            handler: "handler.js".to_string(),
+            matcher: None,
+        };
+
+        let mut registry = HookRegistry::new();
+        let result = integrator.register_hook(&hook_def, &mut registry);
+        assert!(result.is_ok());
     }
 }

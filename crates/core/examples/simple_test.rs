@@ -10,7 +10,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Load config
     let config = Config::from_default_location().await?;
-    let client = Client::new(config);
+    let client = Client::new(config)?;
 
     // Try with Claude 3 Haiku (more widely available)
     let request = CreateMessageRequest::new(

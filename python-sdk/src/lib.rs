@@ -55,7 +55,10 @@ fn query(
                 ))?;
 
             // Create client
-            let client = rustyclawd_core::client::Client::new(config);
+            let client = rustyclawd_core::client::Client::new(config)
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                    format!("Failed to build HTTP client: {}", e)
+                ))?;
 
             // Build request
             let model = options.as_ref()

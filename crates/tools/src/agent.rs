@@ -240,7 +240,13 @@ impl crate::Tool for AgentTool {
                         }
                     };
 
-                    let client = rustyclawd_core::client::Client::new(config);
+                    let client = match rustyclawd_core::client::Client::new(config) {
+                        Ok(c) => c,
+                        Err(err) => {
+                            registry.mark_failed(&bg_agent_id, format!("Failed to build HTTP client: {}", err)).await.ok();
+                            return;
+                        }
+                    };
 
                     // Build the request
                     let messages = vec![
@@ -356,7 +362,15 @@ impl crate::Tool for AgentTool {
                 }
             };
 
-            let client = rustyclawd_core::client::Client::new(config);
+            let client = match rustyclawd_core::client::Client::new(config) {
+                Ok(c) => c,
+                Err(err) => {
+                    yield ToolEvent::Error {
+                        message: format!("Failed to build HTTP client: {}", err),
+                    };
+                    return;
+                }
+            };
 
             // Build the request
             let messages = vec![
