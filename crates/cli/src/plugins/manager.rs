@@ -164,7 +164,9 @@ impl PluginManager {
         command_name: &str,
         args: serde_json::Value,
     ) -> Result<crate::plugins::executor::PluginExecutionResult, String> {
-        self.executor.execute_command(plugin_id, command_name, args)
+        self.executor
+            .execute_command(plugin_id, command_name, args)
+            .await
     }
 
     /// Execute a plugin skill

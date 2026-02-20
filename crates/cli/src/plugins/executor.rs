@@ -46,7 +46,7 @@ impl PluginExecutor {
     /// * `plugin_id` - The plugin identifier
     /// * `command_name` - The command name to execute
     /// * `args` - JSON arguments for the command
-    pub fn execute_command(
+    pub async fn execute_command(
         &self,
         plugin_id: &str,
         command_name: &str,

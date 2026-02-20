@@ -164,8 +164,8 @@ mod tests {
         assert!(loader.is_loaded("com.test.e2e"));
     }
 
-    #[test]
-    fn test_command_execution() {
+    #[tokio::test]
+    async fn test_command_execution() {
         // Create a temp directory with a real cmd.js script so the executor
         // can detect its interpreter and run it via subprocess.
         let test_dir = create_test_plugin_dir("command_execution");
@@ -208,7 +208,9 @@ mod tests {
         let mut executor = PluginExecutor::new();
         executor.register(metadata);
 
-        let result = executor.execute_command("com.test.cmd", "test-cmd", serde_json::json!({}));
+        let result = executor
+            .execute_command("com.test.cmd", "test-cmd", serde_json::json!({}))
+            .await;
 
         // The command should either succeed (if node is available) or return
         // a meaningful error. It must not panic.
