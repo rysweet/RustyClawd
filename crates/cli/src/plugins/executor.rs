@@ -261,10 +261,12 @@ impl PluginValidator {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_execute_command_plugin_not_found() {
+    #[tokio::test]
+    async fn test_execute_command_plugin_not_found() {
         let executor = PluginExecutor::new();
-        let result = executor.execute_command("com.nonexistent", "test", serde_json::json!({}));
+        let result = executor
+            .execute_command("com.nonexistent", "test", serde_json::json!({}))
+            .await;
         assert!(result.is_err());
     }
 
