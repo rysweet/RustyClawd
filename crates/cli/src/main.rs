@@ -3,31 +3,45 @@
 //! This is a Rust implementation that matches Claude Code's exact CLI interface
 //! as documented at https://code.claude.com/docs/en/cli-reference
 
-// These modules mirror lib.rs's public API. Items not used directly by main.rs
-// are still part of the library's public interface and used at runtime via
-// module-internal wiring (hooks, plugins, TUI, etc.).
-#![allow(dead_code)]
-
+// Each module below forms part of the CLI's internal library. Items within are
+// public APIs consumed by sibling modules, not directly by main(). Targeted
+// allow(dead_code) suppresses false positives from the binary-crate lint scope.
+#[allow(dead_code)]
 mod checkpoint;
+#[allow(dead_code)]
 mod commands;
+#[allow(dead_code)]
 mod hooks;
+#[allow(dead_code)]
 mod interactive;
 mod mcp_commands;
 mod notification;
+#[allow(dead_code)]
 mod permission_mode;
+#[allow(dead_code)]
 mod plugins;
+#[allow(dead_code)]
 mod schema_validator;
+#[allow(dead_code)]
 mod session;
+#[allow(dead_code)]
 mod session_graph;
+#[allow(dead_code)]
 mod session_index;
+#[allow(dead_code)]
 mod session_persistence;
+#[allow(dead_code)]
 mod settings;
+#[allow(dead_code)]
 mod terminal_guard;
 mod tool_definitions;
 // TODO: Migrate from ClientError::Api to specific error types (BadRequest, Unknown, etc.)
 #[allow(deprecated)]
+#[allow(dead_code)]
 mod tool_executor;
+#[allow(dead_code)]
 mod tool_formatter;
+#[allow(dead_code)]
 mod tui;
 
 use anyhow::{Context as AnyhowContext, Result};
@@ -205,15 +219,19 @@ enum Commands {
 struct App {
     /// CLI arguments
     cli: Cli,
-    /// Settings hierarchy
+    /// Settings hierarchy (retained for runtime access by subcommands and plugins)
+    #[allow(dead_code)]
     settings: settings::Settings,
     /// Hooks system
     hooks: hooks::HooksSystem,
-    /// Plugin system loader
+    /// Plugin system loader (retained for runtime plugin management)
+    #[allow(dead_code)]
     plugin_loader: plugins::PluginLoader,
-    /// Plugin executor
+    /// Plugin executor (retained for runtime plugin execution)
+    #[allow(dead_code)]
     plugin_executor: plugins::PluginExecutor,
-    /// Slash command system
+    /// Slash command system (retained for interactive slash command dispatch)
+    #[allow(dead_code)]
     slash_commands: Option<commands::SlashCommands>,
     /// Session for checkpointing
     session: checkpoint::Session,
@@ -221,14 +239,61 @@ struct App {
     session_saver: checkpoint::SessionSaver,
     /// MCP proxy for managing MCP servers
     mcp_proxy: std::sync::Arc<tokio::sync::Mutex<plugins::mcp_proxy::McpProxy>>,
-    /// Runtime agents defined via --agents flag
+    /// Runtime agents defined via --agents flag (retained for agent dispatch)
+    #[allow(dead_code)]
+    runtime_agents: std::collections::HashMap<String, plugins::RuntimeAgentDefinition>,
+}
+
+/// Result of plugin discovery and loading
+struct PluginState {
+    loader: plugins::PluginLoader,
+    executor: plugins::PluginExecutor,
+    mcp_proxy: std::sync::Arc<tokio::sync::Mutex<plugins::mcp_proxy::McpProxy>>,
     runtime_agents: std::collections::HashMap<String, plugins::RuntimeAgentDefinition>,
 }
 
 impl App {
-    /// Initialize the application with all systems
+    /// Initialize the application with all systems.
+    ///
+    /// Delegates to focused helpers: init_logging, load_settings, init_hooks,
+    /// load_plugins, and resolve_session.
     async fn new(cli: Cli) -> Result<Self> {
-        // 1. Initialize logging
+        Self::init_logging(&cli);
+        let settings = Self::load_settings(&cli)?;
+        let hooks = Self::init_hooks(&cli).await?;
+        let plugin_state = Self::load_plugins(&cli)?;
+
+        // Initialize slash command system
+        tracing::debug!("Initializing slash command system...");
+        let slash_commands = match commands::SlashCommands::new().await {
+            Ok(cmds) => {
+                tracing::info!("Slash command system initialized");
+                Some(cmds)
+            }
+            Err(e) => {
+                tracing::warn!("Failed to initialize slash commands: {}", e);
+                None
+            }
+        };
+
+        let (session, session_saver) = Self::resolve_session(&cli)?;
+
+        Ok(Self {
+            cli,
+            settings,
+            hooks,
+            plugin_loader: plugin_state.loader,
+            plugin_executor: plugin_state.executor,
+            slash_commands,
+            session,
+            session_saver,
+            mcp_proxy: plugin_state.mcp_proxy,
+            runtime_agents: plugin_state.runtime_agents,
+        })
+    }
+
+    /// Configure the tracing subscriber based on CLI verbosity.
+    fn init_logging(cli: &Cli) {
         let log_level = if cli.verbose { "debug" } else { "info" };
         tracing_subscriber::fmt()
             .with_env_filter(log_level)
@@ -238,11 +303,12 @@ impl App {
             .init();
 
         tracing::info!("Initializing RustyClawd CLI...");
+    }
 
-        // 2. Load settings (5-tier hierarchy)
+    /// Load and validate the 5-tier settings hierarchy, applying CLI overrides.
+    fn load_settings(cli: &Cli) -> Result<settings::Settings> {
         tracing::debug!("Loading settings hierarchy...");
         let settings_loader = if let Some(ref settings_path) = cli.settings {
-            // Override settings file location if --settings flag is provided
             tracing::info!("Using custom settings file: {}", settings_path);
             settings::SettingsLoader::with_custom_path(settings_path)?
         } else {
@@ -253,22 +319,22 @@ impl App {
             .map_err(|e| anyhow::anyhow!("Failed to load settings hierarchy: {}", e))?
             .merge();
 
-        // Validate settings
         settings
             .validate()
             .map_err(|e| anyhow::anyhow!("Settings validation failed: {:?}", e))?;
 
         tracing::info!("Settings loaded and validated");
+        Ok(settings)
+    }
 
-        // 3. Initialize hooks system
+    /// Initialize the hooks system, loading configuration unless dangerous mode is active.
+    async fn init_hooks(cli: &Cli) -> Result<hooks::HooksSystem> {
         tracing::debug!("Initializing hooks system...");
         let mut hooks = hooks::HooksSystem::new();
 
-        // Skip hooks if --dangerous-mode is enabled
         if cli.dangerous_mode {
             tracing::warn!("DANGEROUS MODE: Skipping hooks initialization");
         } else {
-            // Try to load hooks configuration
             let hooks_config_path = ".claude/hooks.json";
             if std::path::Path::new(hooks_config_path).exists() {
                 match hooks.load_from_file(hooks_config_path).await {
@@ -280,17 +346,18 @@ impl App {
             }
         }
 
-        // 4. Load plugins and initialize MCP proxy
+        Ok(hooks)
+    }
+
+    /// Discover plugins, initialize MCP proxy, and parse runtime agents from CLI.
+    fn load_plugins(cli: &Cli) -> Result<PluginState> {
         tracing::debug!("Discovering and loading plugins...");
         let mut plugin_loader = plugins::PluginLoader::new();
         let mut plugin_executor = plugins::PluginExecutor::new();
         let mut mcp_proxy = plugins::mcp_proxy::McpProxy::new();
 
-        // Handle custom MCP config if specified
         if let Some(ref mcp_config_path) = cli.mcp_config {
             tracing::info!("Using custom MCP config: {}", mcp_config_path);
-            // Note: Full MCP implementation would load this config
-            // Current placeholder just logs the custom path
         }
 
         let plugin_discovery = plugins::PluginDiscovery::new(".claude/plugins");
@@ -302,7 +369,6 @@ impl App {
                     plugin_executor.register(plugin.clone());
                     plugin_loader.register(plugin.clone());
 
-                    // Register MCP servers from plugin manifest
                     for mcp_server in &plugin.manifest.mcp_servers {
                         tracing::info!("Registering MCP server: {}", mcp_server.id);
                         mcp_proxy.register_server(mcp_server.clone());
@@ -316,12 +382,11 @@ impl App {
 
         let mcp_proxy = std::sync::Arc::new(tokio::sync::Mutex::new(mcp_proxy));
 
-        // 4.5 Parse and validate runtime agents from --agents flag
+        // Parse and validate runtime agents from --agents flag
         let runtime_agents = if let Some(ref agents_json) = cli.agents {
             tracing::info!("Parsing runtime agents from --agents flag");
             match plugins::parse_runtime_agents(agents_json) {
                 Ok(parsed_agents) => {
-                    // Validate the agents
                     if let Err(errors) = plugins::validate_runtime_agents(&parsed_agents) {
                         return Err(anyhow::anyhow!(
                             "Invalid runtime agents: {}",
@@ -350,33 +415,27 @@ impl App {
             std::collections::HashMap::new()
         };
 
-        // 5. Initialize slash command system
-        tracing::debug!("Initializing slash command system...");
-        let slash_commands = match commands::SlashCommands::new().await {
-            Ok(cmds) => {
-                tracing::info!("Slash command system initialized");
-                Some(cmds)
-            }
-            Err(e) => {
-                tracing::warn!("Failed to initialize slash commands: {}", e);
-                None
-            }
-        };
+        Ok(PluginState {
+            loader: plugin_loader,
+            executor: plugin_executor,
+            mcp_proxy,
+            runtime_agents,
+        })
+    }
 
-        // 6. Check for session resume or create new session
+    /// Resolve the session: fork, continue, resume, or create new.
+    /// Also handles --resume-from-checkpoint restoration.
+    fn resolve_session(cli: &Cli) -> Result<(checkpoint::Session, checkpoint::SessionSaver)> {
         let session_saver = checkpoint::SessionSaver::with_default_storage()
             .context("Failed to initialize session saver")?;
 
-        // Default checkpoint limit (not configurable via CLI in official spec)
         let checkpoint_limit = 50;
 
         let session = if let Some(ref fork_session_id) = cli.fork_session {
-            // Fork from existing session
             tracing::info!("Forking from session: {}", fork_session_id);
             let loader = checkpoint::SessionLoader::with_default_storage()
                 .context("Failed to initialize session loader")?;
 
-            // Load the original session
             let original_session = loader
                 .resume_session(fork_session_id, checkpoint_limit)
                 .context(format!(
@@ -384,22 +443,17 @@ impl App {
                     fork_session_id
                 ))?;
 
-            // Create a new session with a unique ID but preserve state
             let forked_session_id = format!("session-{}-fork", chrono::Utc::now().timestamp());
             let mut forked_session = checkpoint::Session::new(&forked_session_id, checkpoint_limit);
-
-            // Copy state from original session
             forked_session.current_state = original_session.current_state.clone();
 
             tracing::info!("Created forked session: {}", forked_session_id);
             forked_session
         } else if cli.continue_session {
-            // Continue from last session
             tracing::info!("Continuing from last session");
             let loader = checkpoint::SessionLoader::with_default_storage()
                 .context("Failed to initialize session loader")?;
 
-            // Find the most recent session
             match loader.list_sessions() {
                 Ok(mut sessions) => {
                     if let Some(last_session) = sessions.pop() {
@@ -407,21 +461,18 @@ impl App {
                             .resume_session(&last_session, checkpoint_limit)
                             .context("Failed to resume last session")?
                     } else {
-                        // No sessions found, create new
                         let session_id = format!("session-{}", chrono::Utc::now().timestamp());
                         tracing::info!("No previous session found, starting new: {}", session_id);
                         checkpoint::Session::new(session_id, checkpoint_limit)
                     }
                 }
                 Err(_) => {
-                    // Error listing sessions, create new
                     let session_id = format!("session-{}", chrono::Utc::now().timestamp());
                     tracing::info!("Starting new session: {}", session_id);
                     checkpoint::Session::new(session_id, checkpoint_limit)
                 }
             }
         } else if let Some(ref session_id_opt) = cli.resume {
-            // Resume specific session
             if let Some(session_id) = session_id_opt {
                 tracing::info!("Resuming session: {}", session_id);
                 let loader = checkpoint::SessionLoader::with_default_storage()
@@ -431,7 +482,6 @@ impl App {
                     .resume_session(session_id, checkpoint_limit)
                     .context("Failed to resume session")?
             } else {
-                // --resume without ID: list available sessions
                 let loader = checkpoint::SessionLoader::with_default_storage()
                     .context("Failed to initialize session loader")?;
 
@@ -455,7 +505,6 @@ impl App {
                 }
             }
         } else if let Some(pr_number) = cli.from_pr {
-            // Resume session linked to a GitHub PR number
             tracing::info!("Looking up session for PR #{}", pr_number);
             let index =
                 session_index::SessionIndex::new().context("Failed to load session index")?;
@@ -480,7 +529,6 @@ impl App {
                 ));
             }
         } else {
-            // Generate new session ID
             let session_id = format!("session-{}", chrono::Utc::now().timestamp());
             tracing::info!("Starting new session: {}", session_id);
             checkpoint::Session::new(session_id, checkpoint_limit)
@@ -493,7 +541,6 @@ impl App {
             let loader = checkpoint::SessionLoader::with_default_storage()
                 .context("Failed to initialize session loader")?;
 
-            // Get the checkpoint ID for the specified number
             let checkpoint_ids = loader
                 .list_checkpoints(&session.id)
                 .context("Failed to list checkpoints")?;
@@ -518,18 +565,7 @@ impl App {
             tracing::info!("Successfully restored checkpoint {}", checkpoint_num);
         }
 
-        Ok(Self {
-            cli,
-            settings,
-            hooks,
-            plugin_loader,
-            plugin_executor,
-            slash_commands,
-            session,
-            session_saver,
-            mcp_proxy,
-            runtime_agents,
-        })
+        Ok((session, session_saver))
     }
 
     /// Run the application
