@@ -217,13 +217,22 @@ impl Default for WebFetchCache {
 /// The WebFetch tool with Phase 2 features
 pub struct WebFetchTool {
     cache: Arc<WebFetchCache>,
+    client: reqwest::Client,
 }
 
 impl WebFetchTool {
-    /// Create a new WebFetch tool with caching
+    /// Create a new WebFetch tool with caching and a shared HTTP client
     pub fn new() -> Self {
+        let client = reqwest::Client::builder()
+            .user_agent("RustyClawd/0.1.0 (Educational)")
+            .redirect(reqwest::redirect::Policy::none())
+            .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECONDS))
+            .build()
+            .expect("Failed to build reqwest::Client");
+
         Self {
             cache: Arc::new(WebFetchCache::new()),
+            client,
         }
     }
 
@@ -391,16 +400,18 @@ impl WebFetchTool {
         Ok(truncated)
     }
 
-    /// Process content with AI using the prompt
-    /// TODO: Integrate with Claude API for actual AI processing
+    /// Format fetched content with the user's prompt for the LLM to process.
+    ///
+    /// The LLM that invoked WebFetch receives this formatted output and
+    /// naturally processes it in its next reasoning step. Calling the Claude
+    /// API from within a tool would create a circular dependency since tools
+    /// are invoked BY the API client.
     async fn process_with_ai(
         content: &str,
         prompt: &str,
         url: &str,
         _ctx: &ToolContext,
     ) -> Result<String, String> {
-        // Simplified implementation that returns structured content
-        // In production, this would call Claude API similar to Agent tool
         let summary = format!(
             "Content from: {}\n\nUser query: {}\n\n---\n\n{}",
             url,
@@ -445,6 +456,8 @@ impl crate::Tool for WebFetchTool {
         ctx: &ToolContext,
     ) -> ToolResult<ToolStream<Self::Output>> {
         let cache = self.cache.clone();
+        let ctx_clone = ctx.clone();
+        let client = self.client.clone();
         let debug = ctx.debug;
         let url_param = params.url.clone();
         let prompt_param = params.prompt.clone();
@@ -483,7 +496,7 @@ impl crate::Tool for WebFetchTool {
                     percentage: Some(80.0),
                 };
 
-                let result = match Self::process_with_ai(&cached.content, &prompt_param, &url, &Default::default()).await {
+                let result = match Self::process_with_ai(&cached.content, &prompt_param, &url, &ctx_clone).await {
                     Ok(r) => r,
                     Err(e) => {
                         yield ToolEvent::Error {
@@ -514,22 +527,6 @@ impl crate::Tool for WebFetchTool {
             if debug {
                 tracing::debug!(url = %url, prompt = %prompt_param, "Fetching web content");
             }
-
-            // Build HTTP client with no automatic redirects
-            let client = match reqwest::Client::builder()
-                .user_agent("RustyClawd/0.1.0 (Educational)")
-                .redirect(reqwest::redirect::Policy::none())
-                .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECONDS))
-                .build()
-            {
-                Ok(c) => c,
-                Err(e) => {
-                    yield ToolEvent::Error {
-                        message: format!("Failed to create HTTP client: {}", e),
-                    };
-                    return;
-                }
-            };
 
             yield ToolEvent::Progress {
                 step: "Sending request...".to_string(),
@@ -589,7 +586,7 @@ impl crate::Tool for WebFetchTool {
             };
 
             // Process with AI
-            let result = match Self::process_with_ai(&content, &prompt_param, &final_url, &Default::default()).await {
+            let result = match Self::process_with_ai(&content, &prompt_param, &final_url, &ctx_clone).await {
                 Ok(r) => r,
                 Err(e) => {
                     yield ToolEvent::Error {
