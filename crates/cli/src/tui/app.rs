@@ -12,7 +12,7 @@ use ratatui::{
     text::Span,
     widgets::{Block, Borders},
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::Instant;
 use tui_textarea::TextArea;
 use unicode_segmentation::UnicodeSegmentation;
@@ -187,6 +187,100 @@ impl SoftWrapState {
     }
 }
 
+/// Reusable scroll controller for any scrollable panel.
+/// Manages offset, follow-bottom mode, and max-scroll clamping.
+pub struct ScrollController {
+    /// Current scroll offset (lines from top)
+    offset: usize,
+    /// Auto-follow bottom (true = stick to bottom, false = manual scroll)
+    follow_bottom: bool,
+    /// Maximum valid scroll offset (updated by renderer each frame)
+    max_scroll: usize,
+}
+
+impl ScrollController {
+    pub fn new() -> Self {
+        Self {
+            offset: 0,
+            follow_bottom: true, // Start in auto-follow mode
+            max_scroll: 0,       // Will be updated by renderer
+        }
+    }
+
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+
+    pub fn follow_bottom(&self) -> bool {
+        self.follow_bottom
+    }
+
+    pub fn scroll_up(&mut self, lines: usize) {
+        // If we're in follow mode, transition to manual scroll mode
+        if self.follow_bottom {
+            self.follow_bottom = false;
+            // Initialize offset to max_scroll so we're actually at the bottom
+            self.offset = self.max_scroll;
+        }
+        // Now scroll up from current position
+        self.offset = self.offset.saturating_sub(lines);
+    }
+
+    pub fn scroll_down(&mut self, lines: usize) {
+        // If already following bottom, stay there
+        if self.follow_bottom {
+            return;
+        }
+        // Increment scroll offset and clamp to valid range
+        self.offset = self.offset.saturating_add(lines);
+        // Clamp to max_scroll to prevent phantom accumulation
+        if self.offset >= self.max_scroll {
+            // At or past the bottom - switch to follow mode
+            self.follow_bottom = true;
+            self.offset = 0; // Renderer will set to max_scroll
+        }
+    }
+
+    pub fn scroll_to_bottom(&mut self) {
+        self.follow_bottom = true;
+        self.offset = 0; // Will be set to max_scroll during render
+    }
+
+    /// Update max_scroll from renderer (called after content height calculation).
+    /// Also clamps offset to prevent invalid state after terminal resize.
+    pub fn update_max_scroll(&mut self, max_scroll: usize) {
+        self.max_scroll = max_scroll;
+        // Clamp offset when max_scroll changes (e.g., after terminal resize)
+        // Only clamp if NOT in follow_bottom mode (which uses max_scroll directly in render)
+        if !self.follow_bottom && self.offset > max_scroll {
+            self.offset = max_scroll;
+        }
+    }
+}
+
+/// Create a styled TextArea for the input pane with default Rust-orange styling.
+/// This is the single source of truth for input TextArea initialization.
+fn make_input_textarea() -> TextArea<'static> {
+    let mut input = TextArea::default();
+    input.set_block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(RUST_ORANGE))
+            .title(vec![
+                Span::styled("✏️  ", Style::default().fg(RUST_ORANGE)),
+                Span::styled(
+                    "Input",
+                    Style::default()
+                        .fg(RUST_ORANGE)
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ]),
+    );
+    // Remove underline from cursor line (default is underlined)
+    input.set_cursor_line_style(Style::default());
+    input
+}
+
 /// Main application state - single source of truth
 pub struct App {
     /// Message history (all messages in conversation)
@@ -195,15 +289,8 @@ pub struct App {
     /// Current input buffer (multi-line text editor)
     pub input: TextArea<'static>,
 
-    /// Scroll offset for message viewport (lines from top)
-    scroll_offset: usize,
-
-    /// Auto-follow bottom (true = stick to bottom, false = manual scroll position)
-    follow_bottom: bool,
-
-    /// Maximum valid scroll offset (updated by renderer each frame)
-    /// Allows scroll operations to clamp properly without magic numbers
-    max_scroll: usize,
+    /// Scroll controller for message viewport
+    message_scroll: ScrollController,
 
     /// Autocomplete state
     autocomplete: Option<AutocompleteState>,
@@ -235,17 +322,11 @@ pub struct App {
     /// Debug panel visibility
     debug_visible: bool,
 
-    /// Debug message buffer (circular buffer)
-    debug_messages: Vec<String>,
+    /// Debug message buffer (circular buffer, VecDeque for O(1) pop_front)
+    debug_messages: VecDeque<String>,
 
-    /// Debug panel scroll offset (lines from top)
-    debug_scroll_offset: usize,
-
-    /// Maximum valid scroll offset for debug panel (updated by renderer)
-    debug_max_scroll: usize,
-
-    /// Auto-follow bottom in debug panel (like message panel)
-    debug_follow_bottom: bool,
+    /// Scroll controller for debug panel
+    debug_scroll: ScrollController,
 
     /// Dropdown menu open state
     menu_open: bool,
@@ -304,31 +385,10 @@ struct StreamingState {
 
 impl App {
     pub fn new(permission_mode: PermissionMode) -> Self {
-        // Configure TextArea with styling ONCE during initialization
-        let mut input = TextArea::default();
-        input.set_block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(RUST_ORANGE))
-                .title(vec![
-                    Span::styled("✏️  ", Style::default().fg(RUST_ORANGE)),
-                    Span::styled(
-                        "Input",
-                        Style::default()
-                            .fg(RUST_ORANGE)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                ]),
-        );
-        // Remove underline from cursor line (default is underlined)
-        input.set_cursor_line_style(Style::default());
-
         Self {
             messages: Vec::new(),
-            input,
-            scroll_offset: 0,
-            follow_bottom: true, // Start in auto-follow mode
-            max_scroll: 0,       // Will be updated by renderer
+            input: make_input_textarea(),
+            message_scroll: ScrollController::new(),
             autocomplete: None,
             memory_modal: None,
             permissions_modal: None,
@@ -339,10 +399,8 @@ impl App {
             error: None,
             dirty: true, // Start dirty to trigger initial render
             debug_visible: false,
-            debug_messages: Vec::new(),
-            debug_scroll_offset: 0,
-            debug_max_scroll: 0,
-            debug_follow_bottom: true, // Start in auto-follow mode
+            debug_messages: VecDeque::new(),
+            debug_scroll: ScrollController::new(),
             menu_open: false,
             focus_messages: FocusFlag::new(),
             focus_input: FocusFlag::new(),
@@ -420,11 +478,11 @@ impl App {
     }
 
     pub fn scroll_offset(&self) -> usize {
-        self.scroll_offset
+        self.message_scroll.offset()
     }
 
     pub fn follow_bottom(&self) -> bool {
-        self.follow_bottom
+        self.message_scroll.follow_bottom()
     }
 
     pub fn permission_mode(&self) -> PermissionMode {
@@ -451,7 +509,7 @@ impl App {
         self.debug_visible
     }
 
-    pub fn debug_messages(&self) -> &[String] {
+    pub fn debug_messages(&self) -> &VecDeque<String> {
         &self.debug_messages
     }
 
@@ -932,25 +990,7 @@ impl App {
 
     /// Clear input without submitting (Ctrl+U behavior)
     pub fn clear_input(&mut self) {
-        // Reset TextArea - recreate with same styling
-        let mut new_input = TextArea::default();
-        new_input.set_block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(RUST_ORANGE))
-                .title(vec![
-                    Span::styled("✏️  ", Style::default().fg(RUST_ORANGE)),
-                    Span::styled(
-                        "Input",
-                        Style::default()
-                            .fg(RUST_ORANGE)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                ]),
-        );
-        // Remove underline from cursor line (default is underlined)
-        new_input.set_cursor_line_style(Style::default());
-        self.input = new_input;
+        self.input = make_input_textarea();
         self.soft_wrap.clear(); // Clear soft-break tracking
         self.mark_dirty();
     }
@@ -1180,24 +1220,7 @@ impl App {
     }
 
     pub fn set_input(&mut self, text: &str) {
-        // Clear existing and set new text
-        let mut new_input = TextArea::default();
-        new_input.set_block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(RUST_ORANGE))
-                .title(vec![
-                    Span::styled("✏️  ", Style::default().fg(RUST_ORANGE)),
-                    Span::styled(
-                        "Input",
-                        Style::default()
-                            .fg(RUST_ORANGE)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                ]),
-        );
-        // Remove underline from cursor line (default is underlined)
-        new_input.set_cursor_line_style(Style::default());
+        let mut new_input = make_input_textarea();
 
         // Insert the text line by line
         for (i, line) in text.lines().enumerate() {
@@ -1218,117 +1241,54 @@ impl App {
     }
 
     pub fn scroll_up(&mut self, lines: usize) {
-        // If we're in follow mode, transition to manual scroll mode
-        if self.follow_bottom {
-            self.follow_bottom = false;
-            // Initialize scroll_offset to max_scroll so we're actually at the bottom
-            self.scroll_offset = self.max_scroll;
-        }
-
-        // Now scroll up from current position
-        self.scroll_offset = self.scroll_offset.saturating_sub(lines);
+        self.message_scroll.scroll_up(lines);
         self.mark_dirty();
     }
 
     pub fn scroll_down(&mut self, lines: usize) {
-        // If already following bottom, stay there
-        if self.follow_bottom {
-            self.mark_dirty();
-            return;
-        }
-
-        // Increment scroll offset and clamp to valid range
-        self.scroll_offset = self.scroll_offset.saturating_add(lines);
-
-        // Clamp to max_scroll to prevent phantom accumulation
-        if self.scroll_offset >= self.max_scroll {
-            // At or past the bottom - switch to follow mode
-            self.follow_bottom = true;
-            self.scroll_offset = 0; // Renderer will set to max_scroll
-        }
-
+        self.message_scroll.scroll_down(lines);
         self.mark_dirty();
     }
 
     pub fn scroll_to_bottom(&mut self) {
-        self.follow_bottom = true;
-        self.scroll_offset = 0; // Will be set to max_scroll during render
+        self.message_scroll.scroll_to_bottom();
         self.mark_dirty();
     }
 
     /// Update max_scroll from renderer (called after content height calculation)
-    /// This allows scroll operations to clamp properly
-    /// IMPORTANT: Also clamps scroll_offset to prevent invalid state after terminal resize
     pub fn update_max_scroll(&mut self, max_scroll: usize) {
-        self.max_scroll = max_scroll;
-
-        // Clamp scroll_offset when max_scroll changes (e.g., after terminal resize)
-        // Only clamp if NOT in follow_bottom mode (which uses max_scroll directly in render)
-        if !self.follow_bottom && self.scroll_offset > max_scroll {
-            self.scroll_offset = max_scroll;
-        }
-
-        self.mark_dirty(); // Trigger UI refresh when max_scroll changes
+        self.message_scroll.update_max_scroll(max_scroll);
+        self.mark_dirty();
     }
 
     // === Debug panel scrolling ===
 
     pub fn scroll_debug_up(&mut self, lines: usize) {
-        // If we're in follow mode, transition to manual scroll mode
-        if self.debug_follow_bottom {
-            self.debug_follow_bottom = false;
-            // Initialize scroll_offset to max_scroll so we're actually at the bottom
-            self.debug_scroll_offset = self.debug_max_scroll;
-        }
-
-        // Now scroll up from current position
-        self.debug_scroll_offset = self.debug_scroll_offset.saturating_sub(lines);
+        self.debug_scroll.scroll_up(lines);
         self.mark_dirty();
     }
 
     pub fn scroll_debug_down(&mut self, lines: usize) {
-        // If already following bottom, stay there
-        if self.debug_follow_bottom {
-            self.mark_dirty();
-            return;
-        }
-
-        // Increment scroll offset and clamp to valid range
-        self.debug_scroll_offset = self.debug_scroll_offset.saturating_add(lines);
-
-        // Clamp to max_scroll to prevent phantom accumulation
-        if self.debug_scroll_offset >= self.debug_max_scroll {
-            // At or past the bottom - switch to follow mode
-            self.debug_follow_bottom = true;
-            self.debug_scroll_offset = 0; // Renderer will set to max_scroll
-        }
-
+        self.debug_scroll.scroll_down(lines);
         self.mark_dirty();
     }
 
     pub fn update_debug_max_scroll(&mut self, max_scroll: usize) {
-        self.debug_max_scroll = max_scroll;
-
-        // Clamp debug_scroll_offset when max_scroll changes (e.g., after terminal resize)
-        // Only clamp if NOT in follow_bottom mode (which uses max_scroll directly in render)
-        if !self.debug_follow_bottom && self.debug_scroll_offset > max_scroll {
-            self.debug_scroll_offset = max_scroll;
-        }
-
+        self.debug_scroll.update_max_scroll(max_scroll);
         self.mark_dirty();
     }
 
     pub fn debug_scroll_offset(&self) -> usize {
-        self.debug_scroll_offset
+        self.debug_scroll.offset()
     }
 
     pub fn debug_follow_bottom(&self) -> bool {
-        self.debug_follow_bottom
+        self.debug_scroll.follow_bottom()
     }
 
     /// Scroll to bottom only if already following bottom (preserves manual scroll position)
     fn scroll_to_bottom_if_at_bottom(&mut self) {
-        if self.follow_bottom {
+        if self.message_scroll.follow_bottom() {
             // Already following bottom, just mark dirty to update
             self.mark_dirty();
         }
@@ -1380,11 +1340,11 @@ impl App {
     }
 
     pub fn push_debug_message(&mut self, message: String) {
-        // Circular buffer - remove oldest if at capacity
+        // Circular buffer - remove oldest if at capacity (O(1) with VecDeque)
         if self.debug_messages.len() >= MAX_DEBUG_MESSAGES {
-            self.debug_messages.remove(0);
+            self.debug_messages.pop_front();
         }
-        self.debug_messages.push(message);
+        self.debug_messages.push_back(message);
         self.mark_dirty();
     }
 
@@ -1401,7 +1361,7 @@ impl App {
             self.messages
                 .first()
                 .map(|m| &m.content[..m.content.len().min(50)]),
-            self.scroll_offset,
+            self.message_scroll.offset(),
             self.streaming.is_some()
         )
     }
@@ -1700,89 +1660,14 @@ impl App {
 
 use rat_focus::{FocusBuilder, HasFocus, Navigation};
 
-/// Wrapper for messages pane to implement HasFocus
-/// Holds FocusFlag directly to avoid borrowing conflicts
-pub struct MessagesPaneWrapper {
+/// Generic pane wrapper for rat-focus integration.
+/// Z_ORDER=0 uses Regular navigation (keyboard Tab); Z_ORDER>0 uses Mouse-only navigation.
+pub struct PaneWrapper<const Z_ORDER: u16> {
     pub focus: FocusFlag,
     pub area: Rect,
 }
 
-impl HasFocus for MessagesPaneWrapper {
-    fn build(&self, builder: &mut FocusBuilder) {
-        builder.leaf_widget(self);
-    }
-
-    fn focus(&self) -> FocusFlag {
-        self.focus.clone()
-    }
-
-    fn area(&self) -> ratatui::layout::Rect {
-        self.area
-    }
-
-    fn navigable(&self) -> Navigation {
-        Navigation::Regular
-    }
-}
-
-/// Wrapper for input pane to implement HasFocus
-/// Holds FocusFlag directly to avoid borrowing conflicts
-pub struct InputPaneWrapper {
-    pub focus: FocusFlag,
-    pub area: Rect,
-}
-
-impl HasFocus for InputPaneWrapper {
-    fn build(&self, builder: &mut FocusBuilder) {
-        builder.leaf_widget(self);
-    }
-
-    fn focus(&self) -> FocusFlag {
-        self.focus.clone()
-    }
-
-    fn area(&self) -> ratatui::layout::Rect {
-        self.area
-    }
-
-    fn navigable(&self) -> Navigation {
-        Navigation::Regular
-    }
-}
-
-/// Wrapper for debug panel to implement HasFocus
-/// Holds FocusFlag directly to avoid borrowing conflicts
-pub struct DebugPaneWrapper {
-    pub focus: FocusFlag,
-    pub area: Rect,
-}
-
-impl HasFocus for DebugPaneWrapper {
-    fn build(&self, builder: &mut FocusBuilder) {
-        builder.leaf_widget(self);
-    }
-
-    fn focus(&self) -> FocusFlag {
-        self.focus.clone()
-    }
-
-    fn area(&self) -> ratatui::layout::Rect {
-        self.area
-    }
-
-    fn navigable(&self) -> Navigation {
-        Navigation::Regular
-    }
-}
-
-/// Wrapper for autocomplete popup to implement HasFocus with z-ordering
-/// Holds FocusFlag directly to avoid borrowing conflicts
-pub struct AutocompletePopupWrapper {
-    pub focus: FocusFlag,
-    pub area: Rect,
-}
-
-impl HasFocus for AutocompletePopupWrapper {
+impl<const Z_ORDER: u16> HasFocus for PaneWrapper<Z_ORDER> {
     fn build(&self, builder: &mut FocusBuilder) {
         builder.leaf_widget(self);
     }
@@ -1796,71 +1681,25 @@ impl HasFocus for AutocompletePopupWrapper {
     }
 
     fn area_z(&self) -> u16 {
-        1 // Z-order 1 (above panes)
+        Z_ORDER
     }
 
     fn navigable(&self) -> Navigation {
-        Navigation::Mouse // Mouse-only navigation
+        if Z_ORDER == 0 {
+            Navigation::Regular
+        } else {
+            Navigation::Mouse
+        }
     }
 }
 
-/// Wrapper for memory modal to implement HasFocus with z-ordering
-/// Holds FocusFlag directly to avoid borrowing conflicts
-pub struct MemoryModalWrapper {
-    pub focus: FocusFlag,
-    pub area: Rect,
-}
-
-impl HasFocus for MemoryModalWrapper {
-    fn build(&self, builder: &mut FocusBuilder) {
-        builder.leaf_widget(self);
-    }
-
-    fn focus(&self) -> FocusFlag {
-        self.focus.clone()
-    }
-
-    fn area(&self) -> ratatui::layout::Rect {
-        self.area
-    }
-
-    fn area_z(&self) -> u16 {
-        2 // Z-order 2 (above autocomplete)
-    }
-
-    fn navigable(&self) -> Navigation {
-        Navigation::Mouse // Mouse-only navigation
-    }
-}
-
-/// Wrapper for permissions modal to implement HasFocus with z-ordering
-/// Holds FocusFlag directly to avoid borrowing conflicts
-pub struct PermissionsModalWrapper {
-    pub focus: FocusFlag,
-    pub area: Rect,
-}
-
-impl HasFocus for PermissionsModalWrapper {
-    fn build(&self, builder: &mut FocusBuilder) {
-        builder.leaf_widget(self);
-    }
-
-    fn focus(&self) -> FocusFlag {
-        self.focus.clone()
-    }
-
-    fn area(&self) -> ratatui::layout::Rect {
-        self.area
-    }
-
-    fn area_z(&self) -> u16 {
-        3 // Z-order 3 (above memory modal)
-    }
-
-    fn navigable(&self) -> Navigation {
-        Navigation::Mouse // Mouse-only navigation
-    }
-}
+/// Type aliases preserving the original names for backward compatibility
+pub type MessagesPaneWrapper = PaneWrapper<0>;
+pub type InputPaneWrapper = PaneWrapper<0>;
+pub type DebugPaneWrapper = PaneWrapper<0>;
+pub type AutocompletePopupWrapper = PaneWrapper<1>;
+pub type MemoryModalWrapper = PaneWrapper<2>;
+pub type PermissionsModalWrapper = PaneWrapper<3>;
 
 #[cfg(test)]
 mod tests {
