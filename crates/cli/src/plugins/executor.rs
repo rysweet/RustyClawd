@@ -87,6 +87,7 @@ impl PluginExecutor {
             &[command_path.to_str().unwrap_or(""), &args_str],
             30_000,
         )
+        .await
         .map_err(|e| format!("Failed to execute command '{}': {}", command.name, e))?;
 
         Ok(PluginExecutionResult {
