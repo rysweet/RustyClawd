@@ -217,9 +217,7 @@ impl SettingsLoader {
                 // Parse as TOML (highest priority)
                 Self::parse_toml_config(&content)
             }
-            Some("yaml") | Some("yml") => {
-                Self::parse_yaml_config(&content)
-            }
+            Some("yaml") | Some("yml") => Self::parse_yaml_config(&content),
             Some("json") => {
                 // Parse as JSON
                 Self::parse_json_config(&content)
