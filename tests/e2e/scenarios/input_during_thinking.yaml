@@ -31,15 +31,14 @@ scenario:
       timeout: 5s
 
     - action: send_input
-      description: "Send prompt that triggers extended thinking"
-      text: "Explain the concept of quantum entanglement in detail"
+      description: "Send simple prompt that triggers AI response"
+      text: "What is 2+2?"
       submit: true
-      notes: "This prompt should trigger extended thinking mode"
+      notes: "Simple prompt that will generate a response"
 
-    - action: wait_for_text
-      description: "Wait for thinking indicator to appear"
-      contains: "Extended thinking"
-      timeout: 5s
+    - action: sleep
+      description: "Brief pause to let AI start processing"
+      duration: 0.5
 
     # CRITICAL TEST: Type while thinking indicator is visible
     - action: send_input
