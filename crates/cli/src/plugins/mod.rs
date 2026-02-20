@@ -43,6 +43,8 @@ pub mod loader;
 pub mod manager;
 pub mod manifest;
 pub mod mcp_proxy;
+pub mod mcp_transport;
+pub mod mcp_types;
 pub mod subprocess;
 pub mod tool_search_config;
 
