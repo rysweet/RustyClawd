@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use crate::plugins::discovery::PluginMetadata;
+use crate::plugins::subprocess::SubprocessExecutor;
 
 /// Plugin execution result
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,20 +73,33 @@ impl PluginExecutor {
             .find(|c| c.name == command_name)
             .ok_or_else(|| format!("Command not found: {}", command_name))?;
 
-        // Execute command via subprocess
-        let duration = start.elapsed().as_millis() as u64;
+        // Build the full path to the command script
+        let command_path = plugin.path.join(&command.path);
 
-        // For now, return success with command information
-        // Full subprocess execution would require:
-        // 1. Determining interpreter (node, python, shell, etc.)
-        // 2. Spawning subprocess with proper environment
-        // 3. Passing arguments via stdin/command line
-        // 4. Capturing and parsing output
+        // Detect the interpreter for the command script
+        let interpreter = SubprocessExecutor::detect_interpreter(&command_path)
+            .map_err(|e| format!("Cannot determine interpreter for '{}': {}", command.path, e))?;
+
+        // Serialize args to pass as a JSON string argument
+        let args_str = _args.to_string();
+
+        // Execute via real subprocess with 30-second timeout
+        let result = SubprocessExecutor::execute(
+            &interpreter,
+            &[command_path.to_str().unwrap_or(""), &args_str],
+            30_000,
+        )
+        .map_err(|e| format!("Failed to execute command '{}': {}", command.name, e))?;
+
         Ok(PluginExecutionResult {
-            success: true,
-            output: format!("Command '{}' executed successfully", command.name),
-            errors: vec![],
-            duration_ms: duration,
+            success: result.success,
+            output: result.output,
+            errors: if result.stderr.is_empty() {
+                vec![]
+            } else {
+                vec![result.stderr]
+            },
+            duration_ms: result.duration_ms,
         })
     }
 
