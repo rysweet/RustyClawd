@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Load API configuration
     let config = Config::from_default_location().await?;
-    let client = Client::new(config);
+    let client = Client::new(config)?;
 
     // Example 1: Non-streaming with Extended Thinking
     println!("--- Example 1: Non-streaming Request with Extended Thinking ---\n");

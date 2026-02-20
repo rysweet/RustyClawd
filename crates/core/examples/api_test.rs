@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("API key loaded successfully!\n");
 
     // Create the client
-    let client = Client::new(config);
+    let client = Client::new(config)?;
 
     // Test 1: Non-streaming request
     println!("--- Test 1: Non-streaming Request ---");

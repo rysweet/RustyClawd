@@ -158,7 +158,7 @@ impl InteractiveSession {
 
         // Load API configuration from default location
         let config = Config::from_default_location().await?;
-        let client = Client::new(config);
+        let client = Client::new(config)?;
 
         // Initialize TUI
         let mut tui = TuiState::new()?;

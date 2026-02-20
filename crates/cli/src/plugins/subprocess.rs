@@ -7,6 +7,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
+use tokio::time::sleep as async_sleep;
 
 /// Plugin execution result
 #[derive(Debug, Clone)]
@@ -55,7 +56,9 @@ impl PluginExecutionResult {
 
 /// Kill a process and its children
 #[cfg(unix)]
-fn kill_process(child: &mut Child) -> Result<(), String> {
+async fn kill_process(child: &mut Child) -> Result<(), String> {
+    use std::os::unix::process::ExitStatusExt;
+
     let pid = child.id() as i32;
 
     // First try SIGTERM to the process group (negative PID kills the group)
@@ -65,7 +68,7 @@ fn kill_process(child: &mut Child) -> Result<(), String> {
     }
 
     // Give the process a moment to terminate gracefully
-    std::thread::sleep(Duration::from_millis(100));
+    async_sleep(Duration::from_millis(100)).await;
 
     // Check if still running
     match child.try_wait() {
@@ -86,7 +89,7 @@ fn kill_process(child: &mut Child) -> Result<(), String> {
 
 /// Kill a process on Windows
 #[cfg(windows)]
-fn kill_process(child: &mut Child) -> Result<(), String> {
+async fn kill_process(child: &mut Child) -> Result<(), String> {
     child
         .kill()
         .map_err(|e| format!("Failed to kill process: {}", e))?;
@@ -99,7 +102,7 @@ pub struct SubprocessExecutor;
 
 impl SubprocessExecutor {
     /// Execute a command in a real subprocess with enforced timeout
-    pub fn execute(
+    pub async fn execute(
         cmd: &str,
         args: &[&str],
         timeout_ms: u64,
@@ -175,11 +178,11 @@ impl SubprocessExecutor {
                     if start.elapsed() >= timeout {
                         // Timeout exceeded - kill the process
                         let duration = start.elapsed().as_millis() as u64;
-                        kill_process(&mut child)?;
+                        kill_process(&mut child).await?;
                         return Ok(PluginExecutionResult::timeout(duration));
                     }
-                    // Sleep briefly before checking again
-                    std::thread::sleep(Duration::from_millis(10));
+                    // Yield to the async runtime briefly before checking again
+                    async_sleep(Duration::from_millis(10)).await;
                 }
                 Err(e) => {
                     return Err(format!("Failed to check process status: {}", e));
@@ -236,9 +239,9 @@ mod tests {
     use std::io::Write;
     use tempfile::TempDir;
 
-    #[test]
-    fn test_execute_simple_command() {
-        let result = SubprocessExecutor::execute("echo", &["hello"], 1000);
+    #[tokio::test]
+    async fn test_execute_simple_command() {
+        let result = SubprocessExecutor::execute("echo", &["hello"], 1000).await;
 
         assert!(result.is_ok());
         let exec_result = result.unwrap();
@@ -247,9 +250,9 @@ mod tests {
         assert_eq!(exec_result.exit_code, Some(0));
     }
 
-    #[test]
-    fn test_execute_command_with_failure() {
-        let result = SubprocessExecutor::execute("sh", &["-c", "exit 1"], 1000);
+    #[tokio::test]
+    async fn test_execute_command_with_failure() {
+        let result = SubprocessExecutor::execute("sh", &["-c", "exit 1"], 1000).await;
 
         assert!(result.is_ok());
         let exec_result = result.unwrap();
@@ -257,10 +260,10 @@ mod tests {
         assert_eq!(exec_result.exit_code, Some(1));
     }
 
-    #[test]
-    fn test_timeout_enforced() {
+    #[tokio::test]
+    async fn test_timeout_enforced() {
         // Start a process that sleeps for 5 seconds, but only give it 200ms
-        let result = SubprocessExecutor::execute("sleep", &["5"], 200);
+        let result = SubprocessExecutor::execute("sleep", &["5"], 200).await;
 
         assert!(result.is_ok());
         let exec_result = result.unwrap();
@@ -271,10 +274,10 @@ mod tests {
         assert!(exec_result.duration_ms < 1000);
     }
 
-    #[test]
-    fn test_command_completes_before_timeout() {
+    #[tokio::test]
+    async fn test_command_completes_before_timeout() {
         // Fast command with long timeout
-        let result = SubprocessExecutor::execute("echo", &["fast"], 5000);
+        let result = SubprocessExecutor::execute("echo", &["fast"], 5000).await;
 
         assert!(result.is_ok());
         let exec_result = result.unwrap();
@@ -284,11 +287,11 @@ mod tests {
         assert!(exec_result.duration_ms < 1000);
     }
 
-    #[test]
-    fn test_timeout_kills_process_tree() {
+    #[tokio::test]
+    async fn test_timeout_kills_process_tree() {
         // Start a shell that spawns a child process
         // The parent sleeps, and we need to ensure both are killed
-        let result = SubprocessExecutor::execute("sh", &["-c", "sleep 10 & sleep 10"], 200);
+        let result = SubprocessExecutor::execute("sh", &["-c", "sleep 10 & sleep 10"], 200).await;
 
         assert!(result.is_ok());
         let exec_result = result.unwrap();
