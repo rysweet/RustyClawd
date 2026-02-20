@@ -26,9 +26,11 @@ mod event;
 mod keybindings;
 mod layout;
 mod message;
+mod message_formatter;
 mod thinking_indicator;
 mod thinking_state;
 mod token_counter;
+mod tool_renderer;
 mod ui;
 
 // Re-export for backward compatibility with existing code
