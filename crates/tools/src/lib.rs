@@ -29,9 +29,7 @@ pub mod task;
 pub mod todo_write;
 pub mod types;
 pub mod web_fetch;
-pub mod web_fetch_phase2;
 pub mod web_search;
-pub mod web_search_phase2;
 pub mod write;
 
 pub use agent::AgentTool;
@@ -69,9 +67,7 @@ pub use task::{
 pub use todo_write::TodoWriteTool;
 pub use types::{ExecutionContext, ToolContext, ToolEvent, ToolMetadata, ToolStream};
 pub use web_fetch::WebFetchTool;
-pub use web_fetch_phase2::WebFetchToolPhase2;
 pub use web_search::WebSearchTool;
-pub use web_search_phase2::WebSearchToolPhase2;
 pub use write::WriteTool;
 
 use async_trait::async_trait;

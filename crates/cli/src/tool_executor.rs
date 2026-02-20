@@ -15,7 +15,7 @@ use rustyclawd_core::client::ClientError;
 use rustyclawd_tools::{
     AgentOutputTool, AgentTool, AskUserQuestionTool, BashOutputTool, BashTool, EditTool, GlobTool,
     GrepTool, KillShellTool, ReadTool, SkillTool, SlashCommandTool, TodoWriteTool, Tool,
-    ToolContext, ToolEvent, WriteTool,
+    ToolContext, ToolEvent, WebFetchTool, WebSearchTool, WriteTool,
 };
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -173,6 +173,23 @@ fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
                         "activeForm": "Doing another task"
                     }
                 ]
+            }),
+        ),
+        "WebFetch" => (
+            vec!["url", "prompt"],
+            vec![],
+            json!({
+                "url": "https://example.com",
+                "prompt": "Extract the main content from this page"
+            }),
+        ),
+        "WebSearch" => (
+            vec!["query"],
+            vec!["allowed_domains", "blocked_domains"],
+            json!({
+                "query": "Rust programming language",
+                "allowed_domains": [],
+                "blocked_domains": []
             }),
         ),
         _ => (vec![], vec![], json!({})),
@@ -370,6 +387,8 @@ pub async fn execute_tool_with_hooks(
         "Task" => execute_agent_tool(tool_input.clone(), &ctx).await,
         "AgentOutput" => execute_agent_output_tool(tool_input.clone(), &ctx).await,
         "TodoWrite" => execute_todowrite_tool(tool_input.clone(), &ctx).await,
+        "WebFetch" => execute_web_fetch_tool(tool_input.clone(), &ctx).await,
+        "WebSearch" => execute_web_search_tool(tool_input.clone(), &ctx).await,
         _ => Err(ClientError::Api(format!("Unknown tool: {}", tool_name))),
     };
 
@@ -874,6 +893,72 @@ async fn execute_agent_output_tool(input: Value, ctx: &ToolContext) -> Result<Va
 
     Err(ClientError::Api(
         "AgentOutput tool completed without result".to_string(),
+    ))
+}
+
+/// Execute WebFetch tool
+async fn execute_web_fetch_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
+    let params: rustyclawd_tools::web_fetch::WebFetchParams = serde_json::from_value(input)
+        .map_err(|e| create_schema_error("WebFetch", &e.to_string()))?;
+
+    let tool = WebFetchTool::new();
+    let mut stream = tool
+        .execute(params, ctx)
+        .await
+        .map_err(|e| ClientError::Api(format!("WebFetch tool execution failed: {}", e)))?;
+
+    while let Some(event) = stream.next().await {
+        match event {
+            ToolEvent::Result(output) => {
+                return serde_json::to_value(&output).map_err(|e| {
+                    ClientError::Api(format!("Failed to serialize WebFetch output: {}", e))
+                });
+            }
+            ToolEvent::Error { message } => {
+                return Err(ClientError::Api(format!(
+                    "WebFetch tool error: {}",
+                    message
+                )));
+            }
+            ToolEvent::Progress { .. } => {}
+        }
+    }
+
+    Err(ClientError::Api(
+        "WebFetch tool completed without result".to_string(),
+    ))
+}
+
+/// Execute WebSearch tool
+async fn execute_web_search_tool(input: Value, ctx: &ToolContext) -> Result<Value, ClientError> {
+    let params: rustyclawd_tools::web_search::WebSearchParams = serde_json::from_value(input)
+        .map_err(|e| create_schema_error("WebSearch", &e.to_string()))?;
+
+    let tool = WebSearchTool::new();
+    let mut stream = tool
+        .execute(params, ctx)
+        .await
+        .map_err(|e| ClientError::Api(format!("WebSearch tool execution failed: {}", e)))?;
+
+    while let Some(event) = stream.next().await {
+        match event {
+            ToolEvent::Result(output) => {
+                return serde_json::to_value(&output).map_err(|e| {
+                    ClientError::Api(format!("Failed to serialize WebSearch output: {}", e))
+                });
+            }
+            ToolEvent::Error { message } => {
+                return Err(ClientError::Api(format!(
+                    "WebSearch tool error: {}",
+                    message
+                )));
+            }
+            ToolEvent::Progress { .. } => {}
+        }
+    }
+
+    Err(ClientError::Api(
+        "WebSearch tool completed without result".to_string(),
     ))
 }
 
