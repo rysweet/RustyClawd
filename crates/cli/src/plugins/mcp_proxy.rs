@@ -13,8 +13,8 @@ use crate::plugins::mcp_types::{
 
 // Re-export public types so existing consumers keep working via mcp_proxy::Type
 pub use crate::plugins::mcp_types::{
-    McpNotification, McpNotificationType, McpPromptDefinition, McpPromptResult, Resource,
-    ResourceContents,
+    McpCallToolResult, McpNotification, McpNotificationType, McpPromptDefinition, McpPromptResult,
+    Resource, ResourceContents,
 };
 
 /// MCP server proxy manager
