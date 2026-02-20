@@ -164,8 +164,17 @@ mod tests {
         assert!(loader.is_loaded("com.test.e2e"));
     }
 
-    #[test]
-    fn test_command_execution() {
+    #[tokio::test]
+    async fn test_command_execution() {
+        // Create a temp directory with a real cmd.js script so the executor
+        // can detect its interpreter and run it via subprocess.
+        let test_dir = create_test_plugin_dir("command_execution");
+        fs::write(
+            test_dir.join("cmd.js"),
+            "console.log(JSON.stringify({command: 'test-cmd', status: 'ok'}));\n",
+        )
+        .expect("Failed to write cmd.js");
+
         let manifest = PluginManifest {
             id: "com.test.cmd".to_string(),
             name: "Command Test".to_string(),
@@ -190,7 +199,7 @@ mod tests {
 
         let metadata = PluginMetadata {
             id: "com.test.cmd".to_string(),
-            path: std::env::temp_dir().join("test-plugin"),
+            path: test_dir.clone(),
             manifest,
             enabled: true,
             load_status: PluginLoadStatus::Loaded,
@@ -201,10 +210,29 @@ mod tests {
 
         let result = executor
             .execute_command("com.test.cmd", "test-cmd", serde_json::json!({}))
-            .unwrap();
+            .await;
 
-        assert!(result.success);
-        assert!(result.output.contains("test-cmd"));
+        // The command should either succeed (if node is available) or return
+        // a meaningful error. It must not panic.
+        match result {
+            Ok(exec_result) => {
+                assert!(exec_result.success);
+                assert!(exec_result.output.contains("test-cmd"));
+            }
+            Err(e) => {
+                // If node is not installed, the subprocess will fail to spawn.
+                // That is acceptable in CI environments without node - the key
+                // is that it returns an error rather than panicking.
+                assert!(
+                    e.contains("Failed to execute") || e.contains("Failed to spawn"),
+                    "Unexpected error: {}",
+                    e
+                );
+            }
+        }
+
+        // Cleanup
+        let _ = fs::remove_dir_all(&test_dir);
     }
 
     #[test]

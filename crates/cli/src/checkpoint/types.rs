@@ -10,6 +10,7 @@
 //! - RestoreScope: What to restore from a checkpoint
 
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fmt;
 
@@ -61,8 +62,9 @@ impl FileChange {
     }
 
     fn compute_hash(content: &str) -> String {
-        // Simplified hash for testing - in production would use SHA256
-        format!("{:x}", content.len() * 31)
+        let mut hasher = Sha256::new();
+        hasher.update(content.as_bytes());
+        format!("{:x}", hasher.finalize())
     }
 
     pub fn verify_integrity(&self) -> bool {

@@ -217,15 +217,7 @@ impl SettingsLoader {
                 // Parse as TOML (highest priority)
                 Self::parse_toml_config(&content)
             }
-            Some("yaml") | Some("yml") => {
-                // YAML not yet supported - serde_yaml crate already added but parsing not implemented
-                Err(format!(
-                    "YAML config files not yet supported. \
-                     To implement: parse with serde_yaml::from_str. \
-                     File: {:?}",
-                    path
-                ))
-            }
+            Some("yaml") | Some("yml") => Self::parse_yaml_config(&content),
             Some("json") => {
                 // Parse as JSON
                 Self::parse_json_config(&content)
@@ -235,13 +227,14 @@ impl SettingsLoader {
                 // Try formats in priority order: TOML > YAML > JSON
                 if let Ok(settings) = Self::parse_toml_config(&content) {
                     Ok(settings)
+                } else if let Ok(settings) = Self::parse_yaml_config(&content) {
+                    Ok(settings)
                 } else if let Ok(settings) = Self::parse_json_config(&content) {
                     Ok(settings)
                 } else {
                     Err(format!(
                         "Unable to parse config file {:?}. \
-                         Supported formats: TOML (.toml), JSON (.json). \
-                         YAML support coming soon.",
+                         Supported formats: TOML (.toml), YAML (.yaml/.yml), JSON (.json).",
                         path
                     ))
                 }
@@ -337,6 +330,19 @@ impl SettingsLoader {
         }
 
         Ok(settings)
+    }
+
+    /// Parse YAML configuration into Settings
+    fn parse_yaml_config(content: &str) -> Result<Settings, String> {
+        // Parse YAML into a serde_json::Value via serde_yaml
+        let yaml_value: serde_yaml::Value =
+            serde_yaml::from_str(content).map_err(|e| format!("Invalid YAML: {}", e))?;
+
+        // Convert serde_yaml::Value to serde_json::Value for uniform handling
+        let json_str = serde_json::to_string(&yaml_value)
+            .map_err(|e| format!("Failed to convert YAML to JSON: {}", e))?;
+
+        Self::parse_json_config(&json_str)
     }
 
     /// Parse TOML configuration into Settings

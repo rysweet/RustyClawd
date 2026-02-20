@@ -115,26 +115,14 @@ impl SessionLoader {
         checkpoint_id: &str,
         scope: RestoreScope,
     ) -> io::Result<()> {
-        let checkpoint = self.load_checkpoint(&session.id, checkpoint_id)?;
+        // Verify the checkpoint can be loaded from storage
+        let _checkpoint = self.load_checkpoint(&session.id, checkpoint_id)?;
 
-        match scope {
-            RestoreScope::ConversationOnly => {
-                // Restore only conversation messages
-                // In a full implementation, this would restore message history
-                // to the session's conversation state
-            }
-            RestoreScope::CodeOnly => {
-                // Restore only file changes
-                // In a full implementation, this would write files to disk
-                // from the checkpoint's file_changes
-            }
-            RestoreScope::Both => {
-                // Restore complete session state
-                session.current_state = checkpoint.session_state.clone();
-            }
-        }
-
-        Ok(())
+        // Delegate to Session::restore_checkpoint which has full restore logic
+        // for all scopes (ConversationOnly, CodeOnly, Both)
+        session
+            .restore_checkpoint(checkpoint_id, scope)
+            .map_err(io::Error::other)
     }
 
     /// Load checkpoint metadata without full content
