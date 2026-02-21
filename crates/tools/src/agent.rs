@@ -100,11 +100,11 @@ impl AgentTool {
     /// Convert model name to API model ID
     fn resolve_model_id(model_name: Option<&str>) -> String {
         match model_name {
-            Some("haiku") => "claude-3-5-haiku-20241022",
-            Some("sonnet") => "claude-3-5-sonnet-20241022",
-            Some("opus") => "claude-opus-4-20250514",
+            Some("haiku") => "claude-haiku-4-5-20251001",
+            Some("sonnet") => "claude-sonnet-4-6",
+            Some("opus") => "claude-opus-4-6",
             Some(custom) if custom.starts_with("claude-") => custom,
-            _ => "claude-3-5-sonnet-20241022", // Default to sonnet
+            _ => "claude-sonnet-4-6", // Default to sonnet
         }
         .to_string()
     }
@@ -543,20 +543,14 @@ mod tests {
     fn test_model_resolution() {
         assert_eq!(
             AgentTool::resolve_model_id(Some("haiku")),
-            "claude-3-5-haiku-20241022"
+            "claude-haiku-4-5-20251001"
         );
         assert_eq!(
             AgentTool::resolve_model_id(Some("sonnet")),
-            "claude-3-5-sonnet-20241022"
+            "claude-sonnet-4-6"
         );
-        assert_eq!(
-            AgentTool::resolve_model_id(Some("opus")),
-            "claude-opus-4-20250514"
-        );
-        assert_eq!(
-            AgentTool::resolve_model_id(None),
-            "claude-3-5-sonnet-20241022"
-        );
+        assert_eq!(AgentTool::resolve_model_id(Some("opus")), "claude-opus-4-6");
+        assert_eq!(AgentTool::resolve_model_id(None), "claude-sonnet-4-6");
         assert_eq!(
             AgentTool::resolve_model_id(Some("claude-custom-model")),
             "claude-custom-model"

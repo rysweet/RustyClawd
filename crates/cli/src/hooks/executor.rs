@@ -186,10 +186,13 @@ impl HookExecutor {
         let prompt = Self::build_hook_prompt(hook, context);
 
         // Create the LLM request
-        // Use claude-3-haiku-20240307 which is a fast, available model for hooks
-        let request =
-            CreateMessageRequest::new("claude-3-haiku-20240307", vec![Message::user(prompt)], 1024)
-                .with_temperature(0.0); // Use deterministic responses for hooks
+        // Use claude-haiku-4-5-20251001 which is a fast, available model for hooks
+        let request = CreateMessageRequest::new(
+            "claude-haiku-4-5-20251001",
+            vec![Message::user(prompt)],
+            1024,
+        )
+        .with_temperature(0.0); // Use deterministic responses for hooks
 
         // Execute with timeout
         let timeout_duration = Duration::from_millis(hook.effective_timeout() as u64);

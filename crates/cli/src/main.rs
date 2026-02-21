@@ -1091,12 +1091,12 @@ impl App {
             .model
             .as_ref()
             .map(|m| match m.as_str() {
-                "sonnet" => "claude-sonnet-4-5-20250929",
-                "opus" => "claude-opus-20240229",
-                "haiku" => "claude-3-5-haiku-20241022",
+                "sonnet" => "claude-sonnet-4-6",
+                "opus" => "claude-opus-4-6",
+                "haiku" => "claude-haiku-4-5-20251001",
                 custom => custom,
             })
-            .unwrap_or("claude-sonnet-4-5-20250929")
+            .unwrap_or("claude-sonnet-4-6")
             .to_string();
 
         // Fallback model configuration (if specified)
@@ -1105,9 +1105,9 @@ impl App {
             .fallback_model
             .as_ref()
             .map(|m| match m.as_str() {
-                "sonnet" => "claude-sonnet-4-5-20250929",
-                "opus" => "claude-opus-20240229",
-                "haiku" => "claude-3-5-haiku-20241022",
+                "sonnet" => "claude-sonnet-4-6",
+                "opus" => "claude-opus-4-6",
+                "haiku" => "claude-haiku-4-5-20251001",
                 custom => custom,
             })
             .map(|s| s.to_string());

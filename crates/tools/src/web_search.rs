@@ -154,11 +154,7 @@ impl WebSearchTool {
     /// Check if model supports web_search
     fn is_model_supported(model: &str) -> bool {
         // Opus 4, Sonnet 4, Haiku 4 support web_search
-        model.contains("opus-4")
-            || model.contains("sonnet-4")
-            || model.contains("haiku-4")
-            || model.contains("claude-3-5-sonnet")
-            || model.contains("claude-3-opus")
+        model.contains("opus-4") || model.contains("sonnet-4") || model.contains("haiku-4")
     }
 
     /// Build cache key from params
@@ -569,13 +565,10 @@ mod tests {
 
     #[test]
     fn test_model_support_detection() {
-        assert!(WebSearchTool::is_model_supported("claude-opus-4-20250514"));
+        assert!(WebSearchTool::is_model_supported("claude-opus-4-6"));
+        assert!(WebSearchTool::is_model_supported("claude-sonnet-4-6"));
         assert!(WebSearchTool::is_model_supported(
-            "claude-sonnet-4-5-20250929"
-        ));
-        assert!(WebSearchTool::is_model_supported("claude-haiku-4-20250514"));
-        assert!(WebSearchTool::is_model_supported(
-            "claude-3-5-sonnet-20241022"
+            "claude-haiku-4-5-20251001"
         ));
         assert!(!WebSearchTool::is_model_supported("claude-2.1"));
         assert!(!WebSearchTool::is_model_supported("gpt-4"));
