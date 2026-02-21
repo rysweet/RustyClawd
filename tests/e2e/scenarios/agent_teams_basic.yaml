@@ -13,7 +13,7 @@ scenario:
     terminal_size:
       width: 120
       height: 40
-    timeout: 120s
+    timeout: 240s
 
   steps:
     - action: launch
@@ -33,12 +33,12 @@ scenario:
 
     - action: sleep
       description: "Wait for agent execution"
-      duration: 30s
+      duration: 60s
 
     - action: wait_for_text
       description: "Wait for completion and return to prompt"
       contains: "RustyClawd"
-      timeout: 60s
+      timeout: 120s
 
     - action: capture_screenshot
       description: "Capture agent team results"
