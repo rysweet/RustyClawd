@@ -184,7 +184,9 @@ mod tests {
     use super::*;
     use crate::Tool;
     use futures::StreamExt;
+    use serial_test::serial;
 
+    #[serial]
     #[tokio::test]
     async fn test_todowrite_valid_list() {
         clear_todos();
@@ -227,6 +229,7 @@ mod tests {
         assert_eq!(result.completed, 1);
     }
 
+    #[serial]
     #[tokio::test]
     async fn test_todowrite_invalid_multiple_in_progress() {
         clear_todos();
@@ -255,6 +258,7 @@ mod tests {
         assert!(has_error);
     }
 
+    #[serial]
     #[tokio::test]
     async fn test_todowrite_invalid_no_in_progress() {
         clear_todos();
@@ -283,6 +287,7 @@ mod tests {
         assert!(has_error);
     }
 
+    #[serial]
     #[tokio::test]
     async fn test_todowrite_session_state_persistence() {
         clear_todos();
@@ -344,6 +349,7 @@ mod tests {
         assert_eq!(stored[2].status, TaskStatus::Pending);
     }
 
+    #[serial]
     #[tokio::test]
     async fn test_todowrite_all_pending_except_one() {
         clear_todos();
@@ -385,6 +391,7 @@ mod tests {
         assert_eq!(result.completed, 0);
     }
 
+    #[serial]
     #[tokio::test]
     async fn test_todowrite_all_completed_except_one() {
         clear_todos();
@@ -426,6 +433,7 @@ mod tests {
         assert_eq!(result.completed, 2);
     }
 
+    #[serial]
     #[tokio::test]
     async fn test_todowrite_single_task() {
         clear_todos();
@@ -454,6 +462,7 @@ mod tests {
         assert_eq!(result.in_progress, 1);
     }
 
+    #[serial]
     #[tokio::test]
     async fn test_todowrite_empty_list_invalid() {
         clear_todos();
@@ -469,6 +478,7 @@ mod tests {
         assert!(has_error);
     }
 
+    #[serial]
     #[tokio::test]
     async fn test_todowrite_large_task_list() {
         clear_todos();
@@ -516,6 +526,7 @@ mod tests {
         assert_eq!(result.completed, 24);
     }
 
+    #[serial]
     #[tokio::test]
     async fn test_todowrite_output_message_format() {
         clear_todos();
@@ -549,6 +560,7 @@ mod tests {
         assert!(result.message.contains("0 completed"));
     }
 
+    #[serial]
     #[tokio::test]
     async fn test_todowrite_progress_events() {
         clear_todos();
@@ -577,6 +589,7 @@ mod tests {
         assert!(has_writing_progress);
     }
 
+    #[serial]
     #[test]
     fn test_get_set_todos_api() {
         clear_todos();

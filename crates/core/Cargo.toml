@@ -26,7 +26,7 @@ async-trait = "0.1"
 
 # Security for API keys
 zeroize = { version = "1.7", features = ["derive"] }
-secrecy = "0.8"
+secrecy = "0.10"
 
 # Pattern matching for error sanitization
 regex = "1.10"
@@ -35,7 +35,7 @@ regex = "1.10"
 pin-project = "1.1"
 
 # Random number generation (for retry jitter)
-rand = "0.8"
+rand = "0.9"
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }

@@ -62,8 +62,8 @@ pub fn resolve_cell_index(
 
 /// Generate a random cell ID for nbformat >= 4.5
 pub fn generate_cell_id() -> String {
-    rand::thread_rng()
-        .sample_iter(&rand::distributions::Alphanumeric)
+    rand::rng()
+        .sample_iter(rand::distr::Alphanumeric)
         .take(13)
         .map(char::from)
         .collect()

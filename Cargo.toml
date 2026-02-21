@@ -30,7 +30,7 @@ serde_json = "1.0"
 
 # Error handling
 anyhow = "1.0"
-thiserror = "1.0"
+thiserror = "2.0"
 
 # Async utilities
 futures = "0.3"
@@ -42,20 +42,23 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # HTTP client
-reqwest = { version = "0.12", features = ["json", "stream"] }
+reqwest = { version = "0.13", features = ["json", "stream"] }
 
 # Validation
-validator = { version = "0.16", features = ["derive"] }
+validator = { version = "0.20", features = ["derive"] }
 
 # Process management (part of tokio)
 # Terminal UI
-crossterm = "0.27"
+crossterm = "0.29"
 
 # Time handling
 chrono = { version = "0.4", features = ["serde"] }
 
 # Unix process management (conditional)
 libc = "0.2"
+
+[patch.crates-io]
+tui-textarea = { git = "https://github.com/0xferrous/tui-textarea", branch = "update-ratatui" }
 
 [profile.release]
 opt-level = 3

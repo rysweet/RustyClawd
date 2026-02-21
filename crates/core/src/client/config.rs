@@ -5,11 +5,12 @@
 //! - Secret wrapper to prevent accidental logging
 //! - Secure file permissions validation
 
-use secrecy::{CloneableSecret, DebugSecret, Secret, Zeroize};
+use secrecy::{CloneableSecret, SecretBox};
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use tokio::fs;
+use zeroize::Zeroize;
 
 use super::error::{ClientError, ClientResult};
 
@@ -18,11 +19,8 @@ use super::error::{ClientError, ClientResult};
 #[zeroize(drop)]
 pub struct ApiKey(String);
 
-// Implement CloneableSecret to allow Secret<ApiKey>
+// Implement CloneableSecret to allow SecretBox<ApiKey> to be cloned
 impl CloneableSecret for ApiKey {}
-
-// Implement DebugSecret to prevent leaking in debug output
-impl DebugSecret for ApiKey {}
 
 impl ApiKey {
     /// Create a new API key (validates format)
@@ -193,8 +191,8 @@ impl fmt::Display for ApiKey {
 /// Client configuration
 #[derive(Clone)]
 pub struct Config {
-    /// API key wrapped in Secret for additional protection
-    pub api_key: Secret<ApiKey>,
+    /// API key wrapped in SecretBox for additional protection
+    pub api_key: SecretBox<ApiKey>,
     /// API endpoint URL
     pub api_url: String,
     /// API version
@@ -214,7 +212,7 @@ impl Config {
     /// Create a new configuration with the given API key
     pub fn new(api_key: ApiKey) -> Self {
         Self {
-            api_key: Secret::new(api_key),
+            api_key: SecretBox::new(Box::new(api_key)),
             api_url: Self::DEFAULT_API_URL.to_string(),
             api_version: Self::DEFAULT_API_VERSION.to_string(),
             timeout_secs: Self::DEFAULT_TIMEOUT_SECS,
