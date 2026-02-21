@@ -58,7 +58,7 @@ pub use notebook_edit::NotebookEditTool;
 pub use process_isolation::{apply_isolation, spawn_with_isolation, ProcessSpawnConfig};
 pub use process_registry::{global_registry, ProcessHandle, ProcessRegistry, ProcessStatus};
 pub use read::ReadTool;
-pub use skill::SkillTool;
+pub use skill::{list_available_skills, load_skill_content, SkillTool};
 pub use slash_command::SlashCommandTool;
 pub use task::{
     Task, TaskCreateOutput, TaskCreateParams, TaskCreateTool, TaskDeleteOutput, TaskDeleteParams,
