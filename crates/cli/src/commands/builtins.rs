@@ -24,7 +24,6 @@ impl BuiltinCommands {
                 | "bug"
                 | "add-dir"
                 | "fast"
-                | "model"
         )
     }
 
@@ -40,7 +39,6 @@ impl BuiltinCommands {
             "bug" => Some(Self::bug_command()),
             "add-dir" => Some(Self::add_dir_command(&cmd.args_str)),
             "fast" => Some(Self::fast_command()),
-            "model" => Some(Self::model_command(&cmd.args_str)),
             _ => None,
         }
     }
@@ -59,8 +57,7 @@ impl BuiltinCommands {
                  - /login               - Check authentication status\n\
                  - /bug                 - Report a bug\n\
                  - /add-dir <path>      - Add working directory\n\
-                 - /fast                - Toggle fast mode\n\
-                 - /model [alias|name]  - Show or switch model",
+                 - /fast                - Toggle fast mode",
                 term
             )
         } else {
@@ -75,8 +72,7 @@ impl BuiltinCommands {
                /bug                   - Report a bug via GitHub\n\
                /add-dir <path>        - Add working directory\n\
                /fast                  - Toggle fast mode\n\
-               /model                 - Show current model\n\
-               /model <alias|name>    - Switch model (sonnet/opus/haiku or full ID)\n\n\
+               /model                 - Show or switch model (handled in session layer)\n\n\
              Custom Commands:\n\
                /amplihack:*      - Amplihack custom commands\n\
                /{name} [args]    - Execute custom slash commands\n\n\
@@ -174,27 +170,6 @@ impl BuiltinCommands {
     /// /fast - Toggle fast mode (returns IPC marker for TUI)
     fn fast_command() -> String {
         "[[TOGGLE_FAST_MODE]]".to_string()
-    }
-
-    /// /model [alias|name] - Show or switch model (returns IPC marker for TUI)
-    ///
-    /// With no arguments, returns a marker to display the current model.
-    /// With an alias or full model name, returns a marker to switch the model.
-    ///
-    /// Supported aliases: sonnet, opus, haiku
-    fn model_command(args: &Option<String>) -> String {
-        match args {
-            None => "[[SHOW_MODEL]]".to_string(),
-            Some(alias) => {
-                let resolved = match alias.trim() {
-                    "sonnet" => "claude-sonnet-4-6",
-                    "opus" => "claude-opus-4-6",
-                    "haiku" => "claude-haiku-4-5-20251001",
-                    other => other,
-                };
-                format!("[[SET_MODEL:{}]]", resolved)
-            }
-        }
     }
 }
 
@@ -429,55 +404,5 @@ mod tests {
         assert!(result.is_some());
         let output = result.unwrap();
         assert!(output.contains("[[TOGGLE_FAST_MODE]]"));
-    }
-
-    #[test]
-    fn test_is_builtin_model() {
-        assert!(BuiltinCommands::is_builtin("model"));
-    }
-
-    #[test]
-    fn test_execute_model_no_args() {
-        let cmd = Command::new("model".to_string(), None);
-        let result = BuiltinCommands::execute(&cmd);
-
-        assert!(result.is_some());
-        assert_eq!(result.unwrap(), "[[SHOW_MODEL]]");
-    }
-
-    #[test]
-    fn test_execute_model_opus_alias() {
-        let cmd = Command::new("model".to_string(), Some("opus".to_string()));
-        let result = BuiltinCommands::execute(&cmd);
-
-        assert!(result.is_some());
-        assert_eq!(result.unwrap(), "[[SET_MODEL:claude-opus-4-6]]");
-    }
-
-    #[test]
-    fn test_execute_model_sonnet_alias() {
-        let cmd = Command::new("model".to_string(), Some("sonnet".to_string()));
-        let result = BuiltinCommands::execute(&cmd);
-
-        assert!(result.is_some());
-        assert_eq!(result.unwrap(), "[[SET_MODEL:claude-sonnet-4-6]]");
-    }
-
-    #[test]
-    fn test_execute_model_haiku_alias() {
-        let cmd = Command::new("model".to_string(), Some("haiku".to_string()));
-        let result = BuiltinCommands::execute(&cmd);
-
-        assert!(result.is_some());
-        assert_eq!(result.unwrap(), "[[SET_MODEL:claude-haiku-4-5-20251001]]");
-    }
-
-    #[test]
-    fn test_execute_model_full_name() {
-        let cmd = Command::new("model".to_string(), Some("claude-opus-4-6".to_string()));
-        let result = BuiltinCommands::execute(&cmd);
-
-        assert!(result.is_some());
-        assert_eq!(result.unwrap(), "[[SET_MODEL:claude-opus-4-6]]");
     }
 }

@@ -430,7 +430,7 @@ impl InteractiveSession {
                         // Resolve alias and switch model
                         let resolved = resolve_model_alias(args);
                         self.model = resolved.to_string();
-                        self.stats = crate::session::SessionStats::new(&self.model);
+                        self.stats.set_model(&self.model);
                         self.tui.add_message(ChatMessage::system(format!(
                             "Switched to model: {}",
                             self.model

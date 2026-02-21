@@ -63,7 +63,7 @@ fn test_removed_stubs_not_recognized() {
         "compact",
         "rewind",
         "config",
-        // "model" is now a real builtin (implemented /model command)
+        "model", // handled in interactive.rs session layer, not as a builtin
         "status",
         "review",
         "sandbox",
