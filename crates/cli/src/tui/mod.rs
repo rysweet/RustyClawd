@@ -34,6 +34,7 @@ mod soft_wrap;
 mod thinking_indicator;
 mod thinking_state;
 mod token_counter;
+mod tool_messages;
 mod tool_renderer;
 mod ui;
 

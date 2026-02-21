@@ -10,6 +10,8 @@ use crate::tui::modal_state::{MemoryDestination, MemoryModalState, ModalManager}
 use crate::tui::soft_wrap::SoftWrapState;
 use crate::tui::thinking_state::ThinkingState;
 use crate::tui::token_counter::TokenCount;
+use crate::tui::tool_messages::ToolTracker;
+pub use crate::tui::tool_messages::{ToolMessageState, ToolResult};
 use rat_focus::{Focus, FocusFlag};
 use ratatui::{
     layout::Rect,
@@ -17,7 +19,7 @@ use ratatui::{
     text::Span,
     widgets::{Block, Borders},
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::time::Instant;
 use tui_textarea::TextArea;
 use unicode_segmentation::UnicodeSegmentation;
@@ -25,43 +27,6 @@ use unicode_width::UnicodeWidthChar;
 
 /// Rust orange color for TUI styling
 const RUST_ORANGE: Color = Color::Rgb(222, 165, 132);
-
-/// State for an active tool execution message
-#[derive(Clone)]
-pub struct ToolMessageState {
-    /// Index of the message in the messages list
-    pub message_index: usize,
-    /// Tool name
-    pub tool_name: String,
-    /// Tool parameters (for display)
-    pub params: serde_json::Value,
-    /// When the tool started executing
-    pub start_time: Instant,
-    /// Whether the tool has completed
-    pub completed: bool,
-    /// Result (if completed)
-    pub result: Option<ToolResult>,
-    /// Elapsed duration in seconds (captured when completed)
-    pub elapsed_duration: Option<u64>,
-}
-
-/// Result of a tool execution
-#[derive(Clone)]
-pub struct ToolResult {
-    /// Exit code (for bash tools) or success indicator
-    pub exit_code: Option<i32>,
-    /// Primary output (stdout for Bash, content for other tools)
-    pub stdout: String,
-    /// Error output (stderr for Bash, empty for other tools)
-    pub stderr: String,
-    /// Whether this was an error
-    pub is_error: bool,
-    /// Raw content (for expanded view - shows full API response)
-    pub raw_content: String,
-    /// Optional structured JSON content (MCP spec structuredContent field)
-    /// Contains typed data conforming to the tool's outputSchema when available
-    pub structured_content: Option<serde_json::Value>,
-}
 
 /// Layout cache - stores pane areas from last render for hit testing
 #[derive(Clone, Debug, Default)]
@@ -192,7 +157,7 @@ pub struct App {
     streaming: Option<StreamingState>,
 
     /// Active tool executions (tool_id -> state)
-    tool_messages: HashMap<String, ToolMessageState>,
+    tools: ToolTracker,
 
     /// Whether to exit the application
     should_exit: bool,
@@ -277,7 +242,7 @@ impl App {
             modals: ModalManager::new(),
             permission_mode,
             streaming: None,
-            tool_messages: HashMap::new(),
+            tools: ToolTracker::new(),
             should_exit: false,
             error: None,
             dirty: true, // Start dirty to trigger initial render
@@ -562,7 +527,8 @@ impl App {
 
     // === Tool execution state ===
 
-    /// Begin a new tool execution message (creates placeholder that will be updated dynamically)
+    /// Begin a new tool execution message.
+    /// Orchestrates: creates tool state in ToolTracker, THEN pushes a placeholder message.
     pub fn begin_tool_message(
         &mut self,
         tool_id: String,
@@ -593,54 +559,41 @@ impl App {
             elapsed_duration: None,
         };
 
-        self.tool_messages.insert(tool_id, state);
+        self.tools.insert(tool_id, state);
         self.mark_dirty();
 
         message_index
     }
 
-    /// Update tool message content (called by renderer to show dynamic content with timer/throbber)
+    /// Get tool state by tool_id (read-only)
     pub fn get_tool_message_state(&self, tool_id: &str) -> Option<&ToolMessageState> {
-        self.tool_messages.get(tool_id)
+        self.tools.get(tool_id)
     }
 
     /// Get all active (non-completed) tool messages
     pub fn active_tool_messages(&self) -> impl Iterator<Item = (&String, &ToolMessageState)> {
-        self.tool_messages
-            .iter()
-            .filter(|(_, state)| !state.completed)
+        self.tools.active_tools()
     }
 
-    /// Finalize a tool execution message with result
+    /// Finalize a tool execution message with result.
+    /// Orchestrates: finalizes in ToolTracker, THEN updates message status.
     pub fn finalize_tool_message(&mut self, tool_id: &str, result: ToolResult) {
-        // Get tool info for debug message before mutation
-        let debug_info = self.tool_messages.get(tool_id).map(|state| {
-            (
-                state.tool_name.clone(),
-                state.start_time.elapsed().as_secs(),
-                state.message_index,
-            )
-        });
+        // Finalize in tracker (captures timing, stores result)
+        let debug_info = self.tools.finalize(tool_id, result.clone());
 
-        // Update tool state
-        if let Some(state) = self.tool_messages.get_mut(tool_id) {
-            state.completed = true;
-            state.result = Some(result.clone());
-            state.elapsed_duration = Some(state.start_time.elapsed().as_secs());
-
-            // Update message status based on result
-            if let Some(message) = self.messages.get_mut(state.message_index) {
+        // Update message status based on result
+        if let Some((_, _, message_index)) = &debug_info {
+            if let Some(message) = self.messages.get_mut(*message_index) {
                 if result.is_error {
                     message.mark_error();
                 } else {
                     message.complete_streaming();
                 }
             }
-
             self.mark_dirty();
         }
 
-        // Log debug message after mutation
+        // Log debug message
         if let Some((tool_name, elapsed, _)) = debug_info {
             self.push_debug_message(format!(
                 "[TOOL] Finished: {} ({}s, exit_code: {:?})",
@@ -651,15 +604,12 @@ impl App {
 
     /// Check if any tools are currently executing
     pub fn has_active_tools(&self) -> bool {
-        self.tool_messages.iter().any(|(_, state)| !state.completed)
+        self.tools.has_active()
     }
 
     /// Get name of any active tool (for status bar)
     pub fn active_tool_name(&self) -> Option<String> {
-        self.tool_messages
-            .iter()
-            .find(|(_, state)| !state.completed)
-            .map(|(_, state)| state.tool_name.clone())
+        self.tools.active_name()
     }
 
     /// Find tool state by message index (for rendering)
@@ -667,9 +617,7 @@ impl App {
         &self,
         message_index: usize,
     ) -> Option<(&String, &ToolMessageState)> {
-        self.tool_messages
-            .iter()
-            .find(|(_, state)| state.message_index == message_index)
+        self.tools.by_message_index(message_index)
     }
 
     // === Input buffer management ===
