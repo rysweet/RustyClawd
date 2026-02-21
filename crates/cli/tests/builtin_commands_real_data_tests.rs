@@ -63,7 +63,7 @@ fn test_removed_stubs_not_recognized() {
         "compact",
         "rewind",
         "config",
-        "model",
+        // "model" is now a real builtin (implemented /model command)
         "status",
         "review",
         "sandbox",
