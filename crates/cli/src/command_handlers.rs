@@ -98,14 +98,6 @@ pub(crate) async fn handle_command(
             handle_bashes_command(tui).await?;
             return Ok(true);
         }
-        "/mouse" => {
-            handle_mouse_command(tui)?;
-            return Ok(true);
-        }
-        "/copy" => {
-            handle_copy_command(tui);
-            return Ok(true);
-        }
         _ if input.starts_with("/save") => {
             handle_save_command(input, tui, context, persistence)?;
             return Ok(true);
@@ -249,7 +241,7 @@ async fn handle_compact_command(tui: &mut TuiState, services: &SessionServices) 
 /// Handle /help command.
 fn handle_help_command(tui: &mut TuiState, slash_commands: &SlashCommands) {
     let custom_commands = slash_commands.list_commands();
-    let mut help_text = "Built-in Commands:\n  /exit, /quit - Exit the session\n  /clear - Clear conversation history\n  /compact - Compact conversation history (fires PreCompact hook)\n  /help - Show this help\n  /stats - Show session statistics\n  /save [description] - Save checkpoint\n  /load <checkpoint_id> - Load checkpoint\n  /sessions - List available sessions\n  /mouse - Toggle mouse capture (OFF allows terminal text selection)\n  /copy - Copy last assistant response to clipboard\n  !<command> - Execute shell command directly\n\nKeyboard Shortcuts:\n  F2 - Toggle mouse capture mode\n  F1 - Toggle debug panel\n\nMCP Commands:\n  /mcp-list - List all MCP servers\n  /mcp-start <server-id> - Start an MCP server\n  /mcp-stop <server-id> - Stop an MCP server\n  /mcp-tools <server-id> - List tools from server\n  /mcp-status <server-id> - Show server status\n".to_string();
+    let mut help_text = "Built-in Commands:\n  /exit, /quit - Exit the session\n  /clear - Clear conversation history\n  /compact - Compact conversation history (fires PreCompact hook)\n  /help - Show this help\n  /stats - Show session statistics\n  /save [description] - Save checkpoint\n  /load <checkpoint_id> - Load checkpoint\n  /sessions - List available sessions\n  !<command> - Execute shell command directly\n\nKeyboard Shortcuts:\n  F1 - Toggle debug panel\n\nTip: Text selection works natively - just click and drag in the messages window.\n\nMCP Commands:\n  /mcp-list - List all MCP servers\n  /mcp-start <server-id> - Start an MCP server\n  /mcp-stop <server-id> - Stop an MCP server\n  /mcp-tools <server-id> - List tools from server\n  /mcp-status <server-id> - Show server status\n".to_string();
 
     if !custom_commands.is_empty() {
         help_text.push_str("\nCustom Commands:\n");
@@ -496,112 +488,6 @@ pub(crate) async fn handle_bashes_command(tui: &mut TuiState) -> Result<()> {
     tui.add_message(ChatMessage::system(output));
 
     Ok(())
-}
-
-/// Handle /mouse command - toggle mouse capture mode.
-///
-/// When mouse capture is ON, the TUI intercepts mouse events for scrolling and clicking.
-/// When mouse capture is OFF, the terminal emulator handles mouse events, enabling native
-/// text selection (highlight and copy with the mouse).
-fn handle_mouse_command(tui: &mut TuiState) -> Result<()> {
-    match tui.toggle_mouse_mode() {
-        Ok(true) => {
-            tui.add_message(ChatMessage::system(
-                "Mouse capture ON - app handles mouse events (scrolling, clicking).\n\
-                 Use /mouse or F2 to disable for terminal text selection."
-                    .to_string(),
-            ));
-        }
-        Ok(false) => {
-            tui.add_message(ChatMessage::system(
-                "Mouse capture OFF - terminal handles mouse events.\n\
-                 You can now select and copy text with your mouse.\n\
-                 Use /mouse or F2 to re-enable app mouse handling."
-                    .to_string(),
-            ));
-        }
-        Err(e) => {
-            tui.add_message(ChatMessage::system(format!(
-                "Failed to toggle mouse mode: {}",
-                e
-            )));
-        }
-    }
-    Ok(())
-}
-
-/// Handle /copy command - copy the last assistant response to the system clipboard.
-///
-/// Tries clipboard tools in order: xclip, xsel, wl-copy (Wayland), pbcopy (macOS).
-/// Falls back to showing content with instructions if no clipboard tool is available.
-fn handle_copy_command(tui: &mut TuiState) {
-    use crate::tui::MessageRole;
-
-    // Find the last complete assistant message
-    let last_assistant = tui
-        .messages()
-        .iter()
-        .rev()
-        .find(|m| m.role == MessageRole::Assistant && !m.streaming)
-        .map(|m| m.content.clone());
-
-    let content = match last_assistant {
-        Some(c) if !c.is_empty() => c,
-        _ => {
-            tui.add_message(ChatMessage::system(
-                "No assistant response to copy.".to_string(),
-            ));
-            return;
-        }
-    };
-
-    // Try clipboard tools in priority order
-    let clipboard_commands: &[(&str, &[&str])] = &[
-        ("xclip", &["-selection", "clipboard"]),
-        ("xsel", &["--clipboard", "--input"]),
-        ("wl-copy", &[]),
-        ("pbcopy", &[]),
-    ];
-
-    for (cmd, args) in clipboard_commands {
-        let result = std::process::Command::new(cmd)
-            .args(*args)
-            .stdin(std::process::Stdio::piped())
-            .spawn();
-
-        if let Ok(mut child) = result {
-            use std::io::Write;
-            let wrote = if let Some(mut stdin) = child.stdin.take() {
-                // Drop stdin before wait() so the child sees EOF and can flush.
-                // Keeping stdin open while waiting can deadlock if the child
-                // blocks on reading more input.
-                stdin.write_all(content.as_bytes()).is_ok()
-            } else {
-                false
-            };
-            if wrote && child.wait().map(|s| s.success()).unwrap_or(false) {
-                tui.add_message(ChatMessage::system(format!(
-                    "Copied {} chars to clipboard via {}.",
-                    content.len(),
-                    cmd
-                )));
-                return;
-            }
-        }
-    }
-
-    // No clipboard tool available - show content so user can manually copy
-    tui.add_message(ChatMessage::system(format!(
-        "No clipboard tool found (tried xclip, xsel, wl-copy, pbcopy).\n\
-         Install one to enable /copy, or disable mouse mode with /mouse to select text manually.\n\
-         Last response ({} chars):\n---\n{}\n---",
-        content.len(),
-        if content.len() > 500 {
-            format!("{}... [truncated]", &content[..500])
-        } else {
-            content
-        }
-    )));
 }
 
 /// Handle /save command.

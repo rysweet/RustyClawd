@@ -9,6 +9,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io::{self, Stdout};
 use std::time::Duration;
@@ -45,9 +46,10 @@ impl TuiState {
         // CRITICAL: Enter alternate screen to isolate TUI from terminal history
         execute!(stdout, EnterAlternateScreen)?;
 
-        // Enable mouse capture for scrolling
-        use crossterm::event::EnableMouseCapture;
-        execute!(stdout, EnableMouseCapture)?;
+        // Note: mouse capture is intentionally NOT enabled here.
+        // Enabling EnableMouseCapture intercepts all mouse events and prevents
+        // the terminal emulator from handling native text selection.
+        // Users can select and copy text freely without any toggle needed.
 
         let backend = CrosstermBackend::new(stdout);
         let terminal = Terminal::new(backend)?;
@@ -485,29 +487,6 @@ impl TuiState {
         self.app.active_tool_name()
     }
 
-    /// Toggle mouse capture mode.
-    /// When enabled, the app captures mouse events (scrolling, clicking).
-    /// When disabled, the terminal emulator handles mouse events (text selection works).
-    pub fn toggle_mouse_mode(&mut self) -> anyhow::Result<bool> {
-        use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
-
-        let new_mode = !self.app.mouse_mode_enabled();
-        self.app.set_mouse_mode(new_mode);
-
-        if new_mode {
-            crossterm::execute!(std::io::stdout(), EnableMouseCapture)?;
-        } else {
-            crossterm::execute!(std::io::stdout(), DisableMouseCapture)?;
-        }
-
-        Ok(new_mode)
-    }
-
-    /// Get mouse mode state
-    pub fn mouse_mode_enabled(&self) -> bool {
-        self.app.mouse_mode_enabled()
-    }
-
     /// Activate autocomplete with given items
     pub fn activate_autocomplete(&mut self, items: Vec<super::CompletionItem>) {
         self.app.activate_autocomplete(items);
@@ -525,7 +504,6 @@ impl TuiState {
 
     /// Cleanup terminal (idempotent - safe to call multiple times)
     pub fn cleanup(&mut self) -> Result<()> {
-        use crossterm::event::DisableMouseCapture;
         use crossterm::terminal::Clear;
         use crossterm::terminal::ClearType;
 
@@ -539,9 +517,6 @@ impl TuiState {
 
         // Clear the current screen before leaving
         let _ = execute!(self.terminal.backend_mut(), Clear(ClearType::All));
-
-        // Disable mouse capture
-        let _ = execute!(self.terminal.backend_mut(), DisableMouseCapture);
 
         // Disable raw mode (restore terminal input processing)
         let _ = disable_raw_mode();

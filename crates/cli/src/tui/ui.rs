@@ -117,7 +117,6 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &mut App, throbber: cha
     let token_count = app.token_count();
     let debug_visible = app.debug_visible();
     let follow_bottom = app.follow_bottom();
-    let mouse_mode_enabled = app.mouse_mode_enabled();
 
     let mode_style = Style::default()
         .fg(Color::Black)
@@ -196,16 +195,8 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &mut App, throbber: cha
     let follow_indicator = if !follow_bottom { " | 📌 Pinned" } else { "" };
 
     // Calculate padding to right-align - Unicode display width
-    let mouse_status = if mouse_mode_enabled {
-        "Mouse:ON"
-    } else {
-        "Mouse:OFF"
-    };
     let left_width: usize = status_spans.iter().map(|s| s.content.width()).sum();
-    let right_text = format!(
-        " | {} | {}{} | F1:Menu ",
-        mouse_status, debug_status, follow_indicator
-    );
+    let right_text = format!(" | {}{} | F1:Menu ", debug_status, follow_indicator);
     let padding_width = area
         .width
         .saturating_sub((left_width + right_text.width()) as u16);
@@ -213,17 +204,8 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &mut App, throbber: cha
     status_spans.push(Span::raw(" ".repeat(padding_width as usize)));
     status_spans.push(Span::raw(" | "));
 
-    // Mouse mode indicator
-    let mouse_style = if mouse_mode_enabled {
-        Style::default().fg(Color::Green)
-    } else {
-        Style::default().fg(Color::Red)
-    };
-    status_spans.push(Span::styled(mouse_status, mouse_style));
-    status_spans.push(Span::raw(" | "));
-
     // Track debug button click region
-    let debug_x = left_width + padding_width as usize + 3 + mouse_status.width() + 3; // " | " is 3 chars each
+    let debug_x = left_width + padding_width as usize + 3; // " | " is 3 chars
     let debug_rect = Rect {
         x: area.x + debug_x as u16,
         y: area.y,

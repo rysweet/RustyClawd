@@ -14,8 +14,6 @@ pub enum KeyAction {
     Exit,
     /// Toggle debug panel
     ToggleDebug,
-    /// Toggle mouse mode (enables/disables mouse capture for terminal text selection)
-    ToggleMouseMode,
     /// Cycle permission mode
     CyclePermissionMode,
     /// Clear error message
@@ -199,12 +197,6 @@ static DEFAULT_BINDINGS: LazyLock<KeyBindings> = LazyLock::new(|| {
             key: KeyPattern::f_key(1),
             action: KeyAction::ToggleDebug,
             description: "Toggle debug panel",
-        },
-        // Mouse mode
-        KeyBinding {
-            key: KeyPattern::f_key(2),
-            action: KeyAction::ToggleMouseMode,
-            description: "Toggle mouse mode (F2)",
         },
         // Permission mode
         KeyBinding {

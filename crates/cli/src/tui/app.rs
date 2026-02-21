@@ -163,9 +163,6 @@ pub struct App {
     /// Clickable regions for mouse interactions
     pub click_regions: crate::tui::click_region::ClickableRegions,
 
-    /// Mouse mode enabled (when false, allows terminal text selection)
-    mouse_mode_enabled: bool,
-
     /// Cached focus structure (rebuilt only when focus_dirty is set)
     cached_focus: Option<Focus>,
 
@@ -197,7 +194,6 @@ impl App {
             focus_permissions_modal: FocusFlag::new(),
             layout_cache: LayoutCache::default(),
             click_regions: crate::tui::click_region::ClickableRegions::new(),
-            mouse_mode_enabled: true, // Start with mouse mode ON
             cached_focus: None,
             focus_dirty: true, // Start dirty to build on first event
         }
@@ -706,17 +702,6 @@ impl App {
 
     pub fn toggle_menu(&mut self) {
         self.menu_open = !self.menu_open;
-        self.mark_dirty();
-    }
-
-    pub fn mouse_mode_enabled(&self) -> bool {
-        self.mouse_mode_enabled
-    }
-
-    pub fn set_mouse_mode(&mut self, enabled: bool) {
-        self.mouse_mode_enabled = enabled;
-        let status = if enabled { "ON" } else { "OFF" };
-        self.push_debug_message(format!("=== Mouse Mode {} ===", status));
         self.mark_dirty();
     }
 

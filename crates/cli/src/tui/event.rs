@@ -1,12 +1,8 @@
 //! Event handling for TUI
 
 use anyhow::Result;
-use crossterm::event::{
-    self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
-    KeyModifiers,
-};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use rat_event::Outcome;
-use std::io;
 use std::time::Duration;
 
 use crate::tui::app::App;
@@ -267,19 +263,6 @@ fn handle_key_action(app: &mut App, action: &KeyAction) -> Result<EventResult> {
         }
         KeyAction::ToggleDebug => {
             app.toggle_debug();
-        }
-        KeyAction::ToggleMouseMode => {
-            // Toggle mouse mode and update crossterm capture state
-            let new_mode = !app.mouse_mode_enabled();
-            app.set_mouse_mode(new_mode);
-
-            if new_mode {
-                // Enable mouse capture (clicks go to app, terminal selection blocked)
-                crossterm::execute!(io::stdout(), EnableMouseCapture)?;
-            } else {
-                // Disable mouse capture (terminal selection works, no app clicks)
-                crossterm::execute!(io::stdout(), DisableMouseCapture)?;
-            }
         }
         KeyAction::CyclePermissionMode => {
             app.cycle_permission_mode();
