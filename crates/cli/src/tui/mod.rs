@@ -22,11 +22,14 @@
 mod app;
 mod click_region;
 mod compat;
+mod debug_panel;
 mod event;
 mod keybindings;
 mod layout;
 mod message;
 mod message_formatter;
+mod modal_state;
+mod soft_wrap;
 mod thinking_indicator;
 mod thinking_state;
 mod token_counter;
@@ -34,11 +37,12 @@ mod tool_renderer;
 mod ui;
 
 // Re-export for backward compatibility with existing code
-pub use app::{App, CompletionItem, LayoutCache, MemoryDestination, ToolResult};
+pub use app::{App, CompletionItem, LayoutCache, ToolResult};
 pub use event::{handle_event, poll_event, EventResult};
 pub use message::Message;
 #[allow(unused_imports)] // Re-export for library consumers and tests
 pub use message::Role as MessageRole;
+pub use modal_state::MemoryDestination;
 pub use ui::render;
 
 // Legacy exports (kept for compatibility with interactive.rs)

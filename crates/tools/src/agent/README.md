@@ -365,11 +365,11 @@ The tool supports flexible model selection:
 
 | Input | Resolved Model |
 |-------|---------------|
-| `"haiku"` | `claude-3-5-haiku-20241022` |
-| `"sonnet"` | `claude-3-5-sonnet-20241022` |
-| `"opus"` | `claude-opus-4-20250514` |
+| `"haiku"` | `claude-haiku-4-5-20251001` |
+| `"sonnet"` | `claude-sonnet-4-6` |
+| `"opus"` | `claude-opus-4-6` |
 | `"claude-custom-..."` | Custom model ID (pass-through) |
-| `None` | `claude-3-5-sonnet-20241022` (default) |
+| `None` | `claude-sonnet-4-6` (default) |
 
 ## Usage Examples
 
