@@ -31,6 +31,7 @@ mod message;
 mod message_formatter;
 mod modal_state;
 mod soft_wrap;
+mod streaming_state;
 mod thinking_indicator;
 mod thinking_state;
 mod token_counter;
