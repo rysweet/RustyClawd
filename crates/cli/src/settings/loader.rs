@@ -576,7 +576,7 @@ cleanup_period_days = 45
             Some("https://api.example.com".to_string())
         );
         assert_eq!(settings.timeout_secs, Some(90));
-        assert_eq!(settings.cleanup_period_days, 45);
+        assert_eq!(settings.cleanup_period_days, Some(45));
     }
 
     #[test]
@@ -733,7 +733,7 @@ jira = true
             Some("https://api.anthropic.com/v1/messages".to_string())
         );
         assert_eq!(settings.timeout_secs, Some(180));
-        assert_eq!(settings.cleanup_period_days, 60);
+        assert_eq!(settings.cleanup_period_days, Some(60));
         assert!(settings.disable_bypass_permissions);
 
         // Verify env_vars

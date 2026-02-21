@@ -80,8 +80,8 @@ impl SettingsHierarchy {
                 result.timeout_secs = settings.timeout_secs;
             }
 
-            // Cleanup period override - highest priority wins (when not default)
-            if settings.cleanup_period_days != 30 {
+            // Cleanup period override - highest priority wins
+            if settings.cleanup_period_days.is_some() {
                 result.cleanup_period_days = settings.cleanup_period_days;
             }
 
@@ -144,7 +144,7 @@ impl SettingsHierarchy {
             if settings.timeout_secs.is_some() {
                 parts.push("timeout".to_string());
             }
-            if settings.cleanup_period_days != 30 {
+            if settings.cleanup_period_days.is_some() {
                 parts.push("cleanup".to_string());
             }
             if !settings.permissions.is_empty() {

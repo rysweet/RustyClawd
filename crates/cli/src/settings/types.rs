@@ -2,6 +2,7 @@
 use std::collections::HashMap;
 
 use crate::plugins::tool_search_config::ToolSearchConfig;
+use crate::settings::validation;
 
 /// Represents permission modes for tool access control
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,7 +55,7 @@ pub struct SandboxSettings {
 }
 
 /// Core configuration settings
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Settings {
     /// LLM model to use
     pub model: Option<String>,
@@ -62,8 +63,8 @@ pub struct Settings {
     pub api_url: Option<String>,
     /// Timeout in seconds for operations
     pub timeout_secs: Option<u64>,
-    /// Cleanup period for temporary files in days
-    pub cleanup_period_days: u32,
+    /// Cleanup period for temporary files in days (None means "not set by this layer")
+    pub cleanup_period_days: Option<u32>,
     /// Tool-specific permissions
     pub permissions: HashMap<String, ToolPermission>,
     /// Environment variables to set
@@ -76,23 +77,6 @@ pub struct Settings {
     pub sandbox: Option<SandboxSettings>,
     /// MCP tool search configuration (auto:N syntax)
     pub tool_search: ToolSearchConfig,
-}
-
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            model: None,
-            api_url: None,
-            timeout_secs: None,
-            cleanup_period_days: 30,
-            permissions: HashMap::new(),
-            env_vars: HashMap::new(),
-            disable_bypass_permissions: false,
-            enabled_plugins: HashMap::new(),
-            sandbox: None,
-            tool_search: ToolSearchConfig::default(),
-        }
-    }
 }
 
 impl Settings {
@@ -121,7 +105,7 @@ impl Settings {
 
     /// Set cleanup period in days
     pub fn with_cleanup_period(mut self, days: u32) -> Self {
-        self.cleanup_period_days = days;
+        self.cleanup_period_days = Some(days);
         self
     }
 
@@ -155,31 +139,19 @@ impl Settings {
         self
     }
 
-    /// Validate settings configuration
+    /// Validate settings configuration.
+    /// Delegates to the shared validation functions in `validation.rs`.
     pub fn validate(&self) -> Result<(), String> {
-        // Validate timeout is reasonable (>0, <1 hour)
         if let Some(timeout) = self.timeout_secs {
-            if timeout == 0 {
-                return Err("Timeout must be greater than 0".to_string());
-            }
-            if timeout > 3600 {
-                return Err("Timeout must be less than 3600 seconds".to_string());
-            }
+            validation::validate_timeout(timeout)?;
         }
 
-        // Validate cleanup period is reasonable
-        if self.cleanup_period_days == 0 {
-            return Err("Cleanup period must be at least 1 day".to_string());
-        }
-        if self.cleanup_period_days > 365 {
-            return Err("Cleanup period must be at most 365 days".to_string());
+        if let Some(days) = self.cleanup_period_days {
+            validation::validate_cleanup_period(days)?;
         }
 
-        // Validate API URL format if provided
-        if let Some(url) = &self.api_url {
-            if !url.starts_with("https://") && !url.starts_with("http://") {
-                return Err("API URL must start with http:// or https://".to_string());
-            }
+        if let Some(ref url) = self.api_url {
+            validation::validate_url(url)?;
         }
 
         Ok(())
@@ -190,7 +162,7 @@ impl Settings {
         self.model.is_none()
             && self.api_url.is_none()
             && self.timeout_secs.is_none()
-            && self.cleanup_period_days == 30
+            && self.cleanup_period_days.is_none()
             && self.permissions.is_empty()
             && self.env_vars.is_empty()
             && !self.disable_bypass_permissions
@@ -251,7 +223,7 @@ mod tests {
     fn test_settings_default() {
         let settings = Settings::new();
         assert_eq!(settings.model, None);
-        assert_eq!(settings.cleanup_period_days, 30);
+        assert_eq!(settings.cleanup_period_days, None);
         assert!(settings.permissions.is_empty());
     }
 
