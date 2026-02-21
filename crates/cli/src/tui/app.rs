@@ -5,7 +5,7 @@ use crate::permission_mode::PermissionMode;
 use crate::tui::message::Message;
 use crate::tui::thinking_state::ThinkingState;
 use crate::tui::token_counter::TokenCount;
-use rat_focus::FocusFlag;
+use rat_focus::{Focus, FocusFlag};
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -361,6 +361,12 @@ pub struct App {
 
     /// Mouse mode enabled (when false, allows terminal text selection)
     mouse_mode_enabled: bool,
+
+    /// Cached focus structure (rebuilt only when focus_dirty is set)
+    cached_focus: Option<Focus>,
+
+    /// Flag indicating focus structure needs rebuilding (debug toggle, modal open/close)
+    focus_dirty: bool,
 }
 
 /// State for active streaming response
@@ -413,6 +419,8 @@ impl App {
             click_regions: crate::tui::click_region::ClickableRegions::new(),
             soft_wrap: SoftWrapState::default(),
             mouse_mode_enabled: true, // Start with mouse mode ON
+            cached_focus: None,
+            focus_dirty: true, // Start dirty to build on first event
         }
     }
 
@@ -1321,6 +1329,7 @@ impl App {
         self.debug_visible = !self.debug_visible;
         let status = if self.debug_visible { "ON" } else { "OFF" };
         self.push_debug_message(format!("=== Debug Panel {} ===", status));
+        self.focus_dirty = true;
         self.mark_dirty();
     }
 
@@ -1456,12 +1465,14 @@ impl App {
         } else {
             self.autocomplete = Some(AutocompleteState { items, selected: 0 });
         }
+        self.focus_dirty = true;
         self.mark_dirty();
     }
 
     /// Clear autocomplete
     pub fn clear_autocomplete(&mut self) {
         self.autocomplete = None;
+        self.focus_dirty = true;
         self.mark_dirty();
     }
 
@@ -1525,6 +1536,7 @@ impl App {
                 selected: 0,
             });
         }
+        self.focus_dirty = true;
         self.mark_dirty();
     }
 
@@ -1539,6 +1551,7 @@ impl App {
     /// Clear memory modal
     pub fn clear_memory_modal(&mut self) {
         self.memory_modal = None;
+        self.focus_dirty = true;
         self.mark_dirty();
     }
 
@@ -1590,12 +1603,14 @@ impl App {
     /// Activate permissions search modal
     pub fn activate_permissions_modal(&mut self) {
         self.permissions_modal = Some(PermissionsSearchState::new());
+        self.focus_dirty = true;
         self.mark_dirty();
     }
 
     /// Clear permissions modal
     pub fn clear_permissions_modal(&mut self) {
         self.permissions_modal = None;
+        self.focus_dirty = true;
         self.mark_dirty();
     }
 
@@ -1648,12 +1663,96 @@ impl App {
 
     /// Update layout cache from render
     pub fn update_layout_cache(&mut self, cache: LayoutCache) {
+        // Invalidate focus when layout areas change (e.g., terminal resize)
+        if self.layout_cache.messages_area != cache.messages_area
+            || self.layout_cache.input_area != cache.input_area
+            || self.layout_cache.debug_area != cache.debug_area
+        {
+            self.focus_dirty = true;
+        }
         self.layout_cache = cache;
     }
 
     /// Get layout cache
     pub fn layout_cache(&self) -> &LayoutCache {
         &self.layout_cache
+    }
+
+    // === Focus caching ===
+
+    /// Mark the focus structure as needing a rebuild
+    pub fn invalidate_focus(&mut self) {
+        self.focus_dirty = true;
+    }
+
+    /// Check if focus needs rebuilding
+    pub fn is_focus_dirty(&self) -> bool {
+        self.focus_dirty
+    }
+
+    /// Get the cached focus, rebuilding if necessary.
+    /// Returns None if layout cache is not initialized (zero-size area).
+    pub fn get_or_rebuild_focus(&mut self) -> Option<&mut Focus> {
+        let cache = self.layout_cache.clone();
+
+        // Skip if layout cache is not initialized
+        if cache.messages_area.width == 0 && cache.messages_area.height == 0 {
+            return None;
+        }
+
+        if self.focus_dirty || self.cached_focus.is_none() {
+            // Rebuild focus structure
+            let mut builder = rat_focus::FocusBuilder::default();
+
+            let messages_wrapper = MessagesPaneWrapper {
+                focus: self.focus_messages.clone(),
+                area: cache.messages_area,
+            };
+            rat_focus::HasFocus::build(&messages_wrapper, &mut builder);
+
+            let input_wrapper = InputPaneWrapper {
+                focus: self.focus_input.clone(),
+                area: cache.input_area,
+            };
+            rat_focus::HasFocus::build(&input_wrapper, &mut builder);
+
+            if let Some(debug_area) = cache.debug_area {
+                let debug_wrapper = DebugPaneWrapper {
+                    focus: self.focus_debug.clone(),
+                    area: debug_area,
+                };
+                rat_focus::HasFocus::build(&debug_wrapper, &mut builder);
+            }
+
+            if self.autocomplete.is_some() {
+                let autocomplete_wrapper = AutocompletePopupWrapper {
+                    focus: self.focus_autocomplete.clone(),
+                    area: cache.input_area,
+                };
+                rat_focus::HasFocus::build(&autocomplete_wrapper, &mut builder);
+            }
+
+            if self.memory_modal.is_some() {
+                let memory_modal_wrapper = MemoryModalWrapper {
+                    focus: self.focus_memory_modal.clone(),
+                    area: cache.input_area,
+                };
+                rat_focus::HasFocus::build(&memory_modal_wrapper, &mut builder);
+            }
+
+            if self.permissions_modal.is_some() {
+                let permissions_modal_wrapper = PermissionsModalWrapper {
+                    focus: self.focus_permissions_modal.clone(),
+                    area: cache.input_area,
+                };
+                rat_focus::HasFocus::build(&permissions_modal_wrapper, &mut builder);
+            }
+
+            self.cached_focus = Some(builder.build());
+            self.focus_dirty = false;
+        }
+
+        self.cached_focus.as_mut()
     }
 }
 

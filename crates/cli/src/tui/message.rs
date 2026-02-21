@@ -1,6 +1,7 @@
 //! Message types for TUI display
 
 use chrono::{DateTime, Local};
+use unicode_width::UnicodeWidthStr;
 
 /// A message in the conversation
 #[derive(Debug, Clone)]
@@ -189,10 +190,11 @@ impl Message {
             .content
             .lines()
             .map(|line| {
-                if line.is_empty() {
+                let display_width = UnicodeWidthStr::width(line);
+                if display_width == 0 {
                     1
                 } else {
-                    line.len().div_ceil(width)
+                    display_width.div_ceil(width)
                 }
             })
             .sum::<usize>();

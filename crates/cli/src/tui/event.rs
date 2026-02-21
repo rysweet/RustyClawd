@@ -6,14 +6,10 @@ use crossterm::event::{
     KeyModifiers,
 };
 use rat_event::Outcome;
-use rat_focus::{FocusBuilder, HasFocus};
 use std::io;
 use std::time::Duration;
 
-use crate::tui::app::{
-    App, AutocompletePopupWrapper, DebugPaneWrapper, InputPaneWrapper, MemoryModalWrapper,
-    MessagesPaneWrapper, PermissionsModalWrapper,
-};
+use crate::tui::app::App;
 use crate::tui::click_region::ClickTarget;
 use crate::tui::keybindings::{KeyAction, KeyBindings};
 
@@ -56,80 +52,12 @@ pub fn poll_event(timeout: Duration) -> Result<Option<Event>> {
 
 /// Handle a single event, mutating app state
 pub fn handle_event(app: &mut App, event: Event) -> Result<EventResult> {
-    // Build focus structure BEFORE processing events (for Tab/mouse focus handling)
-    // Extract data from app first to avoid borrowing conflicts
-    let cache = app.layout_cache().clone();
-
-    // Only handle focus if layout cache is initialized (non-zero area)
-    // This avoids issues in tests where layout isn't set up
-    if cache.messages_area.width > 0 && cache.messages_area.height > 0 {
-        let focus_messages = app.focus_messages();
-        let focus_input = app.focus_input();
-        let focus_debug = app.focus_debug();
-        let focus_autocomplete = app.focus_autocomplete();
-        let focus_memory_modal = app.focus_memory_modal();
-        let focus_permissions_modal = app.focus_permissions_modal();
-        let autocomplete_active = app.autocomplete_active();
-        let memory_modal_active = app.memory_modal_active();
-        let permissions_modal_active = app.permissions_modal_active();
-
-        let mut builder = FocusBuilder::default();
-
-        // Add panes in z-order (bottom to top)
-        let messages_wrapper = MessagesPaneWrapper {
-            focus: focus_messages,
-            area: cache.messages_area,
-        };
-        messages_wrapper.build(&mut builder);
-
-        let input_wrapper = InputPaneWrapper {
-            focus: focus_input,
-            area: cache.input_area,
-        };
-        input_wrapper.build(&mut builder);
-
-        if let Some(debug_area) = cache.debug_area {
-            let debug_wrapper = DebugPaneWrapper {
-                focus: focus_debug,
-                area: debug_area,
-            };
-            debug_wrapper.build(&mut builder);
-        }
-
-        // Add overlays on top (highest z-order)
-        if autocomplete_active {
-            let autocomplete_wrapper = AutocompletePopupWrapper {
-                focus: focus_autocomplete,
-                // Autocomplete area is calculated in render, use input area as approximation
-                area: cache.input_area,
-            };
-            autocomplete_wrapper.build(&mut builder);
-        }
-
-        if memory_modal_active {
-            let memory_modal_wrapper = MemoryModalWrapper {
-                focus: focus_memory_modal,
-                // Memory modal area is calculated in render, use input area as approximation
-                area: cache.input_area,
-            };
-            memory_modal_wrapper.build(&mut builder);
-        }
-
-        if permissions_modal_active {
-            let permissions_modal_wrapper = PermissionsModalWrapper {
-                focus: focus_permissions_modal,
-                // Permissions modal area is calculated in render, use input area as approximation
-                area: cache.input_area,
-            };
-            permissions_modal_wrapper.build(&mut builder);
-        }
-
-        let mut focus = builder.build();
-
+    // Use cached focus structure (only rebuilt when pane visibility changes)
+    if let Some(focus) = app.get_or_rebuild_focus() {
         // Handle focus events (Tab navigation, mouse clicks) with rat-focus
         // This processes focus changes BEFORE other event handling
         // The FocusFlags will update automatically based on focus changes
-        let focus_outcome = rat_focus::handle_focus(&mut focus, &event);
+        let focus_outcome = rat_focus::handle_focus(focus, &event);
 
         // CRITICAL: Check if rat-focus consumed the event
         // If it did (Tab/mouse click for focus), don't process further
@@ -292,8 +220,8 @@ fn handle_key_event(app: &mut App, key: KeyEvent) -> Result<EventResult> {
         }
     }
 
-    // Get keybindings configuration
-    let bindings = KeyBindings::default();
+    // Get keybindings configuration (static, zero allocation)
+    let bindings = KeyBindings::defaults();
 
     // Try to find a keybinding action for this key
     if let Some(action) = bindings.find_action(&key) {

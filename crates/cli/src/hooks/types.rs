@@ -101,8 +101,10 @@ impl<'de> Deserialize<'de> for HookMatcher {
         if s == "*" {
             // "*" is an exact match that matches everything
             Ok(HookMatcher::Exact(s))
-        } else if s.contains('|') || s.contains(".*") || s.contains(".") {
-            // Contains regex special characters: pipe (alternation), .* (wildcard), dots
+        } else if s.contains('|') || s.contains(".*") {
+            // Contains regex special characters: pipe (alternation) or .* (wildcard)
+            // Note: a bare "." is NOT treated as regex — it's too common in tool
+            // names like "file.read" or "mcp__server__tool.action".
             Ok(HookMatcher::Regex(s))
         } else if is_mcp_server_wildcard(&s) {
             // MCP server wildcard pattern: mcp__<server>__*
