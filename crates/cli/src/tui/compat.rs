@@ -485,6 +485,29 @@ impl TuiState {
         self.app.active_tool_name()
     }
 
+    /// Toggle mouse capture mode.
+    /// When enabled, the app captures mouse events (scrolling, clicking).
+    /// When disabled, the terminal emulator handles mouse events (text selection works).
+    pub fn toggle_mouse_mode(&mut self) -> anyhow::Result<bool> {
+        use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
+
+        let new_mode = !self.app.mouse_mode_enabled();
+        self.app.set_mouse_mode(new_mode);
+
+        if new_mode {
+            crossterm::execute!(std::io::stdout(), EnableMouseCapture)?;
+        } else {
+            crossterm::execute!(std::io::stdout(), DisableMouseCapture)?;
+        }
+
+        Ok(new_mode)
+    }
+
+    /// Get mouse mode state
+    pub fn mouse_mode_enabled(&self) -> bool {
+        self.app.mouse_mode_enabled()
+    }
+
     /// Activate autocomplete with given items
     pub fn activate_autocomplete(&mut self, items: Vec<super::CompletionItem>) {
         self.app.activate_autocomplete(items);
