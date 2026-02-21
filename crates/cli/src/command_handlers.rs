@@ -571,17 +571,21 @@ fn handle_copy_command(tui: &mut TuiState) {
 
         if let Ok(mut child) = result {
             use std::io::Write;
-            if let Some(stdin) = child.stdin.as_mut() {
-                if stdin.write_all(content.as_bytes()).is_ok()
-                    && child.wait().map(|s| s.success()).unwrap_or(false)
-                {
-                    tui.add_message(ChatMessage::system(format!(
-                        "Copied {} chars to clipboard via {}.",
-                        content.len(),
-                        cmd
-                    )));
-                    return;
-                }
+            let wrote = if let Some(mut stdin) = child.stdin.take() {
+                // Drop stdin before wait() so the child sees EOF and can flush.
+                // Keeping stdin open while waiting can deadlock if the child
+                // blocks on reading more input.
+                stdin.write_all(content.as_bytes()).is_ok()
+            } else {
+                false
+            };
+            if wrote && child.wait().map(|s| s.success()).unwrap_or(false) {
+                tui.add_message(ChatMessage::system(format!(
+                    "Copied {} chars to clipboard via {}.",
+                    content.len(),
+                    cmd
+                )));
+                return;
             }
         }
     }
