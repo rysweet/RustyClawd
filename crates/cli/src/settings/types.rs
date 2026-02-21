@@ -55,7 +55,7 @@ pub struct SandboxSettings {
 }
 
 /// Core configuration settings
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Settings {
     /// LLM model to use
     pub model: Option<String>,
@@ -77,23 +77,6 @@ pub struct Settings {
     pub sandbox: Option<SandboxSettings>,
     /// MCP tool search configuration (auto:N syntax)
     pub tool_search: ToolSearchConfig,
-}
-
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            model: None,
-            api_url: None,
-            timeout_secs: None,
-            cleanup_period_days: None,
-            permissions: HashMap::new(),
-            env_vars: HashMap::new(),
-            disable_bypass_permissions: false,
-            enabled_plugins: HashMap::new(),
-            sandbox: None,
-            tool_search: ToolSearchConfig::default(),
-        }
-    }
 }
 
 impl Settings {
