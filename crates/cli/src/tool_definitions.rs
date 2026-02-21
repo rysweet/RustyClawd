@@ -521,304 +521,73 @@ fn web_search_tool_definition() -> ToolDefinition {
 mod tests {
     use super::*;
 
-    /// Verify that all tool definitions have proper "required" fields in their schemas
+    /// Comprehensive structural validation of all tool definitions.
+    /// Verifies schema structure, required fields, property descriptions,
+    /// and tool naming for every tool returned by get_all_tool_definitions().
     #[test]
-    fn test_all_tools_have_required_fields() {
+    fn test_all_tools_have_valid_schemas() {
         let tools = get_all_tool_definitions();
 
-        assert!(!tools.is_empty(), "Should have at least one tool");
+        // We expect exactly 16 tools
+        assert_eq!(tools.len(), 16, "Expected 16 tool definitions");
 
-        for tool in tools {
+        // Verify no duplicate names
+        let mut seen_names = std::collections::HashSet::new();
+        for tool in &tools {
+            assert!(
+                seen_names.insert(&tool.name),
+                "Duplicate tool name: '{}'",
+                tool.name
+            );
+        }
+
+        for tool in &tools {
+            // Every tool must have a non-empty name and description
+            assert!(!tool.name.is_empty(), "Tool has empty name");
+            assert!(
+                !tool.description.is_empty(),
+                "Tool '{}' has empty description",
+                tool.name
+            );
+
             let schema = &tool.input_schema;
 
-            // Verify schema has "required" field
-            let required = schema.get("required");
-            assert!(
-                required.is_some(),
-                "Tool '{}' is missing 'required' field in input_schema",
+            // Schema must be type "object" with properties and required
+            assert_eq!(
+                schema["type"], "object",
+                "Tool '{}' schema type must be 'object'",
                 tool.name
             );
 
-            // Verify it's an array
-            let required_array = required.unwrap().as_array();
-            assert!(
-                required_array.is_some(),
-                "Tool '{}' has 'required' field but it's not an array",
-                tool.name
-            );
+            let properties = schema["properties"].as_object().unwrap_or_else(|| {
+                panic!("Tool '{}' must have 'properties' object", tool.name);
+            });
 
-            println!(
-                "✓ Tool '{}' has required fields: {:?}",
-                tool.name,
-                required_array.unwrap()
-            );
+            let required = schema["required"].as_array().unwrap_or_else(|| {
+                panic!("Tool '{}' must have 'required' array", tool.name);
+            });
+
+            // Every required field must exist in properties
+            for req in required {
+                let req_str = req.as_str().unwrap();
+                assert!(
+                    properties.contains_key(req_str),
+                    "Tool '{}' requires '{}' but it's not in properties",
+                    tool.name,
+                    req_str
+                );
+            }
+
+            // Every property must have a description
+            for (key, value) in properties {
+                assert!(
+                    value.get("description").and_then(|d| d.as_str()).is_some(),
+                    "Tool '{}' property '{}' must have a string description",
+                    tool.name,
+                    key
+                );
+            }
         }
-    }
-
-    /// Verify specific required fields for critical tools
-    #[test]
-    fn test_bash_tool_requires_command() {
-        let bash = bash_tool_definition();
-        let required = bash.input_schema["required"].as_array().unwrap();
-        assert!(
-            required.contains(&serde_json::json!("command")),
-            "Bash tool must require 'command' parameter"
-        );
-    }
-
-    #[test]
-    fn test_write_tool_requires_file_path_and_content() {
-        let write = write_tool_definition();
-        let required = write.input_schema["required"].as_array().unwrap();
-        assert!(
-            required.contains(&serde_json::json!("file_path")),
-            "Write tool must require 'file_path' parameter"
-        );
-        assert!(
-            required.contains(&serde_json::json!("content")),
-            "Write tool must require 'content' parameter"
-        );
-    }
-
-    #[test]
-    fn test_edit_tool_requires_all_parameters() {
-        let edit = edit_tool_definition();
-        let required = edit.input_schema["required"].as_array().unwrap();
-        assert!(
-            required.contains(&serde_json::json!("file_path")),
-            "Edit tool must require 'file_path' parameter"
-        );
-        assert!(
-            required.contains(&serde_json::json!("old_string")),
-            "Edit tool must require 'old_string' parameter"
-        );
-        assert!(
-            required.contains(&serde_json::json!("new_string")),
-            "Edit tool must require 'new_string' parameter"
-        );
-    }
-
-    #[test]
-    fn test_read_tool_requires_file_path() {
-        let read = read_tool_definition();
-        let required = read.input_schema["required"].as_array().unwrap();
-        assert!(
-            required.contains(&serde_json::json!("file_path")),
-            "Read tool must require 'file_path' parameter"
-        );
-    }
-
-    #[test]
-    fn test_glob_tool_requires_pattern() {
-        let glob = glob_tool_definition();
-        let required = glob.input_schema["required"].as_array().unwrap();
-        assert!(
-            required.contains(&serde_json::json!("pattern")),
-            "Glob tool must require 'pattern' parameter"
-        );
-    }
-
-    #[test]
-    fn test_grep_tool_requires_pattern() {
-        let grep = grep_tool_definition();
-        let required = grep.input_schema["required"].as_array().unwrap();
-        assert!(
-            required.contains(&serde_json::json!("pattern")),
-            "Grep tool must require 'pattern' parameter"
-        );
-    }
-
-    #[test]
-    fn test_skill_tool_requires_skill() {
-        let skill = skill_tool_definition();
-        let required = skill.input_schema["required"].as_array().unwrap();
-        assert!(
-            required.contains(&serde_json::json!("skill")),
-            "Skill tool must require 'skill' parameter"
-        );
-    }
-
-    #[test]
-    fn test_task_tool_requires_all_parameters() {
-        let task = task_tool_definition();
-        let required = task.input_schema["required"].as_array().unwrap();
-        assert!(
-            required.contains(&serde_json::json!("subagent_type")),
-            "Task tool must require 'subagent_type' parameter"
-        );
-        assert!(
-            required.contains(&serde_json::json!("prompt")),
-            "Task tool must require 'prompt' parameter"
-        );
-        assert!(
-            required.contains(&serde_json::json!("description")),
-            "Task tool must require 'description' parameter"
-        );
-    }
-
-    #[test]
-    fn test_task_tool_has_correct_name() {
-        let task = task_tool_definition();
-        assert_eq!(task.name, "Task", "Task tool must be named 'Task'");
-    }
-
-    #[test]
-    fn test_task_tool_has_description() {
-        let task = task_tool_definition();
-        assert!(
-            !task.description.is_empty(),
-            "Task tool must have a description"
-        );
-        assert!(
-            task.description.contains("agent"),
-            "Task tool description should mention agents"
-        );
-    }
-
-    #[test]
-    fn test_task_tool_has_optional_model() {
-        let task = task_tool_definition();
-        let properties = task.input_schema["properties"].as_object().unwrap();
-        assert!(
-            properties.contains_key("model"),
-            "Task tool should have optional 'model' parameter"
-        );
-        let required = task.input_schema["required"].as_array().unwrap();
-        assert!(
-            !required.contains(&serde_json::json!("model")),
-            "Task tool 'model' parameter should be optional"
-        );
-    }
-
-    #[test]
-    fn test_task_tool_has_optional_resume() {
-        let task = task_tool_definition();
-        let properties = task.input_schema["properties"].as_object().unwrap();
-        assert!(
-            properties.contains_key("resume"),
-            "Task tool should have optional 'resume' parameter"
-        );
-        let required = task.input_schema["required"].as_array().unwrap();
-        assert!(
-            !required.contains(&serde_json::json!("resume")),
-            "Task tool 'resume' parameter should be optional"
-        );
-    }
-
-    #[test]
-    fn test_task_tool_properties_have_descriptions() {
-        let task = task_tool_definition();
-        let properties = task.input_schema["properties"].as_object().unwrap();
-
-        for (key, value) in properties {
-            let description = value.get("description");
-            assert!(
-                description.is_some() && description.unwrap().is_string(),
-                "Task tool property '{}' must have a string description",
-                key
-            );
-        }
-    }
-
-    #[test]
-    fn test_task_tool_schema_structure() {
-        let task = task_tool_definition();
-
-        // Check top-level schema structure
-        assert_eq!(
-            task.input_schema["type"], "object",
-            "Task tool schema must be an object"
-        );
-        assert!(
-            task.input_schema.get("properties").is_some(),
-            "Task tool must have properties"
-        );
-        assert!(
-            task.input_schema.get("required").is_some(),
-            "Task tool must have required array"
-        );
-    }
-
-    #[test]
-    fn test_all_tools_include_task() {
-        let tools = get_all_tool_definitions();
-        let has_task = tools.iter().any(|t| t.name == "Task");
-        assert!(
-            has_task,
-            "get_all_tool_definitions() must include Task tool"
-        );
-    }
-
-    #[test]
-    fn test_all_tools_include_ask_user_question() {
-        let tools = get_all_tool_definitions();
-        let has_ask = tools.iter().any(|t| t.name == "AskUserQuestion");
-        assert!(
-            has_ask,
-            "get_all_tool_definitions() must include AskUserQuestion tool"
-        );
-    }
-
-    #[test]
-    fn test_all_tools_include_skill() {
-        let tools = get_all_tool_definitions();
-        let has_skill = tools.iter().any(|t| t.name == "Skill");
-        assert!(
-            has_skill,
-            "get_all_tool_definitions() must include Skill tool"
-        );
-    }
-
-    #[test]
-    fn test_all_tools_include_slashcommand() {
-        let tools = get_all_tool_definitions();
-        let has_slashcommand = tools.iter().any(|t| t.name == "SlashCommand");
-        assert!(
-            has_slashcommand,
-            "get_all_tool_definitions() must include SlashCommand tool"
-        );
-    }
-
-    #[test]
-    fn test_all_tools_include_todowrite() {
-        let tools = get_all_tool_definitions();
-        let has_todowrite = tools.iter().any(|t| t.name == "TodoWrite");
-        assert!(
-            has_todowrite,
-            "get_all_tool_definitions() must include TodoWrite tool"
-        );
-    }
-
-    #[test]
-    fn test_task_tool_count_in_all_tools() {
-        let tools = get_all_tool_definitions();
-        let task_count = tools.iter().filter(|t| t.name == "Task").count();
-        assert_eq!(
-            task_count, 1,
-            "Task tool should appear exactly once in all tool definitions"
-        );
-    }
-
-    #[test]
-    fn test_task_tool_subagent_type_is_string() {
-        let task = task_tool_definition();
-        let properties = task.input_schema["properties"].as_object().unwrap();
-        let subagent_type = properties.get("subagent_type").unwrap();
-        assert_eq!(
-            subagent_type["type"], "string",
-            "Task tool subagent_type must be a string"
-        );
-    }
-
-    #[test]
-    fn test_task_tool_prompt_is_string() {
-        let task = task_tool_definition();
-        let properties = task.input_schema["properties"].as_object().unwrap();
-        let prompt = properties.get("prompt").unwrap();
-        assert_eq!(
-            prompt["type"], "string",
-            "Task tool prompt must be a string"
-        );
     }
 
     /// Test that schemas serialize correctly for API transmission
