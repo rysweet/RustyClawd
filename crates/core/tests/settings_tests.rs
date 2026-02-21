@@ -20,7 +20,7 @@ use std::collections::HashMap;
 // ============================================================================
 
 /// Represents permission rules for tool access control
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum PermissionMode {
     Allow,
     Ask,
@@ -39,14 +39,14 @@ impl PermissionMode {
 }
 
 /// Permission rules for a single tool
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ToolPermission {
     pub mode: PermissionMode,
     pub patterns: Vec<String>, // Prefix patterns for bash commands
 }
 
 /// Core configuration settings
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Settings {
     pub model: Option<String>,
     pub api_url: Option<String>,
