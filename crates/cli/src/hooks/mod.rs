@@ -1,6 +1,6 @@
 //! Claude Code Hooks System
 //!
-//! Provides lifecycle hooks for all 9 events with command and prompt-based execution.
+//! Provides lifecycle hooks for all 12 events with command and prompt-based execution.
 //! Hooks can validate, transform, and control tool execution flow.
 //!
 //! # Hook Events
@@ -13,9 +13,16 @@
 //! - SubagentStop: Called when a subagent stops
 //! - Notification: Called for notification filtering
 //! - PreCompact: Called before compacting conversation history
+//! - PermissionRequest: Called when a tool requires permission
+//! - TeammateIdle: Called when an agent becomes idle
+//! - TaskCompleted: Called when an agent completes a task
 
+pub mod config;
+pub mod context;
+pub mod event;
 pub mod executor;
 pub mod loader;
+mod prompt_hook;
 pub mod registry;
 pub mod types;
 
