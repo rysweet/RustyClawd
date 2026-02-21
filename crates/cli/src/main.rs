@@ -11,6 +11,8 @@ mod checkpoint;
 #[allow(dead_code)]
 mod commands;
 #[allow(dead_code)]
+mod conversation;
+#[allow(dead_code)]
 mod hooks;
 #[allow(dead_code)]
 mod interactive;
@@ -33,8 +35,12 @@ mod session_persistence;
 #[allow(dead_code)]
 mod settings;
 #[allow(dead_code)]
+mod streaming;
+#[allow(dead_code)]
 mod terminal_guard;
 mod tool_definitions;
+#[allow(dead_code)]
+mod tool_orchestrator;
 // TODO: Migrate from ClientError::Api to specific error types (BadRequest, Unknown, etc.)
 #[allow(deprecated)]
 #[allow(dead_code)]
