@@ -8,7 +8,7 @@
 //! - [`crate::tool_orchestrator`] -- tool execution spawning and result collection
 
 use crate::commands::SlashCommands;
-use crate::conversation;
+use crate::conversation::{self, SessionServices, StreamingState, ToolLoopState};
 use crate::hooks;
 use crate::hooks::NotificationType;
 use crate::notification::NotificationManager;
@@ -20,7 +20,7 @@ use crate::terminal_guard;
 use crate::tool_orchestrator;
 use crate::tui::{ChatMessage, TuiState};
 use anyhow::Result;
-use rustyclawd_core::client::{Client, Config, Message as ApiMessage, MessageResponse};
+use rustyclawd_core::client::{Client, Config, MessageResponse};
 use rustyclawd_core::{Context, MessageRole};
 use std::io::{self, Write};
 use std::sync::Arc;
@@ -32,10 +32,13 @@ pub(crate) const DEFAULT_MODEL: &str = "claude-sonnet-4-5-20250929";
 /// Maximum tokens for responses
 pub(crate) const MAX_TOKENS: u32 = 4096;
 
+/// Type alias for the slash-command completion callback.
+type CompletionCallback = Box<dyn Fn(&str) -> Vec<(String, Option<String>)> + Send>;
+
 /// Interactive chat session with TUI
 pub struct InteractiveSession {
-    /// Anthropic API client
-    client: Client,
+    /// Anthropic API client (shared via Arc for SessionServices)
+    client: Arc<Client>,
     /// Conversation context
     context: Context,
     /// TUI state
@@ -56,26 +59,12 @@ pub struct InteractiveSession {
     session_id: String,
     /// Notification manager (optional)
     notification_manager: Option<NotificationManager>,
-    /// Channel receiver for streaming events from background task
-    streaming_rx: Option<tokio::sync::mpsc::UnboundedReceiver<streaming::StreamingChannelEvent>>,
-    /// Active streaming message index (if streaming)
-    streaming_message_index: Option<usize>,
-    /// Channel receiver for tool execution events from background tasks
-    tool_rx: Option<tokio::sync::mpsc::UnboundedReceiver<tool_orchestrator::ToolExecutionEvent>>,
-    /// Active tool executions (tool_id -> tool_name)
-    active_tools: std::collections::HashMap<String, String>,
-    /// Completed tool results (tool_id -> result)
-    tool_results: std::collections::HashMap<String, rustyclawd_core::client::types::ContentBlock>,
-    /// Channel receiver for streaming response completion
-    response_rx: Option<tokio::sync::oneshot::Receiver<MessageResponse>>,
-    /// API messages for current turn (needed for tool use loop continuation)
-    api_messages: Vec<ApiMessage>,
+    /// Streaming-related state (channel receivers, message index)
+    streaming: StreamingState,
+    /// Tool-use loop state (active tools, results, pending response)
+    tool_state: ToolLoopState,
     /// Pending response for tool use loop processing
     pending_response: Option<MessageResponse>,
-    /// Expected tool IDs for current batch (used to detect completion)
-    expected_tool_ids: Vec<String>,
-    /// Current response waiting for tool completion
-    pending_tool_response: Option<MessageResponse>,
     /// List of tools that are explicitly allowed (empty means all tools allowed)
     allowed_tools: Vec<String>,
     /// List of tools that are explicitly disallowed
@@ -95,7 +84,7 @@ impl InteractiveSession {
 
         // Load API configuration from default location
         let config = Config::from_default_location().await?;
-        let client = Client::new(config)?;
+        let client = Arc::new(Client::new(config)?);
 
         // Initialize TUI
         let mut tui = TuiState::new()?;
@@ -144,19 +133,42 @@ impl InteractiveSession {
             hooks,
             session_id,
             notification_manager,
-            streaming_rx: None,
-            streaming_message_index: None,
-            tool_rx: None,
-            active_tools: std::collections::HashMap::new(),
-            tool_results: std::collections::HashMap::new(),
-            response_rx: None,
-            api_messages: Vec::new(),
+            streaming: StreamingState {
+                rx: None,
+                message_index: None,
+                response_rx: None,
+                api_messages: Vec::new(),
+            },
+            tool_state: ToolLoopState {
+                active_tools: std::collections::HashMap::new(),
+                tool_results: std::collections::HashMap::new(),
+                expected_tool_ids: Vec::new(),
+                pending_tool_response: None,
+                tool_rx: None,
+            },
             pending_response: None,
-            expected_tool_ids: Vec::new(),
-            pending_tool_response: None,
             allowed_tools: vec![],
             disallowed_tools: vec![],
         })
+    }
+
+    /// Build a `SessionServices` snapshot from current session state.
+    ///
+    /// Uses `Arc`/`Clone` so the result is independent of `&self`, allowing
+    /// sibling fields to be mutably borrowed at the same time.
+    fn session_services(&self) -> SessionServices {
+        SessionServices {
+            client: Arc::clone(&self.client),
+            model: self.model.clone(),
+            hooks: self.hooks.clone(),
+            session_id: self.session_id.clone(),
+            notification_manager: self.notification_manager.clone(),
+            permission_mode: self.tui.permission_mode(),
+            allowed_tools: self.allowed_tools.clone(),
+            disallowed_tools: self.disallowed_tools.clone(),
+            slash_commands: Arc::clone(&self.slash_commands),
+            mcp_proxy: Arc::clone(&self.mcp_proxy),
+        }
     }
 
     /// Run the REPL loop
@@ -195,23 +207,14 @@ impl InteractiveSession {
                     "[RESPONSE] Processing pending response for tool use loop".to_string(),
                 );
 
-                let perm_mode = self.tui.permission_mode();
+                let services = self.session_services();
                 if let Err(e) = conversation::process_response_in_tool_loop(
                     response,
                     &mut self.tui,
                     &mut self.context,
                     &mut self.stats,
-                    &mut self.active_tools,
-                    &mut self.tool_results,
-                    &mut self.expected_tool_ids,
-                    &mut self.pending_tool_response,
-                    &mut self.tool_rx,
-                    &self.hooks,
-                    &self.session_id,
-                    &self.notification_manager,
-                    perm_mode,
-                    &self.allowed_tools,
-                    &self.disallowed_tools,
+                    &mut self.tool_state,
+                    &services,
                 )
                 .await
                 {
@@ -236,13 +239,13 @@ impl InteractiveSession {
 
     /// Poll streaming channel events and dispatch to streaming handler.
     fn poll_streaming_events(&mut self) {
-        if let Some(ref mut rx) = self.streaming_rx {
+        if let Some(ref mut rx) = self.streaming.rx {
             match rx.try_recv() {
                 Ok(event) => {
                     let response = streaming::handle_streaming_event(
                         event,
                         &mut self.tui,
-                        self.streaming_message_index,
+                        self.streaming.message_index,
                     );
 
                     if let Some(response) = response {
@@ -252,8 +255,8 @@ impl InteractiveSession {
                             response.usage.output_tokens as u64,
                         );
                         // Streaming completed - clean up
-                        self.streaming_rx = None;
-                        self.streaming_message_index = None;
+                        self.streaming.rx = None;
+                        self.streaming.message_index = None;
                     }
                 }
                 Err(tokio::sync::mpsc::error::TryRecvError::Empty) => {
@@ -262,8 +265,8 @@ impl InteractiveSession {
                 Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => {
                     self.tui
                         .push_debug("[STREAMING] Channel disconnected unexpectedly".to_string());
-                    self.streaming_rx = None;
-                    self.streaming_message_index = None;
+                    self.streaming.rx = None;
+                    self.streaming.message_index = None;
                 }
             }
         }
@@ -271,19 +274,19 @@ impl InteractiveSession {
 
     /// Poll tool execution events and dispatch to tool orchestrator handler.
     fn poll_tool_events(&mut self) {
-        if let Some(ref mut rx) = self.tool_rx {
+        if let Some(ref mut rx) = self.tool_state.tool_rx {
             match rx.try_recv() {
                 Ok(event) => {
                     tool_orchestrator::handle_tool_event(
                         event,
                         &mut self.tui,
-                        &mut self.active_tools,
-                        &mut self.tool_results,
+                        &mut self.tool_state.active_tools,
+                        &mut self.tool_state.tool_results,
                     );
                 }
                 Err(tokio::sync::mpsc::error::TryRecvError::Empty) => {}
                 Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => {
-                    self.tool_rx = None;
+                    self.tool_state.tool_rx = None;
                 }
             }
         }
@@ -291,14 +294,15 @@ impl InteractiveSession {
 
     /// Check if all expected tools have completed and continue the tool loop.
     async fn check_tool_completion(&mut self) {
-        if self.expected_tool_ids.is_empty() {
+        if self.tool_state.expected_tool_ids.is_empty() {
             return;
         }
 
         let all_tools_complete = self
+            .tool_state
             .expected_tool_ids
             .iter()
-            .all(|id| self.tool_results.contains_key(id));
+            .all(|id| self.tool_state.tool_results.contains_key(id));
 
         if !all_tools_complete {
             return;
@@ -309,25 +313,29 @@ impl InteractiveSession {
 
         // Collect results in order
         let mut tool_result_blocks = Vec::new();
-        for id in &self.expected_tool_ids {
-            if let Some(result) = self.tool_results.remove(id) {
+        for id in &self.tool_state.expected_tool_ids {
+            if let Some(result) = self.tool_state.tool_results.remove(id) {
                 tool_result_blocks.push(result);
             }
         }
 
-        self.expected_tool_ids.clear();
+        self.tool_state.expected_tool_ids.clear();
 
         // If we have a pending response waiting for tools, continue the loop
-        if let Some(response) = self.pending_tool_response.take() {
-            self.api_messages.push(ApiMessage::with_blocks(
-                rustyclawd_core::client::Role::Assistant,
-                response.content,
-            ));
+        if let Some(response) = self.tool_state.pending_tool_response.take() {
+            self.streaming
+                .api_messages
+                .push(rustyclawd_core::client::Message::with_blocks(
+                    rustyclawd_core::client::Role::Assistant,
+                    response.content,
+                ));
 
-            self.api_messages.push(ApiMessage::with_blocks(
-                rustyclawd_core::client::Role::User,
-                tool_result_blocks,
-            ));
+            self.streaming
+                .api_messages
+                .push(rustyclawd_core::client::Message::with_blocks(
+                    rustyclawd_core::client::Role::User,
+                    tool_result_blocks,
+                ));
 
             self.tui
                 .push_debug("[TOOL_LOOP] Starting next turn after tools".to_string());
@@ -335,30 +343,27 @@ impl InteractiveSession {
             let _ = conversation::start_streaming_turn(
                 &self.client,
                 &self.model,
-                &self.api_messages,
                 &mut self.tui,
-                &mut self.streaming_rx,
-                &mut self.streaming_message_index,
-                &mut self.response_rx,
+                &mut self.streaming,
             );
         }
     }
 
     /// Poll for streaming response completion.
     fn poll_response_completion(&mut self) {
-        if let Some(ref mut rx) = self.response_rx {
+        if let Some(ref mut rx) = self.streaming.response_rx {
             match rx.try_recv() {
                 Ok(response) => {
                     self.tui
                         .push_debug("[RESPONSE] Streaming response complete".to_string());
                     self.pending_response = Some(response);
-                    self.response_rx = None;
+                    self.streaming.response_rx = None;
                 }
                 Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {}
                 Err(tokio::sync::oneshot::error::TryRecvError::Closed) => {
                     self.tui
                         .push_debug("[RESPONSE] Channel closed unexpectedly".to_string());
-                    self.response_rx = None;
+                    self.streaming.response_rx = None;
                 }
             }
         }
@@ -413,25 +418,15 @@ impl InteractiveSession {
                 }
 
                 // Handle special commands
+                let services = self.session_services();
                 let handled = conversation::handle_command(
                     input,
                     &mut self.tui,
                     &mut self.context,
-                    &self.hooks,
-                    &self.session_id,
+                    &services,
                     &mut self.stats,
-                    &self.model,
                     &mut self.persistence,
-                    &self.slash_commands,
-                    &self.mcp_proxy,
-                    &self.notification_manager,
-                    &self.client,
-                    &mut self.api_messages,
-                    &mut self.streaming_rx,
-                    &mut self.streaming_message_index,
-                    &mut self.response_rx,
-                    &self.allowed_tools,
-                    &self.disallowed_tools,
+                    &mut self.streaming,
                 )
                 .await?;
 
@@ -445,15 +440,8 @@ impl InteractiveSession {
                     false,
                     &mut self.tui,
                     &mut self.context,
-                    &self.hooks,
-                    &self.session_id,
-                    &self.notification_manager,
-                    &self.client,
-                    &self.model,
-                    &mut self.api_messages,
-                    &mut self.streaming_rx,
-                    &mut self.streaming_message_index,
-                    &mut self.response_rx,
+                    &services,
+                    &mut self.streaming,
                 )
                 .await
                 {
@@ -533,9 +521,7 @@ impl InteractiveSession {
 }
 
 /// Build the autocomplete callback for slash commands.
-fn build_completion_callback(
-    commands: Arc<SlashCommands>,
-) -> Box<dyn Fn(&str) -> Vec<(String, Option<String>)> + Send> {
+fn build_completion_callback(commands: Arc<SlashCommands>) -> CompletionCallback {
     Box::new(move |prefix| {
         let built_in_commands = vec![
             ("help", Some("Show available commands".to_string())),

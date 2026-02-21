@@ -12,6 +12,16 @@ use crate::tui::TuiState;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+/// Session-level services and configuration needed for tool execution.
+pub(crate) struct ToolServices {
+    pub hooks: Option<Arc<hooks::HooksSystem>>,
+    pub session_id: String,
+    pub notification_manager: Option<NotificationManager>,
+    pub permission_mode: PermissionMode,
+    pub allowed_tools: Vec<String>,
+    pub disallowed_tools: Vec<String>,
+}
+
 /// Events sent from background tool execution tasks to main event loop
 #[derive(Debug, Clone)]
 #[allow(dead_code)] // Variants are part of the event protocol; some not yet emitted
@@ -182,12 +192,7 @@ pub(crate) fn spawn_tools(
     stats: &mut SessionStats,
     active_tools: &mut HashMap<String, String>,
     tool_results: &mut HashMap<String, rustyclawd_core::client::types::ContentBlock>,
-    hooks: &Option<Arc<hooks::HooksSystem>>,
-    session_id: &str,
-    notification_manager: &Option<NotificationManager>,
-    permission_mode: PermissionMode,
-    allowed_tools: &[String],
-    disallowed_tools: &[String],
+    services: &ToolServices,
 ) -> Option<(
     tokio::sync::mpsc::UnboundedReceiver<ToolExecutionEvent>,
     Vec<String>,
@@ -215,12 +220,13 @@ pub(crate) fn spawn_tools(
     }
 
     // Spawn background task for each tool
+    let permission_mode = services.permission_mode;
     for (id, name, input) in tool_use_blocks {
-        let hooks_clone = hooks.as_ref().map(Arc::clone);
-        let session_id_clone = Some(session_id.to_string());
-        let notification_manager_clone = notification_manager.clone();
-        let allowed_tools_clone = allowed_tools.to_vec();
-        let disallowed_tools_clone = disallowed_tools.to_vec();
+        let hooks_clone = services.hooks.as_ref().map(Arc::clone);
+        let session_id_clone = Some(services.session_id.clone());
+        let notification_manager_clone = services.notification_manager.clone();
+        let allowed_tools_clone = services.allowed_tools.clone();
+        let disallowed_tools_clone = services.disallowed_tools.clone();
         let tx = event_tx.clone();
 
         tokio::spawn(async move {

@@ -8,6 +8,7 @@ use crate::hooks;
 use crate::hooks::NotificationType;
 use crate::mcp_commands;
 use crate::notification::NotificationManager;
+use crate::permission_mode::PermissionMode;
 use crate::plugins::mcp_proxy::McpProxy;
 use crate::session::SessionStats;
 use crate::session_persistence::SessionPersistence;
@@ -23,6 +24,42 @@ use rustyclawd_tools::{
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+/// Mutable streaming-related state passed between the event loop and conversation functions.
+pub(crate) struct StreamingState {
+    pub rx: Option<tokio::sync::mpsc::UnboundedReceiver<streaming::StreamingChannelEvent>>,
+    pub message_index: Option<usize>,
+    pub response_rx: Option<tokio::sync::oneshot::Receiver<MessageResponse>>,
+    pub api_messages: Vec<ApiMessage>,
+}
+
+/// Mutable state for the tool-use loop.
+pub(crate) struct ToolLoopState {
+    pub active_tools: std::collections::HashMap<String, String>,
+    pub tool_results:
+        std::collections::HashMap<String, rustyclawd_core::client::types::ContentBlock>,
+    pub expected_tool_ids: Vec<String>,
+    pub pending_tool_response: Option<MessageResponse>,
+    pub tool_rx:
+        Option<tokio::sync::mpsc::UnboundedReceiver<tool_orchestrator::ToolExecutionEvent>>,
+}
+
+/// Session-wide services and configuration that rarely change during a session.
+///
+/// Fields are owned/cloned to avoid borrow-checker conflicts when the caller
+/// also needs mutable access to sibling fields of the same struct.
+pub(crate) struct SessionServices {
+    pub client: Arc<Client>,
+    pub model: String,
+    pub hooks: Option<Arc<hooks::HooksSystem>>,
+    pub session_id: String,
+    pub notification_manager: Option<NotificationManager>,
+    pub permission_mode: PermissionMode,
+    pub allowed_tools: Vec<String>,
+    pub disallowed_tools: Vec<String>,
+    pub slash_commands: Arc<SlashCommands>,
+    pub mcp_proxy: Arc<Mutex<McpProxy>>,
+}
 
 /// Helper function to get current working directory as string
 fn get_cwd_string() -> String {
@@ -40,27 +77,18 @@ pub(crate) async fn process_user_message(
     skip_tui_display: bool,
     tui: &mut TuiState,
     context: &mut Context,
-    hooks: &Option<Arc<hooks::HooksSystem>>,
-    session_id: &str,
-    _notification_manager: &Option<NotificationManager>,
-    client: &Client,
-    model: &str,
-    api_messages: &mut Vec<ApiMessage>,
-    streaming_rx: &mut Option<
-        tokio::sync::mpsc::UnboundedReceiver<streaming::StreamingChannelEvent>,
-    >,
-    streaming_message_index: &mut Option<usize>,
-    response_rx: &mut Option<tokio::sync::oneshot::Receiver<MessageResponse>>,
+    services: &SessionServices,
+    streaming: &mut StreamingState,
 ) -> Result<()> {
     tui.push_debug("[PROCESS] Starting process_user_message".to_string());
 
     // Execute UserPromptSubmit hook BEFORE adding prompt to context
-    if let Some(ref hooks_sys) = hooks {
+    if let Some(ref hooks_sys) = services.hooks {
         tui.push_debug("[PROCESS] Executing UserPromptSubmit hook".to_string());
 
         let hook_context = hooks::HookContext::for_user_prompt(
-            session_id.to_string(),
-            format!(".claude/sessions/{}/transcript.json", session_id),
+            services.session_id.to_string(),
+            format!(".claude/sessions/{}/transcript.json", services.session_id),
             get_cwd_string(),
             "ask".to_string(),
             user_input.to_string(),
@@ -103,21 +131,13 @@ pub(crate) async fn process_user_message(
     tui.push_debug("[PROCESS] Starting stream_with_tools".to_string());
 
     // Initialize API messages for tool use loop
-    *api_messages = convert_messages_to_api_format(context);
+    streaming.api_messages = convert_messages_to_api_format(context);
 
     // Update status
     tui.set_status("Streaming...".to_string());
 
     // Stream the first turn (returns immediately, response processed via polling)
-    start_streaming_turn(
-        client,
-        model,
-        api_messages,
-        tui,
-        streaming_rx,
-        streaming_message_index,
-        response_rx,
-    )?;
+    start_streaming_turn(&services.client, &services.model, tui, streaming)?;
 
     tui.push_debug("[PROCESS] Completed process_user_message".to_string());
 
@@ -130,22 +150,17 @@ pub(crate) async fn process_user_message(
 pub(crate) fn start_streaming_turn(
     client: &Client,
     model: &str,
-    api_messages: &[ApiMessage],
     tui: &mut TuiState,
-    streaming_rx: &mut Option<
-        tokio::sync::mpsc::UnboundedReceiver<streaming::StreamingChannelEvent>,
-    >,
-    streaming_message_index: &mut Option<usize>,
-    response_rx: &mut Option<tokio::sync::oneshot::Receiver<MessageResponse>>,
+    streaming: &mut StreamingState,
 ) -> Result<()> {
     let (event_rx, resp_rx, msg_idx) =
-        streaming::spawn_streaming_task(client, model, api_messages, tui)?;
+        streaming::spawn_streaming_task(client, model, &streaming.api_messages, tui)?;
 
-    *streaming_rx = Some(event_rx);
-    *streaming_message_index = Some(msg_idx);
+    streaming.rx = Some(event_rx);
+    streaming.message_index = Some(msg_idx);
 
     tui.push_debug("[STREAM] Storing response receiver for polling".to_string());
-    *response_rx = Some(resp_rx);
+    streaming.response_rx = Some(resp_rx);
 
     Ok(())
 }
@@ -159,22 +174,8 @@ pub(crate) async fn process_response_in_tool_loop(
     tui: &mut TuiState,
     context: &mut Context,
     stats: &mut SessionStats,
-    active_tools: &mut std::collections::HashMap<String, String>,
-    tool_results: &mut std::collections::HashMap<
-        String,
-        rustyclawd_core::client::types::ContentBlock,
-    >,
-    expected_tool_ids: &mut Vec<String>,
-    pending_tool_response: &mut Option<MessageResponse>,
-    tool_rx: &mut Option<
-        tokio::sync::mpsc::UnboundedReceiver<tool_orchestrator::ToolExecutionEvent>,
-    >,
-    hooks: &Option<Arc<hooks::HooksSystem>>,
-    session_id: &str,
-    notification_manager: &Option<NotificationManager>,
-    permission_mode: crate::permission_mode::PermissionMode,
-    allowed_tools: &[String],
-    disallowed_tools: &[String],
+    tool_state: &mut ToolLoopState,
+    services: &SessionServices,
 ) -> Result<()> {
     // Check if response contains tool use
     let mut tool_use_blocks = Vec::new();
@@ -203,10 +204,10 @@ pub(crate) async fn process_response_in_tool_loop(
 
         if !response_text.is_empty() {
             if response_text.contains('?') {
-                if let Some(ref notification_mgr) = notification_manager {
+                if let Some(ref notification_mgr) = services.notification_manager {
                     notification_mgr
                         .notify(
-                            session_id,
+                            &services.session_id,
                             NotificationType::ElicitationDialog,
                             "AI is asking clarifying questions",
                         )
@@ -224,24 +225,27 @@ pub(crate) async fn process_response_in_tool_loop(
     tui.push_debug("[TOOL_LOOP] Spawning tool execution".to_string());
 
     // Store response for continuation after tools complete
-    *pending_tool_response = Some(response);
+    tool_state.pending_tool_response = Some(response);
 
     // Spawn tools
+    let tool_services = tool_orchestrator::ToolServices {
+        hooks: services.hooks.clone(),
+        session_id: services.session_id.to_string(),
+        notification_manager: services.notification_manager.clone(),
+        permission_mode: services.permission_mode,
+        allowed_tools: services.allowed_tools.to_vec(),
+        disallowed_tools: services.disallowed_tools.to_vec(),
+    };
     if let Some((rx, ids)) = tool_orchestrator::spawn_tools(
         tool_use_blocks,
         tui,
         stats,
-        active_tools,
-        tool_results,
-        hooks,
-        session_id,
-        notification_manager,
-        permission_mode,
-        allowed_tools,
-        disallowed_tools,
+        &mut tool_state.active_tools,
+        &mut tool_state.tool_results,
+        &tool_services,
     ) {
-        *tool_rx = Some(rx);
-        *expected_tool_ids = ids;
+        tool_state.tool_rx = Some(rx);
+        tool_state.expected_tool_ids = ids;
     }
 
     Ok(())
@@ -268,23 +272,10 @@ pub(crate) async fn handle_command(
     input: &str,
     tui: &mut TuiState,
     context: &mut Context,
-    hooks: &Option<Arc<hooks::HooksSystem>>,
-    session_id: &str,
+    services: &SessionServices,
     stats: &mut SessionStats,
-    model: &str,
     persistence: &mut Option<SessionPersistence>,
-    slash_commands: &Arc<SlashCommands>,
-    mcp_proxy: &Arc<Mutex<McpProxy>>,
-    notification_manager: &Option<NotificationManager>,
-    client: &Client,
-    api_messages: &mut Vec<ApiMessage>,
-    streaming_rx: &mut Option<
-        tokio::sync::mpsc::UnboundedReceiver<streaming::StreamingChannelEvent>,
-    >,
-    streaming_message_index: &mut Option<usize>,
-    response_rx: &mut Option<tokio::sync::oneshot::Receiver<MessageResponse>>,
-    allowed_tools: &[String],
-    disallowed_tools: &[String],
+    streaming: &mut StreamingState,
 ) -> Result<bool> {
     // Handle "!" prefix for direct shell execution
     if let Some(stripped) = input.strip_prefix('!') {
@@ -296,17 +287,24 @@ pub(crate) async fn handle_command(
             return Ok(true);
         }
 
-        execute_shell_command(command, tui, context, allowed_tools, disallowed_tools).await?;
+        execute_shell_command(
+            command,
+            tui,
+            context,
+            &services.allowed_tools,
+            &services.disallowed_tools,
+        )
+        .await?;
         return Ok(true);
     }
 
     match input {
         "/exit" | "/quit" => {
             // Execute Stop hook to check if exit should be allowed
-            if let Some(ref hooks_sys) = hooks {
+            if let Some(ref hooks_sys) = services.hooks {
                 let hook_context = hooks::HookContext::for_session(
-                    session_id.to_string(),
-                    format!(".claude/sessions/{}/transcript.json", session_id),
+                    services.session_id.to_string(),
+                    format!(".claude/sessions/{}/transcript.json", services.session_id),
                     get_cwd_string(),
                     "ask".to_string(),
                     hooks::HookEvent::Stop,
@@ -359,10 +357,10 @@ pub(crate) async fn handle_command(
             return Ok(true);
         }
         "/compact" => {
-            if let Some(ref hooks_sys) = hooks {
+            if let Some(ref hooks_sys) = services.hooks {
                 let hook_context = hooks::HookContext::for_session(
-                    session_id.to_string(),
-                    format!(".claude/sessions/{}/transcript.json", session_id),
+                    services.session_id.to_string(),
+                    format!(".claude/sessions/{}/transcript.json", services.session_id),
                     get_cwd_string(),
                     "ask".to_string(),
                     hooks::HookEvent::PreCompact,
@@ -400,7 +398,7 @@ pub(crate) async fn handle_command(
             return Ok(true);
         }
         "/help" => {
-            let custom_commands = slash_commands.list_commands();
+            let custom_commands = services.slash_commands.list_commands();
             let mut help_text = "Built-in Commands:\n  /exit, /quit - Exit the session\n  /clear - Clear conversation history\n  /compact - Compact conversation history (fires PreCompact hook)\n  /help - Show this help\n  /stats - Show session statistics\n  /save [description] - Save checkpoint\n  /load <checkpoint_id> - Load checkpoint\n  /sessions - List available sessions\n  !<command> - Execute shell command directly\n\nMCP Commands:\n  /mcp-list - List all MCP servers\n  /mcp-start <server-id> - Start an MCP server\n  /mcp-stop <server-id> - Stop an MCP server\n  /mcp-tools <server-id> - List tools from server\n  /mcp-status <server-id> - Show server status\n".to_string();
 
             if !custom_commands.is_empty() {
@@ -434,7 +432,7 @@ pub(crate) async fn handle_command(
                 stats.output_tokens,
                 stats.total_tokens,
                 stats.tool_calls,
-                model,
+                services.model,
                 stats.duration_seconds
             );
             tui.add_message(ChatMessage::system(stats_text));
@@ -445,7 +443,7 @@ pub(crate) async fn handle_command(
             return Ok(true);
         }
         "/context" => {
-            handle_context_command(tui, stats, model);
+            handle_context_command(tui, stats, &services.model);
             return Ok(true);
         }
         "/usage" => {
@@ -472,7 +470,9 @@ pub(crate) async fn handle_command(
             if let Some((command, args)) = mcp_commands::parse_slash_command(input) {
                 tui.set_status(format!("Executing MCP command: {}", input));
 
-                match mcp_commands::handle_tui_command(mcp_proxy.clone(), &command, args).await {
+                match mcp_commands::handle_tui_command(services.mcp_proxy.clone(), &command, args)
+                    .await
+                {
                     Ok(output) => {
                         tui.add_message(ChatMessage::system(output));
                         tui.set_status("Ready".to_string());
@@ -488,14 +488,17 @@ pub(crate) async fn handle_command(
         _ if input.starts_with('/') => {
             let command_name = input[1..].split_whitespace().next().unwrap_or("");
 
-            if slash_commands.has_command(command_name) {
-                if !slash_commands.should_intercept_locally(command_name) {
+            if services.slash_commands.has_command(command_name) {
+                if !services
+                    .slash_commands
+                    .should_intercept_locally(command_name)
+                {
                     return Ok(false);
                 }
 
                 tui.set_status(format!("Executing command: {}", input));
 
-                match slash_commands.execute(input).await {
+                match services.slash_commands.execute(input).await {
                     Ok(result) => {
                         tui.add_message(ChatMessage::user(input.to_string()));
                         tui.add_message(ChatMessage::system(result.expanded_prompt.clone()));
@@ -507,15 +510,8 @@ pub(crate) async fn handle_command(
                             true,
                             tui,
                             context,
-                            hooks,
-                            session_id,
-                            notification_manager,
-                            client,
-                            model,
-                            api_messages,
-                            streaming_rx,
-                            streaming_message_index,
-                            response_rx,
+                            services,
+                            streaming,
                         )
                         .await
                         {

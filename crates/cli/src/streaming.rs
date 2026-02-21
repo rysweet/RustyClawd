@@ -11,6 +11,14 @@ use rustyclawd_core::client::{
 };
 use secrecy::ExposeSecret;
 
+/// Connection details needed to make streaming HTTP requests to the API.
+struct ApiConnection {
+    http_client: reqwest::Client,
+    api_url: String,
+    api_key: String,
+    api_version: String,
+}
+
 /// Events sent from background streaming task to main event loop
 #[derive(Debug, Clone)]
 pub(crate) enum StreamingChannelEvent {
@@ -140,25 +148,17 @@ pub(crate) fn spawn_streaming_task(
     .with_stream(true);
 
     // Clone client data needed for background task
-    let api_url = client.api_url().to_string();
-    let api_key = client.config().api_key.expose_secret().expose().to_string();
-    let api_version = client.api_version().to_string();
-    let http_client = client.http_client().clone();
+    let conn = ApiConnection {
+        http_client: client.http_client().clone(),
+        api_url: client.api_url().to_string(),
+        api_key: client.config().api_key.expose_secret().expose().to_string(),
+        api_version: client.api_version().to_string(),
+    };
     let model_owned = model.to_string();
 
     // Spawn background task for streaming
     tokio::spawn(async move {
-        run_streaming_loop(
-            event_tx,
-            response_tx,
-            http_client,
-            api_url,
-            api_key,
-            api_version,
-            model_owned,
-            request,
-        )
-        .await;
+        run_streaming_loop(event_tx, response_tx, conn, model_owned, request).await;
     });
 
     tui.push_debug("[STREAM] Background task spawned, setting up TUI".to_string());
@@ -179,19 +179,17 @@ pub(crate) fn spawn_streaming_task(
 async fn run_streaming_loop(
     event_tx: tokio::sync::mpsc::UnboundedSender<StreamingChannelEvent>,
     response_tx: tokio::sync::oneshot::Sender<MessageResponse>,
-    http_client: reqwest::Client,
-    api_url: String,
-    api_key: String,
-    api_version: String,
+    conn: ApiConnection,
     model: String,
     request: CreateMessageRequest,
 ) {
     // Make HTTP request
-    let url = format!("{}/v1/messages", api_url);
-    let http_response = match http_client
+    let url = format!("{}/v1/messages", conn.api_url);
+    let http_response = match conn
+        .http_client
         .post(&url)
-        .header("x-api-key", api_key)
-        .header("anthropic-version", api_version)
+        .header("x-api-key", conn.api_key)
+        .header("anthropic-version", conn.api_version)
         .header("content-type", "application/json")
         .header("accept", "text/event-stream")
         .json(&request)
