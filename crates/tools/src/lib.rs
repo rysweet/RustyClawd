@@ -29,7 +29,9 @@ pub mod task;
 pub mod todo_write;
 pub mod types;
 pub mod web_fetch;
+pub mod web_fetch_domains;
 pub mod web_search;
+pub mod web_search_parse;
 pub mod write;
 
 pub use agent::AgentTool;
