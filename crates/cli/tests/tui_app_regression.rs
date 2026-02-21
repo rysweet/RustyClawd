@@ -18,7 +18,7 @@
 //! - Event handling (Ctrl+C, Enter)
 
 use rustyclawd::permission_mode::PermissionMode;
-use rustyclawd::tui::{App, CompletionItem, EventResult, Message, MemoryDestination};
+use rustyclawd::tui::{App, CompletionItem, EventResult, MemoryDestination, Message};
 
 // ============================================================
 // 1. App Initialization
@@ -46,7 +46,10 @@ fn test_app_new_defaults() {
     assert_eq!(app.scroll_offset(), 0, "scroll offset starts at 0");
     assert!(!app.autocomplete_active(), "no autocomplete on init");
     assert!(!app.memory_modal_active(), "no memory modal on init");
-    assert!(!app.permissions_modal_active(), "no permissions modal on init");
+    assert!(
+        !app.permissions_modal_active(),
+        "no permissions modal on init"
+    );
     assert!(app.mouse_mode_enabled(), "mouse mode enabled by default");
     assert_eq!(app.input_line_count(), 1, "single line on init");
     assert!(!app.has_multi_line_input(), "not multi-line on init");
@@ -209,7 +212,10 @@ fn test_start_streaming_response() {
     assert!(app.is_streaming());
     assert!(app.is_thinking(), "should be thinking before first token");
     assert_eq!(app.messages().len(), 1);
-    assert!(app.messages()[0].streaming, "message should be marked streaming");
+    assert!(
+        app.messages()[0].streaming,
+        "message should be marked streaming"
+    );
 }
 
 #[test]
@@ -234,7 +240,10 @@ fn test_finish_streaming() {
 
     assert!(!app.is_streaming());
     assert_eq!(app.messages()[0].content, "Complete response");
-    assert!(!app.messages()[0].streaming, "message should no longer be streaming");
+    assert!(
+        !app.messages()[0].streaming,
+        "message should no longer be streaming"
+    );
 }
 
 #[test]
@@ -243,7 +252,10 @@ fn test_streaming_index_with_prior_messages() {
     app.add_message(Message::user("question".to_string()));
 
     let idx = app.start_streaming_response();
-    assert_eq!(idx, 1, "streaming index should be 1 after one existing message");
+    assert_eq!(
+        idx, 1,
+        "streaming index should be 1 after one existing message"
+    );
     assert_eq!(app.messages().len(), 2);
 }
 
@@ -290,7 +302,10 @@ fn test_token_count_during_streaming() {
     app.update_token_count(10, 5);
     let tc = app.token_count().unwrap();
     assert!(tc.total() > 0);
-    assert!(!app.is_thinking(), "should stop thinking after tokens arrive");
+    assert!(
+        !app.is_thinking(),
+        "should stop thinking after tokens arrive"
+    );
 }
 
 // ============================================================
@@ -359,11 +374,7 @@ fn test_tool_message_by_index() {
 fn test_get_tool_message_state() {
     let mut app = App::new(PermissionMode::default());
 
-    app.begin_tool_message(
-        "t1".to_string(),
-        "Edit".to_string(),
-        serde_json::json!({}),
-    );
+    app.begin_tool_message("t1".to_string(), "Edit".to_string(), serde_json::json!({}));
 
     assert!(app.get_tool_message_state("t1").is_some());
     assert!(app.get_tool_message_state("nonexistent").is_none());
@@ -431,10 +442,7 @@ fn test_scroll_up_from_bottom() {
     assert!(app.follow_bottom());
 
     app.scroll_up(5);
-    assert!(
-        !app.follow_bottom(),
-        "scrolling up disables follow-bottom"
-    );
+    assert!(!app.follow_bottom(), "scrolling up disables follow-bottom");
 }
 
 #[test]
@@ -485,7 +493,10 @@ fn test_update_max_scroll() {
     app.scroll_up(10);
     // Clamp: offset should be clamped when max_scroll changes to smaller value
     app.update_max_scroll(5);
-    assert!(app.scroll_offset() <= 5, "offset should clamp to max_scroll");
+    assert!(
+        app.scroll_offset() <= 5,
+        "offset should clamp to max_scroll"
+    );
 }
 
 // ============================================================
@@ -615,7 +626,10 @@ fn test_memory_modal_navigation() {
 fn test_memory_modal_empty_destinations_does_not_activate() {
     let mut app = App::new(PermissionMode::default());
     app.activate_memory_modal("text".to_string(), vec![]);
-    assert!(!app.memory_modal_active(), "empty destinations should not activate");
+    assert!(
+        !app.memory_modal_active(),
+        "empty destinations should not activate"
+    );
 }
 
 #[test]
@@ -950,7 +964,11 @@ fn test_enter_during_streaming_does_not_submit() {
 
     let event = Event::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
     let result = rustyclawd::tui::handle_event(&mut app, event).unwrap();
-    assert_eq!(result, EventResult::Continue, "submit blocked during streaming");
+    assert_eq!(
+        result,
+        EventResult::Continue,
+        "submit blocked during streaming"
+    );
 }
 
 // ============================================================

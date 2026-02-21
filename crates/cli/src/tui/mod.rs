@@ -20,6 +20,7 @@
 //! ```
 
 mod app;
+mod autocomplete_state;
 mod click_region;
 mod compat;
 mod debug_panel;

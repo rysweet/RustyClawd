@@ -2,6 +2,8 @@
 
 use crate::commands::permissions_search_state::PermissionsSearchState;
 use crate::permission_mode::PermissionMode;
+use crate::tui::autocomplete_state::AutocompleteManager;
+pub use crate::tui::autocomplete_state::{AutocompleteState, CompletionItem};
 use crate::tui::debug_panel::DebugPanel;
 use crate::tui::message::Message;
 use crate::tui::modal_state::{MemoryDestination, MemoryModalState, ModalManager};
@@ -59,26 +61,6 @@ pub struct ToolResult {
     /// Optional structured JSON content (MCP spec structuredContent field)
     /// Contains typed data conforming to the tool's outputSchema when available
     pub structured_content: Option<serde_json::Value>,
-}
-
-/// Completion item for slash command autocomplete
-#[derive(Clone, Debug)]
-pub struct CompletionItem {
-    /// Command name (without leading /)
-    pub command: String,
-    /// Optional description
-    pub description: Option<String>,
-    /// Optional argument hint
-    pub argument_hint: Option<String>,
-}
-
-/// Autocomplete state for slash commands
-#[derive(Clone, Debug)]
-pub struct AutocompleteState {
-    /// All available completions
-    pub items: Vec<CompletionItem>,
-    /// Currently selected index
-    pub selected: usize,
 }
 
 /// Layout cache - stores pane areas from last render for hit testing
@@ -197,8 +179,8 @@ pub struct App {
     /// Scroll controller for message viewport
     message_scroll: ScrollController,
 
-    /// Autocomplete state
-    autocomplete: Option<AutocompleteState>,
+    /// Autocomplete manager
+    autocomplete: AutocompleteManager,
 
     /// Modal manager (memory modal + permissions modal)
     modals: ModalManager,
@@ -291,7 +273,7 @@ impl App {
             messages: Vec::new(),
             input: make_input_textarea(),
             message_scroll: ScrollController::new(),
-            autocomplete: None,
+            autocomplete: AutocompleteManager::new(),
             modals: ModalManager::new(),
             permission_mode,
             streaming: None,
@@ -1342,67 +1324,49 @@ impl App {
             .and_then(|s| s.thinking_state.thinking_duration())
     }
 
-    // === Autocomplete management ===
+    // === Autocomplete management (delegates to AutocompleteManager) ===
 
     /// Activate autocomplete with given completions
     pub fn activate_autocomplete(&mut self, items: Vec<CompletionItem>) {
-        if items.is_empty() {
-            self.autocomplete = None;
-        } else {
-            self.autocomplete = Some(AutocompleteState { items, selected: 0 });
+        if self.autocomplete.activate(items) {
+            self.focus_dirty = true;
         }
-        self.focus_dirty = true;
         self.mark_dirty();
     }
 
     /// Clear autocomplete
     pub fn clear_autocomplete(&mut self) {
-        self.autocomplete = None;
-        self.focus_dirty = true;
+        if self.autocomplete.clear() {
+            self.focus_dirty = true;
+        }
         self.mark_dirty();
     }
 
     /// Navigate autocomplete selection up
     pub fn autocomplete_prev(&mut self) {
-        if let Some(ref mut ac) = self.autocomplete {
-            if ac.selected > 0 {
-                ac.selected -= 1;
-            } else {
-                // Wrap to bottom
-                ac.selected = ac.items.len().saturating_sub(1);
-            }
-            self.mark_dirty();
-        }
+        self.autocomplete.prev();
+        self.mark_dirty();
     }
 
     /// Navigate autocomplete selection down
     pub fn autocomplete_next(&mut self) {
-        if let Some(ref mut ac) = self.autocomplete {
-            if ac.selected < ac.items.len().saturating_sub(1) {
-                ac.selected += 1;
-            } else {
-                // Wrap to top
-                ac.selected = 0;
-            }
-            self.mark_dirty();
-        }
+        self.autocomplete.next();
+        self.mark_dirty();
     }
 
     /// Get selected autocomplete item
     pub fn autocomplete_selected(&self) -> Option<&CompletionItem> {
-        self.autocomplete
-            .as_ref()
-            .and_then(|ac| ac.items.get(ac.selected))
+        self.autocomplete.selected()
     }
 
     /// Check if autocomplete is active
     pub fn autocomplete_active(&self) -> bool {
-        self.autocomplete.is_some()
+        self.autocomplete.is_active()
     }
 
     /// Get autocomplete state (for rendering)
     pub fn autocomplete(&self) -> Option<&AutocompleteState> {
-        self.autocomplete.as_ref()
+        self.autocomplete.state()
     }
 
     // === Memory modal management (delegates to ModalManager) ===
@@ -1584,7 +1548,7 @@ impl App {
                 rat_focus::HasFocus::build(&debug_wrapper, &mut builder);
             }
 
-            if self.autocomplete.is_some() {
+            if self.autocomplete.is_active() {
                 let autocomplete_wrapper = AutocompletePopupWrapper {
                     focus: self.focus_autocomplete.clone(),
                     area: cache.input_area,
