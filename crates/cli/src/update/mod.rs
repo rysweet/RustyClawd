@@ -27,13 +27,14 @@ pub mod installer;
 pub mod scheduler;
 pub mod state;
 pub mod version;
+pub mod version_compare;
 
 // Re-export public API
 pub use backup::{BackupEntry, BackupManager};
 pub use config::UpdateConfig;
 pub use downloader::{BinaryDownload, BinaryDownloader, DownloadConfig};
 pub use error::UpdateError;
-pub use github_client::{GitHubClient, PlatformInfo, Release, ReleaseAsset, UpdateInfo};
+pub use github_client::{GitHubClient, Release, ReleaseAsset};
 pub use handler::{
     format_update_message, handle_check_updates, handle_install_update, handle_rollback,
     UpdateOperationResult,
@@ -42,6 +43,7 @@ pub use installer::{BinaryInstaller, InstallResult, InstallerConfig};
 pub use scheduler::{ScheduledCheckResult, UpdateScheduler};
 pub use state::{UpdateRecord, UpdateStateManager, UpdateStatus};
 pub use version::Version;
+pub use version_compare::{PlatformInfo, UpdateInfo};
 
 #[cfg(test)]
 mod integration_tests {

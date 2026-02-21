@@ -5,8 +5,9 @@
 
 use crate::update::config::UpdateConfig;
 use crate::update::error::UpdateError;
-use crate::update::github_client::{GitHubClient, UpdateInfo};
+use crate::update::github_client::GitHubClient;
 use crate::update::version::Version;
+use crate::update::version_compare::UpdateInfo;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use tracing::{debug, info, warn};
