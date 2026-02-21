@@ -51,9 +51,6 @@ serde_yaml = "0.9"
 toml = "0.8"
 dirs = "5.0"
 
-# Terminal state management
-lazy_static = "1.4"
-
 # Update mechanism - Phase 2
 sha2 = "0.10"
 tempfile = "3.8"

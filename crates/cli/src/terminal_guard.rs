@@ -14,7 +14,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::io::{self, Write};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 
 /// Execution context indicating whether we're running in TUI mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -29,11 +29,9 @@ pub enum ExecutionContext {
 // Global execution context
 //
 // This is set once at application startup and read during tool execution.
-// Using lazy_static ensures thread-safe initialization.
-lazy_static::lazy_static! {
-    static ref EXECUTION_CONTEXT: Arc<Mutex<ExecutionContext>> =
-        Arc::new(Mutex::new(ExecutionContext::default()));
-}
+// Using std::sync::LazyLock for thread-safe lazy initialization (stable since Rust 1.80).
+static EXECUTION_CONTEXT: LazyLock<Arc<Mutex<ExecutionContext>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(ExecutionContext::default())));
 
 /// Set the global execution context
 ///
