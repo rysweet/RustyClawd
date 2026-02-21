@@ -63,15 +63,16 @@ impl BuiltinCommands {
         } else {
             "Available Commands:\n\n\
              Slash Commands:\n\
-               /help [search]    - Show this help message\n\
-               /exit, /quit      - Exit the chat session\n\
-               /clear            - Clear conversation history\n\
-               /version          - Show version information\n\
-               /permissions      - Open permissions modal\n\
-               /login            - Check authentication status\n\
-               /bug              - Report a bug via GitHub\n\
-               /add-dir <path>   - Add working directory\n\
-               /fast             - Toggle fast mode\n\n\
+               /help [search]         - Show this help message\n\
+               /exit, /quit           - Exit the chat session\n\
+               /clear                 - Clear conversation history\n\
+               /version               - Show version information\n\
+               /permissions           - Open permissions modal\n\
+               /login                 - Check authentication status\n\
+               /bug                   - Report a bug via GitHub\n\
+               /add-dir <path>        - Add working directory\n\
+               /fast                  - Toggle fast mode\n\
+               /model                 - Show or switch model (handled in session layer)\n\n\
              Custom Commands:\n\
                /amplihack:*      - Amplihack custom commands\n\
                /{name} [args]    - Execute custom slash commands\n\n\
@@ -211,7 +212,6 @@ mod tests {
             "compact",
             "rewind",
             "config",
-            "model",
             "status",
             "review",
             "sandbox",

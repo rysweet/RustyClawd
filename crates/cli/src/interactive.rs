@@ -27,7 +27,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// Default model for interactive sessions
-pub(crate) const DEFAULT_MODEL: &str = "claude-sonnet-4-5-20250929";
+pub(crate) const DEFAULT_MODEL: &str = "claude-opus-4-6";
 
 /// Maximum tokens for responses
 pub(crate) const MAX_TOKENS: u32 = 4096;
@@ -417,6 +417,29 @@ impl InteractiveSession {
                     return Ok(());
                 }
 
+                // Handle /model command - show or switch current model
+                if input == "/model" || input.starts_with("/model ") {
+                    let args = input.strip_prefix("/model").unwrap_or("").trim();
+                    if args.is_empty() {
+                        // Show current model
+                        self.tui.add_message(ChatMessage::system(format!(
+                            "Current model: {}",
+                            self.model
+                        )));
+                    } else {
+                        // Resolve alias and switch model
+                        let resolved = resolve_model_alias(args);
+                        self.model = resolved.to_string();
+                        self.stats.set_model(&self.model);
+                        self.tui.add_message(ChatMessage::system(format!(
+                            "Switched to model: {}",
+                            self.model
+                        )));
+                        self.tui.set_status(format!("Model: {}", self.model));
+                    }
+                    return Ok(());
+                }
+
                 // Handle special commands
                 let services = self.session_services();
                 let handled = conversation::handle_command(
@@ -520,6 +543,23 @@ impl InteractiveSession {
     }
 }
 
+/// Resolve a model alias or name to the canonical model ID.
+///
+/// Supports shorthand aliases:
+/// - `sonnet` → `claude-sonnet-4-6`
+/// - `opus`   → `claude-opus-4-6`
+/// - `haiku`  → `claude-haiku-4-5-20251001`
+///
+/// Any other value is returned as-is (treated as a literal model ID).
+fn resolve_model_alias(name: &str) -> &str {
+    match name {
+        "sonnet" => "claude-sonnet-4-6",
+        "opus" => "claude-opus-4-6",
+        "haiku" => "claude-haiku-4-5-20251001",
+        other => other,
+    }
+}
+
 /// Build the autocomplete callback for slash commands.
 fn build_completion_callback(commands: Arc<SlashCommands>) -> CompletionCallback {
     Box::new(move |prefix| {
@@ -562,6 +602,10 @@ fn build_completion_callback(commands: Arc<SlashCommands>) -> CompletionCallback
             (
                 "mcp-status",
                 Some("<server-id> - Show server status".to_string()),
+            ),
+            (
+                "model",
+                Some("[alias|name] - Show or switch model".to_string()),
             ),
         ];
 

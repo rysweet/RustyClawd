@@ -63,7 +63,7 @@ fn test_removed_stubs_not_recognized() {
         "compact",
         "rewind",
         "config",
-        "model",
+        "model", // handled in interactive.rs session layer, not as a builtin
         "status",
         "review",
         "sandbox",
