@@ -51,7 +51,7 @@ pub struct Settings {
     pub model: Option<String>,
     pub api_url: Option<String>,
     pub timeout_secs: Option<u64>,
-    pub cleanup_period_days: u32,
+    pub cleanup_period_days: Option<u32>,
     pub permissions: HashMap<String, ToolPermission>,
     pub env_vars: HashMap<String, String>,
     pub disable_bypass_permissions: bool,
@@ -64,7 +64,7 @@ impl Default for Settings {
             model: None,
             api_url: None,
             timeout_secs: None,
-            cleanup_period_days: 30,
+            cleanup_period_days: None,
             permissions: HashMap::new(),
             env_vars: HashMap::new(),
             disable_bypass_permissions: false,
@@ -94,7 +94,7 @@ impl Settings {
     }
 
     pub fn with_cleanup_period(mut self, days: u32) -> Self {
-        self.cleanup_period_days = days;
+        self.cleanup_period_days = Some(days);
         self
     }
 
@@ -125,12 +125,14 @@ impl Settings {
             }
         }
 
-        // Validate cleanup period is reasonable
-        if self.cleanup_period_days == 0 {
-            return Err("Cleanup period must be at least 1 day".to_string());
-        }
-        if self.cleanup_period_days > 365 {
-            return Err("Cleanup period must be at most 365 days".to_string());
+        // Validate cleanup period is reasonable (if explicitly set)
+        if let Some(days) = self.cleanup_period_days {
+            if days == 0 {
+                return Err("Cleanup period must be at least 1 day".to_string());
+            }
+            if days > 365 {
+                return Err("Cleanup period must be at most 365 days".to_string());
+            }
         }
 
         // Validate API URL format if provided
@@ -200,7 +202,7 @@ impl SettingsHierarchy {
                 result.timeout_secs = settings.timeout_secs;
             }
             // Cleanup period override
-            if settings.cleanup_period_days != 30 {
+            if settings.cleanup_period_days.is_some() {
                 result.cleanup_period_days = settings.cleanup_period_days;
             }
             // Merge permissions (higher layer adds/overrides)
@@ -250,7 +252,7 @@ mod unit_config_loading {
         assert_eq!(settings.model, None);
         assert_eq!(settings.api_url, None);
         assert_eq!(settings.timeout_secs, None);
-        assert_eq!(settings.cleanup_period_days, 30);
+        assert_eq!(settings.cleanup_period_days, None);
         assert!(settings.permissions.is_empty());
         assert!(settings.env_vars.is_empty());
         assert!(!settings.disable_bypass_permissions);
@@ -742,7 +744,7 @@ mod integration_hierarchy_merging {
         // Each setting comes from the highest priority layer that sets it
         assert_eq!(merged.model, Some("claude-2".to_string())); // ProjectLocal
         assert_eq!(merged.timeout_secs, Some(90)); // CommandLine
-        assert_eq!(merged.cleanup_period_days, 45); // ProjectShared
+        assert_eq!(merged.cleanup_period_days, Some(45)); // ProjectShared
         assert_eq!(merged.env_vars.get("DEBUG"), Some(&"false".to_string())); // ProjectShared
     }
 
@@ -928,7 +930,7 @@ mod unit_edge_cases {
         assert!(settings.validate().is_ok());
         assert_eq!(settings.model, Some("claude-3-opus".to_string()));
         assert_eq!(settings.timeout_secs, Some(180));
-        assert_eq!(settings.cleanup_period_days, 60);
+        assert_eq!(settings.cleanup_period_days, Some(60));
         assert_eq!(settings.permissions.len(), 1);
         assert_eq!(settings.env_vars.len(), 2);
         assert!(settings.disable_bypass_permissions);
@@ -1077,7 +1079,7 @@ mod e2e_scenarios {
 
         assert_eq!(merged.model, Some("claude-3".to_string())); // From ProjectShared
         assert_eq!(merged.timeout_secs, Some(60)); // From ProjectLocal
-        assert_eq!(merged.cleanup_period_days, 30); // From UserGlobal
+        assert_eq!(merged.cleanup_period_days, Some(30)); // From UserGlobal
         assert_eq!(
             merged.env_vars.get("PROJECT_ID"),
             Some(&"proj-123".to_string())

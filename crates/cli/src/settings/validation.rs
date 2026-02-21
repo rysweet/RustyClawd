@@ -97,9 +97,11 @@ pub fn validate_all_settings(settings: &Settings) -> Result<(), Vec<String>> {
         }
     }
 
-    // Validate cleanup period
-    if let Err(e) = validate_cleanup_period(settings.cleanup_period_days) {
-        errors.push(e);
+    // Validate cleanup period (if explicitly set)
+    if let Some(days) = settings.cleanup_period_days {
+        if let Err(e) = validate_cleanup_period(days) {
+            errors.push(e);
+        }
     }
 
     // Validate API URL
