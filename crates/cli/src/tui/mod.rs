@@ -20,19 +20,23 @@
 //! ```
 
 mod app;
+mod autocomplete_state;
 mod click_region;
 mod compat;
 mod debug_panel;
 mod event;
+mod input_state;
 mod keybindings;
 mod layout;
 mod message;
 mod message_formatter;
 mod modal_state;
 mod soft_wrap;
+mod streaming_state;
 mod thinking_indicator;
 mod thinking_state;
 mod token_counter;
+mod tool_messages;
 mod tool_renderer;
 mod ui;
 
