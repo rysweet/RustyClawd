@@ -20,7 +20,7 @@ use std::collections::HashMap;
 // ============================================================================
 
 /// Represents permission rules for tool access control
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PermissionMode {
     Allow,
     Ask,
@@ -39,14 +39,14 @@ impl PermissionMode {
 }
 
 /// Permission rules for a single tool
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolPermission {
     pub mode: PermissionMode,
     pub patterns: Vec<String>, // Prefix patterns for bash commands
 }
 
 /// Core configuration settings
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Settings {
     pub model: Option<String>,
     pub api_url: Option<String>,
@@ -56,6 +56,22 @@ pub struct Settings {
     pub env_vars: HashMap<String, String>,
     pub disable_bypass_permissions: bool,
     pub enabled_plugins: HashMap<String, bool>,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            model: None,
+            api_url: None,
+            timeout_secs: None,
+            cleanup_period_days: None,
+            permissions: HashMap::new(),
+            env_vars: HashMap::new(),
+            disable_bypass_permissions: false,
+            enabled_plugins: HashMap::new(),
+        }
+    }
 }
 
 impl Settings {
