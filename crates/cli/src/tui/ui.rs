@@ -656,7 +656,7 @@ fn render_input(frame: &mut Frame, area: Rect, app: &App) {
     // TextArea implements Widget trait
     // Styling was configured once during initialization (App::new)
     // TODO: Update TextArea's block style dynamically based on focus
-    frame.render_widget(&app.input, area);
+    frame.render_widget(&app.input_state.input, area);
 
     // Render scrollbar only when content actually exceeds viewport
     let content_lines = app.input_line_count();

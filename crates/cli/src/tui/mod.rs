@@ -25,6 +25,7 @@ mod click_region;
 mod compat;
 mod debug_panel;
 mod event;
+mod input_state;
 mod keybindings;
 mod layout;
 mod message;
