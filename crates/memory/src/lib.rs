@@ -77,6 +77,8 @@
 
 mod database;
 mod manager;
+mod query_builder;
+mod schema;
 mod types;
 
 // Re-export public API
