@@ -544,7 +544,6 @@ mod tests {
 #[cfg(test)]
 mod fast_mode_tests {
     use super::*;
-    use crate::client::{ApiKey, Config};
 
     #[test]
     fn test_speed_fast_with_opus_46() {
