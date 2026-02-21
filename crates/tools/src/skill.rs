@@ -208,6 +208,18 @@ struct ParsedSkill {
 /// This is the public entry point used by the slash command system to invoke skills
 /// as `/skill-name` commands.
 pub async fn load_skill_content(skill_name: &str) -> Option<String> {
+    // Reject names that could escape the skills directory via path traversal.
+    // Skill names must be simple identifiers (alphanumeric, hyphens, colons for
+    // namespacing like "amplihack:review"). Slashes, backslashes, and ".." are
+    // all invalid and indicate an injection attempt.
+    if skill_name.contains('/') || skill_name.contains('\\') || skill_name.contains("..") {
+        warn!(
+            skill_name,
+            "Rejected skill name containing path traversal characters"
+        );
+        return None;
+    }
+
     let paths = discover_skill_paths(skill_name);
 
     for path in &paths {
