@@ -5,6 +5,7 @@
 
 pub mod checkpoint;
 pub mod commands;
+pub mod conversation;
 pub mod hooks;
 pub mod interactive;
 pub mod mcp_commands;
@@ -17,8 +18,10 @@ pub mod session_graph;
 pub mod session_index;
 pub mod session_persistence;
 pub mod settings;
+pub mod streaming;
 pub mod terminal_guard;
 pub mod tool_definitions;
+pub mod tool_orchestrator;
 // TODO: Migrate from ClientError::Api to specific error types (BadRequest, Unknown, etc.)
 #[allow(deprecated)]
 pub mod tool_executor;
