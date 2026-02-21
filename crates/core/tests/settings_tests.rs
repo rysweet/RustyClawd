@@ -58,21 +58,6 @@ pub struct Settings {
     pub enabled_plugins: HashMap<String, bool>,
 }
 
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            model: None,
-            api_url: None,
-            timeout_secs: None,
-            cleanup_period_days: None,
-            permissions: HashMap::new(),
-            env_vars: HashMap::new(),
-            disable_bypass_permissions: false,
-            enabled_plugins: HashMap::new(),
-        }
-    }
-}
-
 impl Settings {
     pub fn new() -> Self {
         Self::default()
