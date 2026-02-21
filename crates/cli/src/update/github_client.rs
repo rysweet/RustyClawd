@@ -362,11 +362,7 @@ impl UpdateInfo {
 
         self.assets
             .iter()
-            .find(|asset| {
-                let contains_target =
-                    asset.name.contains(&target) || asset.name.contains("x86_64-unknown-linux");
-                contains_target && has_exe_extension(&asset.name)
-            })
+            .find(|asset| asset.name.contains(&target) && has_exe_extension(&asset.name))
             .map(|asset| asset.browser_download_url.clone())
     }
 }
