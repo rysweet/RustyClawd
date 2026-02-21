@@ -12,6 +12,7 @@
 use bytes::Bytes;
 use futures::stream::{Stream, StreamExt};
 use pin_project::pin_project;
+use std::collections::VecDeque;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -32,7 +33,7 @@ pub struct SseStream<S> {
     inner: S,
     buffer: String,
     /// Queue of parsed events waiting to be returned
-    event_queue: Vec<SseEvent>,
+    event_queue: VecDeque<SseEvent>,
 }
 
 impl<S> SseStream<S>
@@ -43,7 +44,7 @@ where
         Self {
             inner: stream,
             buffer: String::new(),
-            event_queue: Vec::new(),
+            event_queue: VecDeque::new(),
         }
     }
 }
@@ -106,8 +107,8 @@ where
 
         loop {
             // First, check if we have queued events to return
-            if !this.event_queue.is_empty() {
-                return Poll::Ready(Some(Ok(this.event_queue.remove(0))));
+            if let Some(event) = this.event_queue.pop_front() {
+                return Poll::Ready(Some(Ok(event)));
             }
 
             // Try to parse events from buffer
@@ -144,12 +145,15 @@ where
                     if !this.buffer.is_empty() {
                         let remaining = this.buffer.clone();
                         this.buffer.clear();
-                        if !remaining.trim().is_empty() {
-                            return Poll::Ready(Some(Err(ClientError::InvalidSSE(format!(
-                                "Stream ended with incomplete data: {}",
-                                remaining
-                            )))));
+                        let trimmed = remaining.trim();
+                        if trimmed.is_empty() || trimmed == "[DONE]" {
+                            // Clean termination: whitespace-only or [DONE] sentinel
+                            return Poll::Ready(None);
                         }
+                        return Poll::Ready(Some(Err(ClientError::InvalidSSE(format!(
+                            "Stream ended with incomplete data: {}",
+                            remaining
+                        )))));
                     }
                     return Poll::Ready(None);
                 }
