@@ -35,7 +35,7 @@ impl TuiTestHarness {
     /// Create test harness with custom dimensions
     pub fn with_dimensions(width: u16, height: u16) -> io::Result<Self> {
         let backend = TestBackend::new(width, height);
-        let terminal = Terminal::new(backend)?;
+        let terminal = Terminal::new(backend).unwrap();
 
         Ok(Self {
             terminal,
