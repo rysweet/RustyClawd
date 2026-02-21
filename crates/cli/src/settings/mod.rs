@@ -1,5 +1,7 @@
+pub mod discovery;
 pub mod hierarchy;
 pub mod loader;
+pub mod parser;
 /// Settings and configuration system for Claude Code
 ///
 /// Implements a 5-tier configuration hierarchy with proper precedence:
