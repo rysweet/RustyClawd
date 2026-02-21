@@ -2,7 +2,10 @@
 
 use crate::commands::permissions_search_state::PermissionsSearchState;
 use crate::permission_mode::PermissionMode;
+use crate::tui::debug_panel::DebugPanel;
 use crate::tui::message::Message;
+use crate::tui::modal_state::{MemoryDestination, MemoryModalState, ModalManager};
+use crate::tui::soft_wrap::SoftWrapState;
 use crate::tui::thinking_state::ThinkingState;
 use crate::tui::token_counter::TokenCount;
 use rat_focus::{Focus, FocusFlag};
@@ -12,14 +15,11 @@ use ratatui::{
     text::Span,
     widgets::{Block, Borders},
 };
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 use tui_textarea::TextArea;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthChar;
-
-/// Maximum debug messages to keep in buffer
-const MAX_DEBUG_MESSAGES: usize = 1000;
 
 /// Rust orange color for TUI styling
 const RUST_ORANGE: Color = Color::Rgb(222, 165, 132);
@@ -81,30 +81,6 @@ pub struct AutocompleteState {
     pub selected: usize,
 }
 
-/// Memory destination for saving user memories
-#[derive(Clone, Debug)]
-pub struct MemoryDestination {
-    /// Display name (e.g., "User memory", "Project memory")
-    pub name: String,
-    /// File path where memory will be saved
-    pub file_path: String,
-    /// Optional description/hint (e.g., "Saved in ~/.claude/CLAUDE.md")
-    pub description: Option<String>,
-    /// Whether this is an imported context file
-    pub is_imported: bool,
-}
-
-/// Memory modal state
-#[derive(Clone, Debug)]
-pub struct MemoryModalState {
-    /// Memory text to be saved
-    pub memory_text: String,
-    /// Available destinations
-    pub destinations: Vec<MemoryDestination>,
-    /// Currently selected index
-    pub selected: usize,
-}
-
 /// Layout cache - stores pane areas from last render for hit testing
 #[derive(Clone, Debug, Default)]
 pub struct LayoutCache {
@@ -114,78 +90,6 @@ pub struct LayoutCache {
     pub input_area: Rect,
     /// Debug panel area (when visible)
     pub debug_area: Option<Rect>,
-}
-
-/// Soft wrap state - tracks which lines are auto-wrapped (not user newlines)
-#[derive(Clone, Debug)]
-pub struct SoftWrapState {
-    /// Set of line indices that END with a soft break
-    /// (i.e., line was created by auto-wrap, not user Enter)
-    soft_break_lines: HashSet<usize>,
-
-    /// Cached inner width of input area (excluding borders)
-    inner_width: u16,
-
-    /// Tab width for width calculations (synced with TextArea's tab_length)
-    tab_width: u8,
-}
-
-impl Default for SoftWrapState {
-    fn default() -> Self {
-        Self {
-            soft_break_lines: HashSet::new(),
-            inner_width: 80, // Default, will be updated from layout
-            tab_width: 4,    // Match TextArea default
-        }
-    }
-}
-
-#[allow(dead_code)] // Soft wrap tracking API used by rendering layer
-impl SoftWrapState {
-    /// Check if a line ends with a soft break
-    pub fn is_soft_break(&self, line_idx: usize) -> bool {
-        self.soft_break_lines.contains(&line_idx)
-    }
-
-    /// Mark a line as ending with a soft break
-    pub fn add_soft_break(&mut self, line_idx: usize) {
-        self.soft_break_lines.insert(line_idx);
-    }
-
-    /// Remove soft break marker from a line
-    pub fn remove_soft_break(&mut self, line_idx: usize) {
-        self.soft_break_lines.remove(&line_idx);
-    }
-
-    /// Clear all soft break markers
-    pub fn clear(&mut self) {
-        self.soft_break_lines.clear();
-    }
-
-    /// Update inner width (called when layout changes)
-    pub fn update_width(&mut self, width: u16) {
-        self.inner_width = width;
-    }
-
-    /// Get current inner width
-    pub fn inner_width(&self) -> u16 {
-        self.inner_width
-    }
-
-    /// Calculate visual width of a line accounting for tabs and Unicode
-    pub fn calculate_line_width(&self, line: &str) -> usize {
-        let mut width = 0;
-        for c in line.chars() {
-            if c == '\t' {
-                // Tab advances to next tab stop
-                let tab_width = self.tab_width as usize;
-                width += tab_width - (width % tab_width);
-            } else {
-                width += UnicodeWidthChar::width(c).unwrap_or(0);
-            }
-        }
-        width
-    }
 }
 
 /// Reusable scroll controller for any scrollable panel.
@@ -296,11 +200,8 @@ pub struct App {
     /// Autocomplete state
     autocomplete: Option<AutocompleteState>,
 
-    /// Memory modal state
-    memory_modal: Option<MemoryModalState>,
-
-    /// Permissions search modal state
-    permissions_modal: Option<PermissionsSearchState>,
+    /// Modal manager (memory modal + permissions modal)
+    modals: ModalManager,
 
     /// Current permission mode
     permission_mode: PermissionMode,
@@ -320,14 +221,8 @@ pub struct App {
     /// Dirty flag - tracks if UI needs re-rendering
     dirty: bool,
 
-    /// Debug panel visibility
-    debug_visible: bool,
-
-    /// Debug message buffer (circular buffer, VecDeque for O(1) pop_front)
-    debug_messages: VecDeque<String>,
-
-    /// Scroll controller for debug panel
-    debug_scroll: ScrollController,
+    /// Debug panel state (visibility, messages, scrolling)
+    debug: DebugPanel,
 
     /// Dropdown menu open state
     menu_open: bool,
@@ -397,17 +292,14 @@ impl App {
             input: make_input_textarea(),
             message_scroll: ScrollController::new(),
             autocomplete: None,
-            memory_modal: None,
-            permissions_modal: None,
+            modals: ModalManager::new(),
             permission_mode,
             streaming: None,
             tool_messages: HashMap::new(),
             should_exit: false,
             error: None,
             dirty: true, // Start dirty to trigger initial render
-            debug_visible: false,
-            debug_messages: VecDeque::new(),
-            debug_scroll: ScrollController::new(),
+            debug: DebugPanel::new(),
             menu_open: false,
             focus_messages: FocusFlag::new(),
             focus_input: FocusFlag::new(),
@@ -515,11 +407,11 @@ impl App {
     }
 
     pub fn debug_visible(&self) -> bool {
-        self.debug_visible
+        self.debug.visible()
     }
 
-    pub fn debug_messages(&self) -> &VecDeque<String> {
-        &self.debug_messages
+    pub fn debug_messages(&self) -> &std::collections::VecDeque<String> {
+        self.debug.messages()
     }
 
     pub fn menu_open(&self) -> bool {
@@ -1176,7 +1068,7 @@ impl App {
 
             // If cursor would overflow, force it to stay at the end of the line
             // This prevents cursor from rendering beyond the boundary
-            if visual_width >= self.soft_wrap.inner_width as usize {
+            if visual_width >= self.soft_wrap.inner_width() as usize {
                 // Cap cursor at the last safe position
                 let safe_col = current_line.chars().count().saturating_sub(1);
                 target_col = target_col.min(safe_col);
@@ -1273,26 +1165,26 @@ impl App {
     // === Debug panel scrolling ===
 
     pub fn scroll_debug_up(&mut self, lines: usize) {
-        self.debug_scroll.scroll_up(lines);
+        self.debug.scroll_up(lines);
         self.mark_dirty();
     }
 
     pub fn scroll_debug_down(&mut self, lines: usize) {
-        self.debug_scroll.scroll_down(lines);
+        self.debug.scroll_down(lines);
         self.mark_dirty();
     }
 
     pub fn update_debug_max_scroll(&mut self, max_scroll: usize) {
-        self.debug_scroll.update_max_scroll(max_scroll);
+        self.debug.update_max_scroll(max_scroll);
         self.mark_dirty();
     }
 
     pub fn debug_scroll_offset(&self) -> usize {
-        self.debug_scroll.offset()
+        self.debug.scroll_offset()
     }
 
     pub fn debug_follow_bottom(&self) -> bool {
-        self.debug_scroll.follow_bottom()
+        self.debug.follow_bottom()
     }
 
     /// Scroll to bottom only if already following bottom (preserves manual scroll position)
@@ -1326,9 +1218,7 @@ impl App {
     }
 
     pub fn toggle_debug(&mut self) {
-        self.debug_visible = !self.debug_visible;
-        let status = if self.debug_visible { "ON" } else { "OFF" };
-        self.push_debug_message(format!("=== Debug Panel {} ===", status));
+        self.debug.toggle();
         self.focus_dirty = true;
         self.mark_dirty();
     }
@@ -1350,16 +1240,12 @@ impl App {
     }
 
     pub fn push_debug_message(&mut self, message: String) {
-        // Circular buffer - remove oldest if at capacity (O(1) with VecDeque)
-        if self.debug_messages.len() >= MAX_DEBUG_MESSAGES {
-            self.debug_messages.pop_front();
-        }
-        self.debug_messages.push_back(message);
+        self.debug.push_message(message);
         self.mark_dirty();
     }
 
     pub fn clear_debug_messages(&mut self) {
-        self.debug_messages.clear();
+        self.debug.clear_messages();
         self.mark_dirty();
     }
 
@@ -1519,7 +1405,7 @@ impl App {
         self.autocomplete.as_ref()
     }
 
-    // === Memory modal management ===
+    // === Memory modal management (delegates to ModalManager) ===
 
     /// Activate memory modal with destinations
     pub fn activate_memory_modal(
@@ -1527,106 +1413,80 @@ impl App {
         memory_text: String,
         destinations: Vec<MemoryDestination>,
     ) {
-        if destinations.is_empty() {
-            self.memory_modal = None;
-        } else {
-            self.memory_modal = Some(MemoryModalState {
-                memory_text,
-                destinations,
-                selected: 0,
-            });
-        }
+        self.modals.activate_memory_modal(memory_text, destinations);
         self.focus_dirty = true;
         self.mark_dirty();
     }
 
     /// Update memory text without resetting selection
     pub fn update_memory_text(&mut self, memory_text: String) {
-        if let Some(ref mut modal) = self.memory_modal {
-            modal.memory_text = memory_text;
-            self.mark_dirty();
-        }
+        self.modals.update_memory_text(memory_text);
+        self.mark_dirty();
     }
 
     /// Clear memory modal
     pub fn clear_memory_modal(&mut self) {
-        self.memory_modal = None;
+        self.modals.clear_memory_modal();
         self.focus_dirty = true;
         self.mark_dirty();
     }
 
     /// Navigate memory modal selection up
     pub fn memory_modal_prev(&mut self) {
-        if let Some(ref mut modal) = self.memory_modal {
-            if modal.selected > 0 {
-                modal.selected -= 1;
-            } else {
-                // Wrap to bottom
-                modal.selected = modal.destinations.len().saturating_sub(1);
-            }
-            self.mark_dirty();
-        }
+        self.modals.memory_modal_prev();
+        self.mark_dirty();
     }
 
     /// Navigate memory modal selection down
     pub fn memory_modal_next(&mut self) {
-        if let Some(ref mut modal) = self.memory_modal {
-            if modal.selected < modal.destinations.len().saturating_sub(1) {
-                modal.selected += 1;
-            } else {
-                // Wrap to top
-                modal.selected = 0;
-            }
-            self.mark_dirty();
-        }
+        self.modals.memory_modal_next();
+        self.mark_dirty();
     }
 
     /// Get selected memory destination
     pub fn memory_modal_selected(&self) -> Option<&MemoryDestination> {
-        self.memory_modal
-            .as_ref()
-            .and_then(|modal| modal.destinations.get(modal.selected))
+        self.modals.memory_modal_selected()
     }
 
     /// Check if memory modal is active
     pub fn memory_modal_active(&self) -> bool {
-        self.memory_modal.is_some()
+        self.modals.memory_modal_active()
     }
 
     /// Get memory modal state (for rendering)
     pub fn memory_modal(&self) -> Option<&MemoryModalState> {
-        self.memory_modal.as_ref()
+        self.modals.memory_modal()
     }
 
-    // === Permissions modal management ===
+    // === Permissions modal management (delegates to ModalManager) ===
 
     /// Activate permissions search modal
     pub fn activate_permissions_modal(&mut self) {
-        self.permissions_modal = Some(PermissionsSearchState::new());
+        self.modals.activate_permissions_modal();
         self.focus_dirty = true;
         self.mark_dirty();
     }
 
     /// Clear permissions modal
     pub fn clear_permissions_modal(&mut self) {
-        self.permissions_modal = None;
+        self.modals.clear_permissions_modal();
         self.focus_dirty = true;
         self.mark_dirty();
     }
 
     /// Check if permissions modal is active
     pub fn permissions_modal_active(&self) -> bool {
-        self.permissions_modal.is_some()
+        self.modals.permissions_modal_active()
     }
 
     /// Get mutable reference to permissions modal state
     pub fn permissions_modal_mut(&mut self) -> Option<&mut PermissionsSearchState> {
-        self.permissions_modal.as_mut()
+        self.modals.permissions_modal_mut()
     }
 
     /// Get permissions modal state (for rendering)
     pub fn permissions_modal(&self) -> Option<&PermissionsSearchState> {
-        self.permissions_modal.as_ref()
+        self.modals.permissions_modal()
     }
 
     // === Focus management ===
@@ -1732,7 +1592,7 @@ impl App {
                 rat_focus::HasFocus::build(&autocomplete_wrapper, &mut builder);
             }
 
-            if self.memory_modal.is_some() {
+            if self.modals.memory_modal_active() {
                 let memory_modal_wrapper = MemoryModalWrapper {
                     focus: self.focus_memory_modal.clone(),
                     area: cache.input_area,
@@ -1740,7 +1600,7 @@ impl App {
                 rat_focus::HasFocus::build(&memory_modal_wrapper, &mut builder);
             }
 
-            if self.permissions_modal.is_some() {
+            if self.modals.permissions_modal_active() {
                 let permissions_modal_wrapper = PermissionsModalWrapper {
                     focus: self.focus_permissions_modal.clone(),
                     area: cache.input_area,
