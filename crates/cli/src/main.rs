@@ -9,6 +9,8 @@
 #[allow(dead_code)]
 mod checkpoint;
 #[allow(dead_code)]
+mod command_handlers;
+#[allow(dead_code)]
 mod commands;
 #[allow(dead_code)]
 mod conversation;
