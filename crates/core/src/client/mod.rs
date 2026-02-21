@@ -179,11 +179,11 @@ impl Client {
                     // Use Retry-After if provided, otherwise use calculated delay
                     let actual_delay = e.retry_after().unwrap_or(calculated_delay);
 
-                    eprintln!(
-                        "Retrying request after {:.2}s (attempt {}/{})",
-                        actual_delay.as_secs_f64(),
-                        retries + 1,
-                        self.retry_config.max_retries
+                    tracing::warn!(
+                        delay_secs = actual_delay.as_secs_f64(),
+                        attempt = retries + 1,
+                        max_retries = self.retry_config.max_retries,
+                        "Retrying request"
                     );
 
                     tokio::time::sleep(actual_delay).await;
@@ -271,11 +271,11 @@ impl Client {
                     // Use Retry-After if provided, otherwise use calculated delay
                     let actual_delay = e.retry_after().unwrap_or(calculated_delay);
 
-                    eprintln!(
-                        "Retrying streaming request after {:.2}s (attempt {}/{})",
-                        actual_delay.as_secs_f64(),
-                        retries + 1,
-                        self.retry_config.max_retries
+                    tracing::warn!(
+                        delay_secs = actual_delay.as_secs_f64(),
+                        attempt = retries + 1,
+                        max_retries = self.retry_config.max_retries,
+                        "Retrying streaming request"
                     );
 
                     tokio::time::sleep(actual_delay).await;
@@ -425,22 +425,19 @@ impl Client {
                 if let ContentBlock::ToolUse { id, name, input } = block {
                     has_tool_use = true;
 
-                    // Print tool invocation details
-                    eprintln!("\n[Tool: {}]", name);
+                    // Log tool invocation details
+                    tracing::debug!(tool = %name, "Invoking tool");
                     if let Ok(pretty_input) = serde_json::to_string_pretty(input) {
-                        eprintln!("Input: {}", pretty_input);
+                        tracing::debug!(tool = %name, input = %pretty_input, "Tool input");
                     }
-                    eprintln!();
 
                     // Execute the tool
                     match tool_executor(name.clone(), input.clone()).await {
                         Ok(result) => {
-                            // Print tool result
-                            eprintln!("[Tool Result: {}]", name);
+                            // Log tool result
                             if let Ok(pretty_result) = serde_json::to_string_pretty(&result) {
-                                eprintln!("{}", pretty_result);
+                                tracing::debug!(tool = %name, result = %pretty_result, "Tool result");
                             }
-                            eprintln!();
 
                             tool_result_blocks.push(ContentBlock::ToolResult {
                                 tool_use_id: id.clone(),
@@ -451,10 +448,8 @@ impl Client {
                             });
                         }
                         Err(e) => {
-                            // Print tool error
-                            eprintln!("[Tool Error: {}]", name);
-                            eprintln!("Error: {}", e);
-                            eprintln!();
+                            // Log tool error
+                            tracing::warn!(tool = %name, error = %e, "Tool execution failed");
 
                             tool_result_blocks.push(ContentBlock::ToolResult {
                                 tool_use_id: id.clone(),
@@ -508,12 +503,6 @@ impl Client {
     }
 }
 
-/// Sanitize error text to remove any API keys
-#[allow(dead_code)]
-fn sanitize_error_text(text: &str) -> String {
-    error::sanitize_error(text)
-}
-
 impl std::fmt::Debug for Client {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Client")
@@ -529,7 +518,7 @@ mod tests {
     #[test]
     fn test_sanitize_error_text() {
         let error = "Failed with key sk-ant-test123";
-        let sanitized = sanitize_error_text(error);
+        let sanitized = error::sanitize_error(error);
         assert!(!sanitized.contains("test123"));
         assert!(sanitized.contains("[REDACTED_API_KEY]"));
     }

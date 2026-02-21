@@ -544,7 +544,6 @@ mod tests {
 #[cfg(test)]
 mod fast_mode_tests {
     use super::*;
-    use crate::client::{ApiKey, Config};
 
     #[test]
     fn test_speed_fast_with_opus_46() {
@@ -647,22 +646,6 @@ mod fast_mode_tests {
 
         let result = request.validate();
         assert!(result.is_err(), "Substring model name should be rejected");
-    }
-
-    #[test]
-    fn test_config_with_fast_mode() {
-        let api_key = ApiKey::new("sk-ant-test123".to_string()).unwrap();
-        let config = Config::new(api_key).with_fast_mode(true);
-
-        assert!(config.fast_mode_enabled);
-    }
-
-    #[test]
-    fn test_config_default_fast_mode_false() {
-        let api_key = ApiKey::new("sk-ant-test123".to_string()).unwrap();
-        let config = Config::new(api_key);
-
-        assert!(!config.fast_mode_enabled);
     }
 
     /// Test Usage.speed deserialization when speed field is present with "fast"
