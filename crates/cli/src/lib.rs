@@ -4,6 +4,7 @@
 //! functions for external consumers and the binary target.
 
 pub mod checkpoint;
+pub mod command_handlers;
 pub mod commands;
 pub mod conversation;
 pub mod hooks;
