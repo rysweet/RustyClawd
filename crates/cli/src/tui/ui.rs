@@ -968,6 +968,10 @@ fn build_memory_list_item(
 
 fn render_permissions_modal(frame: &mut Frame, area: Rect, app: &App) {
     if let Some(state) = app.permissions_modal() {
+        // Clear the full area behind the modal to prevent text bleed-through
+        // (permissions_ui also clears internally, but clearing here ensures
+        // consistency with render_autocomplete and render_memory_modal patterns)
+        frame.render_widget(Clear, area);
         // Use the permissions_ui module to render the modal
         permissions_ui::render_permissions_search(state, area, frame.buffer_mut());
     }

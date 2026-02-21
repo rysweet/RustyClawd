@@ -373,12 +373,21 @@ fn extract_tool_description(tool_name: &str, params: &Value) -> String {
     }
 }
 
-/// Truncate a string to a maximum length, adding ellipsis if needed
+/// Truncate a string to a maximum length, adding ellipsis if needed.
+///
+/// Uses char boundaries to avoid panicking on multi-byte UTF-8 characters.
 fn truncate(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {
         s.to_string()
     } else {
-        format!("{}...", &s[..max_len.saturating_sub(3)])
+        let budget = max_len.saturating_sub(3);
+        let truncate_at = s
+            .char_indices()
+            .take_while(|(i, c)| i + c.len_utf8() <= budget)
+            .last()
+            .map(|(i, c)| i + c.len_utf8())
+            .unwrap_or(0);
+        format!("{}...", &s[..truncate_at])
     }
 }
 
@@ -464,6 +473,20 @@ mod tests {
     fn test_truncate() {
         assert_eq!(truncate("short", 10), "short");
         assert_eq!(truncate("this is a very long string", 10), "this is...");
+    }
+
+    #[test]
+    fn test_truncate_utf8_multibyte() {
+        // Each emoji is 4 bytes. With max_len=10, budget=7.
+        // Only 1 emoji (4 bytes) fits within 7 bytes, so result is emoji + "..."
+        let emojis = "\u{1F600}\u{1F601}\u{1F602}\u{1F603}"; // 16 bytes total
+        let result = truncate(emojis, 10);
+        assert_eq!(result, "\u{1F600}...");
+
+        // 2-byte chars: each is 2 bytes. budget=7 fits 3 chars (6 bytes).
+        let accented = "\u{00E9}\u{00E9}\u{00E9}\u{00E9}\u{00E9}\u{00E9}"; // 12 bytes
+        let result = truncate(accented, 10);
+        assert_eq!(result.len(), 6 + 3); // 3 chars (6 bytes) + "..." (3 bytes)
     }
 
     #[test]

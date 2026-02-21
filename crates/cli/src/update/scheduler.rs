@@ -105,6 +105,11 @@ impl UpdateScheduler {
 
         info!("Performing scheduled update check");
 
+        // Update the last check timestamp regardless of outcome so that
+        // persistent network errors don't cause a retry on every startup.
+        self.config.update_last_check();
+        self.save_config()?;
+
         // Get update info from GitHub
         let update_info = match github_client.get_update_info(current_version).await {
             Ok(info) => info,
@@ -128,12 +133,6 @@ impl UpdateScheduler {
                 });
             }
         };
-
-        // Update the last check timestamp
-        self.config.update_last_check();
-
-        // Persist the updated config
-        self.save_config()?;
 
         let result = ScheduledCheckResult {
             check_performed: true,

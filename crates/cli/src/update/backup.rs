@@ -12,8 +12,8 @@ use tracing::{debug, info};
 /// Represents a single backup entry
 #[derive(Debug, Clone)]
 pub struct BackupEntry {
-    /// Original binary path
-    pub original_path: PathBuf,
+    /// Original binary path (None when recovered from backup listing)
+    pub original_path: Option<PathBuf>,
     /// Backup file path
     pub backup_path: PathBuf,
     /// Timestamp of when the backup was created
@@ -125,7 +125,7 @@ impl BackupManager {
         debug!("Backup created successfully: {:?}", backup_path);
 
         Ok(BackupEntry {
-            original_path: binary_path.to_path_buf(),
+            original_path: Some(binary_path.to_path_buf()),
             backup_path,
             timestamp: now,
             file_size,
@@ -163,7 +163,7 @@ impl BackupManager {
 
                         if let Some(ts) = timestamp {
                             backups.push(BackupEntry {
-                                original_path: PathBuf::new(), // Not available from listing
+                                original_path: None,
                                 backup_path: path,
                                 timestamp: ts,
                                 file_size,
@@ -202,7 +202,7 @@ impl BackupManager {
         })?;
 
         Ok(BackupEntry {
-            original_path: PathBuf::new(),
+            original_path: None,
             backup_path,
             timestamp,
             file_size: metadata.len(),
@@ -331,7 +331,7 @@ mod tests {
     fn test_backup_entry_timestamp_str() {
         let now = Local::now();
         let entry = BackupEntry {
-            original_path: PathBuf::from("/tmp/original"),
+            original_path: Some(PathBuf::from("/tmp/original")),
             backup_path: PathBuf::from("/tmp/backup"),
             timestamp: now,
             file_size: 1024,
@@ -346,7 +346,7 @@ mod tests {
     fn test_backup_entry_filename() {
         let now = Local::now();
         let entry = BackupEntry {
-            original_path: PathBuf::from("/tmp/original"),
+            original_path: Some(PathBuf::from("/tmp/original")),
             backup_path: PathBuf::from("/tmp/backup"),
             timestamp: now,
             file_size: 1024,

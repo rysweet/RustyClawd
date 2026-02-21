@@ -2548,7 +2548,6 @@ dependencies = [
  "escargot",
  "futures",
  "http",
- "lazy_static",
  "libc",
  "predicates",
  "rat-event",
