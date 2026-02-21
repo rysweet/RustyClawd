@@ -6,6 +6,12 @@ This file documents non-obvious problems, solutions, and patterns discovered dur
 
 ## Table of Contents
 
+### Recent (February 2026)
+
+- [Quality Audit: 25 PRs Across 5 Rounds Improved Score 5.3→8.4](#quality-audit-25-prs-5-rounds-2026-02-21)
+- [Parallel Agent Orchestration Pattern for Large-Scale Refactoring](#parallel-agent-orchestration-2026-02-21)
+- [God File Detection Requires Full Codebase Scan](#god-file-detection-full-scan-2026-02-21)
+
 ### Recent (December 2025)
 
 - [E2E Testing Infrastructure Achieves 90% Parity (PR #104)](#e2e-testing-infrastructure-pr104-2025-12-03)
@@ -2207,3 +2213,42 @@ cp -r .claude docs/.claude
 - Zero-BS Implementation (PATTERNS.md)
 
 **Tags**: #documentation #mkdocs #github-pages #deployment #simplicity
+
+---
+
+## Quality Audit: 25 PRs Across 5 Rounds {#quality-audit-25-prs-5-rounds-2026-02-21}
+
+**Date**: 2026-02-21
+**Impact**: HIGH — Codebase quality improved from 5.3/10 to 8.4/10
+**Master Issue**: [#381](https://github.com/rysweet/RustyClawd/issues/381)
+
+### What Happened
+
+A comprehensive quality audit was conducted using parallel specialized agents across the entire codebase. Five rounds of fixes were executed, each with parallel workstreams:
+
+- **Round 1** (10 PRs): Security fixes (prompt injection, command injection), stub replacements (SHA256, plugin executor, YAML), production panic removal, reqwest unification, async subprocess, fake builtins removal, lint suppression cleanup
+- **Round 3** (5 PRs): God file splits (ui.rs, mcp_proxy.rs), tool executor boilerplate elimination (-565 lines), App::new decomposition, web_fetch context fix
+- **Round 4** (5 PRs): VecDeque for SSE streams, tracing over eprintln, static keybindings, cached focus, settings Option<u32>, HookMatcher fix, UTF-8 safe truncation, LazyLock
+- **Round 5** (5 PRs): interactive.rs split (2181→4 modules), stub builtins removed (-1527 lines), notebook_edit split (4 modules), app.rs sub-states, model ID updates
+
+### Key Findings
+
+1. **Fake data in production commands** — builtins.rs returned hardcoded fictional rate limits, login status, and cost data. Users would see plausible-looking but entirely false information.
+2. **Security boundaries need sanitization** — Hook executor injected raw JSON into LLM prompts for permission decisions. Shell commands built by string concatenation.
+3. **God objects accumulate silently** — interactive.rs grew to 2181 LOC without anyone flagging it. Regular LOC audits catch this early.
+4. **Crate-wide lint suppression hides debt** — `#![allow(dead_code)]` masked hundreds of warnings across the CLI crate.
+
+### Pattern: Parallel Agent Orchestration for Refactoring {#parallel-agent-orchestration-2026-02-21}
+
+**Discovery**: Running 5-10 parallel agents in separate git worktrees is highly effective for large-scale quality fixes. Each agent works independently on a non-conflicting set of files, creates its own PR, and CI validates in parallel. Merge conflicts are manageable when worktrees are divided by file ownership.
+
+**Effective groupings**:
+- Group by crate (core vs tools vs cli)
+- Group by subsystem (TUI vs plugins vs commands)
+- Never let two agents touch the same file
+
+### Pattern: God File Detection Requires Full Scan {#god-file-detection-full-scan-2026-02-21}
+
+**Discovery**: The initial audit missed `interactive.rs` (2181 LOC — the LARGEST file) because audit agents were scoped to specific directories. A fresh audit with no prior context found it immediately. Lesson: always do at least one full-codebase scan without pre-filtering.
+
+**Tags**: #quality-audit #refactoring #parallel-agents #god-objects #security
