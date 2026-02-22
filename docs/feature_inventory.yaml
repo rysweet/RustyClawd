@@ -379,13 +379,13 @@ features:
 
   - name: "spinnerTipsOverride"
     category: "capabilities"
-    status: missing
-    notes: "Custom spinner tips setting (v2.1.45)"
+    status: complete
+    notes: "Optional Vec<String> for custom spinner tips in settings (v2.1.45)"
 
   - name: "Reduced Motion Mode"
     category: "capabilities"
-    status: missing
-    notes: "Accessibility config for reduced motion (v2.1.31)"
+    status: complete
+    notes: "Boolean setting + CLAUDE_REDUCED_MOTION env var (v2.1.31)"
 
   - name: "Token Duration Metrics"
     category: "capabilities"
@@ -397,13 +397,13 @@ features:
 # ============================================================================
 summary:
   total_features: 58
-  complete: 55
+  complete: 57
   partial: 3    # GitHub Integration, Caching, --worktree runtime
-  missing: 3    # PDF pages, MCP OAuth, spinnerTips/reduced motion
+  missing: 1    # PDF pages, MCP OAuth (complex - tracked in #460)
   not_applicable: 3
   research_needed: 0
-  completion_percentage: 95%
-  effective_parity: 98%
+  completion_percentage: 98%
+  effective_parity: 99%
 
   major_achievements:
     - "All core tools implemented"
@@ -419,7 +419,5 @@ summary:
     - "1668+ passing tests with 0 failures"
 
   missing_features:
-    - "PDF pages parameter for Read tool"
-    - "MCP OAuth authentication"
-    - "spinnerTipsOverride setting"
-    - "Reduced motion mode"
+    - "PDF pages parameter for Read tool (complex - needs PDF parsing library)"
+    - "MCP OAuth authentication (complex - needs OAuth flow implementation)"
