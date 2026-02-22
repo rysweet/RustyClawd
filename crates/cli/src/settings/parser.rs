@@ -124,6 +124,20 @@ pub fn parse_json_config(content: &str) -> Result<Settings, String> {
                 settings = settings.with_tool_search(config);
             }
         }
+
+        // Parse spinner_tips_override array
+        if let Some(tips) = obj.get("spinner_tips_override").and_then(|v| v.as_array()) {
+            let tips_vec: Vec<String> = tips
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect();
+            settings = settings.with_spinner_tips_override(tips_vec);
+        }
+
+        // Parse reduced_motion boolean
+        if let Some(reduced) = obj.get("reduced_motion").and_then(|v| v.as_bool()) {
+            settings = settings.with_reduced_motion(reduced);
+        }
     }
 
     Ok(settings)
@@ -233,6 +247,20 @@ pub fn parse_toml_config(content: &str) -> Result<Settings, String> {
             if let Ok(config) = ToolSearchConfig::parse(tool_search) {
                 settings = settings.with_tool_search(config);
             }
+        }
+
+        // Parse spinner_tips_override array
+        if let Some(tips) = table.get("spinner_tips_override").and_then(|v| v.as_array()) {
+            let tips_vec: Vec<String> = tips
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect();
+            settings = settings.with_spinner_tips_override(tips_vec);
+        }
+
+        // Parse reduced_motion boolean
+        if let Some(reduced) = table.get("reduced_motion").and_then(|v| v.as_bool()) {
+            settings = settings.with_reduced_motion(reduced);
         }
     }
 
@@ -468,5 +496,76 @@ tool_search = "auto:15"
         let settings = settings.unwrap();
         assert!(settings.tool_search.is_auto());
         assert_eq!(settings.tool_search.threshold_percent(), Some(20));
+    }
+
+    #[test]
+    fn test_parse_json_config_with_spinner_tips_override() {
+        let json_content = r#"
+{
+    "model": "claude-3",
+    "spinner_tips_override": ["Reticulating splines...", "Loading cargo..."]
+}
+"#;
+
+        let settings = parse_json_config(json_content).unwrap();
+        assert_eq!(
+            settings.spinner_tips_override,
+            Some(vec![
+                "Reticulating splines...".to_string(),
+                "Loading cargo...".to_string()
+            ])
+        );
+    }
+
+    #[test]
+    fn test_parse_json_config_with_reduced_motion() {
+        let json_content = r#"
+{
+    "model": "claude-3",
+    "reduced_motion": true
+}
+"#;
+
+        let settings = parse_json_config(json_content).unwrap();
+        assert!(settings.reduced_motion);
+    }
+
+    #[test]
+    fn test_parse_toml_config_with_spinner_tips_override() {
+        let toml_content = r#"
+model = "claude-3"
+spinner_tips_override = ["Arr, loading...", "Swabbing the decks..."]
+"#;
+
+        let settings = parse_toml_config(toml_content).unwrap();
+        assert_eq!(
+            settings.spinner_tips_override,
+            Some(vec![
+                "Arr, loading...".to_string(),
+                "Swabbing the decks...".to_string()
+            ])
+        );
+    }
+
+    #[test]
+    fn test_parse_toml_config_with_reduced_motion() {
+        let toml_content = r#"
+model = "claude-3"
+reduced_motion = true
+"#;
+
+        let settings = parse_toml_config(toml_content).unwrap();
+        assert!(settings.reduced_motion);
+    }
+
+    #[test]
+    fn test_parse_toml_config_reduced_motion_false_by_default() {
+        let toml_content = r#"
+model = "claude-3"
+"#;
+
+        let settings = parse_toml_config(toml_content).unwrap();
+        assert!(!settings.reduced_motion);
+        assert_eq!(settings.spinner_tips_override, None);
     }
 }

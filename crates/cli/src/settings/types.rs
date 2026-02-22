@@ -77,6 +77,10 @@ pub struct Settings {
     pub sandbox: Option<SandboxSettings>,
     /// MCP tool search configuration (auto:N syntax)
     pub tool_search: ToolSearchConfig,
+    /// Custom spinner tips to override the defaults (v2.1.45)
+    pub spinner_tips_override: Option<Vec<String>>,
+    /// When true, animations are simplified for reduced motion preference (v2.1.31)
+    pub reduced_motion: bool,
 }
 
 impl Settings {
@@ -139,6 +143,18 @@ impl Settings {
         self
     }
 
+    /// Set custom spinner tips
+    pub fn with_spinner_tips_override(mut self, tips: Vec<String>) -> Self {
+        self.spinner_tips_override = Some(tips);
+        self
+    }
+
+    /// Enable reduced motion mode
+    pub fn with_reduced_motion(mut self, enabled: bool) -> Self {
+        self.reduced_motion = enabled;
+        self
+    }
+
     /// Validate settings configuration.
     /// Delegates to the shared validation functions in `validation.rs`.
     pub fn validate(&self) -> Result<(), String> {
@@ -169,6 +185,8 @@ impl Settings {
             && self.enabled_plugins.is_empty()
             && self.sandbox.is_none()
             && self.tool_search.is_auto()
+            && self.spinner_tips_override.is_none()
+            && !self.reduced_motion
     }
 
     /// Get tool search configuration
@@ -243,5 +261,48 @@ mod tests {
         assert!(
             SettingsLayer::EnterpriseManaged.priority() > SettingsLayer::CommandLine.priority()
         );
+    }
+
+    #[test]
+    fn test_spinner_tips_override_default_none() {
+        let settings = Settings::new();
+        assert_eq!(settings.spinner_tips_override, None);
+    }
+
+    #[test]
+    fn test_spinner_tips_override_builder() {
+        let tips = vec![
+            "Reticulating splines...".to_string(),
+            "Compiling the compiler...".to_string(),
+        ];
+        let settings = Settings::new().with_spinner_tips_override(tips.clone());
+        assert_eq!(settings.spinner_tips_override, Some(tips));
+    }
+
+    #[test]
+    fn test_spinner_tips_override_empty_vec() {
+        let settings = Settings::new().with_spinner_tips_override(vec![]);
+        assert_eq!(settings.spinner_tips_override, Some(vec![]));
+        // Not empty because spinner_tips_override is Some
+        assert!(!settings.is_empty());
+    }
+
+    #[test]
+    fn test_reduced_motion_default_false() {
+        let settings = Settings::new();
+        assert!(!settings.reduced_motion);
+    }
+
+    #[test]
+    fn test_reduced_motion_builder() {
+        let settings = Settings::new().with_reduced_motion(true);
+        assert!(settings.reduced_motion);
+        assert!(!settings.is_empty());
+    }
+
+    #[test]
+    fn test_reduced_motion_false_still_empty() {
+        let settings = Settings::new().with_reduced_motion(false);
+        assert!(settings.is_empty());
     }
 }
