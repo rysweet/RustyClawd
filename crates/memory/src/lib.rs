@@ -76,7 +76,9 @@
 //! ```
 
 mod database;
+mod entry;
 mod manager;
+mod query;
 mod query_builder;
 mod schema;
 mod types;
