@@ -20,17 +20,21 @@
 //! ```
 
 mod app;
+mod app_input;
+mod app_tools;
 mod autocomplete_state;
 mod click_region;
 mod compat;
 mod debug_panel;
 mod event;
+mod focus_manager;
 mod input_state;
 mod keybindings;
 mod layout;
 mod message;
 mod message_formatter;
 mod modal_state;
+mod scroll_controller;
 mod soft_wrap;
 mod streaming_state;
 mod thinking_indicator;
@@ -41,8 +45,9 @@ mod tool_renderer;
 mod ui;
 
 // Re-export for backward compatibility with existing code
-pub use app::{App, CompletionItem, LayoutCache, ToolResult};
+pub use app::{App, CompletionItem, ToolResult};
 pub use event::{handle_event, poll_event, EventResult};
+pub use focus_manager::LayoutCache;
 pub use message::Message;
 #[allow(unused_imports)] // Re-export for library consumers and tests
 pub use message::Role as MessageRole;

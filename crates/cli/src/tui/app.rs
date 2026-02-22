@@ -1,119 +1,45 @@
 //! Application state for TUI
+//!
+//! Core App struct definition, construction, state queries, message management,
+//! streaming, autocomplete/modal delegation, and misc state mutations.
+//!
+//! Split `impl App` blocks live in sibling modules:
+//! - `app_input.rs` — input buffer delegation
+//! - `app_tools.rs` — tool execution state
+//! - `focus_manager.rs` — focus management, layout cache, pane wrappers
 
 use crate::commands::permissions_search_state::PermissionsSearchState;
 use crate::permission_mode::PermissionMode;
 use crate::tui::autocomplete_state::AutocompleteManager;
 pub use crate::tui::autocomplete_state::{AutocompleteState, CompletionItem};
 use crate::tui::debug_panel::DebugPanel;
+use crate::tui::focus_manager::LayoutCache;
 use crate::tui::input_state::InputState;
 use crate::tui::message::Message;
 use crate::tui::modal_state::{MemoryDestination, MemoryModalState, ModalManager};
+use crate::tui::scroll_controller::ScrollController;
 use crate::tui::streaming_state::StreamingState;
 use crate::tui::token_counter::TokenCount;
+pub use crate::tui::tool_messages::ToolResult;
 use crate::tui::tool_messages::ToolTracker;
-pub use crate::tui::tool_messages::{ToolMessageState, ToolResult};
 use rat_focus::{Focus, FocusFlag};
-use ratatui::layout::Rect;
-use std::time::Instant;
-
-/// Layout cache - stores pane areas from last render for hit testing
-#[derive(Clone, Debug, Default)]
-pub struct LayoutCache {
-    /// Messages pane area
-    pub messages_area: Rect,
-    /// Input pane area
-    pub input_area: Rect,
-    /// Debug panel area (when visible)
-    pub debug_area: Option<Rect>,
-}
-
-/// Reusable scroll controller for any scrollable panel.
-/// Manages offset, follow-bottom mode, and max-scroll clamping.
-pub struct ScrollController {
-    /// Current scroll offset (lines from top)
-    offset: usize,
-    /// Auto-follow bottom (true = stick to bottom, false = manual scroll)
-    follow_bottom: bool,
-    /// Maximum valid scroll offset (updated by renderer each frame)
-    max_scroll: usize,
-}
-
-impl ScrollController {
-    pub fn new() -> Self {
-        Self {
-            offset: 0,
-            follow_bottom: true, // Start in auto-follow mode
-            max_scroll: 0,       // Will be updated by renderer
-        }
-    }
-
-    pub fn offset(&self) -> usize {
-        self.offset
-    }
-
-    pub fn follow_bottom(&self) -> bool {
-        self.follow_bottom
-    }
-
-    pub fn scroll_up(&mut self, lines: usize) {
-        // If we're in follow mode, transition to manual scroll mode
-        if self.follow_bottom {
-            self.follow_bottom = false;
-            // Initialize offset to max_scroll so we're actually at the bottom
-            self.offset = self.max_scroll;
-        }
-        // Now scroll up from current position
-        self.offset = self.offset.saturating_sub(lines);
-    }
-
-    pub fn scroll_down(&mut self, lines: usize) {
-        // If already following bottom, stay there
-        if self.follow_bottom {
-            return;
-        }
-        // Increment scroll offset and clamp to valid range
-        self.offset = self.offset.saturating_add(lines);
-        // Clamp to max_scroll to prevent phantom accumulation
-        if self.offset >= self.max_scroll {
-            // At or past the bottom - switch to follow mode
-            self.follow_bottom = true;
-            self.offset = 0; // Renderer will set to max_scroll
-        }
-    }
-
-    pub fn scroll_to_bottom(&mut self) {
-        self.follow_bottom = true;
-        self.offset = 0; // Will be set to max_scroll during render
-    }
-
-    /// Update max_scroll from renderer (called after content height calculation).
-    /// Also clamps offset to prevent invalid state after terminal resize.
-    pub fn update_max_scroll(&mut self, max_scroll: usize) {
-        self.max_scroll = max_scroll;
-        // Clamp offset when max_scroll changes (e.g., after terminal resize)
-        // Only clamp if NOT in follow_bottom mode (which uses max_scroll directly in render)
-        if !self.follow_bottom && self.offset > max_scroll {
-            self.offset = max_scroll;
-        }
-    }
-}
 
 /// Main application state - single source of truth
 pub struct App {
     /// Message history (all messages in conversation)
-    messages: Vec<Message>,
+    pub(super) messages: Vec<Message>,
 
     /// Input state (TextArea + soft wrap)
     pub input_state: InputState,
 
     /// Scroll controller for message viewport
-    message_scroll: ScrollController,
+    pub(super) message_scroll: ScrollController,
 
     /// Autocomplete manager
-    autocomplete: AutocompleteManager,
+    pub(super) autocomplete: AutocompleteManager,
 
     /// Modal manager (memory modal + permissions modal)
-    modals: ModalManager,
+    pub(super) modals: ModalManager,
 
     /// Current permission mode
     permission_mode: PermissionMode,
@@ -122,7 +48,7 @@ pub struct App {
     streaming: Option<StreamingState>,
 
     /// Active tool executions (tool_id -> state)
-    tools: ToolTracker,
+    pub(super) tools: ToolTracker,
 
     /// Whether to exit the application
     should_exit: bool,
@@ -140,34 +66,34 @@ pub struct App {
     menu_open: bool,
 
     /// Focus state for messages pane
-    focus_messages: FocusFlag,
+    pub(super) focus_messages: FocusFlag,
 
     /// Focus state for input pane
-    focus_input: FocusFlag,
+    pub(super) focus_input: FocusFlag,
 
     /// Focus state for debug panel
-    focus_debug: FocusFlag,
+    pub(super) focus_debug: FocusFlag,
 
     /// Focus state for autocomplete popup
-    focus_autocomplete: FocusFlag,
+    pub(super) focus_autocomplete: FocusFlag,
 
     /// Focus state for memory modal
-    focus_memory_modal: FocusFlag,
+    pub(super) focus_memory_modal: FocusFlag,
 
     /// Focus state for permissions modal
-    focus_permissions_modal: FocusFlag,
+    pub(super) focus_permissions_modal: FocusFlag,
 
     /// Layout cache from last render (for hit testing)
-    layout_cache: LayoutCache,
+    pub(super) layout_cache: LayoutCache,
 
     /// Clickable regions for mouse interactions
     pub click_regions: crate::tui::click_region::ClickableRegions,
 
     /// Cached focus structure (rebuilt only when focus_dirty is set)
-    cached_focus: Option<Focus>,
+    pub(super) cached_focus: Option<Focus>,
 
     /// Flag indicating focus structure needs rebuilding (debug toggle, modal open/close)
-    focus_dirty: bool,
+    pub(super) focus_dirty: bool,
 }
 
 impl App {
@@ -411,212 +337,7 @@ impl App {
         }
     }
 
-    // === Tool execution state ===
-
-    /// Begin a new tool execution message.
-    /// Orchestrates: creates tool state in ToolTracker, THEN pushes a placeholder message.
-    pub fn begin_tool_message(
-        &mut self,
-        tool_id: String,
-        tool_name: String,
-        params: serde_json::Value,
-    ) -> usize {
-        self.push_debug_message(format!("[TOOL] Started: {} (id: {})", tool_name, tool_id));
-
-        // Create a placeholder message (collapsible tool message)
-        let preview = format!("🔧 {} ...", tool_name);
-        let message = Message::collapsible(
-            crate::tui::message::Role::System,
-            String::new(), // Will be filled by renderer
-            preview,
-        );
-
-        let message_index = self.messages.len();
-        self.messages.push(message);
-
-        // Track tool state
-        let state = ToolMessageState {
-            message_index,
-            tool_name,
-            params,
-            start_time: Instant::now(),
-            completed: false,
-            result: None,
-            elapsed_duration: None,
-        };
-
-        self.tools.insert(tool_id, state);
-        self.mark_dirty();
-
-        message_index
-    }
-
-    /// Get tool state by tool_id (read-only)
-    pub fn get_tool_message_state(&self, tool_id: &str) -> Option<&ToolMessageState> {
-        self.tools.get(tool_id)
-    }
-
-    /// Get all active (non-completed) tool messages
-    pub fn active_tool_messages(&self) -> impl Iterator<Item = (&String, &ToolMessageState)> {
-        self.tools.active_tools()
-    }
-
-    /// Finalize a tool execution message with result.
-    /// Orchestrates: finalizes in ToolTracker, THEN updates message status.
-    pub fn finalize_tool_message(&mut self, tool_id: &str, result: ToolResult) {
-        // Finalize in tracker (captures timing, stores result)
-        let debug_info = self.tools.finalize(tool_id, result.clone());
-
-        // Update message status based on result
-        if let Some((_, _, message_index)) = &debug_info {
-            if let Some(message) = self.messages.get_mut(*message_index) {
-                if result.is_error {
-                    message.mark_error();
-                } else {
-                    message.complete_streaming();
-                }
-            }
-            self.mark_dirty();
-        }
-
-        // Log debug message
-        if let Some((tool_name, elapsed, _)) = debug_info {
-            self.push_debug_message(format!(
-                "[TOOL] Finished: {} ({}s, exit_code: {:?})",
-                tool_name, elapsed, result.exit_code
-            ));
-        }
-    }
-
-    /// Check if any tools are currently executing
-    pub fn has_active_tools(&self) -> bool {
-        self.tools.has_active()
-    }
-
-    /// Get name of any active tool (for status bar)
-    pub fn active_tool_name(&self) -> Option<String> {
-        self.tools.active_name()
-    }
-
-    /// Find tool state by message index (for rendering)
-    pub fn tool_message_by_index(
-        &self,
-        message_index: usize,
-    ) -> Option<(&String, &ToolMessageState)> {
-        self.tools.by_message_index(message_index)
-    }
-
-    // === Input buffer management (delegates to InputState) ===
-
-    pub fn insert_char(&mut self, c: char) {
-        self.input_state.insert_char(c);
-        self.mark_dirty();
-    }
-
-    pub fn delete_char(&mut self) {
-        self.input_state.delete_char();
-        self.mark_dirty();
-    }
-
-    pub fn backspace(&mut self) {
-        let debug_msgs = self.input_state.backspace();
-        for msg in debug_msgs {
-            self.push_debug_message(msg);
-        }
-        self.mark_dirty();
-    }
-
-    pub fn move_cursor_left(&mut self) {
-        self.input_state.move_cursor_left();
-        self.mark_dirty();
-    }
-
-    pub fn move_cursor_right(&mut self) {
-        self.input_state.move_cursor_right();
-        self.mark_dirty();
-    }
-
-    pub fn move_cursor_to_start(&mut self) {
-        self.input_state.move_cursor_to_start();
-        self.mark_dirty();
-    }
-
-    pub fn move_cursor_to_end(&mut self) {
-        self.input_state.move_cursor_to_end();
-        self.mark_dirty();
-    }
-
-    pub fn insert_newline(&mut self) {
-        self.input_state.insert_newline();
-        self.mark_dirty();
-    }
-
-    pub fn move_cursor_up(&mut self) {
-        self.input_state.move_cursor_up();
-        self.mark_dirty();
-    }
-
-    pub fn move_cursor_down(&mut self) {
-        self.input_state.move_cursor_down();
-        self.mark_dirty();
-    }
-
-    pub fn move_cursor_word_left(&mut self) {
-        self.input_state.move_cursor_word_left();
-        self.mark_dirty();
-    }
-
-    pub fn move_cursor_word_right(&mut self) {
-        self.input_state.move_cursor_word_right();
-        self.mark_dirty();
-    }
-
-    pub fn move_cursor_absolute_start(&mut self) {
-        self.input_state.move_cursor_absolute_start();
-        self.mark_dirty();
-    }
-
-    pub fn move_cursor_absolute_end(&mut self) {
-        self.input_state.move_cursor_absolute_end();
-        self.mark_dirty();
-    }
-
-    pub fn move_cursor_to_input_top(&mut self) {
-        self.input_state.move_cursor_to_input_top();
-        self.mark_dirty();
-    }
-
-    pub fn move_cursor_to_input_bottom(&mut self) {
-        self.input_state.move_cursor_to_input_bottom();
-        self.mark_dirty();
-    }
-
-    pub fn scroll_input_viewport_up(&mut self) {
-        self.input_state.scroll_input_viewport_up();
-        self.mark_dirty();
-    }
-
-    pub fn scroll_input_viewport_down(&mut self) {
-        self.input_state.scroll_input_viewport_down();
-        self.mark_dirty();
-    }
-
-    /// Clear input without submitting (Ctrl+U behavior)
-    pub fn clear_input(&mut self) {
-        self.input_state.clear_input();
-        self.mark_dirty();
-    }
-
-    pub fn submit_input(&mut self) -> Option<String> {
-        let result = self.input_state.submit_input();
-        self.mark_dirty();
-        result
-    }
-
-    pub fn set_input(&mut self, text: &str) {
-        self.input_state.set_input(text);
-        self.mark_dirty();
-    }
+    // === Message scroll ===
 
     pub fn scroll_up(&mut self, lines: usize) {
         self.message_scroll.scroll_up(lines);
@@ -931,178 +652,7 @@ impl App {
     pub fn permissions_modal(&self) -> Option<&PermissionsSearchState> {
         self.modals.permissions_modal()
     }
-
-    // === Focus management ===
-
-    /// Get focus flag for messages pane
-    pub fn focus_messages(&self) -> FocusFlag {
-        self.focus_messages.clone()
-    }
-
-    /// Get focus flag for input pane
-    pub fn focus_input(&self) -> FocusFlag {
-        self.focus_input.clone()
-    }
-
-    /// Get focus flag for debug panel
-    pub fn focus_debug(&self) -> FocusFlag {
-        self.focus_debug.clone()
-    }
-
-    /// Get focus flag for autocomplete popup
-    pub fn focus_autocomplete(&self) -> FocusFlag {
-        self.focus_autocomplete.clone()
-    }
-
-    /// Get focus flag for memory modal
-    pub fn focus_memory_modal(&self) -> FocusFlag {
-        self.focus_memory_modal.clone()
-    }
-
-    /// Get focus flag for permissions modal
-    pub fn focus_permissions_modal(&self) -> FocusFlag {
-        self.focus_permissions_modal.clone()
-    }
-
-    /// Update layout cache from render
-    pub fn update_layout_cache(&mut self, cache: LayoutCache) {
-        // Invalidate focus when layout areas change (e.g., terminal resize)
-        if self.layout_cache.messages_area != cache.messages_area
-            || self.layout_cache.input_area != cache.input_area
-            || self.layout_cache.debug_area != cache.debug_area
-        {
-            self.focus_dirty = true;
-        }
-        self.layout_cache = cache;
-    }
-
-    /// Get layout cache
-    pub fn layout_cache(&self) -> &LayoutCache {
-        &self.layout_cache
-    }
-
-    // === Focus caching ===
-
-    /// Mark the focus structure as needing a rebuild
-    pub fn invalidate_focus(&mut self) {
-        self.focus_dirty = true;
-    }
-
-    /// Check if focus needs rebuilding
-    pub fn is_focus_dirty(&self) -> bool {
-        self.focus_dirty
-    }
-
-    /// Get the cached focus, rebuilding if necessary.
-    /// Returns None if layout cache is not initialized (zero-size area).
-    pub fn get_or_rebuild_focus(&mut self) -> Option<&mut Focus> {
-        let cache = self.layout_cache.clone();
-
-        // Skip if layout cache is not initialized
-        if cache.messages_area.width == 0 && cache.messages_area.height == 0 {
-            return None;
-        }
-
-        if self.focus_dirty || self.cached_focus.is_none() {
-            // Rebuild focus structure
-            let mut builder = rat_focus::FocusBuilder::default();
-
-            let messages_wrapper = MessagesPaneWrapper {
-                focus: self.focus_messages.clone(),
-                area: cache.messages_area,
-            };
-            rat_focus::HasFocus::build(&messages_wrapper, &mut builder);
-
-            let input_wrapper = InputPaneWrapper {
-                focus: self.focus_input.clone(),
-                area: cache.input_area,
-            };
-            rat_focus::HasFocus::build(&input_wrapper, &mut builder);
-
-            if let Some(debug_area) = cache.debug_area {
-                let debug_wrapper = DebugPaneWrapper {
-                    focus: self.focus_debug.clone(),
-                    area: debug_area,
-                };
-                rat_focus::HasFocus::build(&debug_wrapper, &mut builder);
-            }
-
-            if self.autocomplete.is_active() {
-                let autocomplete_wrapper = AutocompletePopupWrapper {
-                    focus: self.focus_autocomplete.clone(),
-                    area: cache.input_area,
-                };
-                rat_focus::HasFocus::build(&autocomplete_wrapper, &mut builder);
-            }
-
-            if self.modals.memory_modal_active() {
-                let memory_modal_wrapper = MemoryModalWrapper {
-                    focus: self.focus_memory_modal.clone(),
-                    area: cache.input_area,
-                };
-                rat_focus::HasFocus::build(&memory_modal_wrapper, &mut builder);
-            }
-
-            if self.modals.permissions_modal_active() {
-                let permissions_modal_wrapper = PermissionsModalWrapper {
-                    focus: self.focus_permissions_modal.clone(),
-                    area: cache.input_area,
-                };
-                rat_focus::HasFocus::build(&permissions_modal_wrapper, &mut builder);
-            }
-
-            self.cached_focus = Some(builder.build());
-            self.focus_dirty = false;
-        }
-
-        self.cached_focus.as_mut()
-    }
 }
-
-// === HasFocus wrapper structs for rat-focus integration ===
-
-use rat_focus::{FocusBuilder, HasFocus, Navigation};
-
-/// Generic pane wrapper for rat-focus integration.
-/// Z_ORDER=0 uses Regular navigation (keyboard Tab); Z_ORDER>0 uses Mouse-only navigation.
-pub struct PaneWrapper<const Z_ORDER: u16> {
-    pub focus: FocusFlag,
-    pub area: Rect,
-}
-
-impl<const Z_ORDER: u16> HasFocus for PaneWrapper<Z_ORDER> {
-    fn build(&self, builder: &mut FocusBuilder) {
-        builder.leaf_widget(self);
-    }
-
-    fn focus(&self) -> FocusFlag {
-        self.focus.clone()
-    }
-
-    fn area(&self) -> ratatui::layout::Rect {
-        self.area
-    }
-
-    fn area_z(&self) -> u16 {
-        Z_ORDER
-    }
-
-    fn navigable(&self) -> Navigation {
-        if Z_ORDER == 0 {
-            Navigation::Regular
-        } else {
-            Navigation::Mouse
-        }
-    }
-}
-
-/// Type aliases preserving the original names for backward compatibility
-pub type MessagesPaneWrapper = PaneWrapper<0>;
-pub type InputPaneWrapper = PaneWrapper<0>;
-pub type DebugPaneWrapper = PaneWrapper<0>;
-pub type AutocompletePopupWrapper = PaneWrapper<1>;
-pub type MemoryModalWrapper = PaneWrapper<2>;
-pub type PermissionsModalWrapper = PaneWrapper<3>;
 
 #[cfg(test)]
 mod tests {

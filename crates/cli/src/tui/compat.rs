@@ -415,7 +415,7 @@ impl TuiState {
         // Render and capture max_scroll and layout_cache for app state update
         let mut max_scroll = 0;
         let mut debug_max_scroll = 0;
-        let mut layout_cache = super::app::LayoutCache::default();
+        let mut layout_cache = super::focus_manager::LayoutCache::default();
         self.terminal.draw(|f| {
             let (scroll, debug_scroll, cache) = super::ui::render(f, &mut self.app);
             max_scroll = scroll;

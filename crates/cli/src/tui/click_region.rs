@@ -7,7 +7,7 @@
 use ratatui::layout::{Position, Rect};
 use ratatui::widgets::{Block, Borders};
 
-use super::app::LayoutCache;
+use super::focus_manager::LayoutCache;
 
 /// Identifies what was clicked
 #[derive(Debug, Clone, PartialEq)]

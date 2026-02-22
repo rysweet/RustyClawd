@@ -17,7 +17,8 @@ use ratatui::{
 use unicode_width::UnicodeWidthStr;
 
 use crate::commands::permissions_ui;
-use crate::tui::app::{App, LayoutCache};
+use crate::tui::app::App;
+use crate::tui::focus_manager::LayoutCache;
 use crate::tui::layout::{LayoutConfig, LayoutOrganizer};
 use crate::tui::message::Role;
 
