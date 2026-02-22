@@ -8,11 +8,12 @@
 //! The unified tool automatically detects the type based on input format
 //! and searches the appropriate locations.
 
+use crate::skill_discovery;
 use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
 use async_stream::stream;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tokio::fs;
 use tracing::{debug, warn};
 
@@ -181,7 +182,7 @@ impl crate::Tool for CommandSkillTool {
 
                     match fs::read_to_string(&path).await {
                         Ok(content) => {
-                            let parsed = parse_file(&content, path);
+                            let parsed = skill_discovery::parse_file(&content, path);
 
                             if !parsed.prompt.is_empty() {
                                 found = true;
@@ -190,7 +191,7 @@ impl crate::Tool for CommandSkillTool {
                                 // Apply argument substitution for commands
                                 prompt = apply_argument_substitution(&parsed.prompt, args.as_deref());
                                 found_path = Some(path.display().to_string());
-                                metadata = parsed.metadata;
+                                metadata = parsed.metadata.and_then(|v| serde_yaml::from_value(v).ok());
 
                                 if debug_mode {
                                     debug!(
@@ -218,7 +219,7 @@ impl crate::Tool for CommandSkillTool {
                     percentage: Some(60.0),
                 };
 
-                let skill_paths = discover_skill_paths(&name);
+                let skill_paths = skill_discovery::discover_skill_paths(&name);
 
                 if debug_mode {
                     debug!(
@@ -235,14 +236,14 @@ impl crate::Tool for CommandSkillTool {
 
                     match fs::read_to_string(&path).await {
                         Ok(content) => {
-                            let parsed = parse_file(&content, path);
+                            let parsed = skill_discovery::parse_file(&content, path);
 
                             if !parsed.prompt.is_empty() {
                                 found = true;
                                 command_type = CommandType::Skill;
                                 prompt = parsed.prompt;
                                 found_path = Some(path.display().to_string());
-                                metadata = parsed.metadata;
+                                metadata = parsed.metadata.and_then(|v| serde_yaml::from_value(v).ok());
 
                                 if debug_mode {
                                     debug!(
@@ -282,7 +283,7 @@ impl crate::Tool for CommandSkillTool {
 
                 if !force_command {
                     searched_paths.extend(
-                        discover_skill_paths(&name)
+                        skill_discovery::discover_skill_paths(&name)
                             .iter()
                             .map(|p| format!("  - {} (skill)", p.display()))
                     );
@@ -315,12 +316,6 @@ impl crate::Tool for CommandSkillTool {
     fn is_concurrency_safe(&self) -> bool {
         true
     }
-}
-
-/// Parsed file data
-struct ParsedFile {
-    prompt: String,
-    metadata: Option<CommandSkillMetadata>,
 }
 
 /// Parse input to extract name, args, and whether it's a slash command
@@ -370,128 +365,6 @@ fn discover_command_paths(name: &str) -> Vec<PathBuf> {
     }
 
     paths
-}
-
-/// Discover skill paths for a given name
-fn discover_skill_paths(skill_name: &str) -> Vec<PathBuf> {
-    let mut paths = Vec::new();
-
-    // Support fully-qualified names (e.g., "plugin-name:skill-name")
-    let (plugin, skill) = if skill_name.contains(':') {
-        let parts: Vec<&str> = skill_name.splitn(2, ':').collect();
-        (Some(parts[0]), parts[1])
-    } else {
-        (None, skill_name)
-    };
-
-    // Priority 1: Project-level skills
-    paths.push(PathBuf::from(format!(".claude/skills/{}.md", skill)));
-    paths.push(PathBuf::from(format!(".claude/skills/{}/skill.md", skill)));
-    paths.push(PathBuf::from(format!(".claude/skills/{}/SKILL.md", skill)));
-    paths.push(PathBuf::from(format!(".claude/skills/{}.yaml", skill)));
-    paths.push(PathBuf::from(format!(
-        ".claude/skills/{}/skill.yaml",
-        skill
-    )));
-
-    // Priority 2: User-level skills
-    if let Some(home) = std::env::var_os("HOME") {
-        let home_path = PathBuf::from(home);
-        paths.push(home_path.join(format!(".claude/skills/{}.md", skill)));
-        paths.push(home_path.join(format!(".claude/skills/{}/skill.md", skill)));
-        paths.push(home_path.join(format!(".claude/skills/{}.yaml", skill)));
-        paths.push(home_path.join(format!(".claude/skills/{}/skill.yaml", skill)));
-    }
-
-    // Priority 3: Plugin-specific skills
-    if let Some(plugin_name) = plugin {
-        paths.push(PathBuf::from(format!(
-            ".claude/plugins/{}/skills/{}.md",
-            plugin_name, skill
-        )));
-        paths.push(PathBuf::from(format!(
-            ".claude/plugins/{}/skills/{}/skill.md",
-            plugin_name, skill
-        )));
-        paths.push(PathBuf::from(format!(
-            ".claude/plugins/{}/skills/{}.yaml",
-            plugin_name, skill
-        )));
-    }
-
-    // Priority 4: Example plugins (for development)
-    paths.push(PathBuf::from(format!(
-        "examples/plugins/example-plugin/skills/{}.md",
-        skill
-    )));
-    paths.push(PathBuf::from(format!(
-        "examples/plugins/example-plugin/skills/{}/skill.md",
-        skill
-    )));
-
-    paths
-}
-
-/// Parse a file and extract prompt and metadata
-fn parse_file(content: &str, path: &Path) -> ParsedFile {
-    let extension = path.extension().and_then(|s| s.to_str());
-
-    match extension {
-        Some("md") => parse_markdown_file(content),
-        Some("yaml") | Some("yml") => parse_yaml_file(content),
-        _ => ParsedFile {
-            prompt: content.to_string(),
-            metadata: None,
-        },
-    }
-}
-
-/// Parse a markdown file with optional YAML frontmatter
-fn parse_markdown_file(content: &str) -> ParsedFile {
-    if let Some(stripped) = content.strip_prefix("---") {
-        // Has YAML frontmatter
-        if let Some(end_idx) = stripped.find("---") {
-            let frontmatter = &stripped[..end_idx];
-            let prompt = stripped[end_idx + 3..].trim().to_string();
-
-            // Parse frontmatter as YAML
-            let metadata = serde_yaml::from_str::<CommandSkillMetadata>(frontmatter).ok();
-
-            return ParsedFile { prompt, metadata };
-        }
-    }
-
-    // No frontmatter, use content as-is
-    ParsedFile {
-        prompt: content.to_string(),
-        metadata: None,
-    }
-}
-
-/// Parse a YAML file
-fn parse_yaml_file(content: &str) -> ParsedFile {
-    if let Ok(yaml_value) = serde_yaml::from_str::<serde_yaml::Value>(content) {
-        // Extract prompt from various possible fields
-        let prompt = if let Some(prompt_val) = yaml_value
-            .get("prompt")
-            .or_else(|| yaml_value.get("instructions"))
-            .or_else(|| yaml_value.get("content"))
-        {
-            prompt_val.as_str().unwrap_or(content).to_string()
-        } else {
-            content.to_string()
-        };
-
-        // Try to parse metadata from the YAML
-        let metadata = serde_yaml::from_value::<CommandSkillMetadata>(yaml_value).ok();
-
-        ParsedFile { prompt, metadata }
-    } else {
-        ParsedFile {
-            prompt: content.to_string(),
-            metadata: None,
-        }
-    }
 }
 
 /// Apply argument substitution to a prompt
@@ -615,7 +488,7 @@ mod tests {
 
     #[test]
     fn test_discover_skill_paths() {
-        let paths = discover_skill_paths("code-reviewer");
+        let paths = skill_discovery::discover_skill_paths("code-reviewer");
         assert!(paths.iter().any(|p| p
             .to_str()
             .unwrap()
@@ -628,7 +501,7 @@ mod tests {
 
     #[test]
     fn test_discover_skill_paths_with_plugin() {
-        let paths = discover_skill_paths("my-plugin:my-skill");
+        let paths = skill_discovery::discover_skill_paths("my-plugin:my-skill");
         assert!(paths.iter().any(|p| p
             .to_str()
             .unwrap()
@@ -638,7 +511,7 @@ mod tests {
     #[test]
     fn test_parse_markdown_file_no_frontmatter() {
         let content = "# Simple Content\n\nJust text.";
-        let parsed = parse_markdown_file(content);
+        let parsed = skill_discovery::parse_markdown_file(content);
         assert_eq!(parsed.prompt, content);
         assert!(parsed.metadata.is_none());
     }
@@ -653,11 +526,11 @@ version: 1.0.0
 # Test Content
 
 The actual prompt."#;
-        let parsed = parse_markdown_file(content);
+        let parsed = skill_discovery::parse_markdown_file(content);
         assert!(parsed.prompt.contains("Test Content"));
         assert!(!parsed.prompt.contains("---"));
         assert!(parsed.metadata.is_some());
-        let meta = parsed.metadata.unwrap();
+        let meta: CommandSkillMetadata = serde_yaml::from_value(parsed.metadata.unwrap()).unwrap();
         assert_eq!(meta.description, Some("Test command".to_string()));
         assert_eq!(meta.version, Some("1.0.0".to_string()));
     }
@@ -670,7 +543,7 @@ version: 2.0.0
 prompt: |
   This is the prompt content.
 "#;
-        let parsed = parse_yaml_file(content);
+        let parsed = skill_discovery::parse_yaml_file(content);
         assert!(parsed.prompt.contains("prompt content"));
         assert!(parsed.metadata.is_some());
     }

@@ -24,6 +24,7 @@ pub mod process_isolation;
 pub mod process_registry;
 pub mod read;
 pub mod skill;
+pub mod skill_discovery;
 pub mod slash_command;
 pub mod task;
 pub mod todo_write;
