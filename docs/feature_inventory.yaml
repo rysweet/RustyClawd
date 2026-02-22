@@ -374,8 +374,8 @@ features:
 
   - name: "CLAUDE_CODE_DISABLE_1M_CONTEXT"
     category: "capabilities"
-    status: missing
-    notes: "Environment variable to disable 1M context (v2.1.50)"
+    status: complete
+    notes: "When set to '1' or 'true', caps max_tokens at 200,000 (v2.1.50)"
 
   - name: "spinnerTipsOverride"
     category: "capabilities"
@@ -389,21 +389,21 @@ features:
 
   - name: "Token Duration Metrics"
     category: "capabilities"
-    status: missing
-    notes: "Time duration tracking for Task tool results (v2.1.31)"
+    status: complete
+    notes: "TokenUsage.duration_ms tracks agent execution time (v2.1.31)"
 
 # ============================================================================
 # SUMMARY
 # ============================================================================
 summary:
   total_features: 58
-  complete: 53
+  complete: 55
   partial: 3    # GitHub Integration, Caching, --worktree runtime
-  missing: 5    # PDF pages, MCP OAuth, DISABLE_1M_CONTEXT, spinnerTips, reduced motion, token duration
+  missing: 3    # PDF pages, MCP OAuth, spinnerTips/reduced motion
   not_applicable: 3
   research_needed: 0
-  completion_percentage: 91%
-  effective_parity: 96%
+  completion_percentage: 95%
+  effective_parity: 98%
 
   major_achievements:
     - "All core tools implemented"
@@ -421,7 +421,5 @@ summary:
   missing_features:
     - "PDF pages parameter for Read tool"
     - "MCP OAuth authentication"
-    - "CLAUDE_CODE_DISABLE_1M_CONTEXT env var"
     - "spinnerTipsOverride setting"
     - "Reduced motion mode"
-    - "Token duration metrics"
