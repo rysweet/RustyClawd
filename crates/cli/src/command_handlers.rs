@@ -15,6 +15,7 @@ use crate::session_persistence::SessionPersistence;
 use crate::tui::{ChatMessage, TuiState};
 use anyhow::Result;
 use rustyclawd_core::{Context, Message, MessageRole};
+use rustyclawd_tools::{list_available_skills, load_skill_content};
 
 /// Helper function to get current working directory as string
 fn get_cwd_string() -> String {
@@ -75,7 +76,7 @@ pub(crate) async fn handle_command(
             return Ok(true);
         }
         "/help" => {
-            handle_help_command(tui, &services.slash_commands);
+            handle_help_command(tui, &services.slash_commands).await;
             return Ok(true);
         }
         "/stats" => {
@@ -239,7 +240,7 @@ async fn handle_compact_command(tui: &mut TuiState, services: &SessionServices) 
 }
 
 /// Handle /help command.
-fn handle_help_command(tui: &mut TuiState, slash_commands: &SlashCommands) {
+async fn handle_help_command(tui: &mut TuiState, slash_commands: &SlashCommands) {
     let custom_commands = slash_commands.list_commands();
     let mut help_text = "Built-in Commands:\n  /exit, /quit - Exit the session\n  /clear - Clear conversation history\n  /compact - Compact conversation history (fires PreCompact hook)\n  /help - Show this help\n  /stats - Show session statistics\n  /save [description] - Save checkpoint\n  /load <checkpoint_id> - Load checkpoint\n  /sessions - List available sessions\n  !<command> - Execute shell command directly\n\nMCP Commands:\n  /mcp-list - List all MCP servers\n  /mcp-start <server-id> - Start an MCP server\n  /mcp-stop <server-id> - Stop an MCP server\n  /mcp-tools <server-id> - List tools from server\n  /mcp-status <server-id> - Show server status\n".to_string();
 
@@ -247,6 +248,14 @@ fn handle_help_command(tui: &mut TuiState, slash_commands: &SlashCommands) {
         help_text.push_str("\nCustom Commands:\n");
         for cmd in custom_commands {
             help_text.push_str(&format!("  /{}\n", cmd));
+        }
+    }
+
+    let available_skills = list_available_skills().await;
+    if !available_skills.is_empty() {
+        help_text.push_str("\nSkills (invokable as /skill-name):\n");
+        for skill in available_skills {
+            help_text.push_str(&format!("  /{}\n", skill));
         }
     }
 
@@ -680,6 +689,24 @@ async fn handle_custom_slash_command(
                     e
                 )));
             }
+        }
+        return Ok(true);
+    }
+
+    // Check if a skill with this name exists (skills are invokable as /skill-name)
+    if let Some(skill_content) = load_skill_content(command_name).await {
+        tui.set_status(format!("Invoking skill: {}", command_name));
+        tui.add_message(ChatMessage::user(input.to_string()));
+        tui.add_message(ChatMessage::system(skill_content.clone()));
+        context.add_message(Message::user(skill_content.clone()));
+
+        if let Err(e) =
+            process_user_message(&skill_content, true, tui, context, services, streaming).await
+        {
+            tui.add_message(ChatMessage::system(format!(
+                "Error processing skill: {}",
+                e
+            )));
         }
         return Ok(true);
     }

@@ -200,8 +200,102 @@ struct ParsedSkill {
     metadata: Option<SkillMetadata>,
 }
 
+/// Load skill content by name, searching all standard skill locations.
+///
+/// Returns `Some(content)` if a skill with the given name is found, `None` otherwise.
+/// The returned content has YAML frontmatter stripped (only the prompt body is returned).
+///
+/// This is the public entry point used by the slash command system to invoke skills
+/// as `/skill-name` commands.
+pub async fn load_skill_content(skill_name: &str) -> Option<String> {
+    // Reject names that could escape the skills directory via path traversal.
+    // Skill names must be simple identifiers (alphanumeric, hyphens, colons for
+    // namespacing like "amplihack:review"). Slashes, backslashes, and ".." are
+    // all invalid and indicate an injection attempt.
+    if skill_name.contains('/') || skill_name.contains('\\') || skill_name.contains("..") {
+        warn!(
+            skill_name,
+            "Rejected skill name containing path traversal characters"
+        );
+        return None;
+    }
+
+    let paths = discover_skill_paths(skill_name);
+
+    for path in &paths {
+        if !path.exists() {
+            continue;
+        }
+
+        match fs::read_to_string(path).await {
+            Ok(content) => {
+                let parsed = parse_skill_file(&content, path);
+                if !parsed.prompt.is_empty() {
+                    return Some(parsed.prompt);
+                }
+            }
+            Err(e) => {
+                warn!(path = ?path, error = %e, "Failed to read skill file");
+            }
+        }
+    }
+
+    None
+}
+
+/// List all skill names available in the standard skill directories.
+///
+/// Scans `.claude/skills/` (project-level) and `~/.claude/skills/` (user-level)
+/// and returns the names of all skills found. Each name corresponds to a directory
+/// or file stem that can be invoked as `/skill-name`.
+pub async fn list_available_skills() -> Vec<String> {
+    let mut skill_names = std::collections::BTreeSet::new();
+
+    let mut dirs_to_scan: Vec<PathBuf> = vec![PathBuf::from(".claude/skills")];
+
+    if let Some(home) = std::env::var_os("HOME") {
+        dirs_to_scan.push(PathBuf::from(home).join(".claude/skills"));
+    }
+
+    for dir in dirs_to_scan {
+        if let Ok(mut entries) = fs::read_dir(&dir).await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                let path = entry.path();
+
+                if path.is_file() {
+                    // e.g. .claude/skills/review.md -> "review"
+                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                        if path
+                            .extension()
+                            .map(|e| e == "md" || e == "yaml" || e == "yml")
+                            .unwrap_or(false)
+                        {
+                            skill_names.insert(stem.to_string());
+                        }
+                    }
+                } else if path.is_dir() {
+                    // e.g. .claude/skills/review/skill.md -> "review"
+                    if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
+                        if !dir_name.starts_with('.') {
+                            // Check if it contains a skill file
+                            let has_skill = path.join("skill.md").exists()
+                                || path.join("skill.yaml").exists()
+                                || path.join("skill.yml").exists();
+                            if has_skill {
+                                skill_names.insert(dir_name.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    skill_names.into_iter().collect()
+}
+
 /// Discover all possible paths where a skill might be located
-fn discover_skill_paths(skill_name: &str) -> Vec<PathBuf> {
+pub fn discover_skill_paths(skill_name: &str) -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
     // Support fully-qualified names (e.g., "plugin-name:skill-name")
