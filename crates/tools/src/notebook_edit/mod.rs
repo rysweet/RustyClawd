@@ -327,8 +327,8 @@ impl crate::Tool for NotebookEditTool {
                                 "execution_count": null,
                                 "outputs": [],
                             });
-                            if let Some(ref id) = new_cell_id {
-                                cell.as_object_mut().unwrap().insert("id".to_string(), Value::String(id.clone()));
+                            if let (Some(ref id), Some(obj)) = (&new_cell_id, cell.as_object_mut()) {
+                                obj.insert("id".to_string(), Value::String(id.clone()));
                             }
                             cell
                         }
@@ -338,8 +338,8 @@ impl crate::Tool for NotebookEditTool {
                                 "source": new_source.clone(),
                                 "metadata": {},
                             });
-                            if let Some(ref id) = new_cell_id {
-                                cell.as_object_mut().unwrap().insert("id".to_string(), Value::String(id.clone()));
+                            if let (Some(ref id), Some(obj)) = (&new_cell_id, cell.as_object_mut()) {
+                                obj.insert("id".to_string(), Value::String(id.clone()));
                             }
                             cell
                         }

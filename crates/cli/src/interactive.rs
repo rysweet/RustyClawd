@@ -340,12 +340,20 @@ impl InteractiveSession {
             self.tui
                 .push_debug("[TOOL_LOOP] Starting next turn after tools".to_string());
 
-            let _ = conversation::start_streaming_turn(
+            if let Err(e) = conversation::start_streaming_turn(
                 &self.client,
                 &self.model,
                 &mut self.tui,
                 &mut self.streaming,
-            );
+            ) {
+                self.tui
+                    .add_message(crate::tui::ChatMessage::system(format!(
+                        "Failed to start streaming turn: {}",
+                        e
+                    )));
+                self.tui
+                    .push_debug(format!("[TOOL_LOOP] Streaming turn failed: {}", e));
+            }
         }
     }
 

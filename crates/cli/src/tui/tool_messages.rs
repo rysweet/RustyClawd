@@ -67,12 +67,6 @@ impl ToolTracker {
         self.tools.get(tool_id)
     }
 
-    /// Get tool state by tool_id (mutable).
-    #[allow(dead_code)] // Available for future use by App orchestration
-    pub fn get_mut(&mut self, tool_id: &str) -> Option<&mut ToolMessageState> {
-        self.tools.get_mut(tool_id)
-    }
-
     /// Iterate over all active (non-completed) tools.
     pub fn active_tools(&self) -> impl Iterator<Item = (&String, &ToolMessageState)> {
         self.tools.iter().filter(|(_, state)| !state.completed)
