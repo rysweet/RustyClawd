@@ -17,7 +17,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use super::error::{ClientError, ClientResult};
-use super::types::StreamEvent;
+use super::response::{ContentDelta, StreamEvent};
 
 /// SSE event parsed from stream
 #[derive(Debug)]
@@ -216,7 +216,7 @@ where
         let event = result?;
         match event {
             StreamEvent::ContentBlockDelta {
-                delta: super::types::ContentDelta::TextDelta { text },
+                delta: ContentDelta::TextDelta { text },
                 ..
             } => {
                 chunks.push(text);
