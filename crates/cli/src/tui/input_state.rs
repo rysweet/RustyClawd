@@ -546,3 +546,56 @@ impl InputState {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_input_state_empty() {
+        let state = InputState::new();
+        assert!(state.input_text().is_empty());
+        assert_eq!(state.input_line_count(), 1);
+    }
+
+    #[test]
+    fn test_insert_char() {
+        let mut state = InputState::new();
+        state.insert_char('a');
+        state.insert_char('b');
+        assert_eq!(state.input_text(), "ab");
+    }
+
+    #[test]
+    fn test_backspace_empty() {
+        let mut state = InputState::new();
+        // Should not panic
+        let _ = state.backspace();
+        assert!(state.input_text().is_empty());
+    }
+
+    #[test]
+    fn test_submit_input_returns_text() {
+        let mut state = InputState::new();
+        state.insert_char('h');
+        state.insert_char('i');
+        let result = state.submit_input();
+        assert_eq!(result, Some("hi".to_string()));
+        assert!(state.input_text().is_empty());
+    }
+
+    #[test]
+    fn test_submit_empty_returns_none() {
+        let mut state = InputState::new();
+        let result = state.submit_input();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_clear_input() {
+        let mut state = InputState::new();
+        state.insert_char('x');
+        state.clear_input();
+        assert!(state.input_text().is_empty());
+    }
+}

@@ -253,4 +253,36 @@ mod tests {
         let content = tokio::fs::read_to_string(&file_path).await.unwrap();
         assert_eq!(content, "Nested file");
     }
+
+    #[tokio::test]
+    async fn test_write_creates_deep_parent_directories() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("a/b/c/deep.txt");
+        let params = WriteParams {
+            file_path: file_path.to_str().unwrap().to_string(),
+            content: "deep content".to_string(),
+        };
+        let ctx = ToolContext::default();
+        let stream = WriteTool.execute(params, &ctx).await.unwrap();
+        let output: Vec<_> = stream.collect().await;
+        assert!(output.iter().any(|e| matches!(e, ToolEvent::Result(_))));
+        let content = tokio::fs::read_to_string(&file_path).await.unwrap();
+        assert_eq!(content, "deep content");
+    }
+
+    #[tokio::test]
+    async fn test_write_empty_content() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("empty.txt");
+        let params = WriteParams {
+            file_path: file_path.to_str().unwrap().to_string(),
+            content: String::new(),
+        };
+        let ctx = ToolContext::default();
+        let stream = WriteTool.execute(params, &ctx).await.unwrap();
+        let output: Vec<_> = stream.collect().await;
+        assert!(output.iter().any(|e| matches!(e, ToolEvent::Result(_))));
+        let content = tokio::fs::read_to_string(&file_path).await.unwrap();
+        assert!(content.is_empty());
+    }
 }
