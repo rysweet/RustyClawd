@@ -2,8 +2,8 @@
 # Tracks which Claude Code features are implemented in RustyClawd
 # Last updated: 2026-01-17
 
-last_updated: "2026-01-17T00:00:00Z"
-parity_percentage: 95  # Estimated feature parity with Claude Code CLI/SDK
+last_updated: "2026-02-22T00:00:00Z"
+parity_percentage: 96  # Updated for Claude Code 2.1.50 parity
 
 features:
   # ============================================================================
@@ -286,27 +286,142 @@ features:
     status: partial
     notes: "Limited caching for web fetch/search"
 
+  # ============================================================================
+  # CLAUDE CODE 2.1.50 PARITY FEATURES (PR #461)
+  # ============================================================================
+  - name: "Hook Events (15 total)"
+    category: "capabilities"
+    status: complete
+    notes: "All 15 hook events: SessionStart, SessionEnd, PreToolUse, PostToolUse, UserPromptSubmit, Stop, SubagentStop, Notification, PreCompact, PermissionRequest, TeammateIdle, TaskCompleted, WorktreeCreate, WorktreeRemove, ConfigChange"
+
+  - name: "last_assistant_message Hook Field"
+    category: "capabilities"
+    status: complete
+    notes: "Stop/SubagentStop hook inputs include last_assistant_message (v2.1.47)"
+
+  - name: "Nested Session Guard"
+    category: "capabilities"
+    status: complete
+    notes: "Detects CLAUDE_CODE_SESSION env var, prevents nested invocations (v2.1.41)"
+
+  - name: "Session Resume Hint"
+    category: "capabilities"
+    status: complete
+    notes: "/exit shows hint to resume with --resume (v2.1.31)"
+
+  - name: "claude agents Subcommand"
+    category: "capabilities"
+    status: complete
+    notes: "Lists all configured agents from .claude/agents/ (v2.1.50)"
+
+  - name: "claude auth Subcommands"
+    category: "capabilities"
+    status: complete
+    notes: "login, status, logout subcommands (v2.1.42)"
+
+  - name: "/logout Command"
+    category: "capabilities"
+    status: complete
+    notes: "Clear authentication credentials (v2.1.42)"
+
+  - name: "/rename Command"
+    category: "capabilities"
+    status: complete
+    notes: "Session renaming with auto-generate support (v2.1.42)"
+
+  - name: "/debug Command"
+    category: "capabilities"
+    status: complete
+    notes: "Session troubleshooting diagnostics (v2.1.31)"
+
+  - name: "Agent Isolation Field"
+    category: "capabilities"
+    status: complete
+    notes: "AgentDefinition supports isolation: worktree (v2.1.49)"
+
+  - name: "Agent Background Field"
+    category: "capabilities"
+    status: complete
+    notes: "AgentDefinition supports background: true (v2.1.49)"
+
+  - name: "Agent Memory Scope"
+    category: "capabilities"
+    status: complete
+    notes: "AgentDefinition supports memory: user|project|local (v2.1.33)"
+
+  - name: "MCP startupTimeout"
+    category: "integrations"
+    status: complete
+    notes: "McpServerDefinition supports startupTimeout in milliseconds (v2.1.50)"
+
+  # ============================================================================
+  # REMAINING GAPS (tracked in #460)
+  # ============================================================================
+  - name: "--worktree CLI Flag"
+    category: "capabilities"
+    status: partial
+    notes: "Agent field exists but CLI runtime worktree creation not yet implemented"
+
+  - name: "PDF Pages Parameter"
+    category: "tools"
+    status: missing
+    notes: "Read tool needs pages parameter for PDF page range support (v2.1.31)"
+
+  - name: "MCP OAuth"
+    category: "integrations"
+    status: missing
+    notes: "MCP OAuth authentication not implemented (v2.1.49)"
+
+  - name: "CLAUDE_CODE_DISABLE_1M_CONTEXT"
+    category: "capabilities"
+    status: missing
+    notes: "Environment variable to disable 1M context (v2.1.50)"
+
+  - name: "spinnerTipsOverride"
+    category: "capabilities"
+    status: missing
+    notes: "Custom spinner tips setting (v2.1.45)"
+
+  - name: "Reduced Motion Mode"
+    category: "capabilities"
+    status: missing
+    notes: "Accessibility config for reduced motion (v2.1.31)"
+
+  - name: "Token Duration Metrics"
+    category: "capabilities"
+    status: missing
+    notes: "Time duration tracking for Task tool results (v2.1.31)"
+
 # ============================================================================
 # SUMMARY
 # ============================================================================
 summary:
-  total_features: 44
-  complete: 40  # MCP Support now confirmed complete!
-  partial: 2    # GitHub Integration, Caching
-  missing: 0    # ZERO missing features!
+  total_features: 58
+  complete: 53
+  partial: 3    # GitHub Integration, Caching, --worktree runtime
+  missing: 5    # PDF pages, MCP OAuth, DISABLE_1M_CONTEXT, spinnerTips, reduced motion, token duration
   not_applicable: 3
   research_needed: 0
-  completion_percentage: 91%  # (40 complete) / (44 total) * 100
-  effective_parity: 100%  # Excluding N/A features: 40/(44-3) = 98%, quality exceeds spec
+  completion_percentage: 91%
+  effective_parity: 96%
 
   major_achievements:
-    - "100% PARITY ACHIEVED! 🎉"
-    - "All core tools implemented ✅"
-    - "All tool use API features complete ✅"
-    - "Extended thinking (ContentBlock::Thinking) ✅"
-    - "Strict schema validation with auto beta headers ✅"
-    - "MCP Support complete (stdio + HTTP transports) ✅"
-    - "Comprehensive error handling ✅"
-    - "68 passing tests with 0 failures ✅"
+    - "All core tools implemented"
+    - "All tool use API features complete"
+    - "Extended thinking (ContentBlock::Thinking)"
+    - "Strict schema validation with auto beta headers"
+    - "MCP Support complete (stdio + HTTP transports)"
+    - "15 hook events (including WorktreeCreate, WorktreeRemove, ConfigChange)"
+    - "Agent Teams support (background, isolation, memory scope)"
+    - "Session UX: /rename, /debug, /logout, resume hints"
+    - "Nested session detection guard"
+    - "claude agents and claude auth subcommands"
+    - "1668+ passing tests with 0 failures"
 
-  missing_features: []  # Nothing missing!
+  missing_features:
+    - "PDF pages parameter for Read tool"
+    - "MCP OAuth authentication"
+    - "CLAUDE_CODE_DISABLE_1M_CONTEXT env var"
+    - "spinnerTipsOverride setting"
+    - "Reduced motion mode"
+    - "Token duration metrics"
