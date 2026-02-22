@@ -50,7 +50,6 @@ fn test_app_new_defaults() {
         !app.permissions_modal_active(),
         "no permissions modal on init"
     );
-    assert!(app.mouse_mode_enabled(), "mouse mode enabled by default");
     assert_eq!(app.input_line_count(), 1, "single line on init");
     assert!(!app.has_multi_line_input(), "not multi-line on init");
 }
@@ -1019,18 +1018,6 @@ fn test_toggle_menu() {
 
     app.toggle_menu();
     assert!(!app.menu_open());
-}
-
-#[test]
-fn test_mouse_mode() {
-    let mut app = App::new(PermissionMode::default());
-    assert!(app.mouse_mode_enabled());
-
-    app.set_mouse_mode(false);
-    assert!(!app.mouse_mode_enabled());
-
-    app.set_mouse_mode(true);
-    assert!(app.mouse_mode_enabled());
 }
 
 #[test]

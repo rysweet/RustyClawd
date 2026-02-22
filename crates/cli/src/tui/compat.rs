@@ -9,6 +9,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io::{self, Stdout};
 use std::time::Duration;
@@ -45,9 +46,10 @@ impl TuiState {
         // CRITICAL: Enter alternate screen to isolate TUI from terminal history
         execute!(stdout, EnterAlternateScreen)?;
 
-        // Enable mouse capture for scrolling
-        use crossterm::event::EnableMouseCapture;
-        execute!(stdout, EnableMouseCapture)?;
+        // Note: mouse capture is intentionally NOT enabled here.
+        // Enabling EnableMouseCapture intercepts all mouse events and prevents
+        // the terminal emulator from handling native text selection.
+        // Users can select and copy text freely without any toggle needed.
 
         let backend = CrosstermBackend::new(stdout);
         let terminal = Terminal::new(backend)?;
@@ -502,7 +504,6 @@ impl TuiState {
 
     /// Cleanup terminal (idempotent - safe to call multiple times)
     pub fn cleanup(&mut self) -> Result<()> {
-        use crossterm::event::DisableMouseCapture;
         use crossterm::terminal::Clear;
         use crossterm::terminal::ClearType;
 
@@ -516,9 +517,6 @@ impl TuiState {
 
         // Clear the current screen before leaving
         let _ = execute!(self.terminal.backend_mut(), Clear(ClearType::All));
-
-        // Disable mouse capture
-        let _ = execute!(self.terminal.backend_mut(), DisableMouseCapture);
 
         // Disable raw mode (restore terminal input processing)
         let _ = disable_raw_mode();
