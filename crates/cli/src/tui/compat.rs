@@ -25,8 +25,7 @@ pub struct TuiState {
     /// Terminal instance
     terminal: Terminal<CrosstermBackend<Stdout>>,
 
-    /// Completion callback (not implemented yet)
-    #[allow(dead_code)]
+    /// Completion callback for slash command autocomplete
     completion_callback: Option<CompletionCallback>,
 
     /// Track if cleanup has been done (for idempotency)

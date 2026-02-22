@@ -258,30 +258,6 @@ impl TaskStore {
         Ok(())
     }
 
-    /// Validate no circular dependencies using DFS (full graph scan)
-    ///
-    /// Used for comprehensive validation when the affected subgraph is unknown.
-    /// For incremental updates where the modified task is known, prefer
-    /// `validate_no_cycles_from` for better performance.
-    #[allow(dead_code)]
-    fn validate_no_cycles(state: &HashMap<TaskId, Task>) -> Result<(), TaskStateError> {
-        let mut visited = HashSet::new();
-        let mut rec_stack = HashSet::new();
-        let mut path = Vec::new();
-
-        for task in state.values() {
-            if !visited.contains(&task.id) {
-                if let Some(cycle) =
-                    Self::detect_cycle_dfs(task.id, state, &mut visited, &mut rec_stack, &mut path)
-                {
-                    return Err(TaskStateError::CircularDependency(cycle));
-                }
-            }
-        }
-
-        Ok(())
-    }
-
     /// DFS-based cycle detection
     fn detect_cycle_dfs(
         task_id: TaskId,

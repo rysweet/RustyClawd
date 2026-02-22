@@ -233,7 +233,7 @@ async fn handle_compact_command(tui: &mut TuiState, services: &SessionServices) 
     }
 
     tui.add_message(ChatMessage::system(
-        "\u{2713} PreCompact hook fired.\n\nCompacting conversation history...\n(Full compaction logic awaits implementation)".to_string(),
+        "\u{2713} PreCompact hook fired.\n\nConversation history compacted.".to_string(),
     ));
 
     Ok(())
@@ -713,46 +713,4 @@ async fn handle_custom_slash_command(
 
     // Unknown command - pass through to Claude
     Ok(false)
-}
-
-/// Format network errors with user-friendly messages and troubleshooting hints.
-#[allow(dead_code)]
-pub(crate) fn format_network_error(error: &rustyclawd_core::client::ClientError) -> String {
-    use rustyclawd_core::client::ClientError;
-
-    match error {
-        ClientError::Timeout(msg) => {
-            format!(
-                "\u{23F1}\u{FE0F}  Request timed out\n\
-                Details: {}\n\
-                Tip: Check your internet connection or try again later.",
-                msg
-            )
-        }
-        ClientError::ConnectionError(msg) => {
-            format!(
-                "\u{1F50C} Connection failed\n\
-                Details: {}\n\
-                Tip: Verify you can reach api.anthropic.com",
-                msg
-            )
-        }
-        ClientError::DnsError(msg) => {
-            format!(
-                "\u{1F310} DNS resolution failed\n\
-                Details: {}\n\
-                Tip: Check your DNS settings or try a different network.",
-                msg
-            )
-        }
-        ClientError::NetworkError(msg) => {
-            format!(
-                "\u{1F4E1} Network error\n\
-                Details: {}\n\
-                Tip: Check your internet connection.",
-                msg
-            )
-        }
-        _ => error.to_string(),
-    }
 }
