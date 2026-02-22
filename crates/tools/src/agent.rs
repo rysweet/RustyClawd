@@ -15,6 +15,7 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use std::time::Instant;
 use tokio::fs;
 
 /// Parameters for the Agent tool
@@ -67,6 +68,8 @@ pub struct TokenUsage {
     pub input_tokens: u32,
     pub output_tokens: u32,
     pub total_tokens: u32,
+    /// Execution duration in milliseconds
+    pub duration_ms: u64,
 }
 
 /// The Agent tool - enables agent orchestration
@@ -147,6 +150,8 @@ impl crate::Tool for AgentTool {
         let run_in_background = params.run_in_background;
 
         Ok(Box::pin(stream! {
+            let start_time = Instant::now();
+
             yield ToolEvent::Progress {
                 step: format!("Loading {} agent prompt", agent_type),
                 percentage: Some(10.0),
@@ -331,6 +336,7 @@ impl crate::Tool for AgentTool {
                 });
 
                 // Return immediately with agent_id
+                let duration_ms = start_time.elapsed().as_millis() as u64;
                 yield ToolEvent::Result(AgentOutput {
                     agent_id,
                     agent_name: agent_type.clone(),
@@ -340,6 +346,7 @@ impl crate::Tool for AgentTool {
                         input_tokens: 0,
                         output_tokens: 0,
                         total_tokens: 0,
+                        duration_ms,
                     },
                 });
                 return;
@@ -490,6 +497,7 @@ impl crate::Tool for AgentTool {
                 );
             }
 
+            let duration_ms = start_time.elapsed().as_millis() as u64;
             yield ToolEvent::Result(AgentOutput {
                 agent_id,
                 agent_name: agent_type.clone(),
@@ -499,6 +507,7 @@ impl crate::Tool for AgentTool {
                     input_tokens,
                     output_tokens,
                     total_tokens,
+                    duration_ms,
                 },
             });
         }))
@@ -682,5 +691,68 @@ mod tests {
         assert!(output.response.contains("Hello"));
         assert!(output.tokens_used.total_tokens > 0);
         assert!(output.agent_id.starts_with("agent_test_agent_t"));
+    }
+
+    #[test]
+    fn test_token_usage_has_duration_ms() {
+        let usage = TokenUsage {
+            input_tokens: 100,
+            output_tokens: 50,
+            total_tokens: 150,
+            duration_ms: 1234,
+        };
+        assert_eq!(usage.duration_ms, 1234);
+    }
+
+    #[test]
+    fn test_token_usage_serializes_duration_ms() {
+        let usage = TokenUsage {
+            input_tokens: 10,
+            output_tokens: 20,
+            total_tokens: 30,
+            duration_ms: 500,
+        };
+        let json = serde_json::to_string(&usage).unwrap();
+        assert!(json.contains("\"duration_ms\":500"));
+    }
+
+    #[test]
+    fn test_token_usage_deserializes_duration_ms() {
+        let json = r#"{"input_tokens":10,"output_tokens":20,"total_tokens":30,"duration_ms":750}"#;
+        let usage: TokenUsage = serde_json::from_str(json).unwrap();
+        assert_eq!(usage.duration_ms, 750);
+        assert_eq!(usage.input_tokens, 10);
+        assert_eq!(usage.output_tokens, 20);
+        assert_eq!(usage.total_tokens, 30);
+    }
+
+    #[test]
+    fn test_token_usage_zero_duration() {
+        let usage = TokenUsage {
+            input_tokens: 0,
+            output_tokens: 0,
+            total_tokens: 0,
+            duration_ms: 0,
+        };
+        assert_eq!(usage.duration_ms, 0);
+    }
+
+    #[test]
+    fn test_agent_output_includes_duration() {
+        let output = AgentOutput {
+            agent_id: "agent_test_t123".to_string(),
+            agent_name: "test".to_string(),
+            response: "hello".to_string(),
+            model: "claude-sonnet-4-6".to_string(),
+            tokens_used: TokenUsage {
+                input_tokens: 100,
+                output_tokens: 50,
+                total_tokens: 150,
+                duration_ms: 2000,
+            },
+        };
+        assert_eq!(output.tokens_used.duration_ms, 2000);
+        let json = serde_json::to_string(&output).unwrap();
+        assert!(json.contains("\"duration_ms\":2000"));
     }
 }
