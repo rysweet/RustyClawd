@@ -324,4 +324,73 @@ mod tests {
             assert_eq!(output.exit_code, Some(42));
         }
     }
+
+    #[tokio::test]
+    async fn test_bash_empty_command() {
+        let tool = BashTool;
+        let params = BashParams {
+            command: String::new(),
+            timeout: 5000,
+            description: None,
+            run_in_background: false,
+        };
+        let ctx = ToolContext::default();
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let output: Vec<_> = stream.collect().await;
+        // Empty command should succeed (bash -c "" exits 0)
+        assert!(output
+            .iter()
+            .any(|e| matches!(e, ToolEvent::Result(o) if o.success)));
+    }
+
+    #[tokio::test]
+    async fn test_bash_exit_code_propagated() {
+        let tool = BashTool;
+        let params = BashParams {
+            command: "exit 42".to_string(),
+            timeout: 5000,
+            description: None,
+            run_in_background: false,
+        };
+        let ctx = ToolContext::default();
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let output: Vec<_> = stream.collect().await;
+        let finished = output
+            .iter()
+            .find_map(|e| {
+                if let ToolEvent::Result(o) = e {
+                    Some(o)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        assert_eq!(finished.exit_code, Some(42));
+    }
+
+    #[tokio::test]
+    async fn test_bash_stderr_captured() {
+        let tool = BashTool;
+        let params = BashParams {
+            command: "echo stdout_msg && echo stderr_msg >&2".to_string(),
+            timeout: 5000,
+            description: None,
+            run_in_background: false,
+        };
+        let ctx = ToolContext::default();
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let output: Vec<_> = stream.collect().await;
+        let finished = output
+            .iter()
+            .find_map(|e| {
+                if let ToolEvent::Result(o) = e {
+                    Some(o)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        assert!(finished.stdout.as_ref().unwrap().contains("stdout_msg"));
+        assert!(finished.stderr.as_ref().unwrap().contains("stderr_msg"));
+    }
 }

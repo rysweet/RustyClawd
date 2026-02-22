@@ -309,4 +309,40 @@ mod tests {
         let has_error = events.iter().any(|e| matches!(e, ToolEvent::Error { .. }));
         assert!(has_error);
     }
+
+    #[tokio::test]
+    async fn test_edit_file_not_found() {
+        let tool = EditTool;
+        let params = EditParams {
+            file_path: "/tmp/nonexistent_edit_test_file_12345.rs".to_string(),
+            old_string: "foo".to_string(),
+            new_string: "bar".to_string(),
+            replace_all: false,
+        };
+        let ctx = ToolContext::default();
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let output: Vec<_> = stream.collect().await;
+        // Should return error, not panic
+        assert!(output.iter().any(|e| matches!(e, ToolEvent::Error { .. })));
+    }
+
+    #[tokio::test]
+    async fn test_edit_non_unique_match_error() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(temp_file, "duplicate text").unwrap();
+        writeln!(temp_file, "other line").unwrap();
+        writeln!(temp_file, "duplicate text").unwrap();
+        temp_file.flush().unwrap();
+        let params = EditParams {
+            file_path: temp_file.path().to_str().unwrap().to_string(),
+            old_string: "duplicate text".to_string(),
+            new_string: "replaced".to_string(),
+            replace_all: false,
+        };
+        let ctx = ToolContext::default();
+        let stream = EditTool.execute(params, &ctx).await.unwrap();
+        let output: Vec<_> = stream.collect().await;
+        // Should fail because old_string appears twice
+        assert!(output.iter().any(|e| matches!(e, ToolEvent::Error { .. })));
+    }
 }

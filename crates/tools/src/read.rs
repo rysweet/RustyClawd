@@ -284,4 +284,33 @@ mod tests {
         let has_error = events.iter().any(|e| matches!(e, ToolEvent::Error { .. }));
         assert!(has_error);
     }
+
+    #[tokio::test]
+    async fn test_read_file_not_found() {
+        let tool = ReadTool;
+        let params = ReadParams {
+            file_path: "/tmp/nonexistent_read_test_file_12345.rs".to_string(),
+            offset: None,
+            limit: None,
+        };
+        let ctx = ToolContext::default();
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let output: Vec<_> = stream.collect().await;
+        assert!(output.iter().any(|e| matches!(e, ToolEvent::Error { .. })));
+    }
+
+    #[tokio::test]
+    async fn test_read_empty_file() {
+        let temp_file = NamedTempFile::new().unwrap();
+        let params = ReadParams {
+            file_path: temp_file.path().to_str().unwrap().to_string(),
+            offset: None,
+            limit: None,
+        };
+        let ctx = ToolContext::default();
+        let stream = ReadTool.execute(params, &ctx).await.unwrap();
+        let output: Vec<_> = stream.collect().await;
+        // Empty file should succeed, not error
+        assert!(output.iter().any(|e| matches!(e, ToolEvent::Result(_))));
+    }
 }
