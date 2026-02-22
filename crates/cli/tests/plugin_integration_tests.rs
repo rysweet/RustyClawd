@@ -135,6 +135,7 @@ async fn test_mcp_proxy_registration() {
         args: vec!["server.js".to_string()],
         env: HashMap::new(),
         description: Some("Test MCP server".to_string()),
+        startup_timeout: None,
     };
 
     proxy.register_server(server_def);
@@ -308,6 +309,9 @@ async fn test_plugin_with_agents() {
             model: Some("sonnet".to_string()),
             allowed_tools: None,
             disallowed_tools: vec![],
+            isolation: None,
+            background: false,
+            memory: None,
         }],
         mcp_servers: vec![],
         dependencies: HashMap::new(),
@@ -405,6 +409,9 @@ async fn test_complete_plugin_system_workflow() {
             model: None,
             allowed_tools: None,
             disallowed_tools: vec![],
+            isolation: None,
+            background: false,
+            memory: None,
         }],
         mcp_servers: vec![rustyclawd::plugins::manifest::McpServerDefinition {
             id: "mcp".to_string(),
@@ -414,6 +421,7 @@ async fn test_complete_plugin_system_workflow() {
             args: vec!["server.js".to_string()],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         }],
         dependencies: HashMap::new(),
         config_schema: serde_json::json!({}),

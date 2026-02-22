@@ -21,9 +21,12 @@ impl BuiltinCommands {
                 | "version"
                 | "permissions"
                 | "login"
+                | "logout"
                 | "bug"
                 | "add-dir"
                 | "fast"
+                | "rename"
+                | "debug"
         )
     }
 
@@ -39,6 +42,9 @@ impl BuiltinCommands {
             "bug" => Some(Self::bug_command()),
             "add-dir" => Some(Self::add_dir_command(&cmd.args_str)),
             "fast" => Some(Self::fast_command()),
+            "logout" => Some(Self::logout_command()),
+            "rename" => Some(Self::rename_command(&cmd.args_str)),
+            "debug" => Some(Self::debug_command()),
             _ => None,
         }
     }
@@ -69,10 +75,13 @@ impl BuiltinCommands {
                /version               - Show version information\n\
                /permissions           - Open permissions modal\n\
                /login                 - Check authentication status\n\
+               /logout                - Clear authentication credentials\n\
                /bug                   - Report a bug via GitHub\n\
                /add-dir <path>        - Add working directory\n\
                /fast                  - Toggle fast mode\n\
-               /model                 - Show or switch model (handled in session layer)\n\n\
+               /model                 - Show or switch model (handled in session layer)\n\
+               /rename [name]         - Rename current session\n\
+               /debug                 - Show debug information for troubleshooting\n\n\
              Custom Commands:\n\
                /amplihack:*      - Amplihack custom commands\n\
                /{name} [args]    - Execute custom slash commands\n\n\
@@ -84,9 +93,13 @@ impl BuiltinCommands {
         }
     }
 
-    /// /exit or /quit - Exit command
+    /// /exit or /quit - Exit command with session resume hint (v2.1.31)
     fn exit_command() -> String {
-        "Exiting session...\nGoodbye!".to_string()
+        "Exiting session...\n\n\
+         Tip: To resume this session later, use:\n  \
+         claude --resume\n\n\
+         Goodbye!"
+            .to_string()
     }
 
     /// /clear - Clear history
@@ -171,6 +184,56 @@ impl BuiltinCommands {
     fn fast_command() -> String {
         "[[TOGGLE_FAST_MODE]]".to_string()
     }
+
+    /// /logout - Clear authentication credentials (v2.1.42)
+    fn logout_command() -> String {
+        // Clear the API key from the current process environment
+        std::env::remove_var("ANTHROPIC_API_KEY");
+        "Logged out. ANTHROPIC_API_KEY has been cleared from the current session.\n\n\
+         Note: This only affects the current process. To permanently remove your API key,\n\
+         unset it in your shell configuration (e.g., ~/.bashrc, ~/.zshrc)."
+            .to_string()
+    }
+
+    /// /rename [name] - Rename current session (v2.1.42)
+    /// Returns IPC marker so TUI can handle the rename with session context
+    fn rename_command(args: &Option<String>) -> String {
+        match args {
+            Some(name) => format!("[[RENAME_SESSION:{}]]", name),
+            None => "[[RENAME_SESSION_AUTO]]".to_string(),
+        }
+    }
+
+    /// /debug - Show debug information for session troubleshooting (v2.1.31)
+    fn debug_command() -> String {
+        let version = env!("CARGO_PKG_VERSION");
+        let os = std::env::consts::OS;
+        let arch = std::env::consts::ARCH;
+        let cwd = std::env::current_dir()
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|_| "unknown".to_string());
+        let has_api_key = std::env::var("ANTHROPIC_API_KEY").is_ok();
+        let model = std::env::var("ANTHROPIC_MODEL").unwrap_or_else(|_| "default".to_string());
+        let is_nested = std::env::var("CLAUDE_CODE_SESSION").is_ok();
+
+        format!(
+            "Debug Information:\n\n\
+             Version:      {version}\n\
+             OS:           {os}\n\
+             Architecture: {arch}\n\
+             CWD:          {cwd}\n\
+             API Key Set:  {has_api_key}\n\
+             Model:        {model}\n\
+             Nested:       {is_nested}\n\
+             Rust Version: {rust_version}",
+            rust_version = rustc_version(),
+        )
+    }
+}
+
+/// Get rustc version string
+fn rustc_version() -> &'static str {
+    env!("CARGO_PKG_RUST_VERSION", "unknown")
 }
 
 #[cfg(test)]
@@ -208,7 +271,6 @@ mod tests {
             "cost",
             "todos",
             "usage",
-            "logout",
             "compact",
             "rewind",
             "config",
@@ -222,7 +284,6 @@ mod tests {
             "agents",
             "hooks",
             "init",
-            "debug",
             "trace",
             "log",
             "checkpoint",
@@ -404,5 +465,72 @@ mod tests {
         assert!(result.is_some());
         let output = result.unwrap();
         assert!(output.contains("[[TOGGLE_FAST_MODE]]"));
+    }
+
+    #[test]
+    fn test_is_builtin_logout() {
+        assert!(BuiltinCommands::is_builtin("logout"));
+    }
+
+    #[test]
+    fn test_execute_logout() {
+        let cmd = Command::new("logout".to_string(), None);
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        let output = result.unwrap();
+        assert!(output.contains("Logged out"));
+    }
+
+    #[test]
+    fn test_is_builtin_rename() {
+        assert!(BuiltinCommands::is_builtin("rename"));
+    }
+
+    #[test]
+    fn test_execute_rename_with_name() {
+        let cmd = Command::new("rename".to_string(), Some("my-session".to_string()));
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        let output = result.unwrap();
+        assert!(output.contains("[[RENAME_SESSION:my-session]]"));
+    }
+
+    #[test]
+    fn test_execute_rename_auto() {
+        let cmd = Command::new("rename".to_string(), None);
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        let output = result.unwrap();
+        assert!(output.contains("[[RENAME_SESSION_AUTO]]"));
+    }
+
+    #[test]
+    fn test_is_builtin_debug() {
+        assert!(BuiltinCommands::is_builtin("debug"));
+    }
+
+    #[test]
+    fn test_execute_debug() {
+        let cmd = Command::new("debug".to_string(), None);
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        let output = result.unwrap();
+        assert!(output.contains("Debug Information"));
+        assert!(output.contains("Version"));
+        assert!(output.contains("OS"));
+    }
+
+    #[test]
+    fn test_exit_shows_resume_hint() {
+        let cmd = Command::new("exit".to_string(), None);
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        let output = result.unwrap();
+        assert!(output.contains("--resume"));
     }
 }

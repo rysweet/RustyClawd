@@ -425,8 +425,86 @@ impl App {
     }
 }
 
+/// Check for nested Claude Code session (v2.1.41)
+fn check_nested_session() -> Result<()> {
+    if std::env::var("CLAUDE_CODE_SESSION").is_ok() {
+        return Err(anyhow::anyhow!(
+            "Error: Cannot launch RustyClawd inside another active session.\n\
+             A CLAUDE_CODE_SESSION environment variable was detected, indicating this is a nested invocation.\n\
+             Please exit the current session first, then start a new one."
+        ));
+    }
+    Ok(())
+}
+
+/// Handle the `claude agents` subcommand — list all configured agents (v2.1.50)
+fn handle_agents_command() -> Result<()> {
+    let discovery = plugins::agent_discovery::AgentDiscovery::new(".");
+    let agents = match discovery.discover_all() {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("Error discovering agents: {}", e);
+            return Ok(());
+        }
+    };
+
+    if agents.is_empty() {
+        println!("No agents found in .claude/agents/");
+        return Ok(());
+    }
+
+    println!("Configured agents:\n");
+    for agent in agents {
+        println!("  {} - {}", agent.id, agent.description);
+    }
+    Ok(())
+}
+
+/// Handle the `claude auth` subcommand (v2.1.42)
+fn handle_auth_command(args: &[String]) -> Result<()> {
+    let subcommand = args.first().map(|s| s.as_str()).unwrap_or("status");
+    match subcommand {
+        "login" => {
+            let has_key = std::env::var("ANTHROPIC_API_KEY").is_ok();
+            if has_key {
+                println!("Already authenticated via ANTHROPIC_API_KEY environment variable.");
+            } else {
+                println!(
+                    "To authenticate, set your API key:\n  \
+                     export ANTHROPIC_API_KEY=your-key-here\n\n\
+                     You can find your API key at: https://console.anthropic.com"
+                );
+            }
+        }
+        "status" => {
+            let has_key = std::env::var("ANTHROPIC_API_KEY").is_ok();
+            println!(
+                "Authentication status: API key is {}set.",
+                if has_key { "" } else { "NOT " }
+            );
+        }
+        "logout" => {
+            std::env::remove_var("ANTHROPIC_API_KEY");
+            println!("Logged out. ANTHROPIC_API_KEY cleared from current process.");
+        }
+        other => {
+            return Err(anyhow::anyhow!(
+                "Unknown auth subcommand: '{}'. Use: login, status, logout",
+                other
+            ));
+        }
+    }
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Guard against nested sessions (v2.1.41)
+    check_nested_session()?;
+
+    // Mark this as an active Claude Code session for nested detection
+    std::env::set_var("CLAUDE_CODE_SESSION", "1");
+
     // CRITICAL: Set COLORTERM for Windows Terminal + WSL RGB color support
     // Windows Terminal doesn't set COLORTERM automatically in WSL, causing RGB
     // colors to be rendered incorrectly. This is a known issue with crossterm
@@ -438,6 +516,19 @@ async fn main() -> Result<()> {
 
     // Parse CLI arguments
     let cli = Cli::parse();
+
+    // Handle subcommands that don't need full app initialization
+    if let Some(ref cmd) = cli.command {
+        match cmd {
+            cli_args::Commands::Agents => {
+                return handle_agents_command();
+            }
+            cli_args::Commands::Auth { args } => {
+                return handle_auth_command(args);
+            }
+            _ => {} // Other commands handled by App::run()
+        }
+    }
 
     // Initialize and run the application
     let app = App::new(cli).await?;

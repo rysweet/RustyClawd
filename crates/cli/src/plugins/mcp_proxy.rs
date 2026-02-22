@@ -507,6 +507,7 @@ mod tests {
             args: vec!["server.js".to_string()],
             env: HashMap::new(),
             description: Some("Test MCP server".to_string()),
+            startup_timeout: None,
         };
 
         proxy.register_server(definition);
@@ -525,6 +526,7 @@ mod tests {
             args: vec![],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
 
         proxy.register_server(definition);
@@ -544,6 +546,7 @@ mod tests {
             args: vec![],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
 
         proxy.register_server(definition);
@@ -576,6 +579,7 @@ mod tests {
             args: vec![],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
 
         proxy.register_server(definition);
@@ -616,6 +620,7 @@ mod tests {
             args: vec![],
             env: HashMap::new(),
             description: Some("HTTP MCP server".to_string()),
+            startup_timeout: None,
         };
 
         proxy.register_server(definition);
@@ -642,6 +647,7 @@ mod tests {
             args: vec![],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
 
         proxy.register_server(definition);
@@ -664,6 +670,7 @@ mod tests {
             args: vec![],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
 
         // Register HTTP server
@@ -678,6 +685,7 @@ mod tests {
             args: vec![],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
 
         proxy.register_server(stdio_def);
@@ -701,6 +709,7 @@ mod tests {
             args: vec!["-m".to_string(), "mcp_server".to_string()],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
 
         proxy.register_server(definition.clone());
@@ -799,6 +808,7 @@ mod integration_tests {
             args: vec![],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
 
         proxy.register_server(definition);

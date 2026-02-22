@@ -33,6 +33,10 @@ pub(crate) struct Cli {
     #[arg(long = "from-pr")]
     pub(crate) from_pr: Option<u64>,
 
+    /// Start in an isolated git worktree (v2.1.49)
+    #[arg(short = 'w', long = "worktree")]
+    pub(crate) worktree: bool,
+
     /// Model to use (e.g., "claude-sonnet-4-5-20250929")
     #[arg(long)]
     pub(crate) model: Option<String>,
@@ -169,5 +173,13 @@ pub(crate) enum Commands {
         /// Optional model override (haiku, sonnet, opus)
         #[arg(long)]
         model: Option<String>,
+    },
+    /// List all configured agents (v2.1.50)
+    Agents,
+    /// Manage authentication
+    Auth {
+        /// Auth subcommand: login, status, logout
+        #[arg(trailing_var_arg = true)]
+        args: Vec<String>,
     },
 }

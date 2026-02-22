@@ -124,6 +124,8 @@ impl App {
                 self.handle_agent_command(agent_type, prompt, model.as_deref())
                     .await
             }
+            // Agents and Auth are handled in main() before App initialization
+            Commands::Agents | Commands::Auth { .. } => Ok(()),
         }
     }
 

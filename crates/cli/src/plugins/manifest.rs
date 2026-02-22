@@ -95,6 +95,23 @@ pub struct HookDefinition {
     pub matcher: Option<String>,
 }
 
+/// Agent isolation mode (v2.1.49/2.1.50)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum AgentIsolation {
+    /// Run in an isolated git worktree
+    Worktree,
+}
+
+/// Agent memory scope (v2.1.33)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum AgentMemoryScope {
+    User,
+    Project,
+    Local,
+}
+
 /// Agent plugin definition
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentDefinition {
@@ -123,6 +140,15 @@ pub struct AgentDefinition {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub disallowed_tools: Vec<String>,
+    /// Isolation mode - "worktree" runs agent in isolated git worktree (v2.1.49)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub isolation: Option<AgentIsolation>,
+    /// Whether agent always runs as background task (v2.1.49)
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub background: bool,
+    /// Memory scope for agent context persistence (v2.1.33)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory: Option<AgentMemoryScope>,
 }
 
 /// MCP server transport type
@@ -149,6 +175,7 @@ pub enum McpTransportConfig {
 
 /// MCP server configuration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct McpServerDefinition {
     /// Server identifier (used in tool names as mcp__{server_id}__{tool_name})
     pub id: String,
@@ -169,6 +196,9 @@ pub struct McpServerDefinition {
     /// Server description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// Startup timeout in milliseconds (v2.1.50). Server must respond within this time.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub startup_timeout: Option<u64>,
 }
 
 impl McpServerDefinition {
