@@ -484,8 +484,11 @@ fn handle_auth_command(args: &[String]) -> Result<()> {
             );
         }
         "logout" => {
-            std::env::remove_var("ANTHROPIC_API_KEY");
-            println!("Logged out. ANTHROPIC_API_KEY cleared from current process.");
+            println!(
+                "To log out, unset your API key:\n  \
+                 unset ANTHROPIC_API_KEY\n\n\
+                 Or remove it from your shell configuration (e.g., ~/.bashrc, ~/.zshrc)."
+            );
         }
         other => {
             return Err(anyhow::anyhow!(
@@ -497,27 +500,32 @@ fn handle_auth_command(args: &[String]) -> Result<()> {
     Ok(())
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
+    // SAFETY: All env var mutations happen here, BEFORE tokio runtime starts.
+    // std::env::set_var is not thread-safe, so we do it in the single-threaded
+    // pre-runtime phase.
+
     // Guard against nested sessions (v2.1.41)
     check_nested_session()?;
 
-    // Mark this as an active Claude Code session for nested detection
-    std::env::set_var("CLAUDE_CODE_SESSION", "1");
-
-    // CRITICAL: Set COLORTERM for Windows Terminal + WSL RGB color support
-    // Windows Terminal doesn't set COLORTERM automatically in WSL, causing RGB
-    // colors to be rendered incorrectly. This is a known issue with crossterm
-    // and ratatui on Windows Terminal + WSL.
-    // See: https://github.com/microsoft/terminal/issues/11057
-    if std::env::var("COLORTERM").is_err() {
-        std::env::set_var("COLORTERM", "truecolor");
+    // Mark this as an active session for nested detection
+    // SAFETY: Called before tokio runtime starts
+    unsafe {
+        std::env::set_var("CLAUDE_CODE_SESSION", "1");
     }
 
-    // Parse CLI arguments
+    // CRITICAL: Set COLORTERM for Windows Terminal + WSL RGB color support
+    if std::env::var("COLORTERM").is_err() {
+        // SAFETY: Called before tokio runtime starts
+        unsafe {
+            std::env::set_var("COLORTERM", "truecolor");
+        }
+    }
+
+    // Parse CLI arguments (no async needed)
     let cli = Cli::parse();
 
-    // Handle subcommands that don't need full app initialization
+    // Handle subcommands that don't need full app initialization or async
     if let Some(ref cmd) = cli.command {
         match cmd {
             cli_args::Commands::Agents => {
@@ -530,9 +538,13 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Initialize and run the application
-    let app = App::new(cli).await?;
-    app.run().await?;
-
-    Ok(())
+    // Build and enter the tokio runtime for async operations
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .context("Failed to build tokio runtime")?
+        .block_on(async {
+            let app = App::new(cli).await?;
+            app.run().await
+        })
 }

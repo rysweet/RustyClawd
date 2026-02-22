@@ -33,10 +33,6 @@ pub(crate) struct Cli {
     #[arg(long = "from-pr")]
     pub(crate) from_pr: Option<u64>,
 
-    /// Start in an isolated git worktree (v2.1.49)
-    #[arg(short = 'w', long = "worktree")]
-    pub(crate) worktree: bool,
-
     /// Model to use (e.g., "claude-sonnet-4-5-20250929")
     #[arg(long)]
     pub(crate) model: Option<String>,

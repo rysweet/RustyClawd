@@ -186,12 +186,12 @@ impl BuiltinCommands {
     }
 
     /// /logout - Clear authentication credentials (v2.1.42)
+    /// Returns IPC marker for TUI to handle logout safely
     fn logout_command() -> String {
-        // Clear the API key from the current process environment
-        std::env::remove_var("ANTHROPIC_API_KEY");
-        "Logged out. ANTHROPIC_API_KEY has been cleared from the current session.\n\n\
-         Note: This only affects the current process. To permanently remove your API key,\n\
-         unset it in your shell configuration (e.g., ~/.bashrc, ~/.zshrc)."
+        "[[LOGOUT]]\n\n\
+         To complete logout, unset ANTHROPIC_API_KEY in your shell:\n  \
+         unset ANTHROPIC_API_KEY\n\n\
+         Or remove it from your shell configuration (e.g., ~/.bashrc, ~/.zshrc)."
             .to_string()
     }
 
@@ -224,16 +224,9 @@ impl BuiltinCommands {
              CWD:          {cwd}\n\
              API Key Set:  {has_api_key}\n\
              Model:        {model}\n\
-             Nested:       {is_nested}\n\
-             Rust Version: {rust_version}",
-            rust_version = rustc_version(),
+             Nested:       {is_nested}"
         )
     }
-}
-
-/// Get rustc version string
-fn rustc_version() -> &'static str {
-    env!("CARGO_PKG_RUST_VERSION", "unknown")
 }
 
 #[cfg(test)]
@@ -479,7 +472,7 @@ mod tests {
 
         assert!(result.is_some());
         let output = result.unwrap();
-        assert!(output.contains("Logged out"));
+        assert!(output.contains("[[LOGOUT]]"));
     }
 
     #[test]
