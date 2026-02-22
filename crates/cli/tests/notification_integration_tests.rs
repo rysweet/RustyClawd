@@ -717,6 +717,9 @@ async fn test_subagentstop_hook_fires_with_real_agent() {
         .await
         .unwrap();
 
+    // Allow async hook execution to settle (matches pattern from other tests in this file)
+    tokio::time::sleep(tokio::time::Duration::from_millis(HOOK_EXECUTION_SETTLE_MS)).await;
+
     // THEN: Hook should fire after agent completion
     assert_eq!(results.len(), 1, "Should execute one hook");
     assert!(results[0].is_success(), "Hook should succeed");
@@ -768,6 +771,9 @@ async fn test_subagentstop_hook_receives_agent_context() {
         .execute_hooks(HookEvent::SubagentStop, &context)
         .await
         .unwrap();
+
+    // Allow async hook execution to settle
+    tokio::time::sleep(tokio::time::Duration::from_millis(HOOK_EXECUTION_SETTLE_MS)).await;
 
     // THEN: Hook receives correct agent context via environment variables
     assert!(results[0].is_success());
