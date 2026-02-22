@@ -20,6 +20,10 @@ mod hooks;
 #[allow(dead_code)]
 mod interactive;
 mod mcp_commands;
+#[allow(dead_code)]
+mod mcp_dispatch;
+#[allow(dead_code)]
+mod mcp_serve;
 mod notification;
 #[allow(dead_code)]
 mod permission_mode;
@@ -31,6 +35,8 @@ mod schema_validator;
 mod session;
 #[allow(dead_code)]
 mod session_graph;
+#[allow(dead_code)]
+mod session_graph_storage;
 #[allow(dead_code)]
 mod session_index;
 #[allow(dead_code)]
@@ -50,6 +56,9 @@ mod tool_orchestrator;
 mod tool_executor;
 #[allow(dead_code)]
 mod tool_formatter;
+#[allow(deprecated)]
+#[allow(dead_code)]
+mod tool_schema_errors;
 #[allow(dead_code)]
 mod tui;
 

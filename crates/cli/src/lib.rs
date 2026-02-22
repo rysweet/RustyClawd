@@ -10,12 +10,15 @@ pub mod conversation;
 pub mod hooks;
 pub mod interactive;
 pub mod mcp_commands;
+pub mod mcp_dispatch;
+pub mod mcp_serve;
 pub mod notification;
 pub mod permission_mode;
 pub mod plugins;
 pub mod schema_validator;
 pub mod session;
 pub mod session_graph;
+pub mod session_graph_storage;
 pub mod session_index;
 pub mod session_persistence;
 pub mod settings;
@@ -27,5 +30,7 @@ pub mod tool_orchestrator;
 #[allow(deprecated)]
 pub mod tool_executor;
 pub mod tool_formatter;
+#[allow(deprecated)]
+pub mod tool_schema_errors;
 pub mod tui;
 pub mod update;
