@@ -6,7 +6,7 @@
 //! # Philosophy
 //!
 //! - **Single Responsibility**: Only handles session chain tracking and cycle detection
-//! - **Self-contained**: Manages its own persistence
+//! - **Self-contained**: Manages its own persistence (via `session_graph_storage`)
 //! - **Standard library**: No external graph libraries
 //! - **Regeneratable**: Can be rebuilt from specification
 //!
@@ -39,23 +39,20 @@
 //! assert!(graph.detect_cycle("session-3").is_none());
 //! ```
 
-use anyhow::{Context, Result};
+use crate::session_graph_storage;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// Maximum allowed depth for session chains
 pub const MAX_CHAIN_DEPTH: usize = 100;
 
-/// Default filename for session graph storage
-const GRAPH_FILENAME: &str = "session_graph.json";
-
 /// Session graph for tracking parent-child relationships
 ///
 /// Maintains directed graph structure:
-/// - child → parent (primary direction)
-/// - parent → children (for efficient traversal)
+/// - child -> parent (primary direction)
+/// - parent -> children (for efficient traversal)
 ///
 /// Persisted to disk as JSON for durability.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,7 +84,7 @@ pub struct Cycle {
 impl Cycle {
     /// Format cycle for display
     pub fn format(&self) -> String {
-        self.path.join(" → ")
+        self.path.join(" -> ")
     }
 
     /// Get the repeated node (the one that creates the cycle)
@@ -101,96 +98,34 @@ impl SessionGraph {
     ///
     /// Creates graph file if it doesn't exist. Uses `~/.config/claude/session_graph.json`.
     pub fn new() -> Result<Self> {
-        let storage_path = Self::default_storage_path()?;
+        let storage_path = session_graph_storage::default_storage_path()?;
         Self::from_path(storage_path)
     }
 
     /// Create session graph from specific path
     pub fn from_path(storage_path: PathBuf) -> Result<Self> {
         if storage_path.exists() {
-            Self::load(&storage_path)
+            session_graph_storage::load(&storage_path)
         } else {
-            Self::create_empty(storage_path)
+            let graph = Self {
+                edges: HashMap::new(),
+                children: HashMap::new(),
+                last_updated: None,
+                storage_path,
+            };
+            session_graph_storage::save(&graph)?;
+            Ok(graph)
         }
     }
 
-    /// Get default storage path for session graph
-    fn default_storage_path() -> Result<PathBuf> {
-        let config_dir = dirs::config_dir()
-            .context("Failed to determine config directory")?
-            .join("claude");
-
-        // Ensure config directory exists
-        fs::create_dir_all(&config_dir).context("Failed to create config directory")?;
-
-        // Set restrictive permissions (0700) on config directory
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let perms = fs::Permissions::from_mode(0o700);
-            fs::set_permissions(&config_dir, perms).with_context(|| {
-                format!("Failed to set permissions on {}", config_dir.display())
-            })?;
-        }
-
-        Ok(config_dir.join(GRAPH_FILENAME))
+    /// Get the storage path (used by the storage module for saving)
+    pub(crate) fn storage_path(&self) -> &PathBuf {
+        &self.storage_path
     }
 
-    /// Create empty graph at specified path
-    fn create_empty(storage_path: PathBuf) -> Result<Self> {
-        let graph = Self {
-            edges: HashMap::new(),
-            children: HashMap::new(),
-            last_updated: None,
-            storage_path,
-        };
-
-        graph.save()?;
-        Ok(graph)
-    }
-
-    /// Load graph from file
-    fn load(path: &Path) -> Result<Self> {
-        let contents = fs::read_to_string(path)
-            .with_context(|| format!("Failed to read session graph from {}", path.display()))?;
-
-        let mut graph: Self = serde_json::from_str(&contents)
-            .with_context(|| format!("Failed to parse session graph from {}", path.display()))?;
-
-        graph.storage_path = path.to_path_buf();
-        Ok(graph)
-    }
-
-    /// Save graph to file (atomic write via temp file + rename)
-    fn save(&self) -> Result<()> {
-        let contents =
-            serde_json::to_string_pretty(self).context("Failed to serialize session graph")?;
-
-        let tmp_path = self.storage_path.with_extension("json.tmp");
-        fs::write(&tmp_path, &contents).with_context(|| {
-            format!(
-                "Failed to write temp session graph to {}",
-                tmp_path.display()
-            )
-        })?;
-
-        // Set restrictive permissions (0600) on temp file before rename
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let perms = fs::Permissions::from_mode(0o600);
-            fs::set_permissions(&tmp_path, perms)
-                .with_context(|| format!("Failed to set permissions on {}", tmp_path.display()))?;
-        }
-
-        fs::rename(&tmp_path, &self.storage_path).with_context(|| {
-            format!(
-                "Failed to rename temp file to {}",
-                self.storage_path.display()
-            )
-        })?;
-
-        Ok(())
+    /// Set the storage path (used by the storage module after loading)
+    pub(crate) fn set_storage_path(&mut self, path: PathBuf) {
+        self.storage_path = path;
     }
 
     /// Add a parent-child edge to the graph
@@ -263,7 +198,7 @@ impl SessionGraph {
 
         // Update timestamp and save
         self.last_updated = Some(chrono::Utc::now().to_rfc3339());
-        self.save()?;
+        session_graph_storage::save(self)?;
 
         Ok(())
     }
@@ -390,7 +325,7 @@ impl SessionGraph {
 
         // Update timestamp and save
         self.last_updated = Some(chrono::Utc::now().to_rfc3339());
-        self.save()?;
+        session_graph_storage::save(self)?;
 
         Ok(())
     }
@@ -409,7 +344,7 @@ impl Default for SessionGraph {
     fn default() -> Self {
         Self::new().unwrap_or_else(|_| {
             // Fallback to a temp directory if config dir is unavailable
-            let tmp_path = std::env::temp_dir().join(GRAPH_FILENAME);
+            let tmp_path = std::env::temp_dir().join(session_graph_storage::graph_filename());
             Self {
                 edges: HashMap::new(),
                 children: HashMap::new(),
@@ -628,7 +563,7 @@ mod tests {
         let graph_path = temp_dir.path().join("test_graph.json");
 
         // Write invalid JSON to the file
-        fs::write(&graph_path, "{ not valid json !!!").unwrap();
+        std::fs::write(&graph_path, "{ not valid json !!!").unwrap();
 
         // Loading should return an error, not panic
         let result = SessionGraph::from_path(graph_path);
@@ -655,7 +590,7 @@ mod tests {
         graph.add_edge("child", "parent").unwrap();
 
         // Check file permissions
-        let metadata = fs::metadata(&graph_path).unwrap();
+        let metadata = std::fs::metadata(&graph_path).unwrap();
         let permissions = metadata.permissions();
         let mode = permissions.mode();
 
