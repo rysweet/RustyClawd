@@ -6,11 +6,12 @@
 //! - Multiple skill file format support (markdown, YAML)
 //! - Skill discovery from filesystem
 
+use crate::skill_discovery;
 use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
 use async_stream::stream;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tokio::fs;
 use tracing::{debug, warn};
 
@@ -92,7 +93,7 @@ impl crate::Tool for SkillTool {
             };
 
             // Discover all possible skill locations
-            let skill_paths = discover_skill_paths(&skill);
+            let skill_paths = skill_discovery::discover_skill_paths(&skill);
 
             if debug {
                 debug!(skill = %skill, path_count = skill_paths.len(), "Searching for skill in {} locations", skill_paths.len());
@@ -121,13 +122,13 @@ impl crate::Tool for SkillTool {
                         }
 
                         // Parse the skill file
-                        let parsed = parse_skill_file(&content, path);
+                        let parsed = skill_discovery::parse_file(&content, path);
 
                         if !parsed.prompt.is_empty() {
                             found = true;
                             prompt = parsed.prompt;
                             found_path = Some(path.display().to_string());
-                            metadata = parsed.metadata;
+                            metadata = parsed.metadata.and_then(|v| serde_yaml::from_value(v).ok());
 
                             if debug {
                                 debug!(
@@ -194,12 +195,6 @@ impl crate::Tool for SkillTool {
     }
 }
 
-/// Parsed skill file data
-struct ParsedSkill {
-    prompt: String,
-    metadata: Option<SkillMetadata>,
-}
-
 /// Load skill content by name, searching all standard skill locations.
 ///
 /// Returns `Some(content)` if a skill with the given name is found, `None` otherwise.
@@ -220,7 +215,7 @@ pub async fn load_skill_content(skill_name: &str) -> Option<String> {
         return None;
     }
 
-    let paths = discover_skill_paths(skill_name);
+    let paths = skill_discovery::discover_skill_paths(skill_name);
 
     for path in &paths {
         if !path.exists() {
@@ -229,7 +224,7 @@ pub async fn load_skill_content(skill_name: &str) -> Option<String> {
 
         match fs::read_to_string(path).await {
             Ok(content) => {
-                let parsed = parse_skill_file(&content, path);
+                let parsed = skill_discovery::parse_file(&content, path);
                 if !parsed.prompt.is_empty() {
                     return Some(parsed.prompt);
                 }
@@ -292,129 +287,6 @@ pub async fn list_available_skills() -> Vec<String> {
     }
 
     skill_names.into_iter().collect()
-}
-
-/// Discover all possible paths where a skill might be located
-pub fn discover_skill_paths(skill_name: &str) -> Vec<PathBuf> {
-    let mut paths = Vec::new();
-
-    // Support fully-qualified names (e.g., "plugin-name:skill-name")
-    let (plugin, skill) = if skill_name.contains(':') {
-        let parts: Vec<&str> = skill_name.splitn(2, ':').collect();
-        (Some(parts[0]), parts[1])
-    } else {
-        (None, skill_name)
-    };
-
-    // Priority 1: Project-level skills in .claude/skills/
-    paths.push(PathBuf::from(format!(".claude/skills/{}.md", skill)));
-    paths.push(PathBuf::from(format!(".claude/skills/{}/skill.md", skill)));
-    paths.push(PathBuf::from(format!(".claude/skills/{}.yaml", skill)));
-    paths.push(PathBuf::from(format!(
-        ".claude/skills/{}/skill.yaml",
-        skill
-    )));
-
-    // Priority 2: User-level skills in ~/.claude/skills/
-    if let Some(home) = std::env::var_os("HOME") {
-        let home_path = PathBuf::from(home);
-        paths.push(home_path.join(format!(".claude/skills/{}.md", skill)));
-        paths.push(home_path.join(format!(".claude/skills/{}/skill.md", skill)));
-        paths.push(home_path.join(format!(".claude/skills/{}.yaml", skill)));
-        paths.push(home_path.join(format!(".claude/skills/{}/skill.yaml", skill)));
-    }
-
-    // Priority 3: Plugin-specific skills
-    if let Some(plugin_name) = plugin {
-        paths.push(PathBuf::from(format!(
-            ".claude/plugins/{}/skills/{}.md",
-            plugin_name, skill
-        )));
-        paths.push(PathBuf::from(format!(
-            ".claude/plugins/{}/skills/{}/skill.md",
-            plugin_name, skill
-        )));
-        paths.push(PathBuf::from(format!(
-            ".claude/plugins/{}/skills/{}.yaml",
-            plugin_name, skill
-        )));
-    }
-
-    // Priority 4: Example plugins (for testing/development)
-    paths.push(PathBuf::from(format!(
-        "examples/plugins/example-plugin/skills/{}.md",
-        skill
-    )));
-    paths.push(PathBuf::from(format!(
-        "examples/plugins/example-plugin/skills/{}/skill.md",
-        skill
-    )));
-
-    paths
-}
-
-/// Parse a skill file and extract prompt and metadata
-fn parse_skill_file(content: &str, path: &Path) -> ParsedSkill {
-    let extension = path.extension().and_then(|s| s.to_str());
-
-    match extension {
-        Some("md") => parse_markdown_skill(content),
-        Some("yaml") | Some("yml") => parse_yaml_skill(content),
-        _ => ParsedSkill {
-            prompt: content.to_string(),
-            metadata: None,
-        },
-    }
-}
-
-/// Parse a markdown skill file with optional YAML frontmatter
-fn parse_markdown_skill(content: &str) -> ParsedSkill {
-    if let Some(stripped) = content.strip_prefix("---") {
-        // Has YAML frontmatter
-        if let Some(end_idx) = stripped.find("---") {
-            let frontmatter = &stripped[..end_idx];
-            let prompt = stripped[end_idx + 3..].trim().to_string();
-
-            // Parse frontmatter as YAML
-            let metadata = serde_yaml::from_str::<SkillMetadata>(frontmatter).ok();
-
-            return ParsedSkill { prompt, metadata };
-        }
-    }
-
-    // No frontmatter, use content as-is
-    ParsedSkill {
-        prompt: content.to_string(),
-        metadata: None,
-    }
-}
-
-/// Parse a YAML skill file
-fn parse_yaml_skill(content: &str) -> ParsedSkill {
-    // First, try to parse as generic YAML value
-    if let Ok(yaml_value) = serde_yaml::from_str::<serde_yaml::Value>(content) {
-        // Extract prompt from various possible fields
-        let prompt = if let Some(prompt_val) = yaml_value
-            .get("prompt")
-            .or_else(|| yaml_value.get("instructions"))
-            .or_else(|| yaml_value.get("content"))
-        {
-            prompt_val.as_str().unwrap_or(content).to_string()
-        } else {
-            content.to_string()
-        };
-
-        // Try to parse metadata from the YAML
-        let metadata = serde_yaml::from_value::<SkillMetadata>(yaml_value).ok();
-
-        ParsedSkill { prompt, metadata }
-    } else {
-        // Failed to parse YAML, use as-is
-        ParsedSkill {
-            prompt: content.to_string(),
-            metadata: None,
-        }
-    }
 }
 
 #[cfg(test)]
@@ -581,7 +453,7 @@ prompt: |
 
     #[tokio::test]
     async fn test_skill_discovery_paths() {
-        let paths = discover_skill_paths("my-skill");
+        let paths = skill_discovery::discover_skill_paths("my-skill");
 
         // Should include project-level paths
         assert!(paths
@@ -606,7 +478,7 @@ prompt: |
 
     #[tokio::test]
     async fn test_skill_with_plugin_prefix() {
-        let paths = discover_skill_paths("example-plugin:code-reviewer");
+        let paths = skill_discovery::discover_skill_paths("example-plugin:code-reviewer");
 
         // Should include plugin-specific paths
         assert!(paths.iter().any(|p| p
@@ -618,7 +490,7 @@ prompt: |
     #[tokio::test]
     async fn test_parse_markdown_skill_no_frontmatter() {
         let content = "# Simple Skill\n\nJust content, no frontmatter.";
-        let parsed = parse_markdown_skill(content);
+        let parsed = skill_discovery::parse_markdown_file(content);
 
         assert_eq!(parsed.prompt, content);
         assert!(parsed.metadata.is_none());
@@ -632,7 +504,7 @@ version: 1.0
 ---
 
 Skill content here."#;
-        let parsed = parse_markdown_skill(content);
+        let parsed = skill_discovery::parse_markdown_file(content);
 
         assert!(parsed.prompt.contains("Skill content"));
         assert!(!parsed.prompt.contains("---"));
@@ -646,7 +518,7 @@ description: YAML Skill
 prompt: This is the prompt content
 version: 1.0.0
 "#;
-        let parsed = parse_yaml_skill(content);
+        let parsed = skill_discovery::parse_yaml_file(content);
 
         assert!(parsed.prompt.contains("prompt content"));
         assert!(parsed.metadata.is_some());
