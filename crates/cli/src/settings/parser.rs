@@ -250,7 +250,10 @@ pub fn parse_toml_config(content: &str) -> Result<Settings, String> {
         }
 
         // Parse spinner_tips_override array
-        if let Some(tips) = table.get("spinner_tips_override").and_then(|v| v.as_array()) {
+        if let Some(tips) = table
+            .get("spinner_tips_override")
+            .and_then(|v| v.as_array())
+        {
             let tips_vec: Vec<String> = tips
                 .iter()
                 .filter_map(|v| v.as_str().map(|s| s.to_string()))
