@@ -24,6 +24,8 @@ fn get_cli_src_dir() -> PathBuf {
 }
 
 /// Get all Rust source files in a directory recursively
+///
+/// Excludes `_tests.rs` files which are extracted test modules (not production code).
 fn get_rust_files(dir: &Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
     if let Ok(entries) = fs::read_dir(dir) {
@@ -32,7 +34,11 @@ fn get_rust_files(dir: &Path) -> Vec<PathBuf> {
             if path.is_dir() {
                 files.extend(get_rust_files(&path));
             } else if path.extension().map_or(false, |ext| ext == "rs") {
-                files.push(path);
+                // Skip extracted test files (e.g., bash_output_tests.rs)
+                let filename = path.file_name().unwrap_or_default().to_string_lossy();
+                if !filename.ends_with("_tests.rs") {
+                    files.push(path);
+                }
             }
         }
     }
