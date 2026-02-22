@@ -8,239 +8,20 @@
 //! - Automatic "Other" option support
 //! - TUI and non-interactive mode handling
 
+mod cli_prompt;
+mod tui_prompt;
+mod types;
+
+pub use types::*;
+
 use crate::{ExecutionContext, ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
 use async_stream::stream;
 use async_trait::async_trait;
-use dialoguer::{theme::ColorfulTheme, Input, MultiSelect, Select};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-
-/// A single question with options
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Question {
-    /// The question text
-    pub question: String,
-
-    /// Short header label (max 12 chars)
-    pub header: String,
-
-    /// Available options (2-4 options)
-    pub options: Vec<QuestionOption>,
-
-    /// Allow multiple selections
-    #[serde(rename = "multiSelect")]
-    pub multi_select: bool,
-}
-
-/// A single option for a question
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct QuestionOption {
-    /// Display label
-    pub label: String,
-
-    /// Description/explanation
-    pub description: String,
-}
-
-/// Parameters for AskUserQuestion tool
-#[derive(Debug, Deserialize)]
-pub struct AskUserQuestionParams {
-    /// Questions to ask (1-4 questions)
-    pub questions: Vec<Question>,
-
-    /// Previously collected answers (for resumption)
-    #[serde(default)]
-    pub answers: HashMap<String, String>,
-}
-
-/// Output from AskUserQuestion tool
-#[derive(Debug, Serialize)]
-pub struct AskUserQuestionOutput {
-    /// Collected answers keyed by question header
-    pub answers: HashMap<String, String>,
-
-    /// Number of questions answered
-    pub questions_answered: usize,
-}
 
 /// The AskUserQuestion tool
 pub struct AskUserQuestionTool;
 
 impl AskUserQuestionTool {
-    /// Ask a single-select question in TUI mode
-    fn ask_single_select_tui(question: &Question, debug: bool) -> Result<String, String> {
-        // Add "Other" option automatically
-        let mut items: Vec<String> = question
-            .options
-            .iter()
-            .map(|opt| format!("{} - {}", opt.label, opt.description))
-            .collect();
-        items.push("Other (custom input)".to_string());
-
-        let selection = Select::with_theme(&ColorfulTheme::default())
-            .with_prompt(&question.question)
-            .items(&items)
-            .default(0)
-            .interact()
-            .map_err(|e| {
-                if debug {
-                    tracing::warn!("User cancelled or error: {}", e);
-                }
-                format!("Question cancelled or error: {}", e)
-            })?;
-
-        // Handle "Other" option
-        if selection == items.len() - 1 {
-            let other: String = Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("Please specify")
-                .interact_text()
-                .map_err(|e| format!("Failed to read input: {}", e))?;
-
-            if other.trim().is_empty() {
-                return Err("No input provided".to_string());
-            }
-            Ok(other.trim().to_string())
-        } else {
-            Ok(question.options[selection].label.clone())
-        }
-    }
-
-    /// Ask a multi-select question in TUI mode
-    fn ask_multi_select_tui(question: &Question, debug: bool) -> Result<String, String> {
-        // Add "Other" option automatically
-        let mut items: Vec<String> = question
-            .options
-            .iter()
-            .map(|opt| format!("{} - {}", opt.label, opt.description))
-            .collect();
-        items.push("Other (custom input)".to_string());
-
-        let selections = MultiSelect::with_theme(&ColorfulTheme::default())
-            .with_prompt(&question.question)
-            .items(&items)
-            .interact()
-            .map_err(|e| {
-                if debug {
-                    tracing::warn!("User cancelled or error: {}", e);
-                }
-                format!("Question cancelled or error: {}", e)
-            })?;
-
-        if selections.is_empty() {
-            return Err("No options selected".to_string());
-        }
-
-        let mut selected_labels = Vec::new();
-
-        // Check if "Other" was selected
-        let other_selected = selections.contains(&(items.len() - 1));
-
-        // Collect regular selections
-        for &idx in &selections {
-            if idx < question.options.len() {
-                selected_labels.push(question.options[idx].label.clone());
-            }
-        }
-
-        // Handle "Other" option
-        if other_selected {
-            let other: String = Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("Please specify other option(s)")
-                .interact_text()
-                .map_err(|e| format!("Failed to read input: {}", e))?;
-
-            if !other.trim().is_empty() {
-                selected_labels.push(other.trim().to_string());
-            }
-        }
-
-        Ok(selected_labels.join(", "))
-    }
-
-    /// Ask a question in non-interactive/CLI mode
-    fn ask_cli_mode(question: &Question) -> Result<String, String> {
-        eprintln!("\n{}", question.question);
-        eprintln!("Options:");
-        for (i, opt) in question.options.iter().enumerate() {
-            eprintln!("  {}. {} - {}", i + 1, opt.label, opt.description);
-        }
-        eprintln!("  {}. Other (custom input)", question.options.len() + 1);
-
-        if question.multi_select {
-            eprintln!("\nEnter selection(s) (comma-separated numbers or text):");
-        } else {
-            eprintln!("\nEnter selection (number or text):");
-        }
-
-        let mut input = String::new();
-        std::io::stdin()
-            .read_line(&mut input)
-            .map_err(|e| format!("Failed to read input: {}", e))?;
-
-        let input = input.trim();
-        if input.is_empty() {
-            return Err("No input provided".to_string());
-        }
-
-        // Try to parse as number(s)
-        if question.multi_select {
-            let parts: Vec<&str> = input.split(',').map(|s| s.trim()).collect();
-            let mut selected = Vec::new();
-
-            for part in parts {
-                if let Ok(num) = part.parse::<usize>() {
-                    if num > 0 && num <= question.options.len() {
-                        selected.push(question.options[num - 1].label.clone());
-                    } else if num == question.options.len() + 1 {
-                        // "Other" selected via number
-                        eprintln!("Please specify:");
-                        let mut other = String::new();
-                        std::io::stdin()
-                            .read_line(&mut other)
-                            .map_err(|e| format!("Failed to read input: {}", e))?;
-                        if !other.trim().is_empty() {
-                            selected.push(other.trim().to_string());
-                        }
-                    }
-                } else {
-                    // Treat as custom text
-                    selected.push(part.to_string());
-                }
-            }
-
-            if selected.is_empty() {
-                return Err("No valid selections".to_string());
-            }
-
-            Ok(selected.join(", "))
-        } else {
-            // Single select
-            if let Ok(num) = input.parse::<usize>() {
-                if num > 0 && num <= question.options.len() {
-                    Ok(question.options[num - 1].label.clone())
-                } else if num == question.options.len() + 1 {
-                    // "Other" selected
-                    eprintln!("Please specify:");
-                    let mut other = String::new();
-                    std::io::stdin()
-                        .read_line(&mut other)
-                        .map_err(|e| format!("Failed to read input: {}", e))?;
-                    let other = other.trim();
-                    if other.is_empty() {
-                        Err("No input provided".to_string())
-                    } else {
-                        Ok(other.to_string())
-                    }
-                } else {
-                    Err(format!("Invalid option number: {}", num))
-                }
-            } else {
-                // Treat as custom text
-                Ok(input.to_string())
-            }
-        }
-    }
-
     /// Validate question structure
     fn validate_question(question: &Question, index: usize) -> Result<(), String> {
         // Check header length
@@ -363,14 +144,14 @@ impl crate::Tool for AskUserQuestionTool {
                     ExecutionContext::Tui => {
                         // Interactive TUI mode
                         if question.multi_select {
-                            Self::ask_multi_select_tui(question, debug)
+                            tui_prompt::ask_multi_select_tui(question, debug)
                         } else {
-                            Self::ask_single_select_tui(question, debug)
+                            tui_prompt::ask_single_select_tui(question, debug)
                         }
                     }
                     ExecutionContext::NonInteractive => {
                         // Non-interactive CLI mode
-                        Self::ask_cli_mode(question)
+                        cli_prompt::ask_cli_mode(question)
                     }
                 };
 
@@ -416,6 +197,7 @@ mod tests {
     use super::*;
     use crate::Tool;
     use futures::StreamExt;
+    use std::collections::HashMap;
 
     fn create_sample_question(multi_select: bool) -> Question {
         Question {
