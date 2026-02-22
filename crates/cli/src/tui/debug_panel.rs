@@ -5,7 +5,7 @@
 
 use std::collections::VecDeque;
 
-use super::app::ScrollController;
+use super::scroll_controller::ScrollController;
 
 /// Maximum debug messages to keep in buffer
 const MAX_DEBUG_MESSAGES: usize = 1000;

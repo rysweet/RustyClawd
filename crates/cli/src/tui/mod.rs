@@ -20,11 +20,14 @@
 //! ```
 
 mod app;
+mod app_input;
+mod app_tools;
 mod autocomplete_state;
 mod click_region;
 mod compat;
 mod debug_panel;
 mod event;
+mod focus_manager;
 mod input_state;
 mod keybindings;
 mod layout;
@@ -35,6 +38,7 @@ mod render_debug;
 mod render_messages;
 mod render_popups;
 mod render_status_bar;
+mod scroll_controller;
 mod soft_wrap;
 mod streaming_state;
 mod thinking_indicator;
