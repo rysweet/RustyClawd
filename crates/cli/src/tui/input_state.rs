@@ -283,12 +283,16 @@ impl InputState {
     }
 
     pub fn scroll_input_viewport_up(&mut self) {
-        // TODO: Investigate if TextArea has scroll() method or if auto-handled
-        // For now, no-op (mark_dirty handled by caller)
+        // TextArea auto-scrolls when cursor moves — move cursor up 5 lines to scroll viewport
+        for _ in 0..5 {
+            self.input.move_cursor(tui_textarea::CursorMove::Up);
+        }
     }
 
     pub fn scroll_input_viewport_down(&mut self) {
-        // TODO: Same as above
+        for _ in 0..5 {
+            self.input.move_cursor(tui_textarea::CursorMove::Down);
+        }
     }
 
     /// Clear input without submitting (Ctrl+U behavior)

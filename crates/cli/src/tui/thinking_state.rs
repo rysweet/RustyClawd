@@ -70,7 +70,6 @@ impl ThinkingState {
     }
 
     /// Get current phase
-    #[allow(dead_code)] // Accessor for rendering layer
     pub fn phase(&self) -> ThinkingPhase {
         self.phase
     }

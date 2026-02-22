@@ -294,13 +294,3 @@ pub fn format_response_content(
 
     lines
 }
-
-/// Truncate output for display (keep last N chars)
-#[allow(dead_code)] // Utility for tool output display
-pub fn truncate_output(output: &str, max_chars: usize) -> String {
-    if output.len() <= max_chars {
-        output.to_string()
-    } else {
-        format!("...{}", &output[output.len() - max_chars..])
-    }
-}
