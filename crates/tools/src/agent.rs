@@ -10,6 +10,7 @@
 
 use crate::agent_memory::{global_agent_memory, MemoryScope};
 use crate::agent_registry::global_agent_registry;
+use crate::worktree_isolation::{self, WorktreeInfo};
 use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
 use async_stream::stream;
 use async_trait::async_trait;
@@ -19,6 +20,13 @@ use std::path::Path;
 use std::time::Instant;
 use tokio::fs;
 
+/// Agent isolation mode parsed from frontmatter.
+#[derive(Debug, Clone, PartialEq)]
+pub enum AgentIsolation {
+    /// Run the agent in an isolated git worktree
+    Worktree,
+}
+
 /// Metadata extracted from agent definition frontmatter (YAML between `---` delimiters).
 ///
 /// Example agent.md:
@@ -26,6 +34,7 @@ use tokio::fs;
 /// ---
 /// background: true
 /// memory: project
+/// isolation: worktree
 /// ---
 /// # Agent Name
 /// You are a specialized agent...
@@ -36,6 +45,8 @@ pub struct AgentFrontmatter {
     pub background: bool,
     /// Memory scope for this agent's memory operations (user, project, local)
     pub memory_scope: Option<MemoryScope>,
+    /// Isolation mode for agent execution
+    pub isolation: Option<AgentIsolation>,
 }
 
 impl AgentFrontmatter {
@@ -77,6 +88,12 @@ impl AgentFrontmatter {
                                     "user" => Some(MemoryScope::User),
                                     "project" => Some(MemoryScope::Project),
                                     "local" => Some(MemoryScope::Local),
+                                    _ => None,
+                                };
+                            }
+                            "isolation" => {
+                                frontmatter.isolation = match value {
+                                    "worktree" => Some(AgentIsolation::Worktree),
                                     _ => None,
                                 };
                             }
@@ -290,9 +307,39 @@ impl crate::Tool for AgentTool {
                     prompt_length = agent_system_prompt.len(),
                     background = frontmatter.background,
                     memory_scope = ?resolved_memory_scope,
+                    isolation = ?frontmatter.isolation,
                     "Loaded agent system prompt with frontmatter"
                 );
             }
+
+            // Worktree isolation: create isolated worktree if agent requests it
+            let worktree_info: Option<WorktreeInfo> = if frontmatter.isolation == Some(AgentIsolation::Worktree) {
+                yield ToolEvent::Progress {
+                    step: format!("Creating isolated worktree for {}", agent_type),
+                    percentage: Some(20.0),
+                };
+
+                match worktree_isolation::create_worktree(&cwd, &AgentTool::generate_agent_id(&agent_type)) {
+                    Ok(info) => {
+                        if debug {
+                            tracing::debug!(
+                                worktree_path = %info.worktree_path.display(),
+                                branch = %info.branch_name,
+                                "Worktree isolation active"
+                            );
+                        }
+                        Some(info)
+                    }
+                    Err(err) => {
+                        yield ToolEvent::Error {
+                            message: format!("Failed to create worktree for agent isolation: {}", err),
+                        };
+                        return;
+                    }
+                }
+            } else {
+                None
+            };
 
             yield ToolEvent::Progress {
                 step: format!("Preparing context for {}", agent_type),
@@ -303,9 +350,13 @@ impl crate::Tool for AgentTool {
             let model_id = Self::resolve_model_id(model_name.as_deref());
 
             if debug {
+                let effective_cwd = worktree_info.as_ref()
+                    .map(|info| info.worktree_path.clone())
+                    .unwrap_or_else(|| cwd.clone());
                 tracing::debug!(
                     model_id = %model_id,
-                    "Resolved model ID"
+                    effective_cwd = %effective_cwd.display(),
+                    "Resolved model ID and working directory"
                 );
             }
 
@@ -488,6 +539,21 @@ impl crate::Tool for AgentTool {
                 }
             };
 
+            // Augment system prompt with worktree context if isolation is active
+            let final_system_prompt = if let Some(ref wt_info) = worktree_info {
+                format!(
+                    "{}\n\n[WORKTREE ISOLATION] You are running in an isolated git worktree.\n\
+                     Working directory: {}\n\
+                     Branch: {}\n\
+                     Changes you make here will not affect the main working tree.",
+                    agent_system_prompt,
+                    wt_info.worktree_path.display(),
+                    wt_info.branch_name,
+                )
+            } else {
+                agent_system_prompt
+            };
+
             // Build the request
             let messages = vec![
                 rustyclawd_core::client::types::Message::user(prompt.clone()),
@@ -498,7 +564,7 @@ impl crate::Tool for AgentTool {
                 messages,
                 4096, // max_tokens
             )
-            .with_system(agent_system_prompt)
+            .with_system(final_system_prompt)
             .with_temperature(0.7);
 
             if debug {
@@ -633,11 +699,55 @@ impl crate::Tool for AgentTool {
                 }
             }
 
+            // Worktree isolation cleanup
+            let mut worktree_note = String::new();
+            if let Some(ref wt_info) = worktree_info {
+                yield ToolEvent::Progress {
+                    step: "Cleaning up isolated worktree".to_string(),
+                    percentage: Some(97.0),
+                };
+
+                match worktree_isolation::cleanup_worktree(wt_info) {
+                    Ok(true) => {
+                        worktree_note = format!(
+                            "\n\n[Worktree isolation] Agent made changes on branch '{}'. \
+                             Review with: git log {}..{}",
+                            wt_info.branch_name,
+                            "HEAD",
+                            wt_info.branch_name,
+                        );
+                    }
+                    Ok(false) => {
+                        // No changes, branch was cleaned up
+                    }
+                    Err(e) => {
+                        if debug {
+                            tracing::warn!(
+                                error = %e,
+                                "Failed to clean up worktree (non-fatal)"
+                            );
+                        }
+                        worktree_note = format!(
+                            "\n\n[Worktree isolation] Warning: cleanup failed: {}. \
+                             Worktree may still exist at {}",
+                            e,
+                            wt_info.worktree_path.display(),
+                        );
+                    }
+                }
+            }
+
+            let final_response = if worktree_note.is_empty() {
+                response_text
+            } else {
+                format!("{}{}", response_text, worktree_note)
+            };
+
             let duration_ms = start_time.elapsed().as_millis() as u64;
             yield ToolEvent::Result(AgentOutput {
                 agent_id,
                 agent_name: agent_type.clone(),
-                response: response_text,
+                response: final_response,
                 model: model_id,
                 tokens_used: TokenUsage {
                     input_tokens,
