@@ -8,6 +8,7 @@
 //! - Allows resuming previous agent executions
 //! - Supports background execution (run_in_background)
 
+use crate::agent_memory::{global_agent_memory, MemoryScope};
 use crate::agent_registry::global_agent_registry;
 use crate::{ToolContext, ToolEvent, ToolMetadata, ToolResult, ToolStream};
 use async_stream::stream;
@@ -17,6 +18,84 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::time::Instant;
 use tokio::fs;
+
+/// Metadata extracted from agent definition frontmatter (YAML between `---` delimiters).
+///
+/// Example agent.md:
+/// ```markdown
+/// ---
+/// background: true
+/// memory: project
+/// ---
+/// # Agent Name
+/// You are a specialized agent...
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct AgentFrontmatter {
+    /// If true, this agent should always run in the background
+    pub background: bool,
+    /// Memory scope for this agent's memory operations (user, project, local)
+    pub memory_scope: Option<MemoryScope>,
+}
+
+impl AgentFrontmatter {
+    /// Parse frontmatter from agent markdown content.
+    ///
+    /// Looks for YAML frontmatter between `---` delimiters at the start of the file.
+    /// Returns the parsed frontmatter and the remaining content (the system prompt).
+    pub fn parse(content: &str) -> (Self, String) {
+        let trimmed = content.trim_start();
+        if !trimmed.starts_with("---") {
+            return (Self::default(), content.to_string());
+        }
+
+        // Find the closing `---`
+        let after_first = &trimmed[3..];
+        let closing = after_first.find("---");
+        match closing {
+            Some(end_pos) => {
+                let yaml_block = &after_first[..end_pos];
+                let rest = &after_first[end_pos + 3..];
+
+                let mut frontmatter = Self::default();
+
+                // Simple line-by-line key: value parsing (avoids YAML dependency)
+                for line in yaml_block.lines() {
+                    let line = line.trim();
+                    if line.is_empty() || line.starts_with('#') {
+                        continue;
+                    }
+                    if let Some((key, value)) = line.split_once(':') {
+                        let key = key.trim();
+                        let value = value.trim();
+                        match key {
+                            "background" => {
+                                frontmatter.background = value == "true";
+                            }
+                            "memory" | "memory_scope" => {
+                                frontmatter.memory_scope = match value {
+                                    "user" => Some(MemoryScope::User),
+                                    "project" => Some(MemoryScope::Project),
+                                    "local" => Some(MemoryScope::Local),
+                                    _ => None,
+                                };
+                            }
+                            _ => {
+                                // Ignore unknown frontmatter keys
+                            }
+                        }
+                    }
+                }
+
+                (frontmatter, rest.to_string())
+            }
+            None => {
+                // No closing `---`, treat entire content as prompt
+                (Self::default(), content.to_string())
+            }
+        }
+    }
+}
 
 /// Parameters for the Agent tool
 #[derive(Debug, Deserialize)]
@@ -41,6 +120,11 @@ pub struct AgentParams {
     /// Run the agent in the background (returns immediately with agent_id)
     #[serde(default)]
     pub run_in_background: bool,
+
+    /// Memory scope override for agent memory operations.
+    /// If not set, falls back to agent definition frontmatter, then defaults to Local.
+    #[serde(default)]
+    pub memory_scope: Option<String>,
 }
 
 /// Output from the Agent tool
@@ -147,7 +231,8 @@ impl crate::Tool for AgentTool {
         let prompt = params.prompt.clone();
         let model_name = params.model.clone();
         let resume_id = params.resume.clone();
-        let run_in_background = params.run_in_background;
+        let mut run_in_background = params.run_in_background;
+        let param_memory_scope = params.memory_scope.clone();
 
         Ok(Box::pin(stream! {
             let start_time = Instant::now();
@@ -167,9 +252,9 @@ impl crate::Tool for AgentTool {
                 );
             }
 
-            // Load agent system prompt
-            let agent_system_prompt = match Self::load_agent_prompt(&agent_type, &cwd).await {
-                Ok(prompt) => prompt,
+            // Load agent definition (may contain frontmatter + system prompt)
+            let raw_content = match Self::load_agent_prompt(&agent_type, &cwd).await {
+                Ok(content) => content,
                 Err(err) => {
                     yield ToolEvent::Error {
                         message: err,
@@ -178,10 +263,34 @@ impl crate::Tool for AgentTool {
                 }
             };
 
+            // Parse frontmatter from agent definition
+            let (frontmatter, agent_system_prompt) = AgentFrontmatter::parse(&raw_content);
+
+            // Feature 6: If agent definition has background: true, force background mode
+            if frontmatter.background {
+                run_in_background = true;
+                if debug {
+                    tracing::debug!(
+                        agent_type = %agent_type,
+                        "Agent definition has background: true, forcing background mode"
+                    );
+                }
+            }
+
+            // Feature 7: Resolve memory scope from params > frontmatter > default (Local)
+            let resolved_memory_scope = match param_memory_scope.as_deref() {
+                Some("user") => MemoryScope::User,
+                Some("project") => MemoryScope::Project,
+                Some("local") => MemoryScope::Local,
+                _ => frontmatter.memory_scope.unwrap_or(MemoryScope::Local),
+            };
+
             if debug {
                 tracing::debug!(
                     prompt_length = agent_system_prompt.len(),
-                    "Loaded agent system prompt"
+                    background = frontmatter.background,
+                    memory_scope = ?resolved_memory_scope,
+                    "Loaded agent system prompt with frontmatter"
                 );
             }
 
@@ -497,6 +606,33 @@ impl crate::Tool for AgentTool {
                 );
             }
 
+            // Feature 7: Store agent response in memory system with the resolved scope
+            {
+                let memory = global_agent_memory();
+                let memory_value = serde_json::json!({
+                    "response_length": response_text.len(),
+                    "tokens": total_tokens,
+                    "model": &model_id,
+                    "timestamp": start_time.elapsed().as_millis(),
+                });
+                // Fire-and-forget: memory storage failures should not block agent output
+                if let Err(e) = memory.set(
+                    resolved_memory_scope,
+                    format!("last_response:{}", agent_type),
+                    memory_value,
+                    agent_id.clone(),
+                    None,
+                ).await {
+                    if debug {
+                        tracing::warn!(
+                            agent_id = %agent_id,
+                            error = %e,
+                            "Failed to store agent response in memory"
+                        );
+                    }
+                }
+            }
+
             let duration_ms = start_time.elapsed().as_millis() as u64;
             yield ToolEvent::Result(AgentOutput {
                 agent_id,
@@ -618,6 +754,7 @@ mod tests {
             model: None,
             resume: None,
             run_in_background: false,
+            memory_scope: None,
         };
         let ctx = ToolContext {
             cwd: temp_dir.path().to_path_buf(),
@@ -659,6 +796,7 @@ mod tests {
             model: Some("haiku".to_string()),
             resume: None,
             run_in_background: false,
+            memory_scope: None,
         };
         let ctx = ToolContext {
             cwd,
@@ -754,5 +892,118 @@ mod tests {
         assert_eq!(output.tokens_used.duration_ms, 2000);
         let json = serde_json::to_string(&output).unwrap();
         assert!(json.contains("\"duration_ms\":2000"));
+    }
+
+    // --- Frontmatter parsing tests ---
+
+    #[test]
+    fn test_frontmatter_parse_no_frontmatter() {
+        let content = "# Agent\nYou are a helpful agent.";
+        let (fm, prompt) = AgentFrontmatter::parse(content);
+        assert!(!fm.background);
+        assert!(fm.memory_scope.is_none());
+        assert_eq!(prompt, content);
+    }
+
+    #[test]
+    fn test_frontmatter_parse_background_true() {
+        let content = "---\nbackground: true\n---\n# Agent\nYou are a helpful agent.";
+        let (fm, prompt) = AgentFrontmatter::parse(content);
+        assert!(fm.background);
+        assert!(prompt.contains("# Agent"));
+        assert!(!prompt.contains("---"));
+    }
+
+    #[test]
+    fn test_frontmatter_parse_background_false() {
+        let content = "---\nbackground: false\n---\n# Agent";
+        let (fm, _prompt) = AgentFrontmatter::parse(content);
+        assert!(!fm.background);
+    }
+
+    #[test]
+    fn test_frontmatter_parse_memory_scopes() {
+        let content = "---\nmemory: user\n---\nPrompt";
+        let (fm, _) = AgentFrontmatter::parse(content);
+        assert_eq!(fm.memory_scope, Some(MemoryScope::User));
+
+        let content = "---\nmemory: project\n---\nPrompt";
+        let (fm, _) = AgentFrontmatter::parse(content);
+        assert_eq!(fm.memory_scope, Some(MemoryScope::Project));
+
+        let content = "---\nmemory: local\n---\nPrompt";
+        let (fm, _) = AgentFrontmatter::parse(content);
+        assert_eq!(fm.memory_scope, Some(MemoryScope::Local));
+
+        // memory_scope key also works
+        let content = "---\nmemory_scope: user\n---\nPrompt";
+        let (fm, _) = AgentFrontmatter::parse(content);
+        assert_eq!(fm.memory_scope, Some(MemoryScope::User));
+    }
+
+    #[test]
+    fn test_frontmatter_parse_invalid_memory_scope() {
+        let content = "---\nmemory: unknown_scope\n---\nPrompt";
+        let (fm, _) = AgentFrontmatter::parse(content);
+        assert!(fm.memory_scope.is_none());
+    }
+
+    #[test]
+    fn test_frontmatter_parse_combined() {
+        let content = "---\nbackground: true\nmemory: project\n---\n# Code Reviewer\nReview code.";
+        let (fm, prompt) = AgentFrontmatter::parse(content);
+        assert!(fm.background);
+        assert_eq!(fm.memory_scope, Some(MemoryScope::Project));
+        assert!(prompt.contains("Code Reviewer"));
+    }
+
+    #[test]
+    fn test_frontmatter_parse_unknown_keys_ignored() {
+        let content = "---\nbackground: true\nunknown_key: value\nauthor: test\n---\nPrompt";
+        let (fm, prompt) = AgentFrontmatter::parse(content);
+        assert!(fm.background);
+        assert!(fm.memory_scope.is_none());
+        assert_eq!(prompt.trim(), "Prompt");
+    }
+
+    #[test]
+    fn test_frontmatter_parse_unclosed() {
+        // If there's no closing ---, treat entire content as prompt
+        let content = "---\nbackground: true\nNo closing delimiter";
+        let (fm, prompt) = AgentFrontmatter::parse(content);
+        assert!(!fm.background);
+        assert_eq!(prompt, content);
+    }
+
+    #[test]
+    fn test_frontmatter_parse_comments_in_frontmatter() {
+        let content = "---\n# This is a comment\nbackground: true\n---\nPrompt";
+        let (fm, _) = AgentFrontmatter::parse(content);
+        assert!(fm.background);
+    }
+
+    #[tokio::test]
+    async fn test_agent_with_frontmatter_background() {
+        let temp_dir = TempDir::new().unwrap();
+        let agents_dir = temp_dir.path().join(".claude").join("agents");
+        fs::create_dir_all(&agents_dir).await.unwrap();
+
+        // Write agent file with background: true frontmatter
+        let agent_content =
+            "---\nbackground: true\nmemory: project\n---\n# BG Agent\nYou run in background.";
+        fs::write(agents_dir.join("bg_agent.md"), agent_content)
+            .await
+            .unwrap();
+
+        // Load and parse
+        let raw = AgentTool::load_agent_prompt("bg_agent", temp_dir.path())
+            .await
+            .unwrap();
+        let (fm, prompt) = AgentFrontmatter::parse(&raw);
+
+        assert!(fm.background);
+        assert_eq!(fm.memory_scope, Some(MemoryScope::Project));
+        assert!(prompt.contains("BG Agent"));
+        assert!(!prompt.contains("background: true"));
     }
 }

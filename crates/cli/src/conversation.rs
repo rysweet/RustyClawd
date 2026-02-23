@@ -87,6 +87,14 @@ pub(crate) async fn process_user_message(
 ) -> Result<()> {
     tui.push_debug("[PROCESS] Starting process_user_message".to_string());
 
+    // Check if session has been logged out
+    if crate::command_handlers::is_logged_out() {
+        tui.add_message(ChatMessage::system(
+            "Session is logged out. No API calls will be made. Restart to log back in.".to_string(),
+        ));
+        return Ok(());
+    }
+
     // Execute UserPromptSubmit hook BEFORE adding prompt to context
     if let Some(ref hooks_sys) = services.hooks {
         tui.push_debug("[PROCESS] Executing UserPromptSubmit hook".to_string());

@@ -55,7 +55,11 @@ pub(super) fn render_status_bar(frame: &mut Frame, area: Rect, app: &mut App, th
         // Show throbber + token count when streaming
         let status_text = if is_extended_thinking {
             // Extended thinking mode - show shimmer indicator with duration
-            crate::tui::thinking_indicator::render_thinking_indicator(thinking_duration)
+            crate::tui::thinking_indicator::render_thinking_indicator(
+                thinking_duration,
+                None,  // No custom tips override (could be wired from settings)
+                false, // Not reduced motion (could be wired from settings)
+            )
         } else if is_thinking {
             // Basic thinking mode - show throbber without token count
             format!("{} Thinking...", throbber)

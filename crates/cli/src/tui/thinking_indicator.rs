@@ -82,29 +82,66 @@ fn format_duration(duration: Duration) -> String {
 /// # Arguments
 ///
 /// * `duration` - Optional duration of thinking phase (None if just started)
+/// * `custom_tips` - Optional custom tips to cycle through instead of default text.
+///   When provided and non-empty, displays tips from this list in rotation
+///   based on elapsed time.
+/// * `reduced_motion` - When true, returns a static indicator without animation
+///   (accessibility support for users sensitive to motion).
 ///
 /// # Examples
 ///
 /// ```rust,no_run
 /// # use std::time::Duration;
-/// # fn render_thinking_indicator(_: Option<Duration>) -> String { String::new() }
-/// let status = render_thinking_indicator(None);
+/// # fn render_thinking_indicator(_: Option<Duration>, _: Option<&[String]>, _: bool) -> String { String::new() }
+/// let status = render_thinking_indicator(None, None, false);
 /// // Returns: "⣾⣀⣀⣀⣀⣀⣀⣀ Extended thinking..."
 ///
-/// let status = render_thinking_indicator(Some(Duration::from_secs(5)));
-/// // Returns: "⣿⣦⣀⣀⣀⣀⣀⣀ Extended thinking (5s)..."
+/// let tips = vec!["Analyzing code...".to_string(), "Reading docs...".to_string()];
+/// let status = render_thinking_indicator(None, Some(&tips), false);
+/// // Returns: "⣾⣀⣀⣀⣀⣀⣀⣀ Analyzing code..."
+///
+/// let status = render_thinking_indicator(Some(Duration::from_secs(5)), None, true);
+/// // Returns: "... Extended thinking (5s)"
 /// ```
-pub fn render_thinking_indicator(duration: Option<Duration>) -> String {
-    let shimmer = current_shimmer_frame();
+pub fn render_thinking_indicator(
+    duration: Option<Duration>,
+    custom_tips: Option<&[String]>,
+    reduced_motion: bool,
+) -> String {
+    // Determine the display text
+    let tip_text = match custom_tips {
+        Some(tips) if !tips.is_empty() => {
+            // Cycle through custom tips based on elapsed time (change every 3 seconds)
+            let cycle_idx = (std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+                / 3) as usize
+                % tips.len();
+            tips[cycle_idx].clone()
+        }
+        _ => "Extended thinking".to_string(),
+    };
 
-    if let Some(duration) = duration {
-        format!(
-            "{} Extended thinking ({})...",
-            shimmer,
-            format_duration(duration)
-        )
+    if reduced_motion {
+        // Static indicator without animated shimmer
+        if let Some(duration) = duration {
+            format!("... {} ({})", tip_text, format_duration(duration))
+        } else {
+            format!("... {}", tip_text)
+        }
     } else {
-        format!("{} Extended thinking...", shimmer)
+        let shimmer = current_shimmer_frame();
+        if let Some(duration) = duration {
+            format!(
+                "{} {} ({})...",
+                shimmer,
+                tip_text,
+                format_duration(duration)
+            )
+        } else {
+            format!("{} {}...", shimmer, tip_text)
+        }
     }
 }
 
@@ -134,15 +171,70 @@ mod tests {
     }
 
     #[test]
-    fn test_render_thinking_indicator() {
-        // Without duration
-        let status = render_thinking_indicator(None);
+    fn test_render_thinking_indicator_default() {
+        // Without duration, no custom tips, no reduced motion
+        let status = render_thinking_indicator(None, None, false);
         assert!(status.contains("Extended thinking"));
         assert!(!status.contains('('));
 
         // With duration
-        let status = render_thinking_indicator(Some(Duration::from_secs(5)));
+        let status = render_thinking_indicator(Some(Duration::from_secs(5)), None, false);
         assert!(status.contains("Extended thinking"));
         assert!(status.contains("5s"));
+    }
+
+    #[test]
+    fn test_render_thinking_indicator_custom_tips() {
+        let tips = vec!["Analyzing code".to_string(), "Reading docs".to_string()];
+
+        // Custom tips should show one of the tips, not "Extended thinking"
+        let status = render_thinking_indicator(None, Some(&tips), false);
+        assert!(
+            status.contains("Analyzing code") || status.contains("Reading docs"),
+            "Expected one of the custom tips, got: {}",
+            status
+        );
+        // Should NOT contain "Extended thinking" when custom tips are provided
+        assert!(!status.contains("Extended thinking"));
+    }
+
+    #[test]
+    fn test_render_thinking_indicator_empty_tips_falls_back() {
+        let empty_tips: Vec<String> = vec![];
+
+        // Empty tips should fall back to default "Extended thinking"
+        let status = render_thinking_indicator(None, Some(&empty_tips), false);
+        assert!(status.contains("Extended thinking"));
+    }
+
+    #[test]
+    fn test_render_thinking_indicator_reduced_motion() {
+        // Reduced motion should show static indicator (no shimmer characters)
+        let status = render_thinking_indicator(None, None, true);
+        assert!(status.starts_with("... "));
+        assert!(status.contains("Extended thinking"));
+        // Should NOT contain any shimmer frame characters
+        for frame in &SHIMMER_FRAMES {
+            assert!(
+                !status.contains(frame),
+                "Reduced motion should not contain shimmer: {}",
+                status
+            );
+        }
+
+        // With duration
+        let status = render_thinking_indicator(Some(Duration::from_secs(10)), None, true);
+        assert!(status.starts_with("... "));
+        assert!(status.contains("10s"));
+    }
+
+    #[test]
+    fn test_render_thinking_indicator_reduced_motion_with_custom_tips() {
+        let tips = vec!["Custom tip".to_string()];
+
+        let status = render_thinking_indicator(None, Some(&tips), true);
+        assert!(status.starts_with("... "));
+        assert!(status.contains("Custom tip"));
+        assert!(!status.contains("Extended thinking"));
     }
 }

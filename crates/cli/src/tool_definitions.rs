@@ -388,6 +388,11 @@ fn task_tool_definition() -> ToolDefinition {
                     "type": "boolean",
                     "description": "Run agent in background and return immediately with agent ID",
                     "default": false
+                },
+                "memory_scope": {
+                    "type": "string",
+                    "description": "Memory scope for agent memory operations (user, project, local). Defaults to agent definition frontmatter or local.",
+                    "enum": ["user", "project", "local"]
                 }
             },
             "required": ["subagent_type", "prompt", "description"]
