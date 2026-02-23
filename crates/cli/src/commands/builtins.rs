@@ -97,7 +97,7 @@ impl BuiltinCommands {
     fn exit_command() -> String {
         "Exiting session...\n\n\
          Tip: To resume this session later, use:\n  \
-         claude --resume\n\n\
+         rusty --resume\n\n\
          Goodbye!"
             .to_string()
     }

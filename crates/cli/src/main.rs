@@ -439,7 +439,7 @@ fn check_nested_session() -> Result<()> {
     Ok(())
 }
 
-/// Handle the `claude agents` subcommand — list all configured agents (v2.1.50)
+/// Handle the `agents` subcommand — list all configured agents (v2.1.50)
 fn handle_agents_command() -> Result<()> {
     let discovery = plugins::agent_discovery::AgentDiscovery::new(".");
     let agents = match discovery.discover_all() {
@@ -462,7 +462,7 @@ fn handle_agents_command() -> Result<()> {
     Ok(())
 }
 
-/// Handle the `claude auth` subcommand (v2.1.42)
+/// Handle the `auth` subcommand (v2.1.42)
 fn handle_auth_command(args: &[String]) -> Result<()> {
     let subcommand = args.first().map(|s| s.as_str()).unwrap_or("status");
     match subcommand {
