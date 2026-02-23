@@ -445,8 +445,7 @@ fn handle_agents_command() -> Result<()> {
     let agents = match discovery.discover_all() {
         Ok(a) => a,
         Err(e) => {
-            eprintln!("Error discovering agents: {}", e);
-            return Ok(());
+            return Err(anyhow::anyhow!("Error discovering agents: {}", e));
         }
     };
 

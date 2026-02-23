@@ -140,7 +140,7 @@ fn test_hook_event_permission_request() {
 }
 
 #[test]
-fn test_hook_event_all_twelve_events() {
+fn test_hook_event_all_events() {
     let events = HookEvent::all();
     assert_eq!(events.len(), 15);
     assert!(events.contains(&HookEvent::SessionStart));

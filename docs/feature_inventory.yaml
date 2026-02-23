@@ -364,8 +364,8 @@ features:
 
   - name: "PDF Pages Parameter"
     category: "tools"
-    status: complete
-    notes: "Read tool pages parameter for PDF page ranges with validation (v2.1.31)"
+    status: partial
+    notes: "Read tool schema includes pages parameter; PDF extraction deferred until library integrated (v2.1.31)"
 
   - name: "MCP OAuth"
     category: "integrations"

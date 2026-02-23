@@ -199,7 +199,22 @@ impl BuiltinCommands {
     /// Returns IPC marker so TUI can handle the rename with session context
     fn rename_command(args: &Option<String>) -> String {
         match args {
-            Some(name) => format!("[[RENAME_SESSION:{}]]", name),
+            Some(name) => {
+                // Sanitize: only allow alphanumeric, dash, underscore, space, dot
+                let sanitized: String = name
+                    .chars()
+                    .filter(|c| {
+                        c.is_alphanumeric() || *c == '-' || *c == '_' || *c == ' ' || *c == '.'
+                    })
+                    .collect();
+                if sanitized.is_empty() {
+                    "Error: Session name contains only invalid characters. \
+                     Use alphanumeric, dash, underscore, space, or dot."
+                        .to_string()
+                } else {
+                    format!("[[RENAME_SESSION:{}]]", sanitized)
+                }
+            }
             None => "[[RENAME_SESSION_AUTO]]".to_string(),
         }
     }
