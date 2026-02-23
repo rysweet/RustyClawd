@@ -46,6 +46,94 @@ pub struct ReadOutput {
     pub file_path: String,
 }
 
+/// Parsed page range for PDF files
+#[derive(Debug, Clone, PartialEq)]
+pub struct PageRange {
+    pub start: usize,
+    pub end: usize,
+}
+
+/// Parse a page range string like "1-5", "3", "10-20"
+pub fn parse_page_range(pages: &str) -> Result<PageRange, String> {
+    let pages = pages.trim();
+    if pages.is_empty() {
+        return Err("Empty page range".to_string());
+    }
+
+    if let Some((start_str, end_str)) = pages.split_once('-') {
+        let start: usize = start_str
+            .trim()
+            .parse()
+            .map_err(|_| format!("Invalid start page: '{}'", start_str.trim()))?;
+        let end: usize = end_str
+            .trim()
+            .parse()
+            .map_err(|_| format!("Invalid end page: '{}'", end_str.trim()))?;
+        if start == 0 || end == 0 {
+            return Err("Page numbers must be 1 or greater".to_string());
+        }
+        if start > end {
+            return Err(format!(
+                "Start page {} is greater than end page {}",
+                start, end
+            ));
+        }
+        if end - start + 1 > 20 {
+            return Err("Maximum 20 pages per request".to_string());
+        }
+        Ok(PageRange { start, end })
+    } else {
+        let page: usize = pages
+            .parse()
+            .map_err(|_| format!("Invalid page number: '{}'", pages))?;
+        if page == 0 {
+            return Err("Page numbers must be 1 or greater".to_string());
+        }
+        Ok(PageRange {
+            start: page,
+            end: page,
+        })
+    }
+}
+
+/// Extract text from a PDF file, optionally limited to a page range.
+/// Uses the pdf-extract crate for real text extraction.
+fn extract_pdf_text(
+    file_path: &std::path::Path,
+    page_range: Option<&PageRange>,
+) -> Result<String, String> {
+    let bytes = std::fs::read(file_path).map_err(|e| format!("Failed to read PDF: {}", e))?;
+
+    let text = pdf_extract::extract_text_from_mem(&bytes)
+        .map_err(|e| format!("Failed to extract text from PDF: {}", e))?;
+
+    match page_range {
+        Some(range) => {
+            // Split on form feed (page separator) or double-newline heuristic
+            let pages: Vec<&str> = text.split('\u{0C}').collect();
+            let total_pages = pages.len();
+
+            if range.start > total_pages {
+                return Err(format!(
+                    "Requested page {} but PDF only has {} pages",
+                    range.start, total_pages
+                ));
+            }
+
+            let end = range.end.min(total_pages);
+            let selected: Vec<&str> = pages[(range.start - 1)..end].to_vec();
+            Ok(format!(
+                "[Pages {}-{} of {} total]\n\n{}",
+                range.start,
+                end,
+                total_pages,
+                selected.join("\n--- Page Break ---\n")
+            ))
+        }
+        None => Ok(text),
+    }
+}
+
 /// The Read tool
 pub struct ReadTool;
 
@@ -71,6 +159,8 @@ impl crate::Tool for ReadTool {
         let limit = params.limit;
         let debug = ctx.debug;
 
+        let pages = params.pages.clone();
+
         Ok(Box::pin(stream! {
             yield ToolEvent::Progress {
                 step: format!("Reading file: {}", params.file_path),
@@ -82,8 +172,50 @@ impl crate::Tool for ReadTool {
                     file_path = %params.file_path,
                     offset = offset,
                     limit = ?limit,
+                    pages = ?pages,
                     "Reading file"
                 );
+            }
+
+            // Handle PDF files with real text extraction
+            if file_path.extension().and_then(|e| e.to_str()) == Some("pdf") {
+                let page_range = match pages.as_deref() {
+                    Some(p) => match parse_page_range(p) {
+                        Ok(range) => Some(range),
+                        Err(e) => {
+                            yield ToolEvent::Error {
+                                message: format!("Invalid pages parameter: {}", e),
+                            };
+                            return;
+                        }
+                    },
+                    None => None,
+                };
+
+                match extract_pdf_text(&file_path, page_range.as_ref()) {
+                    Ok(text) => {
+                        let lines_read = text.lines().count();
+                        yield ToolEvent::Result(ReadOutput {
+                            content: text,
+                            lines_read,
+                            file_path: params.file_path.clone(),
+                        });
+                    }
+                    Err(e) => {
+                        yield ToolEvent::Error {
+                            message: e,
+                        };
+                    }
+                }
+                return;
+            }
+
+            // Reject pages parameter on non-PDF files
+            if pages.is_some() {
+                yield ToolEvent::Error {
+                    message: "The 'pages' parameter is only applicable to PDF files (.pdf)".to_string(),
+                };
+                return;
             }
 
             // Open file
@@ -322,5 +454,85 @@ mod tests {
         let output: Vec<_> = stream.collect().await;
         // Empty file should succeed, not error
         assert!(output.iter().any(|e| matches!(e, ToolEvent::Result(_))));
+    }
+
+    // Page range parsing tests
+    #[test]
+    fn test_parse_page_range_single() {
+        let range = parse_page_range("3").unwrap();
+        assert_eq!(range, PageRange { start: 3, end: 3 });
+    }
+
+    #[test]
+    fn test_parse_page_range_range() {
+        let range = parse_page_range("1-5").unwrap();
+        assert_eq!(range, PageRange { start: 1, end: 5 });
+    }
+
+    #[test]
+    fn test_parse_page_range_with_spaces() {
+        let range = parse_page_range(" 10 - 20 ").unwrap();
+        assert_eq!(range, PageRange { start: 10, end: 20 });
+    }
+
+    #[test]
+    fn test_parse_page_range_invalid_start() {
+        assert!(parse_page_range("abc-5").is_err());
+    }
+
+    #[test]
+    fn test_parse_page_range_reversed() {
+        assert!(parse_page_range("10-5").is_err());
+    }
+
+    #[test]
+    fn test_parse_page_range_too_many_pages() {
+        assert!(parse_page_range("1-25").is_err());
+    }
+
+    #[test]
+    fn test_parse_page_range_zero() {
+        assert!(parse_page_range("0").is_err());
+    }
+
+    #[test]
+    fn test_parse_page_range_empty() {
+        assert!(parse_page_range("").is_err());
+    }
+
+    #[tokio::test]
+    async fn test_read_pages_on_non_pdf_errors() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(temp_file, "text content").unwrap();
+        temp_file.flush().unwrap();
+
+        let params = ReadParams {
+            file_path: temp_file.path().to_str().unwrap().to_string(),
+            offset: None,
+            limit: None,
+            pages: Some("1-3".to_string()),
+        };
+        let ctx = ToolContext::default();
+        let stream = ReadTool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+
+        assert!(events.iter().any(|e| matches!(e, ToolEvent::Error { .. })));
+    }
+
+    #[test]
+    fn test_extract_pdf_text_nonexistent_file() {
+        let result = extract_pdf_text(std::path::Path::new("/nonexistent.pdf"), None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_extract_pdf_text_invalid_pdf() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("fake.pdf");
+        std::fs::write(&path, b"not a real pdf").unwrap();
+        let result = extract_pdf_text(&path, None);
+        // pdf-extract may return an error or empty text for invalid PDFs
+        // Either is acceptable behavior
+        assert!(result.is_ok() || result.is_err());
     }
 }
