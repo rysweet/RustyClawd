@@ -89,6 +89,7 @@ fn test_mcp_proxy_resource_initialization() {
         args: vec!["server.js".to_string()],
         env: HashMap::new(),
         description: Some("Test MCP server".to_string()),
+        startup_timeout: None,
     };
 
     proxy.register_server(server_def);
@@ -112,6 +113,7 @@ fn test_mcp_proxy_list_resources_not_started() {
         args: vec![],
         env: HashMap::new(),
         description: None,
+        startup_timeout: None,
     };
 
     proxy.register_server(server_def);
@@ -139,6 +141,7 @@ async fn test_mcp_proxy_read_resource_not_started() {
         args: vec![],
         env: HashMap::new(),
         description: None,
+        startup_timeout: None,
     };
 
     proxy.register_server(server_def);
@@ -276,6 +279,7 @@ fn test_mcp_proxy_multiple_servers() {
             args: vec![],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
         proxy.register_server(server_def);
     }

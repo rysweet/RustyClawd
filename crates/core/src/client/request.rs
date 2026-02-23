@@ -3,8 +3,12 @@
 //! Contains `CreateMessageRequest`, builder methods, `Speed`, `ThinkingConfig`, and `Metadata`.
 
 use serde::{Deserialize, Serialize};
+use std::env;
 
 use super::types::{ExtraToolSchema, Message, ToolChoice, ToolDefinition};
+
+/// Maximum tokens when 1M context is disabled via env var
+const MAX_TOKENS_WITHOUT_1M_CONTEXT: u32 = 200_000;
 
 /// Speed mode for the API request.
 ///
@@ -84,11 +88,15 @@ pub struct Metadata {
 }
 
 impl CreateMessageRequest {
-    /// Create a simple text request
+    /// Create a simple text request.
+    ///
+    /// If `CLAUDE_CODE_DISABLE_1M_CONTEXT` is set to `"1"` or `"true"`,
+    /// `max_tokens` is capped at 200,000.
     pub fn new(model: impl Into<String>, messages: Vec<Message>, max_tokens: u32) -> Self {
+        let effective_max_tokens = Self::apply_context_limit(max_tokens);
         Self {
             model: model.into(),
-            max_tokens,
+            max_tokens: effective_max_tokens,
             messages,
             system: None,
             temperature: None,
@@ -102,6 +110,23 @@ impl CreateMessageRequest {
             extra_tool_schemas: None,
             thinking: None,
             speed: None,
+        }
+    }
+
+    /// Returns true if the `CLAUDE_CODE_DISABLE_1M_CONTEXT` env var is active.
+    fn is_1m_context_disabled() -> bool {
+        match env::var("CLAUDE_CODE_DISABLE_1M_CONTEXT") {
+            Ok(val) => val == "1" || val.eq_ignore_ascii_case("true"),
+            Err(_) => false,
+        }
+    }
+
+    /// Cap `max_tokens` when 1M context is disabled.
+    fn apply_context_limit(max_tokens: u32) -> u32 {
+        if Self::is_1m_context_disabled() && max_tokens > MAX_TOKENS_WITHOUT_1M_CONTEXT {
+            MAX_TOKENS_WITHOUT_1M_CONTEXT
+        } else {
+            max_tokens
         }
     }
 
@@ -337,5 +362,145 @@ mod fast_mode_tests {
 
         let result = request.validate();
         assert!(result.is_err(), "Substring model name should be rejected");
+    }
+}
+
+#[cfg(test)]
+mod disable_1m_context_tests {
+    use super::*;
+    use std::env;
+    use std::sync::Mutex;
+
+    // Mutex to prevent parallel env var mutation from causing flaky tests
+    static ENV_MUTEX: Mutex<()> = Mutex::new(());
+
+    fn with_env_var<F: FnOnce()>(key: &str, value: &str, f: F) {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        let prev = env::var(key).ok();
+        env::set_var(key, value);
+        f();
+        match prev {
+            Some(v) => env::set_var(key, v),
+            None => env::remove_var(key),
+        }
+    }
+
+    fn without_env_var<F: FnOnce()>(key: &str, f: F) {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        let prev = env::var(key).ok();
+        env::remove_var(key);
+        f();
+        if let Some(v) = prev {
+            env::set_var(key, v);
+        }
+    }
+
+    #[test]
+    fn test_env_var_unset_does_not_limit() {
+        without_env_var("CLAUDE_CODE_DISABLE_1M_CONTEXT", || {
+            let request = CreateMessageRequest::new(
+                "claude-3-5-sonnet-20241022",
+                vec![Message::user("Test")],
+                1_000_000,
+            );
+            assert_eq!(request.max_tokens, 1_000_000);
+        });
+    }
+
+    #[test]
+    fn test_env_var_set_to_1_limits_tokens() {
+        with_env_var("CLAUDE_CODE_DISABLE_1M_CONTEXT", "1", || {
+            let request = CreateMessageRequest::new(
+                "claude-3-5-sonnet-20241022",
+                vec![Message::user("Test")],
+                1_000_000,
+            );
+            assert_eq!(request.max_tokens, 200_000);
+        });
+    }
+
+    #[test]
+    fn test_env_var_set_to_true_limits_tokens() {
+        with_env_var("CLAUDE_CODE_DISABLE_1M_CONTEXT", "true", || {
+            let request = CreateMessageRequest::new(
+                "claude-3-5-sonnet-20241022",
+                vec![Message::user("Test")],
+                500_000,
+            );
+            assert_eq!(request.max_tokens, 200_000);
+        });
+    }
+
+    #[test]
+    fn test_env_var_true_case_insensitive() {
+        with_env_var("CLAUDE_CODE_DISABLE_1M_CONTEXT", "TRUE", || {
+            let request = CreateMessageRequest::new(
+                "claude-3-5-sonnet-20241022",
+                vec![Message::user("Test")],
+                1_000_000,
+            );
+            assert_eq!(request.max_tokens, 200_000);
+        });
+    }
+
+    #[test]
+    fn test_env_var_does_not_limit_small_values() {
+        with_env_var("CLAUDE_CODE_DISABLE_1M_CONTEXT", "1", || {
+            let request = CreateMessageRequest::new(
+                "claude-3-5-sonnet-20241022",
+                vec![Message::user("Test")],
+                4096,
+            );
+            assert_eq!(request.max_tokens, 4096);
+        });
+    }
+
+    #[test]
+    fn test_env_var_set_to_0_does_not_limit() {
+        with_env_var("CLAUDE_CODE_DISABLE_1M_CONTEXT", "0", || {
+            let request = CreateMessageRequest::new(
+                "claude-3-5-sonnet-20241022",
+                vec![Message::user("Test")],
+                1_000_000,
+            );
+            assert_eq!(request.max_tokens, 1_000_000);
+        });
+    }
+
+    #[test]
+    fn test_env_var_set_to_false_does_not_limit() {
+        with_env_var("CLAUDE_CODE_DISABLE_1M_CONTEXT", "false", || {
+            let request = CreateMessageRequest::new(
+                "claude-3-5-sonnet-20241022",
+                vec![Message::user("Test")],
+                1_000_000,
+            );
+            assert_eq!(request.max_tokens, 1_000_000);
+        });
+    }
+
+    #[test]
+    fn test_env_var_boundary_at_200000() {
+        with_env_var("CLAUDE_CODE_DISABLE_1M_CONTEXT", "1", || {
+            let request = CreateMessageRequest::new(
+                "claude-3-5-sonnet-20241022",
+                vec![Message::user("Test")],
+                200_000,
+            );
+            // Exactly 200000 should not be reduced
+            assert_eq!(request.max_tokens, 200_000);
+        });
+    }
+
+    #[test]
+    fn test_env_var_boundary_at_200001() {
+        with_env_var("CLAUDE_CODE_DISABLE_1M_CONTEXT", "1", || {
+            let request = CreateMessageRequest::new(
+                "claude-3-5-sonnet-20241022",
+                vec![Message::user("Test")],
+                200_001,
+            );
+            assert_eq!(request.max_tokens, 200_000);
+        });
     }
 }

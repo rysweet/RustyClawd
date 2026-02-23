@@ -104,6 +104,16 @@ impl SettingsHierarchy {
             for (plugin, enabled) in &settings.enabled_plugins {
                 result.enabled_plugins.insert(plugin.clone(), *enabled);
             }
+
+            // Spinner tips override - highest priority wins
+            if settings.spinner_tips_override.is_some() {
+                result.spinner_tips_override = settings.spinner_tips_override.clone();
+            }
+
+            // Reduced motion - sticky: once set to true, stays true
+            if settings.reduced_motion {
+                result.reduced_motion = true;
+            }
         }
 
         result
@@ -158,6 +168,12 @@ impl SettingsHierarchy {
             }
             if !settings.enabled_plugins.is_empty() {
                 parts.push(format!("plugins:{}", settings.enabled_plugins.len()));
+            }
+            if settings.spinner_tips_override.is_some() {
+                parts.push("spinner_tips".to_string());
+            }
+            if settings.reduced_motion {
+                parts.push("reduced_motion".to_string());
             }
 
             if parts.is_empty() {

@@ -128,7 +128,7 @@ pub(crate) fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientErr
         ),
         "Task" => (
             vec!["subagent_type", "prompt", "description"],
-            vec!["model", "resume", "run_in_background"],
+            vec!["model", "resume", "run_in_background", "memory_scope"],
             json!({
                 "subagent_type": "agent_name",
                 "prompt": "Full task description for the agent",

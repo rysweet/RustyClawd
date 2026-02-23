@@ -137,6 +137,9 @@ impl AgentDiscovery {
                     Some(runtime_agent.allowed_tools.clone())
                 },
                 disallowed_tools: runtime_agent.disallowed_tools.clone(),
+                isolation: None,
+                background: false,
+                memory: None,
             });
         }
 
@@ -196,9 +199,12 @@ impl AgentDiscovery {
             name,
             description,
             path: relative_path,
-            model: None,              // Use default model
-            allowed_tools: None, // No allowed tools restriction by default for file-based agents
-            disallowed_tools: vec![], // No disallowed tools by default for file-based agents
+            model: None,
+            allowed_tools: None,
+            disallowed_tools: vec![],
+            isolation: None,
+            background: false,
+            memory: None,
         }))
     }
 

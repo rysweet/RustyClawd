@@ -70,13 +70,14 @@ impl McpProxy {
         // Create connection based on transport type
         let mut connection = match transport {
             McpTransportConfig::Stdio { command, args } => {
-                // Extract env before async call
-                let env = self
+                // Extract env and startup_timeout before async call
+                let (env, startup_timeout) = self
                     .servers
                     .get(server_id)
-                    .map(|s| s.definition.env.clone())
+                    .map(|s| (s.definition.env.clone(), s.definition.startup_timeout))
                     .unwrap_or_default();
-                mcp_transport::start_stdio_connection(&command, &args, &env).await?
+                mcp_transport::start_stdio_connection(&command, &args, &env, startup_timeout)
+                    .await?
             }
             McpTransportConfig::Http { url, headers } => {
                 mcp_transport::start_http_connection(&url, headers.as_ref()).await?
@@ -507,6 +508,7 @@ mod tests {
             args: vec!["server.js".to_string()],
             env: HashMap::new(),
             description: Some("Test MCP server".to_string()),
+            startup_timeout: None,
         };
 
         proxy.register_server(definition);
@@ -525,6 +527,7 @@ mod tests {
             args: vec![],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
 
         proxy.register_server(definition);
@@ -544,6 +547,7 @@ mod tests {
             args: vec![],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
 
         proxy.register_server(definition);
@@ -576,6 +580,7 @@ mod tests {
             args: vec![],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
 
         proxy.register_server(definition);
@@ -616,6 +621,7 @@ mod tests {
             args: vec![],
             env: HashMap::new(),
             description: Some("HTTP MCP server".to_string()),
+            startup_timeout: None,
         };
 
         proxy.register_server(definition);
@@ -642,6 +648,7 @@ mod tests {
             args: vec![],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
 
         proxy.register_server(definition);
@@ -664,6 +671,7 @@ mod tests {
             args: vec![],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
 
         // Register HTTP server
@@ -678,6 +686,7 @@ mod tests {
             args: vec![],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
 
         proxy.register_server(stdio_def);
@@ -701,6 +710,7 @@ mod tests {
             args: vec!["-m".to_string(), "mcp_server".to_string()],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
 
         proxy.register_server(definition.clone());
@@ -799,6 +809,7 @@ mod integration_tests {
             args: vec![],
             env: HashMap::new(),
             description: None,
+            startup_timeout: None,
         };
 
         proxy.register_server(definition);

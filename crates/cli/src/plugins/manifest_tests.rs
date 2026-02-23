@@ -65,6 +65,7 @@ fn test_mcp_transport_backward_compatibility() {
         args: vec!["server.js".to_string()],
         env: HashMap::new(),
         description: None,
+        startup_timeout: None,
     };
 
     let transport = server.get_transport().unwrap();
@@ -85,6 +86,7 @@ fn test_mcp_transport_new_stdio_format() {
         args: vec![],
         env: HashMap::new(),
         description: None,
+        startup_timeout: None,
     };
 
     let transport = server.get_transport().unwrap();
@@ -107,6 +109,7 @@ fn test_mcp_transport_http() {
         args: vec![],
         env: HashMap::new(),
         description: None,
+        startup_timeout: None,
     };
 
     let transport = server.get_transport().unwrap();
@@ -155,6 +158,9 @@ fn test_agent_definition_serialization_skips_empty_disallowed_tools() {
         model: None,
         allowed_tools: None,
         disallowed_tools: vec![],
+        isolation: None,
+        background: false,
+        memory: None,
     };
 
     let json = serde_json::to_string(&agent).unwrap();
@@ -172,6 +178,9 @@ fn test_agent_definition_serialization_includes_non_empty_disallowed_tools() {
         model: None,
         allowed_tools: None,
         disallowed_tools: vec!["Bash".to_string()],
+        isolation: None,
+        background: false,
+        memory: None,
     };
 
     let json = serde_json::to_string(&agent).unwrap();
@@ -231,6 +240,9 @@ fn test_agent_definition_serialization_skips_none_allowed_tools() {
         model: None,
         disallowed_tools: vec![],
         allowed_tools: None,
+        isolation: None,
+        background: false,
+        memory: None,
     };
 
     let json = serde_json::to_string(&agent).unwrap();
@@ -248,6 +260,9 @@ fn test_agent_definition_serialization_includes_non_empty_allowed_tools() {
         model: None,
         disallowed_tools: vec![],
         allowed_tools: Some(vec!["Read".to_string(), "Grep".to_string()]),
+        isolation: None,
+        background: false,
+        memory: None,
     };
 
     let json = serde_json::to_string(&agent).unwrap();

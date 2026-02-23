@@ -201,6 +201,15 @@ pub struct HooksConfiguration {
     /// Allows teams to coordinate task hand-off and track progress.
     #[serde(rename = "TaskCompleted", default)]
     pub task_completed: Vec<HookConfig>,
+    /// WorktreeCreate hooks fire when a git worktree is created for agent isolation (v2.1.50).
+    #[serde(rename = "WorktreeCreate", default)]
+    pub worktree_create: Vec<HookConfig>,
+    /// WorktreeRemove hooks fire when a git worktree is removed after agent completes (v2.1.50).
+    #[serde(rename = "WorktreeRemove", default)]
+    pub worktree_remove: Vec<HookConfig>,
+    /// ConfigChange hooks fire when a configuration file changes on disk (v2.1.49).
+    #[serde(rename = "ConfigChange", default)]
+    pub config_change: Vec<HookConfig>,
 }
 
 impl HooksConfiguration {
@@ -219,6 +228,9 @@ impl HooksConfiguration {
             HookEvent::PermissionRequest => &self.permission_request,
             HookEvent::TeammateIdle => &self.teammate_idle,
             HookEvent::TaskCompleted => &self.task_completed,
+            HookEvent::WorktreeCreate => &self.worktree_create,
+            HookEvent::WorktreeRemove => &self.worktree_remove,
+            HookEvent::ConfigChange => &self.config_change,
         }
     }
 }

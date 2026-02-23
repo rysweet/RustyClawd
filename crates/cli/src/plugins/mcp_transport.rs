@@ -13,11 +13,14 @@ use tokio::process::{Child as TokioChild, Command as TokioCommand};
 
 use super::mcp_types::{McpConnection, McpRequest, McpResponse};
 
-/// Start a stdio connection to an MCP server process
+/// Start a stdio connection to an MCP server process.
+/// If `startup_timeout_ms` is provided, the server must have its stdout ready
+/// within that time or the connection is considered failed.
 pub async fn start_stdio_connection(
     command: &str,
     args: &[String],
     env: &HashMap<String, String>,
+    startup_timeout_ms: Option<u64>,
 ) -> Result<McpConnection, String> {
     let mut cmd = TokioCommand::new(command);
     cmd.args(args);
@@ -26,9 +29,22 @@ pub async fn start_stdio_connection(
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
 
-    let child = cmd
-        .spawn()
-        .map_err(|e| format!("Failed to start MCP server: {}", e))?;
+    let spawn_result = if let Some(timeout_ms) = startup_timeout_ms {
+        let timeout = std::time::Duration::from_millis(timeout_ms);
+        match tokio::time::timeout(timeout, async { cmd.spawn() }).await {
+            Ok(result) => result,
+            Err(_) => {
+                return Err(format!(
+                    "MCP server '{}' failed to start within {}ms timeout",
+                    command, timeout_ms
+                ));
+            }
+        }
+    } else {
+        cmd.spawn()
+    };
+
+    let child = spawn_result.map_err(|e| format!("Failed to start MCP server: {}", e))?;
 
     Ok(McpConnection::Stdio {
         process: child,

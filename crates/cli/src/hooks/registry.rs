@@ -54,6 +54,9 @@ impl HookRegistry {
             HookEvent::PermissionRequest => &mut self.configuration.permission_request,
             HookEvent::TeammateIdle => &mut self.configuration.teammate_idle,
             HookEvent::TaskCompleted => &mut self.configuration.task_completed,
+            HookEvent::WorktreeCreate => &mut self.configuration.worktree_create,
+            HookEvent::WorktreeRemove => &mut self.configuration.worktree_remove,
+            HookEvent::ConfigChange => &mut self.configuration.config_change,
         };
         hooks.push(config);
     }
@@ -73,6 +76,9 @@ impl HookRegistry {
             HookEvent::PermissionRequest => &mut self.configuration.permission_request,
             HookEvent::TeammateIdle => &mut self.configuration.teammate_idle,
             HookEvent::TaskCompleted => &mut self.configuration.task_completed,
+            HookEvent::WorktreeCreate => &mut self.configuration.worktree_create,
+            HookEvent::WorktreeRemove => &mut self.configuration.worktree_remove,
+            HookEvent::ConfigChange => &mut self.configuration.config_change,
         };
         hooks.clear();
     }

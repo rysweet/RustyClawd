@@ -122,6 +122,10 @@ fn read_tool_definition() -> ToolDefinition {
                 "limit": {
                     "type": "integer",
                     "description": "The number of lines to read"
+                },
+                "pages": {
+                    "type": "string",
+                    "description": "Page range for PDF files (e.g., \"1-5\", \"3\", \"10-20\"). Only applicable to PDF files. Maximum 20 pages per request."
                 }
             },
             "required": ["file_path"]
@@ -384,6 +388,11 @@ fn task_tool_definition() -> ToolDefinition {
                     "type": "boolean",
                     "description": "Run agent in background and return immediately with agent ID",
                     "default": false
+                },
+                "memory_scope": {
+                    "type": "string",
+                    "description": "Memory scope for agent memory operations (user, project, local). Defaults to agent definition frontmatter or local.",
+                    "enum": ["user", "project", "local"]
                 }
             },
             "required": ["subagent_type", "prompt", "description"]

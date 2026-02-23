@@ -33,6 +33,16 @@ use crate::tui::{ChatMessage, TuiState};
 use anyhow::Result;
 use rustyclawd_core::{Context, Message};
 use rustyclawd_tools::{list_available_skills, load_skill_content};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+/// Global flag indicating whether the session has been logged out.
+/// When true, API calls should be prevented.
+static LOGGED_OUT: AtomicBool = AtomicBool::new(false);
+
+/// Check whether the session is currently logged out.
+pub(crate) fn is_logged_out() -> bool {
+    LOGGED_OUT.load(Ordering::Relaxed)
+}
 
 /// Helper function to get current working directory as string
 fn get_cwd_string() -> String {
@@ -88,6 +98,14 @@ pub(crate) async fn handle_command(
             tui.set_status("Conversation cleared".to_string());
             return Ok(true);
         }
+        "/logout" => {
+            handle_logout_command(tui);
+            return Ok(true);
+        }
+        "/debug" => {
+            handle_debug_command(tui, context, services, stats);
+            return Ok(true);
+        }
         "/compact" => {
             handle_compact_command(tui, services).await?;
             return Ok(true);
@@ -114,6 +132,10 @@ pub(crate) async fn handle_command(
         }
         "/bashes" => {
             handle_bashes_command(tui).await?;
+            return Ok(true);
+        }
+        _ if input.starts_with("/rename") => {
+            handle_rename_command(input, tui, context, persistence);
             return Ok(true);
         }
         _ if input.starts_with("/save") => {
@@ -259,7 +281,7 @@ async fn handle_compact_command(tui: &mut TuiState, services: &SessionServices) 
 /// Handle /help command.
 async fn handle_help_command(tui: &mut TuiState, slash_commands: &SlashCommands) {
     let custom_commands = slash_commands.list_commands();
-    let mut help_text = "Built-in Commands:\n  /exit, /quit - Exit the session\n  /clear - Clear conversation history\n  /compact - Compact conversation history (fires PreCompact hook)\n  /help - Show this help\n  /stats - Show session statistics\n  /save [description] - Save checkpoint\n  /load <checkpoint_id> - Load checkpoint\n  /sessions - List available sessions\n  !<command> - Execute shell command directly\n\nKeyboard Shortcuts:\n  F1 - Toggle debug panel\n\nTip: Text selection works natively - just click and drag in the messages window.\n\nMCP Commands:\n  /mcp-list - List all MCP servers\n  /mcp-start <server-id> - Start an MCP server\n  /mcp-stop <server-id> - Stop an MCP server\n  /mcp-tools <server-id> - List tools from server\n  /mcp-status <server-id> - Show server status\n".to_string();
+    let mut help_text = "Built-in Commands:\n  /exit, /quit - Exit the session\n  /clear - Clear conversation history\n  /compact - Compact conversation history (fires PreCompact hook)\n  /help - Show this help\n  /stats - Show session statistics\n  /debug - Show debug information (version, model, tokens, etc.)\n  /logout - Log out and prevent further API calls\n  /rename [name] - Rename current session (auto-generates name if omitted)\n  /save [description] - Save checkpoint\n  /load <checkpoint_id> - Load checkpoint\n  /sessions - List available sessions\n  !<command> - Execute shell command directly\n\nKeyboard Shortcuts:\n  F1 - Toggle debug panel\n\nTip: Text selection works natively - just click and drag in the messages window.\n\nMCP Commands:\n  /mcp-list - List all MCP servers\n  /mcp-start <server-id> - Start an MCP server\n  /mcp-stop <server-id> - Stop an MCP server\n  /mcp-tools <server-id> - List tools from server\n  /mcp-status <server-id> - Show server status\n".to_string();
 
     if !custom_commands.is_empty() {
         help_text.push_str("\nCustom Commands:\n");
@@ -354,4 +376,172 @@ async fn handle_custom_slash_command(
 
     // Unknown command - pass through to Claude
     Ok(false)
+}
+
+/// Handle /logout command.
+///
+/// Sets a global flag to prevent further API calls without unsetting env vars
+/// (which is unsafe across threads). The session remains open for reviewing
+/// conversation history and running local commands.
+fn handle_logout_command(tui: &mut TuiState) {
+    LOGGED_OUT.store(true, Ordering::Relaxed);
+    tui.add_message(ChatMessage::system(
+        "Logged out. Session will no longer make API calls.\n\
+         You can still review conversation history and run local commands.\n\
+         Restart the application to log back in."
+            .to_string(),
+    ));
+    tui.set_status("Logged out".to_string());
+}
+
+/// Handle /rename command.
+///
+/// Renames the current session. If a name is provided (e.g. `/rename my-session`),
+/// uses that name. If no name is provided, auto-generates a name from the first
+/// user message in the conversation.
+fn handle_rename_command(
+    input: &str,
+    tui: &mut TuiState,
+    context: &Context,
+    persistence: &mut Option<SessionPersistence>,
+) {
+    let new_name = input.strip_prefix("/rename").unwrap_or("").trim();
+
+    let new_name = if new_name.is_empty() {
+        // Auto-generate name from the first user message
+        let first_user_msg = context
+            .messages()
+            .iter()
+            .find(|m| m.role == rustyclawd_core::MessageRole::User);
+
+        match first_user_msg {
+            Some(msg) => {
+                // Take first 40 chars, replace spaces with dashes, lowercase
+                let sanitized: String = msg
+                    .content
+                    .chars()
+                    .take(40)
+                    .map(|c| {
+                        if c.is_alphanumeric() {
+                            c.to_ascii_lowercase()
+                        } else {
+                            '-'
+                        }
+                    })
+                    .collect::<String>()
+                    .trim_matches('-')
+                    .to_string();
+                if sanitized.is_empty() {
+                    "unnamed-session".to_string()
+                } else {
+                    sanitized
+                }
+            }
+            None => "unnamed-session".to_string(),
+        }
+    } else {
+        new_name.to_string()
+    };
+
+    if let Some(ref current_persistence) = persistence {
+        // Save current state under the new session name by creating a new
+        // SessionPersistence with the desired name and saving messages into it.
+        let messages: Vec<rustyclawd_core::Message> = context.messages().to_vec();
+        let old_id = current_persistence.session_id().to_string();
+
+        match SessionPersistence::new(&new_name) {
+            Ok(mut new_persistence) => {
+                match new_persistence.save_checkpoint(&messages, format!("Renamed from {}", old_id))
+                {
+                    Ok(_) => {
+                        // Replace the old persistence with the new one
+                        *persistence = Some(new_persistence);
+                        tui.add_message(ChatMessage::system(format!(
+                            "Session renamed: {} -> {}",
+                            old_id, new_name
+                        )));
+                    }
+                    Err(e) => {
+                        tui.add_message(ChatMessage::system(format!(
+                            "Failed to save renamed session: {}",
+                            e
+                        )));
+                    }
+                }
+            }
+            Err(e) => {
+                tui.add_message(ChatMessage::system(format!(
+                    "Failed to create session '{}': {}",
+                    new_name, e
+                )));
+            }
+        }
+    } else {
+        tui.add_message(ChatMessage::system(
+            "Session persistence not available".to_string(),
+        ));
+    }
+}
+
+/// Handle /debug command.
+///
+/// Displays real debug information about the current session state including
+/// version, OS, model, session ID, API key status, permissions, message count,
+/// and token usage.
+fn handle_debug_command(
+    tui: &mut TuiState,
+    context: &Context,
+    services: &SessionServices,
+    stats: &crate::session::SessionStats,
+) {
+    let version = env!("CARGO_PKG_VERSION");
+    let os = std::env::consts::OS;
+    let arch = std::env::consts::ARCH;
+    let model = &services.model;
+    let session_id = &services.session_id;
+    let api_key_status = if std::env::var("ANTHROPIC_API_KEY").is_ok() {
+        "Set"
+    } else {
+        "Not set"
+    };
+    let permission_mode = services.permission_mode.status_indicator();
+    let message_count = context.messages().len();
+    let total_tokens = stats.total_tokens;
+    let input_tokens = stats.input_tokens;
+    let output_tokens = stats.output_tokens;
+    let tool_calls = stats.tool_calls;
+    let logged_out = is_logged_out();
+
+    let debug_info = format!(
+        "Debug Information:\n\
+         \n\
+           Version:         {}\n\
+           OS:              {}\n\
+           Architecture:    {}\n\
+           Model:           {}\n\
+           Session ID:      {}\n\
+           API Key:         {}\n\
+           Logged Out:      {}\n\
+           Permission Mode: {}\n\
+           Messages:        {}\n\
+           Total Tokens:    {}\n\
+           Input Tokens:    {}\n\
+           Output Tokens:   {}\n\
+           Tool Calls:      {}",
+        version,
+        os,
+        arch,
+        model,
+        session_id,
+        api_key_status,
+        logged_out,
+        permission_mode,
+        message_count,
+        total_tokens,
+        input_tokens,
+        output_tokens,
+        tool_calls,
+    );
+
+    tui.add_message(ChatMessage::system(debug_info));
 }

@@ -170,4 +170,12 @@ pub(crate) enum Commands {
         #[arg(long)]
         model: Option<String>,
     },
+    /// List all configured agents (v2.1.50)
+    Agents,
+    /// Manage authentication
+    Auth {
+        /// Auth subcommand: login, status, logout
+        #[arg(trailing_var_arg = true)]
+        args: Vec<String>,
+    },
 }

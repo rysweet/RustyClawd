@@ -425,23 +425,128 @@ impl App {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    // CRITICAL: Set COLORTERM for Windows Terminal + WSL RGB color support
-    // Windows Terminal doesn't set COLORTERM automatically in WSL, causing RGB
-    // colors to be rendered incorrectly. This is a known issue with crossterm
-    // and ratatui on Windows Terminal + WSL.
-    // See: https://github.com/microsoft/terminal/issues/11057
-    if std::env::var("COLORTERM").is_err() {
-        std::env::set_var("COLORTERM", "truecolor");
+/// Check for nested session (v2.1.41).
+/// Only warns if CLAUDE_CODE_NESTED_GUARD is set (our own marker),
+/// not CLAUDE_CODE_SESSION (which other tools may set).
+fn check_nested_session() -> Result<()> {
+    if std::env::var("CLAUDE_CODE_NESTED_GUARD").is_ok() {
+        return Err(anyhow::anyhow!(
+            "Error: Cannot launch RustyClawd inside another active session.\n\
+             A nested invocation was detected.\n\
+             Please exit the current session first, then start a new one."
+        ));
+    }
+    Ok(())
+}
+
+/// Handle the `agents` subcommand — list all configured agents (v2.1.50)
+fn handle_agents_command() -> Result<()> {
+    let discovery = plugins::agent_discovery::AgentDiscovery::new(".");
+    let agents = match discovery.discover_all() {
+        Ok(a) => a,
+        Err(e) => {
+            return Err(anyhow::anyhow!("Error discovering agents: {}", e));
+        }
+    };
+
+    if agents.is_empty() {
+        println!("No agents found in .claude/agents/");
+        return Ok(());
     }
 
-    // Parse CLI arguments
+    println!("Configured agents:\n");
+    for agent in agents {
+        println!("  {} - {}", agent.id, agent.description);
+    }
+    Ok(())
+}
+
+/// Handle the `auth` subcommand (v2.1.42)
+fn handle_auth_command(args: &[String]) -> Result<()> {
+    let subcommand = args.first().map(|s| s.as_str()).unwrap_or("status");
+    match subcommand {
+        "login" => {
+            let has_key = std::env::var("ANTHROPIC_API_KEY").is_ok();
+            if has_key {
+                println!("Already authenticated via ANTHROPIC_API_KEY environment variable.");
+            } else {
+                println!(
+                    "To authenticate, set your API key:\n  \
+                     export ANTHROPIC_API_KEY=your-key-here\n\n\
+                     You can find your API key at: https://console.anthropic.com"
+                );
+            }
+        }
+        "status" => {
+            let has_key = std::env::var("ANTHROPIC_API_KEY").is_ok();
+            println!(
+                "Authentication status: API key is {}set.",
+                if has_key { "" } else { "NOT " }
+            );
+        }
+        "logout" => {
+            println!(
+                "To log out, unset your API key:\n  \
+                 unset ANTHROPIC_API_KEY\n\n\
+                 Or remove it from your shell configuration (e.g., ~/.bashrc, ~/.zshrc)."
+            );
+        }
+        other => {
+            return Err(anyhow::anyhow!(
+                "Unknown auth subcommand: '{}'. Use: login, status, logout",
+                other
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    // SAFETY: All env var mutations happen here, BEFORE tokio runtime starts.
+    // std::env::set_var is not thread-safe, so we do it in the single-threaded
+    // pre-runtime phase.
+
+    // Guard against nested sessions (v2.1.41)
+    check_nested_session()?;
+
+    // Mark this as an active session for nested detection
+    // Uses a separate marker from CLAUDE_CODE_SESSION to avoid conflicts with e2e tests
+    // SAFETY: Called before tokio runtime starts
+    unsafe {
+        std::env::set_var("CLAUDE_CODE_NESTED_GUARD", "1");
+    }
+
+    // CRITICAL: Set COLORTERM for Windows Terminal + WSL RGB color support
+    if std::env::var("COLORTERM").is_err() {
+        // SAFETY: Called before tokio runtime starts
+        unsafe {
+            std::env::set_var("COLORTERM", "truecolor");
+        }
+    }
+
+    // Parse CLI arguments (no async needed)
     let cli = Cli::parse();
 
-    // Initialize and run the application
-    let app = App::new(cli).await?;
-    app.run().await?;
+    // Handle subcommands that don't need full app initialization or async
+    if let Some(ref cmd) = cli.command {
+        match cmd {
+            cli_args::Commands::Agents => {
+                return handle_agents_command();
+            }
+            cli_args::Commands::Auth { args } => {
+                return handle_auth_command(args);
+            }
+            _ => {} // Other commands handled by App::run()
+        }
+    }
 
-    Ok(())
+    // Build and enter the tokio runtime for async operations
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .context("Failed to build tokio runtime")?
+        .block_on(async {
+            let app = App::new(cli).await?;
+            app.run().await
+        })
 }

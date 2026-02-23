@@ -140,9 +140,9 @@ fn test_hook_event_permission_request() {
 }
 
 #[test]
-fn test_hook_event_all_twelve_events() {
+fn test_hook_event_all_events() {
     let events = HookEvent::all();
-    assert_eq!(events.len(), 12);
+    assert_eq!(events.len(), 15);
     assert!(events.contains(&HookEvent::SessionStart));
     assert!(events.contains(&HookEvent::SessionEnd));
     assert!(events.contains(&HookEvent::PreToolUse));
@@ -155,6 +155,9 @@ fn test_hook_event_all_twelve_events() {
     assert!(events.contains(&HookEvent::PermissionRequest));
     assert!(events.contains(&HookEvent::TeammateIdle));
     assert!(events.contains(&HookEvent::TaskCompleted));
+    assert!(events.contains(&HookEvent::WorktreeCreate));
+    assert!(events.contains(&HookEvent::WorktreeRemove));
+    assert!(events.contains(&HookEvent::ConfigChange));
 }
 
 // ============================================================================

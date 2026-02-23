@@ -107,3 +107,39 @@
 [2026-02-10T08:16:45.612315] INFO: Loaded 22 considerations from YAML
 [2026-02-10T09:20:15.149239] INFO: Loaded 22 considerations from YAML
 [2026-02-10T22:33:34.826870] INFO: Loaded 22 considerations from YAML
+[2026-02-22T23:36:25.207936] INFO: Loaded 22 considerations from YAML
+[2026-02-22T23:36:25.222164] INFO: Loaded 22 considerations from YAML
+[2026-02-22T23:36:25.222933] DEBUG: Path validated: within user home directory
+[2026-02-22T23:36:25.262274] INFO: Session classified as: DEVELOPMENT
+[2026-02-22T23:37:06.512037] INFO: Parallel analysis completed: 19 checks in 41.2s
+[2026-02-22T23:37:06.513253] DEBUG: Message branch: CHECKS_FAILED (passed=0, failed=19, skipped=3)
+[2026-02-22T23:37:06.513572] INFO: Saved redirect #1 for session 20260222_233625
+[2026-02-23T00:16:42.456115] INFO: Loaded 22 considerations from YAML
+[2026-02-23T00:16:42.468638] INFO: Loaded 22 considerations from YAML
+[2026-02-23T00:16:42.469301] DEBUG: Path validated: within user home directory
+[2026-02-23T00:16:42.527515] INFO: Session classified as: DEVELOPMENT
+[2026-02-23T00:17:15.209896] INFO: Parallel analysis completed: 19 checks in 32.7s
+[2026-02-23T00:17:15.211592] DEBUG: Message branch: CHECKS_FAILED (passed=0, failed=19, skipped=3)
+[2026-02-23T00:17:15.211873] INFO: Saved redirect #1 for session 20260223_001642
+[2026-02-23T00:26:10.219827] INFO: Loaded 22 considerations from YAML
+[2026-02-23T00:26:10.232294] INFO: Loaded 22 considerations from YAML
+[2026-02-23T00:26:10.232987] DEBUG: Path validated: within user home directory
+[2026-02-23T00:26:10.300109] INFO: Session classified as: DEVELOPMENT
+[2026-02-23T00:27:10.343327] WARNING: Parallel execution timed out after 60s
+[2026-02-23T00:27:10.343783] INFO: Parallel analysis completed: 19 checks in 60.0s
+[2026-02-23T00:27:10.343902] INFO: No power-steering checks applicable for session type - approving immediately
+[2026-02-23T01:34:46.810709] INFO: Loaded 22 considerations from YAML
+[2026-02-23T01:34:46.823370] INFO: Loaded 22 considerations from YAML
+[2026-02-23T01:34:46.824090] DEBUG: Path validated: within user home directory
+[2026-02-23T01:34:46.902040] INFO: Session classified as: DEVELOPMENT
+[2026-02-23T01:35:22.309887] INFO: Parallel analysis completed: 19 checks in 35.4s
+[2026-02-23T01:35:22.312068] DEBUG: Message branch: CHECKS_FAILED (passed=0, failed=19, skipped=3)
+[2026-02-23T01:35:22.312378] INFO: Saved redirect #1 for session 20260223_013446
+[2026-02-23T01:35:37.400582] INFO: Loaded 22 considerations from YAML
+[2026-02-23T01:35:41.992486] INFO: Loaded 22 considerations from YAML
+[2026-02-23T02:11:31.211823] INFO: Loaded 22 considerations from YAML
+[2026-02-23T04:03:36.292052] INFO: Loaded 22 considerations from YAML
+[2026-02-23T09:25:00.907170] INFO: Loaded 22 considerations from YAML
+[2026-02-23T09:51:38.697663] INFO: Loaded 22 considerations from YAML
+[2026-02-23T14:28:48.431362] INFO: Loaded 22 considerations from YAML
+[2026-02-23T15:28:31.425590] INFO: Loaded 22 considerations from YAML

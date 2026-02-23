@@ -99,6 +99,11 @@ impl SettingsLoader {
                         settings = settings.with_tool_search(config);
                     }
                 }
+                "reduced_motion" => {
+                    if value.to_lowercase() == "true" || value == "1" {
+                        settings = settings.with_reduced_motion(true);
+                    }
+                }
                 _ if !key.starts_with("_") => {
                     settings = settings.with_env_var(key.clone(), value.clone());
                 }
