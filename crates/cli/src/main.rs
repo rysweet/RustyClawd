@@ -425,12 +425,14 @@ impl App {
     }
 }
 
-/// Check for nested Claude Code session (v2.1.41)
+/// Check for nested session (v2.1.41).
+/// Only warns if CLAUDE_CODE_NESTED_GUARD is set (our own marker),
+/// not CLAUDE_CODE_SESSION (which other tools may set).
 fn check_nested_session() -> Result<()> {
-    if std::env::var("CLAUDE_CODE_SESSION").is_ok() {
+    if std::env::var("CLAUDE_CODE_NESTED_GUARD").is_ok() {
         return Err(anyhow::anyhow!(
             "Error: Cannot launch RustyClawd inside another active session.\n\
-             A CLAUDE_CODE_SESSION environment variable was detected, indicating this is a nested invocation.\n\
+             A nested invocation was detected.\n\
              Please exit the current session first, then start a new one."
         ));
     }
@@ -509,9 +511,10 @@ fn main() -> Result<()> {
     check_nested_session()?;
 
     // Mark this as an active session for nested detection
+    // Uses a separate marker from CLAUDE_CODE_SESSION to avoid conflicts with e2e tests
     // SAFETY: Called before tokio runtime starts
     unsafe {
-        std::env::set_var("CLAUDE_CODE_SESSION", "1");
+        std::env::set_var("CLAUDE_CODE_NESTED_GUARD", "1");
     }
 
     // CRITICAL: Set COLORTERM for Windows Terminal + WSL RGB color support

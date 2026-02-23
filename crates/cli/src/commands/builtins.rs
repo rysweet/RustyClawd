@@ -214,7 +214,7 @@ impl BuiltinCommands {
             .unwrap_or_else(|_| "unknown".to_string());
         let has_api_key = std::env::var("ANTHROPIC_API_KEY").is_ok();
         let model = std::env::var("ANTHROPIC_MODEL").unwrap_or_else(|_| "default".to_string());
-        let is_nested = std::env::var("CLAUDE_CODE_SESSION").is_ok();
+        let is_nested = std::env::var("CLAUDE_CODE_NESTED_GUARD").is_ok();
 
         format!(
             "Debug Information:\n\n\
