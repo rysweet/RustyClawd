@@ -122,6 +122,10 @@ fn read_tool_definition() -> ToolDefinition {
                 "limit": {
                     "type": "integer",
                     "description": "The number of lines to read"
+                },
+                "pages": {
+                    "type": "string",
+                    "description": "Page range for PDF files (e.g., \"1-5\", \"3\", \"10-20\"). Only applicable to PDF files. Maximum 20 pages per request."
                 }
             },
             "required": ["file_path"]

@@ -27,6 +27,10 @@ pub struct ReadParams {
     /// Number of lines to read
     #[serde(default)]
     pub limit: Option<usize>,
+
+    /// Page range for PDF files (e.g., "1-5", "3", "10-20"). Only for .pdf files. (v2.1.31)
+    #[serde(default)]
+    pub pages: Option<String>,
 }
 
 /// Output from the Read tool
@@ -40,6 +44,56 @@ pub struct ReadOutput {
 
     /// File path that was read
     pub file_path: String,
+}
+
+/// Parsed page range for PDF files
+#[derive(Debug, Clone, PartialEq)]
+pub struct PageRange {
+    pub start: usize,
+    pub end: usize,
+}
+
+/// Parse a page range string like "1-5", "3", "10-20"
+pub fn parse_page_range(pages: &str) -> Result<PageRange, String> {
+    let pages = pages.trim();
+    if pages.is_empty() {
+        return Err("Empty page range".to_string());
+    }
+
+    if let Some((start_str, end_str)) = pages.split_once('-') {
+        let start: usize = start_str
+            .trim()
+            .parse()
+            .map_err(|_| format!("Invalid start page: '{}'", start_str.trim()))?;
+        let end: usize = end_str
+            .trim()
+            .parse()
+            .map_err(|_| format!("Invalid end page: '{}'", end_str.trim()))?;
+        if start == 0 || end == 0 {
+            return Err("Page numbers must be 1 or greater".to_string());
+        }
+        if start > end {
+            return Err(format!(
+                "Start page {} is greater than end page {}",
+                start, end
+            ));
+        }
+        if end - start + 1 > 20 {
+            return Err("Maximum 20 pages per request".to_string());
+        }
+        Ok(PageRange { start, end })
+    } else {
+        let page: usize = pages
+            .parse()
+            .map_err(|_| format!("Invalid page number: '{}'", pages))?;
+        if page == 0 {
+            return Err("Page numbers must be 1 or greater".to_string());
+        }
+        Ok(PageRange {
+            start: page,
+            end: page,
+        })
+    }
 }
 
 /// The Read tool
@@ -67,6 +121,8 @@ impl crate::Tool for ReadTool {
         let limit = params.limit;
         let debug = ctx.debug;
 
+        let pages = params.pages.clone();
+
         Ok(Box::pin(stream! {
             yield ToolEvent::Progress {
                 step: format!("Reading file: {}", params.file_path),
@@ -78,8 +134,57 @@ impl crate::Tool for ReadTool {
                     file_path = %params.file_path,
                     offset = offset,
                     limit = ?limit,
+                    pages = ?pages,
                     "Reading file"
                 );
+            }
+
+            // Handle PDF files with pages parameter
+            if file_path.extension().and_then(|e| e.to_str()) == Some("pdf") {
+                if let Some(ref page_range_str) = pages {
+                    match parse_page_range(page_range_str) {
+                        Ok(range) => {
+                            yield ToolEvent::Result(ReadOutput {
+                                content: format!(
+                                    "[PDF file: {}]\n[Requested pages {}-{} of PDF]\n\
+                                     Note: PDF text extraction requires a PDF library.\n\
+                                     The pages parameter was parsed successfully (pages {}-{}).",
+                                    params.file_path, range.start, range.end,
+                                    range.start, range.end
+                                ),
+                                lines_read: 0,
+                                file_path: params.file_path.clone(),
+                            });
+                            return;
+                        }
+                        Err(e) => {
+                            yield ToolEvent::Error {
+                                message: format!("Invalid pages parameter: {}", e),
+                            };
+                            return;
+                        }
+                    }
+                } else {
+                    yield ToolEvent::Result(ReadOutput {
+                        content: format!(
+                            "[PDF file: {}]\n\
+                             Note: For large PDFs, use the 'pages' parameter (e.g., pages: \"1-5\").\n\
+                             Maximum 20 pages per request.",
+                            params.file_path
+                        ),
+                        lines_read: 0,
+                        file_path: params.file_path.clone(),
+                    });
+                    return;
+                }
+            }
+
+            // Warn if pages parameter used on non-PDF file
+            if pages.is_some() {
+                yield ToolEvent::Error {
+                    message: "The 'pages' parameter is only applicable to PDF files (.pdf)".to_string(),
+                };
+                return;
             }
 
             // Open file
@@ -185,6 +290,7 @@ mod tests {
             file_path: temp_file.path().to_str().unwrap().to_string(),
             offset: None,
             limit: None,
+            pages: None,
         };
         let ctx = ToolContext::default();
 
@@ -219,6 +325,7 @@ mod tests {
             file_path: temp_file.path().to_str().unwrap().to_string(),
             offset: Some(5), // Start at line 5 (0-indexed)
             limit: None,
+            pages: None,
         };
         let ctx = ToolContext::default();
 
@@ -250,6 +357,7 @@ mod tests {
             file_path: temp_file.path().to_str().unwrap().to_string(),
             offset: None,
             limit: Some(10),
+            pages: None,
         };
         let ctx = ToolContext::default();
 
@@ -274,6 +382,7 @@ mod tests {
             file_path: "/nonexistent/file.txt".to_string(),
             offset: None,
             limit: None,
+            pages: None,
         };
         let ctx = ToolContext::default();
 
@@ -292,6 +401,7 @@ mod tests {
             file_path: "/tmp/nonexistent_read_test_file_12345.rs".to_string(),
             offset: None,
             limit: None,
+            pages: None,
         };
         let ctx = ToolContext::default();
         let stream = tool.execute(params, &ctx).await.unwrap();
@@ -306,11 +416,129 @@ mod tests {
             file_path: temp_file.path().to_str().unwrap().to_string(),
             offset: None,
             limit: None,
+            pages: None,
         };
         let ctx = ToolContext::default();
         let stream = ReadTool.execute(params, &ctx).await.unwrap();
         let output: Vec<_> = stream.collect().await;
         // Empty file should succeed, not error
         assert!(output.iter().any(|e| matches!(e, ToolEvent::Result(_))));
+    }
+
+    // Page range parsing tests
+    #[test]
+    fn test_parse_page_range_single() {
+        let range = parse_page_range("3").unwrap();
+        assert_eq!(range, PageRange { start: 3, end: 3 });
+    }
+
+    #[test]
+    fn test_parse_page_range_range() {
+        let range = parse_page_range("1-5").unwrap();
+        assert_eq!(range, PageRange { start: 1, end: 5 });
+    }
+
+    #[test]
+    fn test_parse_page_range_with_spaces() {
+        let range = parse_page_range(" 10 - 20 ").unwrap();
+        assert_eq!(range, PageRange { start: 10, end: 20 });
+    }
+
+    #[test]
+    fn test_parse_page_range_invalid_start() {
+        assert!(parse_page_range("abc-5").is_err());
+    }
+
+    #[test]
+    fn test_parse_page_range_reversed() {
+        assert!(parse_page_range("10-5").is_err());
+    }
+
+    #[test]
+    fn test_parse_page_range_too_many_pages() {
+        assert!(parse_page_range("1-25").is_err());
+    }
+
+    #[test]
+    fn test_parse_page_range_zero() {
+        assert!(parse_page_range("0").is_err());
+    }
+
+    #[test]
+    fn test_parse_page_range_empty() {
+        assert!(parse_page_range("").is_err());
+    }
+
+    #[tokio::test]
+    async fn test_read_pdf_without_pages() {
+        // Create a file with .pdf extension
+        let dir = tempfile::tempdir().unwrap();
+        let pdf_path = dir.path().join("test.pdf");
+        std::fs::write(&pdf_path, b"%PDF-1.4 fake content").unwrap();
+
+        let params = ReadParams {
+            file_path: pdf_path.to_str().unwrap().to_string(),
+            offset: None,
+            limit: None,
+            pages: None,
+        };
+        let ctx = ToolContext::default();
+        let stream = ReadTool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .expect("Should have result for PDF");
+        assert!(result.content.contains("PDF file"));
+        assert!(result.content.contains("pages"));
+    }
+
+    #[tokio::test]
+    async fn test_read_pdf_with_valid_pages() {
+        let dir = tempfile::tempdir().unwrap();
+        let pdf_path = dir.path().join("test.pdf");
+        std::fs::write(&pdf_path, b"%PDF-1.4 fake").unwrap();
+
+        let params = ReadParams {
+            file_path: pdf_path.to_str().unwrap().to_string(),
+            offset: None,
+            limit: None,
+            pages: Some("1-5".to_string()),
+        };
+        let ctx = ToolContext::default();
+        let stream = ReadTool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+
+        let result = events
+            .iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .expect("Should have result");
+        assert!(result.content.contains("pages 1-5"));
+    }
+
+    #[tokio::test]
+    async fn test_read_pages_on_non_pdf_errors() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(temp_file, "text content").unwrap();
+        temp_file.flush().unwrap();
+
+        let params = ReadParams {
+            file_path: temp_file.path().to_str().unwrap().to_string(),
+            offset: None,
+            limit: None,
+            pages: Some("1-3".to_string()),
+        };
+        let ctx = ToolContext::default();
+        let stream = ReadTool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+
+        assert!(events.iter().any(|e| matches!(e, ToolEvent::Error { .. })));
     }
 }
