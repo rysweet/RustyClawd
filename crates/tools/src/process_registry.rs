@@ -276,6 +276,17 @@ impl Default for ProcessRegistry {
 mod tests {
     use super::*;
 
+    /// Helper: spawn a long-running sleep process for test use.
+    /// Caller is responsible for killing it when done.
+    fn spawn_test_process() -> Child {
+        tokio::process::Command::new("sleep")
+            .arg("60")
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn test process")
+    }
+
     #[tokio::test]
     async fn test_registry_creation() {
         let registry = ProcessRegistry::new();
@@ -292,44 +303,248 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_append_and_retrieve_output() {
+    async fn test_register_and_get_status() {
         let registry = ProcessRegistry::new();
-        let id = "test_shell".to_string();
+        let child = spawn_test_process();
+        let id = "test_status".to_string();
 
-        // Simulate registration (would normally be done with real child process)
+        registry
+            .register(id.clone(), child)
+            .await
+            .expect("register failed");
+
+        let status = registry.get_status(&id).await.expect("get_status failed");
+        assert!(
+            matches!(status, ProcessStatus::Running),
+            "Expected Running, got {:?}",
+            status
+        );
+
+        // Clean up
+        registry.kill(&id).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_register_and_kill() {
+        let registry = ProcessRegistry::new();
+        let child = spawn_test_process();
+        let id = "test_kill".to_string();
+
+        registry
+            .register(id.clone(), child)
+            .await
+            .expect("register failed");
+
+        assert!(registry.exists(&id).await);
+
+        let killed = registry.kill(&id).await.expect("kill failed");
+        assert!(killed, "Expected kill to return true");
+
+        // Process should be removed from registry after kill
+        assert!(
+            !registry.exists(&id).await,
+            "Process should not exist after kill"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_append_and_get_output() {
+        let registry = ProcessRegistry::new();
+        let child = spawn_test_process();
+        let id = "test_output".to_string();
+
+        registry
+            .register(id.clone(), child)
+            .await
+            .expect("register failed");
+
+        // Append stdout lines
         registry
             .append_output(&id, "Line 1".to_string(), false)
             .await
-            .ok();
+            .expect("append stdout failed");
         registry
             .append_output(&id, "Line 2".to_string(), false)
             .await
-            .ok();
+            .expect("append stdout failed");
+
+        // Append stderr line
         registry
-            .append_output(&id, "Error".to_string(), true)
+            .append_output(&id, "Error line".to_string(), true)
             .await
-            .ok();
+            .expect("append stderr failed");
 
-        // Note: This will fail because process wasn't actually registered
-        // In real usage, register() would be called first
+        let (stdout, stderr, status_str) = registry
+            .get_output(&id, None)
+            .await
+            .expect("get_output failed");
+
+        assert_eq!(stdout, "Line 1\nLine 2");
+        assert_eq!(stderr, "Error line");
+        assert_eq!(status_str, "running");
+
+        // Clean up
+        registry.kill(&id).await.ok();
     }
 
     #[tokio::test]
-    async fn test_process_status_transitions() {
+    async fn test_mark_completed() {
         let registry = ProcessRegistry::new();
-        let id = "test_process".to_string();
+        let child = spawn_test_process();
+        let id = "test_completed".to_string();
 
-        // Simulate a process completing
-        registry.mark_completed(&id, 0).await.ok();
+        registry
+            .register(id.clone(), child)
+            .await
+            .expect("register failed");
 
-        // In real usage, this would show the completed status
+        registry
+            .mark_completed(&id, 42)
+            .await
+            .expect("mark_completed failed");
+
+        let status = registry.get_status(&id).await.expect("get_status failed");
+        assert!(
+            matches!(status, ProcessStatus::Completed(42)),
+            "Expected Completed(42), got {:?}",
+            status
+        );
+
+        // Verify completed_at was set via get_output status string
+        let (_, _, status_str) = registry
+            .get_output(&id, None)
+            .await
+            .expect("get_output failed");
+        assert_eq!(status_str, "completed:42");
+
+        // Clean up: kill the underlying OS process since mark_completed
+        // only updates registry status, it doesn't terminate the child
+        registry.kill(&id).await.ok();
     }
 
     #[tokio::test]
-    async fn test_exists_check() {
+    async fn test_mark_failed() {
         let registry = ProcessRegistry::new();
-        assert!(!registry.exists("nonexistent").await);
+        let child = spawn_test_process();
+        let id = "test_failed".to_string();
 
-        // After registration (with real child), exists would return true
+        registry
+            .register(id.clone(), child)
+            .await
+            .expect("register failed");
+
+        registry
+            .mark_failed(&id, "something went wrong".to_string())
+            .await
+            .expect("mark_failed failed");
+
+        let status = registry.get_status(&id).await.expect("get_status failed");
+        match status {
+            ProcessStatus::Failed(msg) => {
+                assert_eq!(msg, "something went wrong");
+            }
+            other => panic!("Expected Failed, got {:?}", other),
+        }
+
+        // Clean up
+        registry.kill(&id).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_exists_check_with_real_process() {
+        let registry = ProcessRegistry::new();
+        let child = spawn_test_process();
+        let id = "test_exists".to_string();
+
+        assert!(
+            !registry.exists(&id).await,
+            "Should not exist before registration"
+        );
+
+        registry
+            .register(id.clone(), child)
+            .await
+            .expect("register failed");
+
+        assert!(
+            registry.exists(&id).await,
+            "Should exist after registration"
+        );
+
+        registry.kill(&id).await.expect("kill failed");
+
+        assert!(!registry.exists(&id).await, "Should not exist after kill");
+    }
+
+    #[tokio::test]
+    async fn test_list_ids() {
+        let registry = ProcessRegistry::new();
+
+        let child1 = spawn_test_process();
+        let child2 = spawn_test_process();
+        let child3 = spawn_test_process();
+
+        registry
+            .register("proc_a".to_string(), child1)
+            .await
+            .expect("register failed");
+        registry
+            .register("proc_b".to_string(), child2)
+            .await
+            .expect("register failed");
+        registry
+            .register("proc_c".to_string(), child3)
+            .await
+            .expect("register failed");
+
+        let mut ids = registry.list_ids().await;
+        ids.sort();
+        assert_eq!(ids, vec!["proc_a", "proc_b", "proc_c"]);
+
+        // Clean up
+        for id in &ids {
+            registry.kill(id).await.ok();
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_output_clears_buffer() {
+        let registry = ProcessRegistry::new();
+        let child = spawn_test_process();
+        let id = "test_clear_buf".to_string();
+
+        registry
+            .register(id.clone(), child)
+            .await
+            .expect("register failed");
+
+        registry
+            .append_output(&id, "first".to_string(), false)
+            .await
+            .expect("append failed");
+
+        // First get should return the buffered output
+        let (stdout, _, _) = registry
+            .get_output(&id, None)
+            .await
+            .expect("get_output failed");
+        assert_eq!(stdout, "first");
+
+        // Second get should return empty -- buffer was cleared
+        let (stdout2, stderr2, _) = registry
+            .get_output(&id, None)
+            .await
+            .expect("get_output failed");
+        assert!(
+            stdout2.is_empty(),
+            "stdout buffer should be empty after get"
+        );
+        assert!(
+            stderr2.is_empty(),
+            "stderr buffer should be empty after get"
+        );
+
+        // Clean up
+        registry.kill(&id).await.ok();
     }
 }

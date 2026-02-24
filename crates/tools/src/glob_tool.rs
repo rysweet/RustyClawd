@@ -285,4 +285,81 @@ mod tests {
         assert_eq!(result.count, 2);
         assert!(result.files.iter().all(|f| f.contains("mydir")));
     }
+
+    #[tokio::test]
+    async fn test_glob_invalid_pattern() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let tool = GlobTool;
+        let params = GlobParams {
+            pattern: "[".to_string(),
+            path: Some(temp_dir.path().to_str().unwrap().to_string()),
+        };
+        let ctx = ToolContext::default();
+
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+
+        let has_error = events.iter().any(|e| matches!(e, ToolEvent::Error { .. }));
+        assert!(
+            has_error,
+            "Invalid glob pattern should produce an error event"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_glob_sorted_by_mtime() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let old_path = temp_dir.path().join("old.txt");
+        std::fs::File::create(&old_path).unwrap();
+
+        std::thread::sleep(std::time::Duration::from_millis(50));
+
+        let new_path = temp_dir.path().join("new.txt");
+        std::fs::File::create(&new_path).unwrap();
+        std::fs::write(&new_path, "fresh content").unwrap();
+
+        let params = GlobParams {
+            pattern: "*.txt".to_string(),
+            path: Some(temp_dir.path().to_str().unwrap().to_string()),
+        };
+
+        let result = run_glob(params).await;
+        assert_eq!(result.count, 2);
+        assert!(
+            result.files[0].ends_with("new.txt"),
+            "Newest file should be first, got order: {:?}",
+            result.files
+        );
+        assert!(
+            result.files[1].ends_with("old.txt"),
+            "Oldest file should be last, got order: {:?}",
+            result.files
+        );
+    }
+
+    #[test]
+    fn test_glob_metadata() {
+        let tool = GlobTool;
+        let meta = tool.metadata();
+        assert_eq!(meta.name, "Glob");
+        assert!(
+            meta.description.contains("pattern")
+                || meta.description.contains("file")
+                || meta.description.contains("glob"),
+            "Description should mention file/pattern matching: {}",
+            meta.description
+        );
+    }
+
+    #[test]
+    fn test_glob_read_only_and_concurrent() {
+        let tool = GlobTool;
+        assert!(tool.is_read_only(), "Glob should be read-only");
+        assert!(
+            tool.is_concurrency_safe(),
+            "Glob should be concurrency-safe"
+        );
+    }
 }
