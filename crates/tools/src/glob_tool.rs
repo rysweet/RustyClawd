@@ -126,7 +126,7 @@ impl crate::Tool for GlobTool {
             }
 
             // Sort by modification time (newest first)
-            files.sort_by(|a, b| b.1.cmp(&a.1));
+            files.sort_by_key(|f| std::cmp::Reverse(f.1));
 
             // Convert to strings
             let file_paths: Vec<String> = files.iter()
