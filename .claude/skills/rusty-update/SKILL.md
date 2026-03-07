@@ -42,6 +42,7 @@ dependencies:
   tools:
     - Read
     - Write
+    - Edit
     - Bash
     - Grep
     - Glob
@@ -67,7 +68,7 @@ maturity: production
 maturity_reason: |
   - Rust SyncMonitor module fully implemented with unit tests
   - CI workflow running weekly (.github/workflows/claude-code-sync.yml)
-  - Feature inventory actively maintained with 58+ features tracked
+  - Feature inventory actively maintained (docs/ has 61 features, .claude/data/ has 38 - sync is a known issue)
   - Sync ledger preventing duplicate issue creation
 ---
 
@@ -113,7 +114,7 @@ Deminifies the installed Claude Code cli.js and creates searchable indices.
 /rusty-update analyze
 ```
 
-Requires: `prettier` and `js-beautify` (auto-installed if missing).
+Requires: `prettier` and `js-beautify` (must be installed manually; skill will check and abort with instructions if missing).
 
 ### Inventory Update
 Interactively update the feature inventory after implementing new features.
@@ -133,9 +134,11 @@ Interactively update the feature inventory after implementing new features.
 
 ## Data Files
 
-- **Feature Inventory**: `.claude/data/feature_inventory.yaml` - What RustyClawd implements
+- **Docs Inventory** (primary): `docs/feature_inventory.yaml` - Most comprehensive, with test evidence
+- **Sync Monitor Inventory**: `.claude/data/feature_inventory.yaml` - Used by Rust sync monitor (may lag behind docs version)
 - **Sync Ledger**: `.claude/data/sync_ledger.json` - Issue deduplication tracking
-- **Docs Inventory**: `docs/feature_inventory.yaml` - Detailed docs version with test evidence
+
+**Important**: The `docs/` inventory is the more complete and up-to-date source. The `.claude/data/` version is consumed by the Rust sync monitor. Both should be kept in sync.
 
 ## Architecture
 
@@ -161,8 +164,10 @@ When this skill activates, follow this procedure:
    - `https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md`
    - `https://raw.githubusercontent.com/anthropics/claude-code/main/README.md`
 
-2. **Read** the local feature inventory:
-   - `.claude/data/feature_inventory.yaml`
+2. **Read** both local feature inventories:
+   - `docs/feature_inventory.yaml` (primary, most comprehensive)
+   - `.claude/data/feature_inventory.yaml` (sync monitor source)
+   - Flag any drift between them
 
 3. **Compare** features found in the changelog against the inventory:
    - New features not in inventory = **Missing**
@@ -176,18 +181,26 @@ When this skill activates, follow this procedure:
 
 ### For `sync` mode:
 
-1. Verify `GITHUB_TOKEN` is set
-2. Run: `cargo run --package rustyclawd-tools --example claude_code_sync_cli -- --inventory .claude/data/feature_inventory.yaml --ledger .claude/data/sync_ledger.json --token $GITHUB_TOKEN --repo rysweet/RustyClawd`
+1. Verify `GITHUB_TOKEN` is set in environment. If not, abort with clear error.
+2. Run the Rust sync monitor (pass token via environment, not CLI arg if possible):
+   ```
+   cargo run --package rustyclawd-tools --example claude_code_sync_cli -- \
+     --inventory .claude/data/feature_inventory.yaml \
+     --ledger .claude/data/sync_ledger.json \
+     --token $GITHUB_TOKEN \
+     --repo rysweet/RustyClawd
+   ```
 3. Report created issues
 
 ### For `analyze` mode:
 
-1. Run: `bash scripts/analyze-claude-code.sh`
-2. Report location of deminified files and indices
+1. Check prerequisites: `claude`, `prettier`, `js-beautify` must be installed. Abort with install instructions if missing.
+2. Run: `echo "n" | bash scripts/analyze-claude-code.sh` (pipe "n" to skip interactive VS Code prompt)
+3. Report location of deminified files and indices
 
 ### For `inventory` mode:
 
-1. Read current `.claude/data/feature_inventory.yaml`
-2. Ask what features to add/update
-3. Write updated inventory
-4. Optionally update `docs/feature_inventory.yaml` too
+1. Read both inventory files: `docs/feature_inventory.yaml` (primary) and `.claude/data/feature_inventory.yaml`
+2. Flag any drift between them
+3. Ask what features to add/update
+4. Write updated inventory to BOTH files to keep them in sync

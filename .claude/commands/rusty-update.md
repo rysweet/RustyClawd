@@ -1,6 +1,6 @@
 ---
 description: Check Claude Code parity, find feature gaps, and sync RustyClawd with upstream changes
-allowed-tools: Read, Write, Edit, Bash, Grep, Glob, WebFetch, Agent
+allowed-tools: Read, Write, Edit, Bash, Grep, Glob, WebFetch
 ---
 
 # /rusty-update
@@ -23,9 +23,10 @@ Parse the arguments to determine the mode:
    - `https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md`
    - `https://raw.githubusercontent.com/anthropics/claude-code/main/README.md`
 
-2. Read the local feature inventory at `.claude/data/feature_inventory.yaml`
-
-3. Read the detailed docs inventory at `docs/feature_inventory.yaml` if it exists
+2. Read the local feature inventories:
+   - `docs/feature_inventory.yaml` (primary - most comprehensive and up-to-date)
+   - `.claude/data/feature_inventory.yaml` (used by Rust sync monitor)
+   - If they differ, flag the drift and use the more complete one
 
 4. Compare: For each feature/tool/capability mentioned in the changelog and README, check if it exists in the inventory. Categorize as:
    - **New** - Not in inventory at all
@@ -59,33 +60,37 @@ Parse the arguments to determine the mode:
 
 ## Full Sync Mode
 
-1. Check that `GITHUB_TOKEN` environment variable is set
-2. Run the Rust sync monitor:
+1. Check that `GITHUB_TOKEN` environment variable is set. If not, abort with a clear error.
+2. Read the token value and validate it is non-empty before proceeding.
+3. Run the Rust sync monitor (the binary reads GITHUB_TOKEN from the environment):
    ```bash
-   cargo run --package rustyclawd-tools --example claude_code_sync_cli -- \
+   GITHUB_TOKEN="$GITHUB_TOKEN" cargo run --package rustyclawd-tools --example claude_code_sync_cli -- \
      --inventory .claude/data/feature_inventory.yaml \
      --ledger .claude/data/sync_ledger.json \
-     --token $GITHUB_TOKEN \
      --repo rysweet/RustyClawd
    ```
-3. Report results (features found, gaps identified, issues created)
+   Note: If the binary requires `--token`, pass it, but prefer environment variable.
+4. Report results (features found, gaps identified, issues created)
 
 ## Deep Analysis Mode
 
-1. Run the analysis script:
+1. Check prerequisites: verify `claude`, `prettier`, and `js-beautify` are installed. If missing, tell the user what to install and abort (do NOT auto-install).
+2. Run the analysis script in non-interactive mode:
    ```bash
-   bash scripts/analyze-claude-code.sh
+   echo "n" | bash scripts/analyze-claude-code.sh
    ```
-2. Report the location of deminified files and search indices
-3. Offer to search for specific patterns in the deminified code
+3. Report the location of deminified files and search indices
+4. Offer to search for specific patterns in the deminified code
 
 ## Inventory Update Mode
 
-1. Read current `.claude/data/feature_inventory.yaml`
+1. Read both inventory files:
+   - `docs/feature_inventory.yaml` (primary)
+   - `.claude/data/feature_inventory.yaml` (sync monitor source)
 2. Show current inventory summary (total features, by category, by status)
-3. Ask what features to add or update
-4. Write the updated inventory
-5. Also update `docs/feature_inventory.yaml` if it exists
+3. Flag any drift between the two files
+4. Ask what features to add or update
+5. Write the updated inventory to BOTH files to keep them in sync
 
 ## Communication Style
 
