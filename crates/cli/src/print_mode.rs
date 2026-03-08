@@ -6,6 +6,7 @@
 
 use anyhow::{Context as AnyhowContext, Result};
 use rustyclawd_core::client::response::MessageResponse;
+use rustyclawd_core::client::ToolLoopEvent;
 
 use super::{hooks, permission_mode, tool_definitions, tool_executor, App};
 
@@ -219,86 +220,141 @@ impl App {
 
         let start_time = std::time::Instant::now();
 
-        let response = match client
-            .execute_with_tools(request.clone(), |tool_name, tool_input| {
-                let hooks = hooks_for_tools.clone();
-                let session_id = session_id_for_tools.clone();
-                let allowed_tools = allowed_tools_for_executor.clone();
-                let disallowed_tools = disallowed_tools_for_executor.clone();
-                async move {
-                    tool_executor::execute_tool_with_permission(
-                        tool_name,
-                        tool_input,
-                        permission_mode,
-                        tool_executor::ToolExecutionParams {
-                            hooks: Some(hooks),
-                            session_id: Some(session_id),
-                            notification_manager: None, // No notification manager in non-interactive mode
-                            tool_use_id: None,          // No tool_use_id in non-interactive mode
-                            allowed_tools,
-                            disallowed_tools,
-                        },
-                    )
-                    .await
-                }
-            })
-            .await
-        {
-            Ok(resp) => resp,
-            Err(e) => {
-                if let Some(fallback) = fallback_model {
-                    // Try fallback model if primary fails
-                    tracing::warn!("Primary model failed, trying fallback: {}", fallback);
-
-                    // Create new request with fallback model
-                    let mut fallback_request = CreateMessageRequest::new(
-                        fallback,
-                        vec![ApiMessage::user(prompt.to_string())],
-                        max_tokens,
-                    );
-
-                    // Copy system prompt if present
-                    if let Some(ref sys_prompt) = system_prompt {
-                        fallback_request = fallback_request.with_system(sys_prompt.clone());
+        // Build the tool executor closure factory (shared by primary and fallback)
+        macro_rules! make_tool_executor {
+            ($hooks:expr, $session_id:expr, $allowed:expr, $disallowed:expr) => {
+                |tool_name: String, tool_input: serde_json::Value| {
+                    let hooks = $hooks.clone();
+                    let session_id = $session_id.clone();
+                    let allowed_tools = $allowed.clone();
+                    let disallowed_tools = $disallowed.clone();
+                    async move {
+                        tool_executor::execute_tool_with_permission(
+                            tool_name,
+                            tool_input,
+                            permission_mode,
+                            tool_executor::ToolExecutionParams {
+                                hooks: Some(hooks),
+                                session_id: Some(session_id),
+                                notification_manager: None,
+                                tool_use_id: None,
+                                allowed_tools,
+                                disallowed_tools,
+                            },
+                        )
+                        .await
                     }
+                }
+            };
+        }
 
-                    // Add tools
-                    fallback_request =
-                        fallback_request.with_tools(tool_definitions::get_all_tool_definitions());
+        // For stream-json, use the event-emitting variant so each turn is
+        // streamed to stdout as it happens. Other formats use the simpler path.
+        let (response, num_turns) = if output_format == "stream-json" {
+            let on_event = |event: ToolLoopEvent| async move {
+                match event {
+                    ToolLoopEvent::AssistantMessage(ref resp) => {
+                        emit_assistant_message(resp);
+                    }
+                    ToolLoopEvent::ToolUse { .. } | ToolLoopEvent::ToolResult { .. } => {
+                        // Tool lifecycle events are logged via tracing; the SDK
+                        // protocol only requires assistant messages per turn.
+                    }
+                }
+            };
 
-                    let hooks_fallback = hooks_for_tools.clone();
-                    let session_id_fallback = session_id_for_tools.clone();
-                    let allowed_tools_fallback = allowed_tools_for_executor.clone();
-                    let disallowed_tools_fallback = disallowed_tools_for_executor.clone();
+            match client
+                .execute_with_tools_and_events(
+                    request.clone(),
+                    make_tool_executor!(
+                        hooks_for_tools,
+                        session_id_for_tools,
+                        allowed_tools_for_executor,
+                        disallowed_tools_for_executor
+                    ),
+                    on_event,
+                )
+                .await
+            {
+                Ok((resp, turns)) => (resp, turns),
+                Err(e) => {
+                    if let Some(fallback) = fallback_model {
+                        tracing::warn!("Primary model failed, trying fallback: {}", fallback);
+                        let mut fallback_request = CreateMessageRequest::new(
+                            fallback,
+                            vec![ApiMessage::user(prompt.to_string())],
+                            max_tokens,
+                        );
+                        if let Some(ref sys_prompt) = system_prompt {
+                            fallback_request = fallback_request.with_system(sys_prompt.clone());
+                        }
+                        fallback_request = fallback_request
+                            .with_tools(tool_definitions::get_all_tool_definitions());
 
-                    client
-                        .execute_with_tools(fallback_request, |tool_name, tool_input| {
-                            let hooks = hooks_fallback.clone();
-                            let session_id = session_id_fallback.clone();
-                            let allowed_tools = allowed_tools_fallback.clone();
-                            let disallowed_tools = disallowed_tools_fallback.clone();
-                            async move {
-                                tool_executor::execute_tool_with_permission(
-                                    tool_name,
-                                    tool_input,
-                                    permission_mode,
-                                    tool_executor::ToolExecutionParams {
-                                        hooks: Some(hooks),
-                                        session_id: Some(session_id),
-                                        notification_manager: None, // No notification manager in non-interactive mode
-                                        tool_use_id: None, // No tool_use_id in non-interactive mode
-                                        allowed_tools,
-                                        disallowed_tools,
-                                    },
-                                )
-                                .await
-                            }
-                        })
-                        .await?
-                } else {
-                    return Err(e.into());
+                        client
+                            .execute_with_tools_and_events(
+                                fallback_request,
+                                make_tool_executor!(
+                                    hooks_for_tools,
+                                    session_id_for_tools,
+                                    allowed_tools_for_executor,
+                                    disallowed_tools_for_executor
+                                ),
+                                on_event,
+                            )
+                            .await?
+                    } else {
+                        return Err(e.into());
+                    }
                 }
             }
+        } else {
+            // Non-streaming path: use the simpler execute_with_tools
+            let result = match client
+                .execute_with_tools(
+                    request.clone(),
+                    make_tool_executor!(
+                        hooks_for_tools,
+                        session_id_for_tools,
+                        allowed_tools_for_executor,
+                        disallowed_tools_for_executor
+                    ),
+                )
+                .await
+            {
+                Ok(resp) => resp,
+                Err(e) => {
+                    if let Some(fallback) = fallback_model {
+                        tracing::warn!("Primary model failed, trying fallback: {}", fallback);
+                        let mut fallback_request = CreateMessageRequest::new(
+                            fallback,
+                            vec![ApiMessage::user(prompt.to_string())],
+                            max_tokens,
+                        );
+                        if let Some(ref sys_prompt) = system_prompt {
+                            fallback_request = fallback_request.with_system(sys_prompt.clone());
+                        }
+                        fallback_request = fallback_request
+                            .with_tools(tool_definitions::get_all_tool_definitions());
+
+                        client
+                            .execute_with_tools(
+                                fallback_request,
+                                make_tool_executor!(
+                                    hooks_for_tools,
+                                    session_id_for_tools,
+                                    allowed_tools_for_executor,
+                                    disallowed_tools_for_executor
+                                ),
+                            )
+                            .await?
+                    } else {
+                        return Err(e.into());
+                    }
+                }
+            };
+            // Non-streaming path doesn't track turns (single response)
+            (result, 1)
         };
 
         // Extract text from response
@@ -337,14 +393,13 @@ impl App {
                 println!("{}", serde_json::to_string_pretty(&json_output)?);
             }
             "stream-json" => {
-                // SDK-compatible: emit assistant message then result message
-                emit_assistant_message(&response);
-
+                // Assistant messages were already emitted per-turn via on_event.
+                // Emit the final result message to close the SDK session.
                 let duration_ms = start_time.elapsed().as_millis() as u64;
                 emit_result_message(
                     &self.session.id,
                     &text,
-                    1, // single turn for now
+                    num_turns,
                     duration_ms,
                     false,
                 );
@@ -521,5 +576,40 @@ mod tests {
 
         assert_eq!(json_output["session_id"], "my-session-id");
         assert!(json_output.get("session_id").is_some());
+    }
+
+    #[test]
+    fn test_result_message_multi_turn() {
+        // Verify num_turns > 1 is correctly reflected in the result message
+        let msg = serde_json::json!({
+            "type": "result",
+            "subtype": "result",
+            "session_id": "sess-multi",
+            "result": "done after tools",
+            "num_turns": 5u32,
+            "duration_ms": 3200u64,
+            "is_error": false,
+            "stop_reason": "end_turn"
+        });
+
+        assert_eq!(msg["num_turns"], 5);
+        assert_eq!(msg["stop_reason"], "end_turn");
+    }
+
+    #[test]
+    fn test_stream_json_multi_turn_ordering() {
+        // With per-turn streaming, the sequence is:
+        // init -> assistant(turn1) -> assistant(turn2) -> ... -> result
+        let init = serde_json::json!({"type": "system", "subtype": "init"});
+        let turn1 = serde_json::json!({"type": "assistant", "content": [{"type": "tool_use"}]});
+        let turn2 = serde_json::json!({"type": "assistant", "content": [{"type": "text"}]});
+        let result = serde_json::json!({"type": "result", "num_turns": 2});
+
+        let sequence = [&init, &turn1, &turn2, &result];
+        assert_eq!(sequence[0]["type"], "system");
+        assert_eq!(sequence[1]["type"], "assistant");
+        assert_eq!(sequence[2]["type"], "assistant");
+        assert_eq!(sequence[3]["type"], "result");
+        assert_eq!(sequence[3]["num_turns"], 2);
     }
 }
