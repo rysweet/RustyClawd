@@ -113,12 +113,12 @@ fn is_private_ipv4(ip: &Ipv4Addr) -> bool {
     let octets = ip.octets();
     matches!(
         octets,
-        [127, ..] |           // 127.0.0.0/8 loopback
-        [10, ..] |            // 10.0.0.0/8 private
-        [172, 16..=31, ..] |  // 172.16.0.0/12 private
-        [192, 168, ..] |      // 192.168.0.0/16 private
-        [169, 254, ..] |      // 169.254.0.0/16 link-local / cloud metadata
-        [0, ..] // 0.0.0.0/8 current network
+        [127, ..] // 127.0.0.0/8 loopback
+        | [10, ..] // 10.0.0.0/8 private
+        | [172, 16..=31, ..] // 172.16.0.0/12 private
+        | [192, 168, ..] // 192.168.0.0/16 private
+        | [169, 254, ..] // 169.254.0.0/16 link-local / cloud metadata
+        | [0, ..] // 0.0.0.0/8 current network
     )
 }
 
