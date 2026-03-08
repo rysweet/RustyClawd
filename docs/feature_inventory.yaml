@@ -2,8 +2,8 @@
 # Tracks which Claude Code features are implemented in RustyClawd
 # Last updated: 2026-01-17
 
-last_updated: "2026-02-22T00:00:00Z"
-parity_percentage: 96  # Updated for Claude Code 2.1.50 parity
+last_updated: "2026-03-08T00:00:00Z"
+parity_percentage: 73  # Updated for Claude Code 2.1.71 sync (was 96% at v2.1.50)
 
 features:
   # ============================================================================
@@ -392,18 +392,164 @@ features:
     status: complete
     notes: "TokenUsage.duration_ms tracks agent execution time (v2.1.31)"
 
+  # ============================================================================
+  # CLAUDE CODE v2.1.51 - v2.1.71 FEATURES (sync report 2026-03-08)
+  # ============================================================================
+  - name: "/loop Command (Cron Scheduling)"
+    category: "cli"
+    status: missing
+    notes: "Run prompts on recurring intervals (v2.1.71)"
+
+  - name: "Remote Control Subcommand"
+    category: "cli"
+    status: missing
+    notes: "claude remote-control for local environment serving (v2.1.51)"
+
+  - name: "Auto-Memory System"
+    category: "capabilities"
+    status: missing
+    notes: "Claude automatically saves useful context across sessions (v2.1.59)"
+
+  - name: "/copy Command"
+    category: "cli"
+    status: missing
+    notes: "Interactive picker for code blocks (v2.1.59)"
+
+  - name: "HTTP Hooks"
+    category: "hooks"
+    status: missing
+    notes: "POST JSON to URL, receive JSON response (v2.1.63)"
+
+  - name: "/simplify Command"
+    category: "cli"
+    status: missing
+    notes: "Bundled slash command for code simplification (v2.1.63)"
+
+  - name: "/batch Command"
+    category: "cli"
+    status: missing
+    notes: "Bundled slash command for batch operations (v2.1.63)"
+
+  - name: "InstructionsLoaded Hook Event"
+    category: "hooks"
+    status: missing
+    notes: "Fires when CLAUDE.md or rules load (v2.1.69)"
+
+  - name: "Setup Hook Event"
+    category: "hooks"
+    status: missing
+    notes: "Fires during initial setup (v2.1.10)"
+
+  - name: "CLAUDE_SKILL_DIR Variable"
+    category: "config"
+    status: missing
+    notes: "Skills can reference their own directory via ${CLAUDE_SKILL_DIR} (v2.1.69)"
+
+  - name: "/reload-plugins Command"
+    category: "cli"
+    status: missing
+    notes: "Activate pending plugin changes without restart (v2.1.69)"
+
+  - name: "includeGitInstructions Setting"
+    category: "config"
+    status: missing
+    notes: "Toggle built-in commit/PR instructions (v2.1.69)"
+
+  - name: "CLAUDE_CODE_SIMPLE Mode"
+    category: "config"
+    status: missing
+    notes: "Strips skills, memory, agents, CLAUDE.md, MCP, hooks (v2.1.50)"
+
+  - name: "LSP Tool"
+    category: "tools"
+    status: partial
+    notes: "References in permission_rules.rs but unclear if fully implemented (v2.0.74)"
+
+  - name: "/terminal-setup Command"
+    category: "cli"
+    status: missing
+    notes: "Setup for Kitty, Alacritty, Zed, Warp terminals (v2.0.74)"
+
+  - name: "/teleport Command"
+    category: "cli"
+    status: missing
+    notes: "Session teleportation between environments (v2.1.0)"
+
+  - name: "Plan Mode"
+    category: "tui"
+    status: missing
+    notes: "Shift+Tab plan mode for structured task planning (v2.1.56+)"
+
+  - name: "Plugin System"
+    category: "capabilities"
+    status: partial
+    notes: "Plugin infrastructure exists (crates/cli/src/plugins/) but marketplace and /plugin commands not complete"
+
+  - name: "Managed Settings"
+    category: "config"
+    status: missing
+    notes: "macOS plist or Windows Registry for enterprise settings (v2.1.51)"
+
+  - name: "CLAUDE_CODE_TMPDIR"
+    category: "config"
+    status: missing
+    notes: "Custom temporary directory env var (v2.1.5)"
+
+  - name: "CLAUDE_CODE_DISABLE_BACKGROUND_TASKS"
+    category: "config"
+    status: missing
+    notes: "Disable background task execution (v2.1.4)"
+
+  - name: "/color Command"
+    category: "cli"
+    status: missing
+    notes: "Reset options: default, gray, reset, none (v2.1.70)"
+
+  - name: "Account Info Env Vars"
+    category: "config"
+    status: missing
+    notes: "CLAUDE_CODE_ACCOUNT_UUID, USER_EMAIL, ORGANIZATION_UUID (v2.1.51)"
+
+  - name: "Voice Features"
+    category: "tui"
+    status: notapplicable
+    notes: "Push-to-talk, STT in 20 languages - not in scope for CLI-only tool"
+
+  - name: "Chrome Extension Support"
+    category: "platform"
+    status: notapplicable
+    notes: "Browser extension - not applicable to CLI tool"
+
+  - name: "VSCode Extension Features"
+    category: "platform"
+    status: notapplicable
+    notes: "Activity bar, session management, RTL text - IDE-specific features"
+
+  - name: "Background Agents (Ctrl+B/Ctrl+F)"
+    category: "capabilities"
+    status: partial
+    notes: "Agent background field exists, runtime backgrounding partially implemented"
+
+  - name: "Agent Teams"
+    category: "capabilities"
+    status: partial
+    notes: "Agent fields exist (background, isolation, memory scope) but full team orchestration not verified"
+
 # ============================================================================
 # SUMMARY
 # ============================================================================
 summary:
-  total_features: 58
-  complete: 58
-  partial: 3    # GitHub Integration, Caching, --worktree runtime
-  missing: 0    # MCP OAuth deferred (complex, needs OAuth flow)
-  not_applicable: 3
+  total_features: 87
+  complete: 55
+  partial: 9    # GitHub, Caching, --worktree, LSP, Plugin, Background Agents, Agent Teams, HTTP hooks hint, Error Recovery
+  missing: 17   # New v2.1.51-2.1.71 features + MCP OAuth
+  not_applicable: 6
   research_needed: 0
-  completion_percentage: 100%
-  effective_parity: 100%
+  upstream_version: "2.1.71"
+  last_sync: "2026-03-08"
+  completion_percentage: 73%
+  effective_parity_v2_1_50: 96%
+  effective_parity_v2_1_71: 73%
 
   major_achievements:
     - "All core tools implemented"
@@ -418,5 +564,23 @@ summary:
     - "claude agents and claude auth subcommands"
     - "1668+ passing tests with 0 failures"
 
-  missing_features: []
-  # MCP OAuth authentication deferred - needs full OAuth flow implementation
+  missing_features:
+    - "/loop command (cron scheduling)"
+    - "Remote Control subcommand"
+    - "Auto-Memory system"
+    - "/copy command"
+    - "HTTP hooks"
+    - "/simplify and /batch commands"
+    - "InstructionsLoaded and Setup hook events"
+    - "CLAUDE_SKILL_DIR variable"
+    - "/reload-plugins command"
+    - "includeGitInstructions setting"
+    - "CLAUDE_CODE_SIMPLE mode"
+    - "/terminal-setup command"
+    - "/teleport command"
+    - "Plan mode"
+    - "Managed settings (plist/registry)"
+    - "CLAUDE_CODE_TMPDIR and CLAUDE_CODE_DISABLE_BACKGROUND_TASKS"
+    - "/color command"
+    - "Account info env vars"
+    - "MCP OAuth"
