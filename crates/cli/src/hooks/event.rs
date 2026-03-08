@@ -27,6 +27,10 @@ pub enum HookEvent {
     WorktreeRemove,
     /// Fires when a configuration file changes on disk (v2.1.49)
     ConfigChange,
+    /// Fires when CLAUDE.md or rules files are loaded (v2.1.69)
+    InstructionsLoaded,
+    /// Fires during initial setup/first run (v2.1.10)
+    Setup,
 }
 
 impl HookEvent {
@@ -48,6 +52,8 @@ impl HookEvent {
             HookEvent::WorktreeCreate,
             HookEvent::WorktreeRemove,
             HookEvent::ConfigChange,
+            HookEvent::InstructionsLoaded,
+            HookEvent::Setup,
         ]
     }
 
@@ -69,6 +75,8 @@ impl HookEvent {
             HookEvent::WorktreeCreate => "WorktreeCreate",
             HookEvent::WorktreeRemove => "WorktreeRemove",
             HookEvent::ConfigChange => "ConfigChange",
+            HookEvent::InstructionsLoaded => "InstructionsLoaded",
+            HookEvent::Setup => "Setup",
         }
     }
 }
@@ -80,7 +88,7 @@ mod tests {
     #[test]
     fn test_hook_event_all() {
         let events = HookEvent::all();
-        assert_eq!(events.len(), 15);
+        assert_eq!(events.len(), 17);
         assert!(events.contains(&HookEvent::SessionStart));
         assert!(events.contains(&HookEvent::Stop));
         assert!(events.contains(&HookEvent::PermissionRequest));
@@ -105,5 +113,37 @@ mod tests {
     #[test]
     fn test_config_change_event_as_str() {
         assert_eq!(HookEvent::ConfigChange.as_str(), "ConfigChange");
+    }
+
+    #[test]
+    fn test_instructions_loaded_event() {
+        let event = HookEvent::InstructionsLoaded;
+        assert_eq!(event.as_str(), "InstructionsLoaded");
+        assert!(HookEvent::all().contains(&event));
+    }
+
+    #[test]
+    fn test_setup_event() {
+        let event = HookEvent::Setup;
+        assert_eq!(event.as_str(), "Setup");
+        assert!(HookEvent::all().contains(&event));
+    }
+
+    #[test]
+    fn test_instructions_loaded_serde_roundtrip() {
+        let event = HookEvent::InstructionsLoaded;
+        let json = serde_json::to_string(&event).unwrap();
+        assert_eq!(json, "\"InstructionsLoaded\"");
+        let deserialized: HookEvent = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, event);
+    }
+
+    #[test]
+    fn test_setup_serde_roundtrip() {
+        let event = HookEvent::Setup;
+        let json = serde_json::to_string(&event).unwrap();
+        assert_eq!(json, "\"Setup\"");
+        let deserialized: HookEvent = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, event);
     }
 }
