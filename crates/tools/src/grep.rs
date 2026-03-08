@@ -279,4 +279,183 @@ mod tests {
         }
         // else: ripgrep not installed, test skipped
     }
+
+    /// Helper: run grep and extract the GrepOutput from the stream.
+    /// Returns None if ripgrep is not installed (error event instead of result).
+    async fn run_grep(params: GrepParams) -> Option<GrepOutput> {
+        let tool = GrepTool;
+        let ctx = ToolContext::default();
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+        events.into_iter().find_map(|e| match e {
+            ToolEvent::Result(output) => Some(output),
+            _ => None,
+        })
+    }
+
+    fn make_params(pattern: &str, path: &str) -> GrepParams {
+        GrepParams {
+            pattern: pattern.to_string(),
+            path: Some(path.to_string()),
+            output_mode: OutputMode::FilesWithMatches,
+            case_insensitive: false,
+            glob: None,
+            before_context: None,
+            after_context: None,
+            head_limit: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_grep_case_insensitive() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut f = std::fs::File::create(temp_dir.path().join("a.txt")).unwrap();
+        writeln!(f, "Hello WORLD").unwrap();
+        writeln!(f, "hello world").unwrap();
+        writeln!(f, "no match here").unwrap();
+
+        let mut params = make_params("hello", temp_dir.path().to_str().unwrap());
+        params.output_mode = OutputMode::Content;
+        params.case_insensitive = true;
+
+        if let Some(result) = run_grep(params).await {
+            // Both "Hello WORLD" and "hello world" should match
+            assert_eq!(result.count, 2);
+            assert!(result.results.iter().any(|r| r.contains("Hello WORLD")));
+            assert!(result.results.iter().any(|r| r.contains("hello world")));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_grep_no_matches() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut f = std::fs::File::create(temp_dir.path().join("a.txt")).unwrap();
+        writeln!(f, "nothing interesting here").unwrap();
+
+        let params = make_params("ZZZZNOTFOUND", temp_dir.path().to_str().unwrap());
+        if let Some(result) = run_grep(params).await {
+            assert_eq!(result.count, 0);
+            assert!(result.results.is_empty());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_grep_content_mode() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut f = std::fs::File::create(temp_dir.path().join("code.rs")).unwrap();
+        writeln!(f, "fn main() {{}}").unwrap();
+        writeln!(f, "fn helper() {{}}").unwrap();
+        writeln!(f, "let x = 42;").unwrap();
+
+        let mut params = make_params("fn", temp_dir.path().to_str().unwrap());
+        params.output_mode = OutputMode::Content;
+
+        if let Some(result) = run_grep(params).await {
+            assert_eq!(result.count, 2);
+            // Content mode includes line numbers (rg --line-number)
+            assert!(result.results.iter().any(|r| r.contains("fn main")));
+            assert!(result.results.iter().any(|r| r.contains("fn helper")));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_grep_count_mode() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut f = std::fs::File::create(temp_dir.path().join("data.txt")).unwrap();
+        writeln!(f, "apple").unwrap();
+        writeln!(f, "banana").unwrap();
+        writeln!(f, "apple pie").unwrap();
+
+        let mut params = make_params("apple", temp_dir.path().to_str().unwrap());
+        params.output_mode = OutputMode::Count;
+
+        if let Some(result) = run_grep(params).await {
+            // Count mode: rg --count produces "file:N" lines
+            assert_eq!(result.count, 1); // one line of output: "data.txt:2"
+            assert!(result.results[0].contains("2"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_grep_with_context() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut f = std::fs::File::create(temp_dir.path().join("ctx.txt")).unwrap();
+        writeln!(f, "line1").unwrap();
+        writeln!(f, "line2").unwrap();
+        writeln!(f, "MATCH").unwrap();
+        writeln!(f, "line4").unwrap();
+        writeln!(f, "line5").unwrap();
+
+        let mut params = make_params("MATCH", temp_dir.path().to_str().unwrap());
+        params.output_mode = OutputMode::Content;
+        params.before_context = Some(1);
+        params.after_context = Some(1);
+
+        if let Some(result) = run_grep(params).await {
+            // Should include line2 (before), MATCH, line4 (after)
+            let joined = result.results.join("\n");
+            assert!(joined.contains("line2"));
+            assert!(joined.contains("MATCH"));
+            assert!(joined.contains("line4"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_grep_with_head_limit() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut f = std::fs::File::create(temp_dir.path().join("many.txt")).unwrap();
+        for i in 0..50 {
+            writeln!(f, "line {}", i).unwrap();
+        }
+
+        let mut params = make_params("line", temp_dir.path().to_str().unwrap());
+        params.output_mode = OutputMode::Content;
+        params.head_limit = Some(5);
+
+        if let Some(result) = run_grep(params).await {
+            assert_eq!(result.count, 5);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_grep_with_glob_filter() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut rs = std::fs::File::create(temp_dir.path().join("code.rs")).unwrap();
+        writeln!(rs, "fn main() {{}}").unwrap();
+        let mut txt = std::fs::File::create(temp_dir.path().join("notes.txt")).unwrap();
+        writeln!(txt, "fn is a keyword").unwrap();
+
+        let mut params = make_params("fn", temp_dir.path().to_str().unwrap());
+        params.output_mode = OutputMode::FilesWithMatches;
+        params.glob = Some("*.rs".to_string());
+
+        if let Some(result) = run_grep(params).await {
+            assert_eq!(result.count, 1);
+            assert!(result.results[0].contains("code.rs"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_grep_nonexistent_path() {
+        let params = make_params("anything", "/tmp/nonexistent_grep_test_dir_12345");
+        // rg on a nonexistent path produces no results (exit code 2)
+        let tool = GrepTool;
+        let ctx = ToolContext::default();
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+
+        // Should get a result with 0 matches or an error event — either is acceptable
+        let has_result = events.iter().any(|e| matches!(e, ToolEvent::Result(_)));
+        let has_error = events.iter().any(|e| matches!(e, ToolEvent::Error { .. }));
+        assert!(
+            has_result || has_error,
+            "Expected either a result or error event for nonexistent path"
+        );
+        if let Some(result) = events.iter().find_map(|e| match e {
+            ToolEvent::Result(o) => Some(o),
+            _ => None,
+        }) {
+            assert_eq!(result.count, 0);
+        }
+    }
 }

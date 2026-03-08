@@ -196,4 +196,93 @@ mod tests {
         assert!(result.files.iter().any(|f| f.ends_with("test.rs")));
         assert!(result.files.iter().any(|f| f.ends_with("bar.rs")));
     }
+
+    /// Helper: run glob and extract GlobOutput from the stream.
+    async fn run_glob(params: GlobParams) -> GlobOutput {
+        let tool = GlobTool;
+        let ctx = ToolContext::default();
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+        events
+            .into_iter()
+            .find_map(|e| match e {
+                ToolEvent::Result(output) => Some(output),
+                _ => None,
+            })
+            .expect("Expected a Result event from GlobTool")
+    }
+
+    #[tokio::test]
+    async fn test_glob_recursive_pattern() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create nested directory structure
+        let sub = temp_dir.path().join("sub");
+        let subsub = sub.join("deep");
+        std::fs::create_dir_all(&subsub).unwrap();
+
+        std::fs::File::create(temp_dir.path().join("top.rs")).unwrap();
+        std::fs::File::create(sub.join("mid.rs")).unwrap();
+        std::fs::File::create(subsub.join("bottom.rs")).unwrap();
+        std::fs::File::create(subsub.join("other.txt")).unwrap();
+
+        let params = GlobParams {
+            pattern: "**/*.rs".to_string(),
+            path: Some(temp_dir.path().to_str().unwrap().to_string()),
+        };
+
+        let result = run_glob(params).await;
+        assert_eq!(result.count, 3);
+        assert!(result.files.iter().any(|f| f.ends_with("top.rs")));
+        assert!(result.files.iter().any(|f| f.ends_with("mid.rs")));
+        assert!(result.files.iter().any(|f| f.ends_with("bottom.rs")));
+    }
+
+    #[tokio::test]
+    async fn test_glob_no_matches() {
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::File::create(temp_dir.path().join("file.txt")).unwrap();
+
+        let params = GlobParams {
+            pattern: "*.zzz_nonexistent".to_string(),
+            path: Some(temp_dir.path().to_str().unwrap().to_string()),
+        };
+
+        let result = run_glob(params).await;
+        assert_eq!(result.count, 0);
+        assert!(result.files.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_glob_nonexistent_path() {
+        let params = GlobParams {
+            pattern: "*.rs".to_string(),
+            path: Some("/tmp/nonexistent_glob_test_dir_12345".to_string()),
+        };
+
+        let result = run_glob(params).await;
+        assert_eq!(result.count, 0);
+        assert!(result.files.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_glob_with_path_parameter() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let subdir = temp_dir.path().join("mydir");
+        std::fs::create_dir_all(&subdir).unwrap();
+        std::fs::File::create(subdir.join("a.py")).unwrap();
+        std::fs::File::create(subdir.join("b.py")).unwrap();
+        std::fs::File::create(temp_dir.path().join("c.py")).unwrap();
+
+        // Only search inside subdir via path parameter
+        let params = GlobParams {
+            pattern: "*.py".to_string(),
+            path: Some(subdir.to_str().unwrap().to_string()),
+        };
+
+        let result = run_glob(params).await;
+        assert_eq!(result.count, 2);
+        assert!(result.files.iter().all(|f| f.contains("mydir")));
+    }
 }
