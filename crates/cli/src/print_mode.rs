@@ -87,8 +87,13 @@ impl App {
 
         let max_tokens = 4096u32; // Default max tokens (not configurable in official spec)
 
-        // Build system prompt based on priority: system_prompt > system_prompt_file > append_system_prompt
-        let system_prompt = if let Some(ref prompt) = self.cli.system_prompt {
+        // Build system prompt based on priority:
+        // 1. CLAUDE_CODE_SIMPLE mode -> minimal system prompt
+        // 2. --system-prompt > --system-prompt-file > --append-system-prompt
+        let system_prompt = if rustyclawd_core::simple_mode::is_active() {
+            // Simple mode uses a minimal system prompt, ignoring CLI overrides
+            Some(rustyclawd_core::simple_mode::MINIMAL_SYSTEM_PROMPT.to_string())
+        } else if let Some(ref prompt) = self.cli.system_prompt {
             // --system-prompt: replace entire system prompt
             Some(prompt.clone())
         } else if let Some(ref file_path) = self.cli.system_prompt_file {

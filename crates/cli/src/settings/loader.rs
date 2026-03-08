@@ -104,6 +104,11 @@ impl SettingsLoader {
                         settings = settings.with_reduced_motion(true);
                     }
                 }
+                "include_git_instructions" | "includegitinstructions" => {
+                    if value.to_lowercase() == "false" || value == "0" {
+                        settings = settings.with_include_git_instructions(false);
+                    }
+                }
                 _ if !key.starts_with("_") => {
                     settings = settings.with_env_var(key.clone(), value.clone());
                 }

@@ -199,6 +199,9 @@ pub struct Config {
     pub api_version: String,
     /// Request timeout in seconds
     pub timeout_secs: u64,
+    /// Account info loaded from env vars (SDK callers).
+    /// Contains CLAUDE_CODE_ACCOUNT_UUID, CLAUDE_CODE_USER_EMAIL, CLAUDE_CODE_ORGANIZATION_UUID.
+    pub account_info: crate::env_config::account_info::AccountInfo,
 }
 
 impl Config {
@@ -209,13 +212,17 @@ impl Config {
     /// Default timeout (2 minutes)
     pub const DEFAULT_TIMEOUT_SECS: u64 = 120;
 
-    /// Create a new configuration with the given API key
+    /// Create a new configuration with the given API key.
+    ///
+    /// Automatically loads account info from environment variables
+    /// (CLAUDE_CODE_ACCOUNT_UUID, CLAUDE_CODE_USER_EMAIL, CLAUDE_CODE_ORGANIZATION_UUID).
     pub fn new(api_key: ApiKey) -> Self {
         Self {
             api_key: SecretBox::new(Box::new(api_key)),
             api_url: Self::DEFAULT_API_URL.to_string(),
             api_version: Self::DEFAULT_API_VERSION.to_string(),
             timeout_secs: Self::DEFAULT_TIMEOUT_SECS,
+            account_info: crate::env_config::account_info::AccountInfo::from_env(),
         }
     }
 
@@ -261,6 +268,7 @@ impl fmt::Debug for Config {
             .field("api_url", &self.api_url)
             .field("api_version", &self.api_version)
             .field("timeout_secs", &self.timeout_secs)
+            .field("account_info", &self.account_info)
             .finish()
     }
 }

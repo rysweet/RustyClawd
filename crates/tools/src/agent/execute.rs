@@ -116,7 +116,9 @@ impl crate::Tool for AgentTool {
         let prompt = params.prompt.clone();
         let model_name = params.model.clone();
         let resume_id = params.resume.clone();
-        let mut run_in_background = params.run_in_background;
+        // Feature: CLAUDE_CODE_DISABLE_BACKGROUND_TASKS overrides run_in_background
+        let mut run_in_background = params.run_in_background
+            && !rustyclawd_core::is_background_tasks_disabled();
         let param_memory_scope = params.memory_scope.clone();
 
         Ok(Box::pin(stream! {

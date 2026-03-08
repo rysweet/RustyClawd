@@ -5,8 +5,15 @@
 use rustyclawd_core::client::ToolDefinition;
 use serde_json::json;
 
-/// Get all available tool definitions for the API
+/// Get all available tool definitions for the API.
+///
+/// When `CLAUDE_CODE_SIMPLE=1` is set, only core tools (Bash, Read, Write, Edit)
+/// are returned.
 pub fn get_all_tool_definitions() -> Vec<ToolDefinition> {
+    if rustyclawd_core::simple_mode::is_active() {
+        return get_simple_tool_definitions();
+    }
+
     vec![
         bash_tool_definition(),
         bash_output_tool_definition(),
@@ -24,6 +31,16 @@ pub fn get_all_tool_definitions() -> Vec<ToolDefinition> {
         todowrite_tool_definition(),
         web_fetch_tool_definition(),
         web_search_tool_definition(),
+    ]
+}
+
+/// Tool definitions for CLAUDE_CODE_SIMPLE mode (Bash, Read, Write, Edit only).
+fn get_simple_tool_definitions() -> Vec<ToolDefinition> {
+    vec![
+        bash_tool_definition(),
+        read_tool_definition(),
+        write_tool_definition(),
+        edit_tool_definition(),
     ]
 }
 
@@ -535,6 +552,9 @@ mod tests {
     /// and tool naming for every tool returned by get_all_tool_definitions().
     #[test]
     fn test_all_tools_have_valid_schemas() {
+        // Ensure CLAUDE_CODE_SIMPLE is not set so we get all tools
+        let _prev = std::env::var("CLAUDE_CODE_SIMPLE").ok();
+        std::env::remove_var("CLAUDE_CODE_SIMPLE");
         let tools = get_all_tool_definitions();
 
         // We expect exactly 16 tools
@@ -597,6 +617,21 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Test CLAUDE_CODE_SIMPLE mode returns only 4 core tools.
+    #[test]
+    fn test_simple_mode_returns_core_tools_only() {
+        let tools = get_simple_tool_definitions();
+        assert_eq!(tools.len(), 4, "Simple mode should have exactly 4 tools");
+
+        let names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
+        assert!(names.contains(&"Bash"));
+        assert!(names.contains(&"Read"));
+        assert!(names.contains(&"Write"));
+        assert!(names.contains(&"Edit"));
+        assert!(!names.contains(&"Grep"));
+        assert!(!names.contains(&"Task"));
     }
 
     /// Test that schemas serialize correctly for API transmission

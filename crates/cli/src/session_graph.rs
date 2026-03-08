@@ -344,7 +344,7 @@ impl Default for SessionGraph {
     fn default() -> Self {
         Self::new().unwrap_or_else(|_| {
             // Fallback to a temp directory if config dir is unavailable
-            let tmp_path = std::env::temp_dir().join(session_graph_storage::graph_filename());
+            let tmp_path = rustyclawd_core::tmpdir::get().join(session_graph_storage::graph_filename());
             Self {
                 edges: HashMap::new(),
                 children: HashMap::new(),

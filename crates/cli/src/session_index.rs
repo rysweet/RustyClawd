@@ -294,7 +294,7 @@ impl Default for SessionIndex {
     fn default() -> Self {
         Self::new().unwrap_or_else(|_| {
             // Fallback to a temp directory if config dir is unavailable
-            let tmp_path = std::env::temp_dir().join(INDEX_FILENAME);
+            let tmp_path = rustyclawd_core::tmpdir::get().join(INDEX_FILENAME);
             Self {
                 pr_to_session: HashMap::new(),
                 session_to_pr: HashMap::new(),
