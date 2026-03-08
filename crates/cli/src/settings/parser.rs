@@ -138,6 +138,11 @@ pub fn parse_json_config(content: &str) -> Result<Settings, String> {
         if let Some(reduced) = obj.get("reduced_motion").and_then(|v| v.as_bool()) {
             settings = settings.with_reduced_motion(reduced);
         }
+
+        // Parse includeGitInstructions boolean (default true)
+        if let Some(include_git) = obj.get("includeGitInstructions").and_then(|v| v.as_bool()) {
+            settings = settings.with_include_git_instructions(include_git);
+        }
     }
 
     Ok(settings)

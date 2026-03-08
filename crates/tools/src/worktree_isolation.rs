@@ -55,7 +55,8 @@ pub fn create_worktree(cwd: &Path, agent_id: &str) -> Result<WorktreeInfo, Strin
 
     let branch_name = format!("agent/{}", safe_id);
     let worktree_name = format!("rustyclawd-{}", safe_id);
-    let worktree_path = std::env::temp_dir().join(format!("rustyclawd-worktree-{}", safe_id));
+    let worktree_path =
+        rustyclawd_core::tmpdir::get().join(format!("rustyclawd-worktree-{}", safe_id));
 
     // Clean up stale worktree directory if it exists from a previous failed run
     if worktree_path.exists() {

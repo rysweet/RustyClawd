@@ -136,13 +136,17 @@ impl App {
         Ok(settings)
     }
 
-    /// Initialize the hooks system, loading configuration unless dangerous mode is active.
+    /// Initialize the hooks system, loading configuration unless dangerous or simple mode is active.
     async fn init_hooks(cli: &Cli) -> Result<hooks::HooksSystem> {
         tracing::debug!("Initializing hooks system...");
         let mut hooks = hooks::HooksSystem::new();
 
-        if cli.dangerous_mode {
-            tracing::warn!("DANGEROUS MODE: Skipping hooks initialization");
+        if cli.dangerous_mode || rustyclawd_core::simple_mode::is_active() {
+            if rustyclawd_core::simple_mode::is_active() {
+                tracing::info!("SIMPLE MODE: Skipping hooks initialization");
+            } else {
+                tracing::warn!("DANGEROUS MODE: Skipping hooks initialization");
+            }
         } else {
             let hooks_config_path = ".claude/hooks.json";
             if std::path::Path::new(hooks_config_path).exists() {
@@ -159,11 +163,25 @@ impl App {
     }
 
     /// Discover plugins, initialize MCP proxy, and parse runtime agents from CLI.
+    ///
+    /// In CLAUDE_CODE_SIMPLE mode, MCP and plugin loading is skipped entirely.
     fn load_plugins(cli: &Cli) -> Result<PluginState> {
         tracing::debug!("Discovering and loading plugins...");
         let mut plugin_loader = plugins::PluginLoader::new();
         let mut plugin_executor = plugins::PluginExecutor::new();
         let mut mcp_proxy = plugins::mcp_proxy::McpProxy::new();
+
+        // Simple mode: skip all plugin/MCP loading
+        if rustyclawd_core::simple_mode::is_active() {
+            tracing::info!("SIMPLE MODE: Skipping plugin and MCP discovery");
+            let mcp_proxy = std::sync::Arc::new(tokio::sync::Mutex::new(mcp_proxy));
+            return Ok(PluginState {
+                loader: plugin_loader,
+                executor: plugin_executor,
+                mcp_proxy,
+                runtime_agents: std::collections::HashMap::new(),
+            });
+        }
 
         if let Some(ref mcp_config_path) = cli.mcp_config {
             tracing::info!("Using custom MCP config: {}", mcp_config_path);

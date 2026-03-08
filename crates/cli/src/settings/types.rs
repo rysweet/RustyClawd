@@ -55,7 +55,7 @@ pub struct SandboxSettings {
 }
 
 /// Core configuration settings
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Settings {
     /// LLM model to use
     pub model: Option<String>,
@@ -81,6 +81,30 @@ pub struct Settings {
     pub spinner_tips_override: Option<Vec<String>>,
     /// When true, animations are simplified for reduced motion preference (v2.1.31)
     pub reduced_motion: bool,
+    /// When false, built-in git commit/PR instructions are removed from the system prompt.
+    /// Also controllable via CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS env var.
+    /// Default: true (git instructions included).
+    pub include_git_instructions: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            model: None,
+            api_url: None,
+            timeout_secs: None,
+            cleanup_period_days: None,
+            permissions: HashMap::new(),
+            env_vars: HashMap::new(),
+            disable_bypass_permissions: false,
+            enabled_plugins: HashMap::new(),
+            sandbox: None,
+            tool_search: ToolSearchConfig::default(),
+            spinner_tips_override: None,
+            reduced_motion: false,
+            include_git_instructions: true, // default: include git instructions
+        }
+    }
 }
 
 impl Settings {
@@ -155,6 +179,24 @@ impl Settings {
         self
     }
 
+    /// Set includeGitInstructions (false removes git commit/PR instructions from system prompt)
+    pub fn with_include_git_instructions(mut self, include: bool) -> Self {
+        self.include_git_instructions = include;
+        self
+    }
+
+    /// Returns true if git instructions should be included in the system prompt.
+    ///
+    /// Checks both the setting and the CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS env var.
+    /// The env var overrides the setting (if the env var says disable, they are disabled
+    /// regardless of the setting value).
+    pub fn should_include_git_instructions(&self) -> bool {
+        if rustyclawd_core::is_git_instructions_disabled() {
+            return false;
+        }
+        self.include_git_instructions
+    }
+
     /// Validate settings configuration.
     /// Delegates to the shared validation functions in `validation.rs`.
     pub fn validate(&self) -> Result<(), String> {
@@ -187,6 +229,7 @@ impl Settings {
             && self.tool_search.is_auto()
             && self.spinner_tips_override.is_none()
             && !self.reduced_motion
+            && self.include_git_instructions
     }
 
     /// Get tool search configuration
@@ -303,6 +346,25 @@ mod tests {
     #[test]
     fn test_reduced_motion_false_still_empty() {
         let settings = Settings::new().with_reduced_motion(false);
+        assert!(settings.is_empty());
+    }
+
+    #[test]
+    fn test_include_git_instructions_default_true() {
+        let settings = Settings::new();
+        assert!(settings.include_git_instructions);
+    }
+
+    #[test]
+    fn test_include_git_instructions_builder() {
+        let settings = Settings::new().with_include_git_instructions(false);
+        assert!(!settings.include_git_instructions);
+        assert!(!settings.is_empty());
+    }
+
+    #[test]
+    fn test_include_git_instructions_true_still_empty() {
+        let settings = Settings::new().with_include_git_instructions(true);
         assert!(settings.is_empty());
     }
 }

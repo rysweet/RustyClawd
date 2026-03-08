@@ -87,7 +87,9 @@ impl crate::Tool for BashTool {
         let timeout_duration = Duration::from_millis(params.timeout);
         let cwd = ctx.cwd.clone();
         let debug = ctx.debug;
-        let run_in_background = params.run_in_background;
+        // Feature: CLAUDE_CODE_DISABLE_BACKGROUND_TASKS overrides run_in_background
+        let run_in_background =
+            params.run_in_background && !rustyclawd_core::is_background_tasks_disabled();
         let execution_context = ctx.execution_context;
 
         Ok(Box::pin(stream! {
@@ -366,6 +368,42 @@ mod tests {
             })
             .unwrap();
         assert_eq!(finished.exit_code, Some(42));
+    }
+
+    /// Test that CLAUDE_CODE_DISABLE_BACKGROUND_TASKS forces foreground execution.
+    #[tokio::test]
+    async fn test_disable_background_tasks_env() {
+        // Set the env var to disable background tasks
+        std::env::set_var("CLAUDE_CODE_DISABLE_BACKGROUND_TASKS", "1");
+
+        let tool = BashTool;
+        let params = BashParams {
+            command: "echo 'foreground forced'".to_string(),
+            timeout: 5000,
+            description: None,
+            run_in_background: true, // Would normally go to background
+        };
+        let ctx = ToolContext::default();
+
+        let stream = tool.execute(params, &ctx).await.unwrap();
+        let events: Vec<_> = stream.collect().await;
+
+        // Should have a result (foreground execution), not just a shell_id
+        if let ToolEvent::Result(output) = &events[events.len() - 1] {
+            // If background was disabled, we get stdout instead of just shell_id
+            assert!(
+                output.stdout.is_some(),
+                "Expected foreground execution with stdout"
+            );
+            assert!(
+                output.shell_id.is_none(),
+                "Should not have shell_id when background is disabled"
+            );
+        } else {
+            panic!("Expected ToolEvent::Result");
+        }
+
+        std::env::remove_var("CLAUDE_CODE_DISABLE_BACKGROUND_TASKS");
     }
 
     #[tokio::test]
