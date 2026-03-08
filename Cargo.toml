@@ -58,7 +58,7 @@ chrono = { version = "0.4", features = ["serde"] }
 libc = "0.2"
 
 [patch.crates-io]
-tui-textarea = { git = "https://github.com/0xferrous/tui-textarea", branch = "update-ratatui" }
+tui-textarea = { git = "https://github.com/0xferrous/tui-textarea", rev = "a5086767ee0831e319aec9432aaef495d8f280c4" }
 
 [profile.release]
 opt-level = 3
