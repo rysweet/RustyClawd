@@ -468,7 +468,10 @@ mod tests {
             "data": {}
         });
         let serialized = serde_json::to_string(&msg).unwrap();
-        assert!(!serialized.contains('\n'), "SDK messages must be single-line JSON");
+        assert!(
+            !serialized.contains('\n'),
+            "SDK messages must be single-line JSON"
+        );
 
         // Verify round-trip
         let parsed: serde_json::Value = serde_json::from_str(&serialized).unwrap();
