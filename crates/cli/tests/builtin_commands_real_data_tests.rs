@@ -68,7 +68,6 @@ fn test_removed_stubs_not_recognized() {
         "sandbox",
         "doctor",
         "export",
-        "memory",
         "mcp",
         "agents",
         "hooks",
@@ -89,7 +88,6 @@ fn test_removed_stubs_not_recognized() {
         "output-style",
         "privacy-settings",
         "statusline",
-        "terminal-setup",
         "vim",
         "pr_comments",
     ];

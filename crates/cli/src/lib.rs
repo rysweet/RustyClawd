@@ -3,6 +3,7 @@
 //! Public API modules for the CLI crate. These modules expose types and
 //! functions for external consumers and the binary target.
 
+pub mod auto_memory;
 pub mod checkpoint;
 pub mod command_handlers;
 pub mod commands;
