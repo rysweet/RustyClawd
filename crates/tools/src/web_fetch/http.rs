@@ -94,6 +94,14 @@ impl WebFetchTool {
                             .to_string()
                     };
 
+                    // SSRF protection: validate redirect target
+                    if let Err(reason) = super::ssrf::validate_url(&redirect_url) {
+                        return Err(format!(
+                            "SSRF protection: redirect to blocked target: {}",
+                            reason
+                        ));
+                    }
+
                     // Check if cross-domain redirect
                     if !Self::is_same_domain(&current_url, &redirect_url) {
                         return Err(format!(

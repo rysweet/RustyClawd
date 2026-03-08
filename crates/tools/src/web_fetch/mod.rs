@@ -13,6 +13,7 @@
 
 mod cache;
 mod http;
+mod ssrf;
 mod types;
 
 pub use cache::WebFetchCache;
@@ -91,6 +92,14 @@ impl crate::Tool for WebFetchTool {
 
             if url != original_url && debug {
                 tracing::debug!(original = %original_url, upgraded = %url, "Upgraded HTTP to HTTPS");
+            }
+
+            // SSRF protection: block private/internal IPs and dangerous schemes
+            if let Err(reason) = ssrf::validate_url(&url) {
+                yield ToolEvent::Error {
+                    message: format!("SSRF protection: {}", reason),
+                };
+                return;
             }
 
             yield ToolEvent::Progress {

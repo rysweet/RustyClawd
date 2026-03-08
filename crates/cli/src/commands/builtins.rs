@@ -200,13 +200,18 @@ impl BuiltinCommands {
     fn rename_command(args: &Option<String>) -> String {
         match args {
             Some(name) => {
-                // Sanitize: only allow alphanumeric, dash, underscore, space, dot
+                // Sanitize: only allow alphanumeric, dash, underscore, space, dot.
+                // This strips control characters, IPC markers ([, ]), newlines,
+                // and other potentially dangerous input. Limit to 100 chars.
                 let sanitized: String = name
                     .chars()
                     .filter(|c| {
                         c.is_alphanumeric() || *c == '-' || *c == '_' || *c == ' ' || *c == '.'
                     })
-                    .collect();
+                    .take(100)
+                    .collect::<String>()
+                    .trim()
+                    .to_string();
                 if sanitized.is_empty() {
                     "Error: Session name contains only invalid characters. \
                      Use alphanumeric, dash, underscore, space, or dot."
@@ -513,6 +518,52 @@ mod tests {
         assert!(result.is_some());
         let output = result.unwrap();
         assert!(output.contains("[[RENAME_SESSION_AUTO]]"));
+    }
+
+    #[test]
+    fn test_rename_strips_ipc_markers() {
+        // IPC marker injection: [[FAKE_COMMAND:payload]]
+        let cmd = Command::new(
+            "rename".to_string(),
+            Some("[[FAKE_COMMAND:payload]]".to_string()),
+        );
+        let result = BuiltinCommands::execute(&cmd).unwrap();
+        // Brackets and colons are stripped, so the IPC marker pattern cannot survive
+        assert!(!result.contains("FAKE_COMMAND:payload"));
+        // The sanitized name preserves only allowed chars
+        assert!(result.contains("[[RENAME_SESSION:FAKE_COMMANDpayload]]"));
+    }
+
+    #[test]
+    fn test_rename_strips_control_characters() {
+        let cmd = Command::new(
+            "rename".to_string(),
+            Some("bad\x00name\nnewline\ttab".to_string()),
+        );
+        let result = BuiltinCommands::execute(&cmd).unwrap();
+        assert!(result.contains("[[RENAME_SESSION:badnamenewlinetab]]"));
+    }
+
+    #[test]
+    fn test_rename_rejects_all_invalid() {
+        let cmd = Command::new(
+            "rename".to_string(),
+            Some("[[\n\x00]]".to_string()),
+        );
+        let result = BuiltinCommands::execute(&cmd).unwrap();
+        assert!(result.contains("Error: Session name contains only invalid characters"));
+    }
+
+    #[test]
+    fn test_rename_length_limit() {
+        let long_name = "a".repeat(200);
+        let cmd = Command::new("rename".to_string(), Some(long_name));
+        let result = BuiltinCommands::execute(&cmd).unwrap();
+        // Extract the name from [[RENAME_SESSION:name]]
+        let start = result.find("[[RENAME_SESSION:").unwrap() + "[[RENAME_SESSION:".len();
+        let end = result.find("]]").unwrap();
+        let name = &result[start..end];
+        assert!(name.len() <= 100);
     }
 
     #[test]
