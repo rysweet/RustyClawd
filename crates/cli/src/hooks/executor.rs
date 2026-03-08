@@ -4,6 +4,7 @@ use crate::hooks::config::{Hook, HookResult, HookType};
 use crate::hooks::context::HookContext;
 use crate::hooks::prompt_hook;
 use anyhow::{Context, Result};
+use serde_json;
 use std::collections::HashSet;
 use std::process::Stdio;
 use std::time::Duration;
@@ -73,15 +74,16 @@ impl HookExecutor {
         Ok(results)
     }
 
-    /// Deduplicate hooks by their command/type
+    /// Deduplicate hooks by their command/type/url
     fn deduplicate_hooks<'a>(&self, hooks: &'a [Hook]) -> Vec<&'a Hook> {
         let mut seen = HashSet::new();
         let mut unique = Vec::new();
 
         for hook in hooks {
             let key = match &hook.hook_type {
-                HookType::Command => hook.command.as_deref().unwrap_or(""),
-                HookType::Prompt => "prompt",
+                HookType::Command => hook.command.as_deref().unwrap_or("").to_string(),
+                HookType::Prompt => "prompt".to_string(),
+                HookType::Http => hook.url.as_deref().unwrap_or("").to_string(),
             };
 
             if seen.insert(key) {
@@ -101,6 +103,7 @@ impl HookExecutor {
         match hook.hook_type {
             HookType::Command => Self::execute_command_hook(hook, context, env_file).await,
             HookType::Prompt => prompt_hook::execute_prompt_hook(hook, context).await,
+            HookType::Http => Self::execute_http_hook(hook, context).await,
         }
     }
 
@@ -171,6 +174,60 @@ impl HookExecutor {
                 exit_code: 1,
                 stdout: String::new(),
                 stderr: format!("Hook timed out after {}ms", hook.effective_timeout()),
+            }),
+        }
+    }
+
+    /// Execute an HTTP hook by POSTing the context JSON to the configured URL
+    async fn execute_http_hook(hook: &Hook, context: &HookContext) -> Result<HookResult> {
+        let url = hook
+            .url
+            .as_ref()
+            .context("HTTP hook must have url")?;
+
+        // Serialize hook context as JSON body
+        let body = serde_json::to_value(context)
+            .context("Failed to serialize hook context")?;
+
+        let client = reqwest::Client::new();
+        let timeout_duration = Duration::from_millis(hook.effective_timeout() as u64);
+
+        match timeout(timeout_duration, async {
+            client
+                .post(url)
+                .json(&body)
+                .send()
+                .await
+        })
+        .await
+        {
+            Ok(Ok(response)) => {
+                let status = response.status();
+                let response_text = response.text().await.unwrap_or_default();
+
+                if status.is_success() {
+                    Ok(HookResult {
+                        exit_code: 0,
+                        stdout: response_text,
+                        stderr: String::new(),
+                    })
+                } else {
+                    Ok(HookResult {
+                        exit_code: 1,
+                        stdout: response_text,
+                        stderr: format!("HTTP hook returned status {}", status.as_u16()),
+                    })
+                }
+            }
+            Ok(Err(e)) => Ok(HookResult {
+                exit_code: 1,
+                stdout: String::new(),
+                stderr: format!("HTTP request failed: {}", e),
+            }),
+            Err(_) => Ok(HookResult {
+                exit_code: 1,
+                stdout: String::new(),
+                stderr: format!("HTTP hook timed out after {}ms", hook.effective_timeout()),
             }),
         }
     }
@@ -361,5 +418,47 @@ mod tests {
             "Expected empty CLAUDE_TOOL_USE_ID when None. Got stdout: {}",
             result[0].stdout
         );
+    }
+
+    #[tokio::test]
+    async fn test_http_hook_connection_refused() {
+        // HTTP hook to a port that's not listening should fail gracefully
+        let hook = Hook::http("http://127.0.0.1:19999/hook".to_string(), Some(3000));
+        let context = HookContext::for_session(
+            "test-session".to_string(),
+            "/tmp/transcript".to_string(),
+            std::env::current_dir()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+            "auto".to_string(),
+            HookEvent::SessionStart,
+        );
+
+        let executor = HookExecutor::new();
+        let result = executor.execute_hooks(&[hook], &context).await.unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert!(!result[0].is_success());
+        assert!(
+            result[0].stderr.contains("HTTP request failed"),
+            "Expected connection error. Got stderr: {}",
+            result[0].stderr
+        );
+    }
+
+    #[tokio::test]
+    async fn test_deduplicate_http_hooks() {
+        let hooks = vec![
+            Hook::http("http://example.com/hook".to_string(), Some(5000)),
+            Hook::http("http://example.com/hook".to_string(), Some(5000)),
+            Hook::http("http://example.com/other".to_string(), Some(5000)),
+        ];
+
+        let executor = HookExecutor::new();
+        let unique = executor.deduplicate_hooks(&hooks);
+
+        // Should deduplicate to 2 unique hooks
+        assert_eq!(unique.len(), 2);
     }
 }

@@ -3,12 +3,13 @@
 use crate::hooks::event::HookEvent;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-/// Hook type - command (bash) or prompt (LLM)
+/// Hook type - command (bash), prompt (LLM), or http (POST JSON to URL)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HookType {
     Command,
     Prompt,
+    Http,
 }
 
 /// Hook matcher for filtering tools/events
@@ -125,6 +126,9 @@ pub struct Hook {
     pub command: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
+    /// URL for HTTP hooks — POST JSON to this URL and receive JSON response
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
     #[serde(rename = "timeout", skip_serializing_if = "Option::is_none")]
     pub timeout_ms: Option<u32>,
 }
@@ -136,6 +140,7 @@ impl Hook {
             hook_type: HookType::Command,
             command: Some(command),
             prompt: None,
+            url: None,
             timeout_ms,
         }
     }
@@ -146,6 +151,18 @@ impl Hook {
             hook_type: HookType::Prompt,
             command: None,
             prompt,
+            url: None,
+            timeout_ms,
+        }
+    }
+
+    /// Create a new HTTP hook that POSTs JSON to a URL
+    pub fn http(url: String, timeout_ms: Option<u32>) -> Self {
+        Self {
+            hook_type: HookType::Http,
+            command: None,
+            prompt: None,
+            url: Some(url),
             timeout_ms,
         }
     }
@@ -476,6 +493,57 @@ mod tests {
         assert_eq!(
             output.permission_decision_reason,
             Some("Needs user review".to_string())
+        );
+    }
+
+    #[test]
+    fn test_http_hook_deserialization() {
+        let json = r#"{
+            "PreToolUse": [
+                {
+                    "matcher": "*",
+                    "hooks": [
+                        {
+                            "type": "http",
+                            "url": "http://localhost:8080/hooks/pre-tool",
+                            "timeout": 10000
+                        }
+                    ]
+                }
+            ]
+        }"#;
+
+        let config: HooksConfiguration = serde_json::from_str(json).unwrap();
+        assert_eq!(config.pre_tool_use.len(), 1);
+        let hook = &config.pre_tool_use[0].hooks[0];
+        assert_eq!(hook.hook_type, HookType::Http);
+        assert_eq!(
+            hook.url,
+            Some("http://localhost:8080/hooks/pre-tool".to_string())
+        );
+        assert_eq!(hook.timeout_ms, Some(10000));
+        assert!(hook.command.is_none());
+    }
+
+    #[test]
+    fn test_http_hook_constructor() {
+        let hook = Hook::http("http://example.com/hook".to_string(), Some(5000));
+        assert_eq!(hook.hook_type, HookType::Http);
+        assert_eq!(hook.url, Some("http://example.com/hook".to_string()));
+        assert!(hook.command.is_none());
+        assert!(hook.prompt.is_none());
+        assert_eq!(hook.timeout_ms, Some(5000));
+    }
+
+    #[test]
+    fn test_http_hook_serialization_roundtrip() {
+        let hook = Hook::http("http://example.com/hook".to_string(), Some(5000));
+        let json = serde_json::to_string(&hook).unwrap();
+        let deserialized: Hook = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.hook_type, HookType::Http);
+        assert_eq!(
+            deserialized.url,
+            Some("http://example.com/hook".to_string())
         );
     }
 }
