@@ -88,8 +88,8 @@ impl crate::Tool for BashTool {
         let cwd = ctx.cwd.clone();
         let debug = ctx.debug;
         // Feature: CLAUDE_CODE_DISABLE_BACKGROUND_TASKS overrides run_in_background
-        let run_in_background = params.run_in_background
-            && !rustyclawd_core::is_background_tasks_disabled();
+        let run_in_background =
+            params.run_in_background && !rustyclawd_core::is_background_tasks_disabled();
         let execution_context = ctx.execution_context;
 
         Ok(Box::pin(stream! {

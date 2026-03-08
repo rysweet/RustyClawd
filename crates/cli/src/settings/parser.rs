@@ -140,10 +140,7 @@ pub fn parse_json_config(content: &str) -> Result<Settings, String> {
         }
 
         // Parse includeGitInstructions boolean (default true)
-        if let Some(include_git) = obj
-            .get("includeGitInstructions")
-            .and_then(|v| v.as_bool())
-        {
+        if let Some(include_git) = obj.get("includeGitInstructions").and_then(|v| v.as_bool()) {
             settings = settings.with_include_git_instructions(include_git);
         }
     }
