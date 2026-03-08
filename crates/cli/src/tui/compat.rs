@@ -169,10 +169,6 @@ impl TuiState {
                     // Message collapse state already toggled in event handler
                     Ok(None)
                 }
-                EventResult::OpenMenu => {
-                    // Menu functionality not yet implemented
-                    Ok(None)
-                }
                 EventResult::Resize => {
                     // Terminal resized - update internal buffers and force full redraw
                     self.terminal.autoresize()?;
@@ -244,10 +240,6 @@ impl TuiState {
             }
             EventResult::ToggleMessage { index: _ } => {
                 // Message collapse state already toggled in event handler
-                Ok(None)
-            }
-            EventResult::OpenMenu => {
-                // Menu functionality not yet implemented
                 Ok(None)
             }
             EventResult::Resize => {

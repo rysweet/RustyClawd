@@ -30,9 +30,6 @@ pub enum EventResult {
     /// Toggle debug pane visibility
     ToggleDebugPane,
 
-    /// Open menu (future implementation)
-    OpenMenu,
-
     /// Terminal resized - need to call autoresize() and clear()
     Resize,
 }
@@ -159,7 +156,6 @@ fn handle_mouse_event(app: &mut App, mouse: event::MouseEvent) -> Result<EventRe
                     // Route status bar clicks to appropriate actions
                     match id.as_str() {
                         "debug" => return Ok(EventResult::ToggleDebugPane),
-                        "menu" => return Ok(EventResult::OpenMenu),
                         _ => {} // Unknown status bar item, ignore
                     }
                 }
