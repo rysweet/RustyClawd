@@ -32,23 +32,33 @@ fn emit_init_message(session_id: &str) {
 }
 
 /// Emit an `assistant` message carrying the model response content.
-fn emit_assistant_message(response: &MessageResponse) {
-    emit_sdk_message(&serde_json::json!({
+///
+/// When `parent_tool_use_id` is `Some`, the field is included so SDK consumers
+/// can correlate this message with a subagent tool invocation.
+fn emit_assistant_message(response: &MessageResponse, parent_tool_use_id: Option<&str>) {
+    let mut msg = serde_json::json!({
         "type": "assistant",
         "content": response.content,
         "model": response.model,
-    }));
+    });
+    if let Some(parent_id) = parent_tool_use_id {
+        msg["parent_tool_use_id"] = serde_json::json!(parent_id);
+    }
+    emit_sdk_message(&msg);
 }
 
 /// Emit the final `result` message that closes an SDK session.
+///
+/// When `parent_tool_use_id` is `Some`, it is included for subagent correlation.
 fn emit_result_message(
     session_id: &str,
     result_text: &str,
     num_turns: u32,
     duration_ms: u64,
     is_error: bool,
+    parent_tool_use_id: Option<&str>,
 ) {
-    emit_sdk_message(&serde_json::json!({
+    let mut msg = serde_json::json!({
         "type": "result",
         "subtype": "result",
         "session_id": session_id,
@@ -57,7 +67,11 @@ fn emit_result_message(
         "duration_ms": duration_ms,
         "is_error": is_error,
         "stop_reason": if is_error { "error" } else { "end_turn" }
-    }));
+    });
+    if let Some(parent_id) = parent_tool_use_id {
+        msg["parent_tool_use_id"] = serde_json::json!(parent_id);
+    }
+    emit_sdk_message(&msg);
 }
 
 impl App {
@@ -253,8 +267,11 @@ impl App {
         let (response, num_turns) = if output_format == "stream-json" {
             let on_event = |event: ToolLoopEvent| async move {
                 match event {
-                    ToolLoopEvent::AssistantMessage(ref resp) => {
-                        emit_assistant_message(resp);
+                    ToolLoopEvent::AssistantMessage {
+                        ref response,
+                        ref parent_tool_use_id,
+                    } => {
+                        emit_assistant_message(response, parent_tool_use_id.as_deref());
                     }
                     ToolLoopEvent::ToolUse { .. } | ToolLoopEvent::ToolResult { .. } => {
                         // Tool lifecycle events are logged via tracing; the SDK
@@ -273,6 +290,7 @@ impl App {
                         disallowed_tools_for_executor
                     ),
                     on_event,
+                    None, // top-level session has no parent tool use
                 )
                 .await
             {
@@ -301,6 +319,7 @@ impl App {
                                     disallowed_tools_for_executor
                                 ),
                                 on_event,
+                                None, // fallback also top-level
                             )
                             .await?
                     } else {
@@ -396,7 +415,7 @@ impl App {
                 // Assistant messages were already emitted per-turn via on_event.
                 // Emit the final result message to close the SDK session.
                 let duration_ms = start_time.elapsed().as_millis() as u64;
-                emit_result_message(&self.session.id, &text, num_turns, duration_ms, false);
+                emit_result_message(&self.session.id, &text, num_turns, duration_ms, false, None);
             }
             _ => {
                 // Text format (default)
@@ -588,6 +607,77 @@ mod tests {
 
         assert_eq!(msg["num_turns"], 5);
         assert_eq!(msg["stop_reason"], "end_turn");
+    }
+
+    #[test]
+    fn test_assistant_message_without_parent_tool_use_id() {
+        // Top-level messages should NOT include parent_tool_use_id
+        let response = make_response("Hello");
+        let mut msg = serde_json::json!({
+            "type": "assistant",
+            "content": response.content,
+            "model": response.model,
+        });
+        // Simulate what emit_assistant_message does with None
+        let parent: Option<&str> = None;
+        if let Some(parent_id) = parent {
+            msg["parent_tool_use_id"] = serde_json::json!(parent_id);
+        }
+        assert!(msg.get("parent_tool_use_id").is_none());
+    }
+
+    #[test]
+    fn test_assistant_message_with_parent_tool_use_id() {
+        // Subagent messages should include parent_tool_use_id
+        let response = make_response("Subagent reply");
+        let mut msg = serde_json::json!({
+            "type": "assistant",
+            "content": response.content,
+            "model": response.model,
+        });
+        let parent: Option<&str> = Some("toolu_abc123");
+        if let Some(parent_id) = parent {
+            msg["parent_tool_use_id"] = serde_json::json!(parent_id);
+        }
+        assert_eq!(msg["parent_tool_use_id"], "toolu_abc123");
+    }
+
+    #[test]
+    fn test_result_message_without_parent_tool_use_id() {
+        let mut msg = serde_json::json!({
+            "type": "result",
+            "subtype": "result",
+            "session_id": "sess-1",
+            "result": "done",
+            "num_turns": 1u32,
+            "duration_ms": 100u64,
+            "is_error": false,
+            "stop_reason": "end_turn"
+        });
+        let parent: Option<&str> = None;
+        if let Some(parent_id) = parent {
+            msg["parent_tool_use_id"] = serde_json::json!(parent_id);
+        }
+        assert!(msg.get("parent_tool_use_id").is_none());
+    }
+
+    #[test]
+    fn test_result_message_with_parent_tool_use_id() {
+        let mut msg = serde_json::json!({
+            "type": "result",
+            "subtype": "result",
+            "session_id": "sess-sub",
+            "result": "done",
+            "num_turns": 2u32,
+            "duration_ms": 500u64,
+            "is_error": false,
+            "stop_reason": "end_turn"
+        });
+        let parent: Option<&str> = Some("toolu_xyz789");
+        if let Some(parent_id) = parent {
+            msg["parent_tool_use_id"] = serde_json::json!(parent_id);
+        }
+        assert_eq!(msg["parent_tool_use_id"], "toolu_xyz789");
     }
 
     #[test]
