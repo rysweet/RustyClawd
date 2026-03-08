@@ -95,10 +95,21 @@ pub(crate) async fn serve_mcp_server() -> McpCommandResult {
         };
 
         // Send response
-        if let Ok(json) = serde_json::to_string(&response) {
-            writeln!(stdout, "{}", json).ok();
-            stdout.flush().ok();
+        match serde_json::to_string(&response) {
+            Ok(json) => {
+                writeln!(stdout, "{}", json).ok();
+            }
+            Err(e) => {
+                tracing::error!("Failed to serialize MCP response: {e}");
+                // Send a hand-crafted JSON-RPC error so the client isn't left hanging
+                writeln!(
+                    stdout,
+                    r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":-32603,"message":"Internal error: failed to serialize response"}}}}"#
+                )
+                .ok();
+            }
         }
+        stdout.flush().ok();
     }
 
     Ok("MCP server stopped".to_string())
@@ -188,5 +199,21 @@ async fn handle_tools_call(request: &JsonRpcRequest) -> JsonRpcResponse {
                 "details": "Tool execution requires session context (hooks, permissions, state) which is not available in MCP serve mode. Use CLI mode for tool execution."
             })),
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// The hand-crafted fallback error string must be valid JSON-RPC 2.0.
+    #[test]
+    fn fallback_error_is_valid_jsonrpc() {
+        let raw = r#"{"jsonrpc":"2.0","id":null,"error":{"code":-32603,"message":"Internal error: failed to serialize response"}}"#;
+        let v: serde_json::Value = serde_json::from_str(raw).expect("fallback must be valid JSON");
+        assert_eq!(v["jsonrpc"], "2.0");
+        assert_eq!(v["error"]["code"], -32603);
+        assert!(v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("serialize"));
     }
 }
