@@ -48,6 +48,7 @@ pub mod types;
 use futures::Stream;
 use reqwest::Client as HttpClient;
 use secrecy::ExposeSecret;
+use std::future::Future;
 use std::time::Duration;
 
 pub use config::{ApiKey, Config};
@@ -103,24 +104,21 @@ impl Client {
         })
     }
 
-    /// Create a message (non-streaming) with automatic retry logic
-    pub async fn create_message(
-        &self,
-        request: CreateMessageRequest,
-    ) -> ClientResult<MessageResponse> {
-        self.create_message_with_retry(request).await
-    }
-
-    /// Internal method to create a message with retry logic
-    async fn create_message_with_retry(
-        &self,
-        request: CreateMessageRequest,
-    ) -> ClientResult<MessageResponse> {
+    /// Generic retry helper with exponential backoff
+    ///
+    /// Executes the given operation, retrying on retryable errors up to
+    /// `max_retries` times. Respects `Retry-After` headers when present,
+    /// otherwise uses exponential backoff with jitter.
+    async fn with_retry<T, F, Fut>(&self, label: &str, operation: F) -> ClientResult<T>
+    where
+        F: Fn() -> Fut,
+        Fut: Future<Output = ClientResult<T>>,
+    {
         let mut retries = 0;
 
         loop {
-            match self.create_message_internal(&request).await {
-                Ok(message) => return Ok(message),
+            match operation().await {
+                Ok(value) => return Ok(value),
                 Err(e) if e.is_retryable() && retries < self.retry_config.max_retries => {
                     // Calculate delay with exponential backoff and jitter
                     let calculated_delay = self.retry_config.calculate_delay(retries);
@@ -132,7 +130,7 @@ impl Client {
                         delay_secs = actual_delay.as_secs_f64(),
                         attempt = retries + 1,
                         max_retries = self.retry_config.max_retries,
-                        "Retrying request"
+                        "Retrying {label}"
                     );
 
                     tokio::time::sleep(actual_delay).await;
@@ -141,6 +139,15 @@ impl Client {
                 Err(e) => return Err(e),
             }
         }
+    }
+
+    /// Create a message (non-streaming) with automatic retry logic
+    pub async fn create_message(
+        &self,
+        request: CreateMessageRequest,
+    ) -> ClientResult<MessageResponse> {
+        self.with_retry("request", || self.create_message_internal(&request))
+            .await
     }
 
     /// Build common headers for API requests, including conditional beta headers.
@@ -208,31 +215,10 @@ impl Client {
         // Ensure streaming is enabled
         request.stream = true;
 
-        let mut retries = 0;
-
-        loop {
-            match self.create_message_stream_internal(&request).await {
-                Ok(stream) => return Ok(stream),
-                Err(e) if e.is_retryable() && retries < self.retry_config.max_retries => {
-                    // Calculate delay with exponential backoff and jitter
-                    let calculated_delay = self.retry_config.calculate_delay(retries);
-
-                    // Use Retry-After if provided, otherwise use calculated delay
-                    let actual_delay = e.retry_after().unwrap_or(calculated_delay);
-
-                    tracing::warn!(
-                        delay_secs = actual_delay.as_secs_f64(),
-                        attempt = retries + 1,
-                        max_retries = self.retry_config.max_retries,
-                        "Retrying streaming request"
-                    );
-
-                    tokio::time::sleep(actual_delay).await;
-                    retries += 1;
-                }
-                Err(e) => return Err(e),
-            }
-        }
+        self.with_retry("streaming request", || {
+            self.create_message_stream_internal(&request)
+        })
+        .await
     }
 
     /// Internal method to create a streaming message request without retry
