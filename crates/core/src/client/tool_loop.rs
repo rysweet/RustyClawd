@@ -18,7 +18,13 @@ use super::{request::CreateMessageRequest, response::MessageResponse, Client};
 #[derive(Debug, Clone)]
 pub enum ToolLoopEvent {
     /// Assistant responded (may contain text and/or tool_use blocks).
-    AssistantMessage(MessageResponse),
+    AssistantMessage {
+        response: MessageResponse,
+        /// When this message originates from a subagent invocation, this
+        /// carries the `tool_use_id` of the parent tool call so SDK consumers
+        /// can correlate messages with agent invocations.
+        parent_tool_use_id: Option<String>,
+    },
     /// A tool invocation is about to begin.
     ToolUse { id: String, name: String },
     /// A tool returned a result.
@@ -164,6 +170,7 @@ impl Client {
         mut request: CreateMessageRequest,
         tool_executor: F,
         on_event: E,
+        parent_tool_use_id: Option<String>,
     ) -> ClientResult<(MessageResponse, u32)>
     where
         F: Fn(String, serde_json::Value) -> Fut,
@@ -191,7 +198,11 @@ impl Client {
             let mut tool_result_blocks = Vec::new();
 
             // Emit the assistant message for every turn
-            on_event(ToolLoopEvent::AssistantMessage(response.clone())).await;
+            on_event(ToolLoopEvent::AssistantMessage {
+                response: response.clone(),
+                parent_tool_use_id: parent_tool_use_id.clone(),
+            })
+            .await;
 
             for block in &response.content {
                 if let ContentBlock::ToolUse { id, name, input } = block {
@@ -293,7 +304,10 @@ mod tests {
     #[test]
     fn tool_loop_event_debug_and_clone() {
         let resp = make_text_response("hello");
-        let event = ToolLoopEvent::AssistantMessage(resp);
+        let event = ToolLoopEvent::AssistantMessage {
+            response: resp,
+            parent_tool_use_id: None,
+        };
         let cloned = event.clone();
         // Verify Debug impl doesn't panic
         let _ = format!("{:?}", cloned);
@@ -301,8 +315,11 @@ mod tests {
 
     #[test]
     fn tool_loop_event_variants() {
-        let assistant = ToolLoopEvent::AssistantMessage(make_text_response("hi"));
-        assert!(matches!(assistant, ToolLoopEvent::AssistantMessage(_)));
+        let assistant = ToolLoopEvent::AssistantMessage {
+            response: make_text_response("hi"),
+            parent_tool_use_id: None,
+        };
+        assert!(matches!(assistant, ToolLoopEvent::AssistantMessage { .. }));
 
         let tool_use = ToolLoopEvent::ToolUse {
             id: "tu_1".to_string(),
@@ -338,6 +355,40 @@ mod tests {
                 assert!(is_error);
             }
             _ => panic!("Expected ToolResult"),
+        }
+    }
+
+    #[test]
+    fn tool_loop_event_assistant_message_with_parent() {
+        let event = ToolLoopEvent::AssistantMessage {
+            response: make_text_response("subagent reply"),
+            parent_tool_use_id: Some("toolu_abc123".to_string()),
+        };
+        match event {
+            ToolLoopEvent::AssistantMessage {
+                response,
+                parent_tool_use_id,
+            } => {
+                assert_eq!(response.content.len(), 1);
+                assert_eq!(parent_tool_use_id, Some("toolu_abc123".to_string()));
+            }
+            _ => panic!("Expected AssistantMessage"),
+        }
+    }
+
+    #[test]
+    fn tool_loop_event_assistant_message_without_parent() {
+        let event = ToolLoopEvent::AssistantMessage {
+            response: make_text_response("top-level reply"),
+            parent_tool_use_id: None,
+        };
+        match event {
+            ToolLoopEvent::AssistantMessage {
+                parent_tool_use_id, ..
+            } => {
+                assert_eq!(parent_tool_use_id, None);
+            }
+            _ => panic!("Expected AssistantMessage"),
         }
     }
 }
