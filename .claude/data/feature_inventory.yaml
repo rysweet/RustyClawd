@@ -3,7 +3,7 @@
 # Last updated: 2026-01-17
 
 last_updated: "2026-03-08T00:00:00Z"
-parity_percentage: 73  # Updated for Claude Code 2.1.71 sync (was 96% at v2.1.50)
+parity_percentage: 77  # Updated after PRs #534-#537 (was 73% before, 96% at v2.1.50)
 
 features:
   # ============================================================================
@@ -289,10 +289,10 @@ features:
   # ============================================================================
   # CLAUDE CODE 2.1.50 PARITY FEATURES (PR #461)
   # ============================================================================
-  - name: "Hook Events (15 total)"
+  - name: "Hook Events (17 total)"
     category: "capabilities"
     status: complete
-    notes: "All 15 hook events: SessionStart, SessionEnd, PreToolUse, PostToolUse, UserPromptSubmit, Stop, SubagentStop, Notification, PreCompact, PermissionRequest, TeammateIdle, TaskCompleted, WorktreeCreate, WorktreeRemove, ConfigChange"
+    notes: "All 17 hook events: SessionStart, SessionEnd, PreToolUse, PostToolUse, UserPromptSubmit, Stop, SubagentStop, Notification, PreCompact, PermissionRequest, TeammateIdle, TaskCompleted, WorktreeCreate, WorktreeRemove, ConfigChange, InstructionsLoaded, Setup"
 
   - name: "last_assistant_message Hook Field"
     category: "capabilities"
@@ -422,28 +422,28 @@ features:
 
   - name: "/simplify Command"
     category: "cli"
-    status: missing
-    notes: "Bundled slash command for code simplification (v2.1.63)"
+    status: complete
+    notes: "Bundled slash command for code simplification (v2.1.63, PR #535)"
 
   - name: "/batch Command"
     category: "cli"
-    status: missing
-    notes: "Bundled slash command for batch operations (v2.1.63)"
+    status: complete
+    notes: "Bundled slash command for batch operations (v2.1.63, PR #535)"
 
   - name: "InstructionsLoaded Hook Event"
     category: "hooks"
-    status: missing
-    notes: "Fires when CLAUDE.md or rules load (v2.1.69)"
+    status: complete
+    notes: "Fires when CLAUDE.md or rules load (v2.1.69, PR #537)"
 
   - name: "Setup Hook Event"
     category: "hooks"
-    status: missing
-    notes: "Fires during initial setup (v2.1.10)"
+    status: complete
+    notes: "Fires during initial setup (v2.1.10, PR #537)"
 
   - name: "CLAUDE_SKILL_DIR Variable"
     category: "config"
-    status: missing
-    notes: "Skills can reference their own directory via ${CLAUDE_SKILL_DIR} (v2.1.69)"
+    status: complete
+    notes: "Skills can reference their own directory via ${CLAUDE_SKILL_DIR} (v2.1.69, PR #536)"
 
   - name: "/reload-plugins Command"
     category: "cli"
@@ -452,13 +452,13 @@ features:
 
   - name: "includeGitInstructions Setting"
     category: "config"
-    status: missing
-    notes: "Toggle built-in commit/PR instructions (v2.1.69)"
+    status: complete
+    notes: "Toggle built-in commit/PR instructions (v2.1.69, PR #534)"
 
   - name: "CLAUDE_CODE_SIMPLE Mode"
     category: "config"
-    status: missing
-    notes: "Strips skills, memory, agents, CLAUDE.md, MCP, hooks (v2.1.50)"
+    status: complete
+    notes: "Strips skills, memory, agents, CLAUDE.md, MCP, hooks (v2.1.50, PR #534)"
 
   - name: "LSP Tool"
     category: "tools"
@@ -492,23 +492,23 @@ features:
 
   - name: "CLAUDE_CODE_TMPDIR"
     category: "config"
-    status: missing
-    notes: "Custom temporary directory env var (v2.1.5)"
+    status: complete
+    notes: "Custom temporary directory env var (v2.1.5, PR #534)"
 
   - name: "CLAUDE_CODE_DISABLE_BACKGROUND_TASKS"
     category: "config"
-    status: missing
-    notes: "Disable background task execution (v2.1.4)"
+    status: complete
+    notes: "Disable background task execution (v2.1.4, PR #534)"
 
   - name: "/color Command"
     category: "cli"
-    status: missing
-    notes: "Reset options: default, gray, reset, none (v2.1.70)"
+    status: complete
+    notes: "Reset options: default, gray, reset, none (v2.1.70, PR #536)"
 
   - name: "Account Info Env Vars"
     category: "config"
-    status: missing
-    notes: "CLAUDE_CODE_ACCOUNT_UUID, USER_EMAIL, ORGANIZATION_UUID (v2.1.51)"
+    status: complete
+    notes: "CLAUDE_CODE_ACCOUNT_UUID, USER_EMAIL, ORGANIZATION_UUID (v2.1.51, PR #534)"
 
   - name: "Voice Features"
     category: "tui"
@@ -539,17 +539,17 @@ features:
 # SUMMARY
 # ============================================================================
 summary:
-  total_features: 87
-  complete: 55
-  partial: 9    # GitHub, Caching, --worktree, LSP, Plugin, Background Agents, Agent Teams, HTTP hooks hint, Error Recovery
-  missing: 17   # New v2.1.51-2.1.71 features + MCP OAuth
+  total_features: 89
+  complete: 64
+  partial: 8    # GitHub, Caching, --worktree, LSP, Plugin, Background Agents, Agent Teams, Error Recovery
+  missing: 11   # MCP OAuth, /loop, remote-control, auto-memory, /copy, HTTP hooks, /reload-plugins, /terminal-setup, /teleport, plan mode, managed settings
   not_applicable: 6
   research_needed: 0
   upstream_version: "2.1.71"
   last_sync: "2026-03-08"
-  completion_percentage: 73%
+  completion_percentage: 77%
   effective_parity_v2_1_50: 96%
-  effective_parity_v2_1_71: 73%
+  effective_parity_v2_1_71: 77%
 
   major_achievements:
     - "All core tools implemented"
@@ -557,7 +557,7 @@ summary:
     - "Extended thinking (ContentBlock::Thinking)"
     - "Strict schema validation with auto beta headers"
     - "MCP Support complete (stdio + HTTP transports)"
-    - "15 hook events (including WorktreeCreate, WorktreeRemove, ConfigChange)"
+    - "17 hook events (including InstructionsLoaded, Setup, WorktreeCreate, WorktreeRemove, ConfigChange)"
     - "Agent Teams support (background, isolation, memory scope)"
     - "Session UX: /rename, /debug, /logout, resume hints"
     - "Nested session detection guard"
@@ -565,22 +565,14 @@ summary:
     - "1668+ passing tests with 0 failures"
 
   missing_features:
+    - "MCP OAuth"
     - "/loop command (cron scheduling)"
     - "Remote Control subcommand"
     - "Auto-Memory system"
     - "/copy command"
     - "HTTP hooks"
-    - "/simplify and /batch commands"
-    - "InstructionsLoaded and Setup hook events"
-    - "CLAUDE_SKILL_DIR variable"
     - "/reload-plugins command"
-    - "includeGitInstructions setting"
-    - "CLAUDE_CODE_SIMPLE mode"
     - "/terminal-setup command"
     - "/teleport command"
     - "Plan mode"
     - "Managed settings (plist/registry)"
-    - "CLAUDE_CODE_TMPDIR and CLAUDE_CODE_DISABLE_BACKGROUND_TASKS"
-    - "/color command"
-    - "Account info env vars"
-    - "MCP OAuth"

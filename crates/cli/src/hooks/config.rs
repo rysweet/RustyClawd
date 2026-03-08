@@ -210,6 +210,12 @@ pub struct HooksConfiguration {
     /// ConfigChange hooks fire when a configuration file changes on disk (v2.1.49).
     #[serde(rename = "ConfigChange", default)]
     pub config_change: Vec<HookConfig>,
+    /// InstructionsLoaded hooks fire when CLAUDE.md or rules files are loaded (v2.1.69).
+    #[serde(rename = "InstructionsLoaded", default)]
+    pub instructions_loaded: Vec<HookConfig>,
+    /// Setup hooks fire during initial setup/first run (v2.1.10).
+    #[serde(rename = "Setup", default)]
+    pub setup: Vec<HookConfig>,
 }
 
 impl HooksConfiguration {
@@ -231,6 +237,8 @@ impl HooksConfiguration {
             HookEvent::WorktreeCreate => &self.worktree_create,
             HookEvent::WorktreeRemove => &self.worktree_remove,
             HookEvent::ConfigChange => &self.config_change,
+            HookEvent::InstructionsLoaded => &self.instructions_loaded,
+            HookEvent::Setup => &self.setup,
         }
     }
 }

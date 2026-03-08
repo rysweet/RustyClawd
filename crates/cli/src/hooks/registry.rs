@@ -57,6 +57,8 @@ impl HookRegistry {
             HookEvent::WorktreeCreate => &mut self.configuration.worktree_create,
             HookEvent::WorktreeRemove => &mut self.configuration.worktree_remove,
             HookEvent::ConfigChange => &mut self.configuration.config_change,
+            HookEvent::InstructionsLoaded => &mut self.configuration.instructions_loaded,
+            HookEvent::Setup => &mut self.configuration.setup,
         };
         hooks.push(config);
     }
@@ -79,6 +81,8 @@ impl HookRegistry {
             HookEvent::WorktreeCreate => &mut self.configuration.worktree_create,
             HookEvent::WorktreeRemove => &mut self.configuration.worktree_remove,
             HookEvent::ConfigChange => &mut self.configuration.config_change,
+            HookEvent::InstructionsLoaded => &mut self.configuration.instructions_loaded,
+            HookEvent::Setup => &mut self.configuration.setup,
         };
         hooks.clear();
     }
