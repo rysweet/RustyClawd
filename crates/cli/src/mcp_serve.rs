@@ -204,8 +204,6 @@ async fn handle_tools_call(request: &JsonRpcRequest) -> JsonRpcResponse {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     /// The hand-crafted fallback error string must be valid JSON-RPC 2.0.
     #[test]
     fn fallback_error_is_valid_jsonrpc() {
@@ -213,6 +211,9 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(raw).expect("fallback must be valid JSON");
         assert_eq!(v["jsonrpc"], "2.0");
         assert_eq!(v["error"]["code"], -32603);
-        assert!(v["error"]["message"].as_str().unwrap().contains("serialize"));
+        assert!(v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("serialize"));
     }
 }
