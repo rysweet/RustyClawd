@@ -180,24 +180,16 @@ impl HookExecutor {
 
     /// Execute an HTTP hook by POSTing the context JSON to the configured URL
     async fn execute_http_hook(hook: &Hook, context: &HookContext) -> Result<HookResult> {
-        let url = hook
-            .url
-            .as_ref()
-            .context("HTTP hook must have url")?;
+        let url = hook.url.as_ref().context("HTTP hook must have url")?;
 
         // Serialize hook context as JSON body
-        let body = serde_json::to_value(context)
-            .context("Failed to serialize hook context")?;
+        let body = serde_json::to_value(context).context("Failed to serialize hook context")?;
 
         let client = reqwest::Client::new();
         let timeout_duration = Duration::from_millis(hook.effective_timeout() as u64);
 
         match timeout(timeout_duration, async {
-            client
-                .post(url)
-                .json(&body)
-                .send()
-                .await
+            client.post(url).json(&body).send().await
         })
         .await
         {
