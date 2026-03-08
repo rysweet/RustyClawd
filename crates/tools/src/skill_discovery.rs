@@ -87,6 +87,9 @@ pub fn discover_skill_paths(skill_name: &str) -> Vec<PathBuf> {
 /// a non-empty prompt, and returns the prompt, the path where it was found,
 /// and the raw YAML metadata (if any).
 ///
+/// The returned prompt has `${CLAUDE_SKILL_DIR}` replaced with the parent
+/// directory of the skill file, enabling skills to reference sibling files.
+///
 /// This is the shared implementation used by both `SkillTool` and
 /// `CommandSkillTool` to avoid duplicated file-loading loops.
 pub async fn find_skill_content(
@@ -102,7 +105,8 @@ pub async fn find_skill_content(
                 let parsed = parse_file(&content, path);
 
                 if !parsed.prompt.is_empty() {
-                    return Some((parsed.prompt, path.clone(), parsed.metadata));
+                    let prompt = substitute_skill_dir(&parsed.prompt, path);
+                    return Some((prompt, path.clone(), parsed.metadata));
                 }
             }
             Err(e) => {
@@ -113,6 +117,22 @@ pub async fn find_skill_content(
     }
 
     None
+}
+
+/// Replace `${CLAUDE_SKILL_DIR}` in skill content with the parent directory
+/// of the skill file. This lets skills reference sibling files with paths
+/// relative to their own location.
+pub fn substitute_skill_dir(content: &str, skill_path: &Path) -> String {
+    if !content.contains("${CLAUDE_SKILL_DIR}") {
+        return content.to_string();
+    }
+
+    let skill_dir = skill_path
+        .parent()
+        .unwrap_or(Path::new("."))
+        .to_string_lossy();
+
+    content.replace("${CLAUDE_SKILL_DIR}", &skill_dir)
 }
 
 /// Parse a file and extract prompt and metadata based on file extension.
@@ -312,5 +332,40 @@ other_field: something
             .to_str()
             .unwrap()
             .contains(".claude/skills/my-skill/SKILL.md")));
+    }
+
+    #[test]
+    fn test_substitute_skill_dir_replaces_variable() {
+        let content = "Load file from ${CLAUDE_SKILL_DIR}/data.json";
+        let path = Path::new("/home/user/.claude/skills/my-skill/SKILL.md");
+        let result = substitute_skill_dir(content, path);
+        assert_eq!(
+            result,
+            "Load file from /home/user/.claude/skills/my-skill/data.json"
+        );
+    }
+
+    #[test]
+    fn test_substitute_skill_dir_no_variable() {
+        let content = "No variable here.";
+        let path = Path::new("/some/path/skill.md");
+        let result = substitute_skill_dir(content, path);
+        assert_eq!(result, "No variable here.");
+    }
+
+    #[test]
+    fn test_substitute_skill_dir_multiple_occurrences() {
+        let content = "${CLAUDE_SKILL_DIR}/a and ${CLAUDE_SKILL_DIR}/b";
+        let path = Path::new("/skills/test/SKILL.md");
+        let result = substitute_skill_dir(content, path);
+        assert_eq!(result, "/skills/test/a and /skills/test/b");
+    }
+
+    #[test]
+    fn test_substitute_skill_dir_relative_path() {
+        let content = "Read ${CLAUDE_SKILL_DIR}/config.yaml";
+        let path = Path::new(".claude/skills/review/skill.md");
+        let result = substitute_skill_dir(content, path);
+        assert_eq!(result, "Read .claude/skills/review/config.yaml");
     }
 }

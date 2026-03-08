@@ -198,7 +198,7 @@ pub async fn load_skill_content(skill_name: &str) -> Option<String> {
             Ok(content) => {
                 let parsed = skill_discovery::parse_file(&content, path);
                 if !parsed.prompt.is_empty() {
-                    return Some(parsed.prompt);
+                    return Some(skill_discovery::substitute_skill_dir(&parsed.prompt, path));
                 }
             }
             Err(e) => {
