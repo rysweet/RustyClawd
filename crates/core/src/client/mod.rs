@@ -45,6 +45,8 @@ pub mod stream;
 mod tool_loop;
 pub mod types;
 
+pub use tool_loop::ToolLoopEvent;
+
 use futures::Stream;
 use reqwest::Client as HttpClient;
 use secrecy::ExposeSecret;
