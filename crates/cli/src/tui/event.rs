@@ -153,10 +153,8 @@ fn handle_mouse_event(app: &mut App, mouse: event::MouseEvent) -> Result<EventRe
                     ));
                 }
                 ClickTarget::StatusBarItem { id } => {
-                    // Route status bar clicks to appropriate actions
-                    match id.as_str() {
-                        "debug" => return Ok(EventResult::ToggleDebugPane),
-                        _ => {} // Unknown status bar item, ignore
+                    if id.as_str() == "debug" {
+                        return Ok(EventResult::ToggleDebugPane);
                     }
                 }
                 ClickTarget::Background => {
