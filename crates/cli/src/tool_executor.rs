@@ -257,7 +257,10 @@ async fn collect_tool_stream<T: serde::Serialize>(
         match event {
             ToolEvent::Result(output) => {
                 return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::ToolExecution(format!("Failed to serialize {} output: {}", tool_name, e))
+                    ClientError::ToolExecution(format!(
+                        "Failed to serialize {} output: {}",
+                        tool_name, e
+                    ))
                 });
             }
             ToolEvent::Error { message } => {
@@ -287,10 +290,9 @@ async fn execute_tool_generic<T: Tool>(
 ) -> Result<Value, ClientError> {
     let params: T::Params = serde_json::from_value(input)
         .map_err(|e| create_schema_error(tool_name, &e.to_string()))?;
-    let stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::ToolExecution(format!("{} tool execution failed: {}", tool_name, e)))?;
+    let stream = tool.execute(params, ctx).await.map_err(|e| {
+        ClientError::ToolExecution(format!("{} tool execution failed: {}", tool_name, e))
+    })?;
     collect_tool_stream(tool_name, stream).await
 }
 
@@ -346,24 +348,27 @@ async fn execute_ask_user_question_tool(
     ctx: &ToolContext,
 ) -> Result<Value, ClientError> {
     // Protect terminal state during interactive prompts
-    let _guard = TerminalGuard::new()
-        .map_err(|e| ClientError::ToolExecution(format!("Failed to create terminal guard: {}", e)))?;
+    let _guard = TerminalGuard::new().map_err(|e| {
+        ClientError::ToolExecution(format!("Failed to create terminal guard: {}", e))
+    })?;
 
     let params: rustyclawd_tools::ask_user_question::AskUserQuestionParams =
         serde_json::from_value(input)
             .map_err(|e| create_schema_error("AskUserQuestion", &e.to_string()))?;
 
     let tool = AskUserQuestionTool;
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::ToolExecution(format!("AskUserQuestion tool execution failed: {}", e)))?;
+    let mut stream = tool.execute(params, ctx).await.map_err(|e| {
+        ClientError::ToolExecution(format!("AskUserQuestion tool execution failed: {}", e))
+    })?;
 
     while let Some(event) = stream.next().await {
         match event {
             ToolEvent::Result(output) => {
                 return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::ToolExecution(format!("Failed to serialize AskUserQuestion output: {}", e))
+                    ClientError::ToolExecution(format!(
+                        "Failed to serialize AskUserQuestion output: {}",
+                        e
+                    ))
                 });
             }
             ToolEvent::Error { message } => {
