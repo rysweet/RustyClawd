@@ -316,7 +316,10 @@ mod tests {
         };
         assert!(matches!(
             tool_result,
-            ToolLoopEvent::ToolResult { is_error: false, .. }
+            ToolLoopEvent::ToolResult {
+                is_error: false,
+                ..
+            }
         ));
     }
 

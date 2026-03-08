@@ -396,13 +396,7 @@ impl App {
                 // Assistant messages were already emitted per-turn via on_event.
                 // Emit the final result message to close the SDK session.
                 let duration_ms = start_time.elapsed().as_millis() as u64;
-                emit_result_message(
-                    &self.session.id,
-                    &text,
-                    num_turns,
-                    duration_ms,
-                    false,
-                );
+                emit_result_message(&self.session.id, &text, num_turns, duration_ms, false);
             }
             _ => {
                 // Text format (default)
