@@ -79,6 +79,15 @@ impl crate::Tool for SlashCommandTool {
                 percentage: Some(40.0),
             };
 
+            // Validate command name against path traversal
+            if command_name.contains('/') || command_name.contains('\\') || command_name.contains("..") {
+                tracing::warn!(command_name = %command_name, "Rejected command name containing path traversal characters");
+                yield ToolEvent::Error {
+                    message: format!("Invalid command name: {}", command_name),
+                };
+                return;
+            }
+
             // Look for command file in .claude/commands/
             let command_path = PathBuf::from(format!(".claude/commands/{}.md", command_name));
 
