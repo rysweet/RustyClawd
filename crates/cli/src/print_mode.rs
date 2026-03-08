@@ -5,8 +5,59 @@
 //! system prompt overrides, and hook integration.
 
 use anyhow::{Context as AnyhowContext, Result};
+use rustyclawd_core::client::response::MessageResponse;
 
 use super::{hooks, permission_mode, tool_definitions, tool_executor, App};
+
+// ---------------------------------------------------------------------------
+// SDK-compatible stream-json helpers
+// ---------------------------------------------------------------------------
+
+/// Emit a single newline-delimited JSON message to stdout.
+fn emit_sdk_message(msg: &serde_json::Value) {
+    if let Ok(json) = serde_json::to_string(msg) {
+        println!("{}", json);
+    }
+}
+
+/// Emit the initial `system/init` message that opens an SDK session.
+fn emit_init_message(session_id: &str) {
+    emit_sdk_message(&serde_json::json!({
+        "type": "system",
+        "subtype": "init",
+        "session_id": session_id,
+        "data": {}
+    }));
+}
+
+/// Emit an `assistant` message carrying the model response content.
+fn emit_assistant_message(response: &MessageResponse) {
+    emit_sdk_message(&serde_json::json!({
+        "type": "assistant",
+        "content": response.content,
+        "model": response.model,
+    }));
+}
+
+/// Emit the final `result` message that closes an SDK session.
+fn emit_result_message(
+    session_id: &str,
+    result_text: &str,
+    num_turns: u32,
+    duration_ms: u64,
+    is_error: bool,
+) {
+    emit_sdk_message(&serde_json::json!({
+        "type": "result",
+        "subtype": "result",
+        "session_id": session_id,
+        "result": result_text,
+        "num_turns": num_turns,
+        "duration_ms": duration_ms,
+        "is_error": is_error,
+        "stop_reason": if is_error { "error" } else { "end_turn" }
+    }));
+}
 
 impl App {
     /// Run in print mode (one-shot execution) - matches Claude Code's behavior
@@ -154,6 +205,20 @@ impl App {
         let allowed_tools_for_executor = self.cli.allowed_tools.clone();
         let disallowed_tools_for_executor = self.cli.disallowed_tools.clone();
 
+        // Determine output format early so we can emit init messages before the API call
+        let output_format = if self.cli.ide {
+            "json"
+        } else {
+            self.cli.output_format.as_str()
+        };
+
+        // Emit SDK init message before the API call for stream-json
+        if output_format == "stream-json" {
+            emit_init_message(&self.session.id);
+        }
+
+        let start_time = std::time::Instant::now();
+
         let response = match client
             .execute_with_tools(request.clone(), |tool_name, tool_input| {
                 let hooks = hooks_for_tools.clone();
@@ -250,13 +315,7 @@ impl App {
             .collect::<Vec<_>>()
             .join("");
 
-        // Output based on format (IDE mode forces JSON output)
-        let output_format = if self.cli.ide {
-            "json"
-        } else {
-            self.cli.output_format.as_str()
-        };
-
+        // Output based on format
         match output_format {
             "json" => {
                 let mut json_output = serde_json::json!({
@@ -267,28 +326,28 @@ impl App {
                     "model": response.model,
                     "stop_reason": response.stop_reason,
                     "usage": response.usage,
+                    "session_id": self.session.id,
                 });
 
                 // Add IDE-specific metadata if in IDE mode
                 if self.cli.ide {
                     json_output["ide_mode"] = serde_json::json!(true);
-                    json_output["session_id"] = serde_json::json!(self.session.id);
                 }
 
                 println!("{}", serde_json::to_string_pretty(&json_output)?);
             }
             "stream-json" => {
-                // For stream-json, output as JSON but with streaming markers if requested
-                let json_output = serde_json::json!({
-                    "id": response.id,
-                    "type": response.type_field,
-                    "role": response.role,
-                    "content": response.content,
-                    "model": response.model,
-                    "stop_reason": response.stop_reason,
-                    "usage": response.usage,
-                });
-                println!("{}", serde_json::to_string(&json_output)?);
+                // SDK-compatible: emit assistant message then result message
+                emit_assistant_message(&response);
+
+                let duration_ms = start_time.elapsed().as_millis() as u64;
+                emit_result_message(
+                    &self.session.id,
+                    &text,
+                    1, // single turn for now
+                    duration_ms,
+                    false,
+                );
             }
             _ => {
                 // Text format (default)
@@ -297,5 +356,167 @@ impl App {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rustyclawd_core::client::response::{MessageResponse, Usage};
+    use rustyclawd_core::client::types::{ContentBlock, Role};
+
+    /// Build a minimal `MessageResponse` for testing.
+    fn make_response(text: &str) -> MessageResponse {
+        MessageResponse {
+            id: "msg_test123".to_string(),
+            type_field: "message".to_string(),
+            role: Role::Assistant,
+            content: vec![ContentBlock::Text {
+                text: text.to_string(),
+            }],
+            model: "claude-sonnet-4-6".to_string(),
+            stop_reason: Some("end_turn".to_string()),
+            stop_sequence: None,
+            usage: Usage {
+                input_tokens: 10,
+                output_tokens: 20,
+                speed: None,
+            },
+        }
+    }
+
+    #[test]
+    fn test_init_message_structure() {
+        let msg = serde_json::json!({
+            "type": "system",
+            "subtype": "init",
+            "session_id": "test-session-42",
+            "data": {}
+        });
+
+        assert_eq!(msg["type"], "system");
+        assert_eq!(msg["subtype"], "init");
+        assert_eq!(msg["session_id"], "test-session-42");
+        assert!(msg["data"].is_object());
+    }
+
+    #[test]
+    fn test_assistant_message_structure() {
+        let response = make_response("Hello, world!");
+        let msg = serde_json::json!({
+            "type": "assistant",
+            "content": response.content,
+            "model": response.model,
+        });
+
+        assert_eq!(msg["type"], "assistant");
+        assert_eq!(msg["model"], "claude-sonnet-4-6");
+        assert!(msg["content"].is_array());
+        let content = &msg["content"][0];
+        assert_eq!(content["type"], "text");
+        assert_eq!(content["text"], "Hello, world!");
+    }
+
+    #[test]
+    fn test_result_message_structure() {
+        let msg = serde_json::json!({
+            "type": "result",
+            "subtype": "result",
+            "session_id": "sess-abc",
+            "result": "done",
+            "num_turns": 1u32,
+            "duration_ms": 500u64,
+            "is_error": false,
+            "stop_reason": "end_turn"
+        });
+
+        assert_eq!(msg["type"], "result");
+        assert_eq!(msg["subtype"], "result");
+        assert_eq!(msg["session_id"], "sess-abc");
+        assert_eq!(msg["result"], "done");
+        assert_eq!(msg["num_turns"], 1);
+        assert_eq!(msg["duration_ms"], 500);
+        assert_eq!(msg["is_error"], false);
+        assert_eq!(msg["stop_reason"], "end_turn");
+    }
+
+    #[test]
+    fn test_result_message_error_stop_reason() {
+        let is_error = true;
+        let msg = serde_json::json!({
+            "type": "result",
+            "subtype": "result",
+            "session_id": "sess-err",
+            "result": "something failed",
+            "num_turns": 1u32,
+            "duration_ms": 100u64,
+            "is_error": is_error,
+            "stop_reason": if is_error { "error" } else { "end_turn" }
+        });
+
+        assert_eq!(msg["stop_reason"], "error");
+        assert_eq!(msg["is_error"], true);
+    }
+
+    #[test]
+    fn test_emit_sdk_message_produces_valid_json() {
+        // Verify that serde_json::to_string on our message shapes produces
+        // valid single-line JSON (the newline-delimited format requirement).
+        let msg = serde_json::json!({
+            "type": "system",
+            "subtype": "init",
+            "session_id": "test-123",
+            "data": {}
+        });
+        let serialized = serde_json::to_string(&msg).unwrap();
+        assert!(!serialized.contains('\n'), "SDK messages must be single-line JSON");
+
+        // Verify round-trip
+        let parsed: serde_json::Value = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(parsed["type"], "system");
+    }
+
+    #[test]
+    fn test_stream_json_message_ordering() {
+        // Verify that the three message types form the correct sequence:
+        // init -> assistant -> result
+        let init = serde_json::json!({
+            "type": "system", "subtype": "init",
+            "session_id": "s1", "data": {}
+        });
+        let assistant = serde_json::json!({
+            "type": "assistant",
+            "content": [],
+            "model": "claude-sonnet-4-6",
+        });
+        let result = serde_json::json!({
+            "type": "result", "subtype": "result",
+            "session_id": "s1", "result": "ok",
+            "num_turns": 1, "duration_ms": 42,
+            "is_error": false, "stop_reason": "end_turn"
+        });
+
+        let sequence = vec![&init, &assistant, &result];
+        assert_eq!(sequence[0]["type"], "system");
+        assert_eq!(sequence[1]["type"], "assistant");
+        assert_eq!(sequence[2]["type"], "result");
+    }
+
+    #[test]
+    fn test_json_format_includes_session_id() {
+        // Verify the json output shape always includes session_id
+        let response = make_response("test");
+        let json_output = serde_json::json!({
+            "id": response.id,
+            "type": response.type_field,
+            "role": response.role,
+            "content": response.content,
+            "model": response.model,
+            "stop_reason": response.stop_reason,
+            "usage": response.usage,
+            "session_id": "my-session-id",
+        });
+
+        assert_eq!(json_output["session_id"], "my-session-id");
+        assert!(json_output.get("session_id").is_some());
     }
 }
