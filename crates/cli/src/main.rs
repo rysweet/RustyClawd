@@ -3,68 +3,23 @@
 //! This is a Rust implementation that matches Claude Code's exact CLI interface
 //! as documented at https://code.claude.com/docs/en/cli-reference
 
-// Each module below forms part of the CLI's internal library. Items within are
-// public APIs consumed by sibling modules, not directly by main(). Targeted
-// allow(dead_code) suppresses false positives from the binary-crate lint scope.
-#[allow(dead_code)]
-mod checkpoint;
+// Binary-only modules (not in lib.rs)
 mod cli_args;
-#[allow(dead_code)]
-mod command_handlers;
-#[allow(dead_code)]
-mod commands;
-#[allow(dead_code)]
-mod conversation;
-#[allow(dead_code)]
-mod hooks;
-#[allow(dead_code)]
-mod interactive;
-mod mcp_commands;
-#[allow(dead_code)]
-mod mcp_dispatch;
-#[allow(dead_code)]
-mod mcp_serve;
-mod notification;
-#[allow(dead_code)]
-mod permission_mode;
-#[allow(dead_code)]
-mod plugins;
-#[allow(dead_code)]
-mod schema_validator;
-#[allow(dead_code)]
-mod session;
-#[allow(dead_code)]
-mod session_graph;
-#[allow(dead_code)]
-mod session_graph_storage;
-#[allow(dead_code)]
-mod session_index;
-#[allow(dead_code)]
-mod session_persistence;
-#[allow(dead_code)]
-mod settings;
-#[allow(dead_code)]
-mod streaming;
-#[allow(dead_code)]
-mod terminal_guard;
-mod tool_definitions;
-#[allow(dead_code)]
-mod tool_orchestrator;
-// TODO: Migrate from ClientError::Api to specific error types (BadRequest, Unknown, etc.)
-#[allow(deprecated)]
-#[allow(dead_code)]
-mod tool_executor;
-#[allow(dead_code)]
-mod tool_formatter;
-#[allow(deprecated)]
-#[allow(dead_code)]
-mod tool_schema_errors;
-#[allow(dead_code)]
-mod tui;
 
 // Split impl-block modules for App
 mod app_runtime;
 mod print_mode;
+
+// Re-export library modules so that `super::` references from app_runtime and
+// print_mode resolve correctly against the lib crate's public API.
+use rustyclawd::{
+    checkpoint, commands, hooks, interactive, mcp_commands, permission_mode, plugins,
+    session_index, settings, tool_definitions,
+};
+
+// Modules that need #[allow(deprecated)] forwarded
+#[allow(deprecated)]
+use rustyclawd::tool_executor;
 
 use anyhow::{Context as AnyhowContext, Result};
 use clap::Parser;
