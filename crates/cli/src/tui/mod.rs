@@ -159,11 +159,6 @@ where
                     // Just need to trigger repaint
                     true
                 }
-                EventResult::OpenMenu => {
-                    // Menu functionality not yet implemented
-                    // For now, just continue (placeholder for future)
-                    true
-                }
                 EventResult::Resize => {
                     // Terminal resized - update internal buffers and force full redraw
                     terminal.autoresize()?;
