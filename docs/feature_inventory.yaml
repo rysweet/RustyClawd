@@ -3,7 +3,7 @@
 # Last updated: 2026-01-17
 
 last_updated: "2026-03-08T00:00:00Z"
-parity_percentage: 77  # Updated after PRs #534-#537 (was 73% before, 96% at v2.1.50)
+parity_percentage: 80  # Updated after PRs #534-#538 (was 73% before, 96% at v2.1.50)
 
 features:
   # ============================================================================
@@ -397,8 +397,8 @@ features:
   # ============================================================================
   - name: "/loop Command (Cron Scheduling)"
     category: "cli"
-    status: missing
-    notes: "Run prompts on recurring intervals (v2.1.71)"
+    status: complete
+    notes: "Built-in command with interval parsing and ScheduledTask struct (PR #537)"
 
   - name: "Remote Control Subcommand"
     category: "cli"
@@ -412,8 +412,8 @@ features:
 
   - name: "/copy Command"
     category: "cli"
-    status: missing
-    notes: "Interactive picker for code blocks (v2.1.59)"
+    status: complete
+    notes: "Built-in command with IPC marker for TUI clipboard integration (PR #537)"
 
   - name: "HTTP Hooks"
     category: "hooks"
@@ -433,12 +433,12 @@ features:
   - name: "InstructionsLoaded Hook Event"
     category: "hooks"
     status: complete
-    notes: "Fires when CLAUDE.md or rules load (v2.1.69, PR #537)"
+    notes: "HookEvent variant added (PR #538)"
 
   - name: "Setup Hook Event"
     category: "hooks"
     status: complete
-    notes: "Fires during initial setup (v2.1.10, PR #537)"
+    notes: "HookEvent variant added (PR #538)"
 
   - name: "CLAUDE_SKILL_DIR Variable"
     category: "config"
@@ -540,16 +540,16 @@ features:
 # ============================================================================
 summary:
   total_features: 89
-  complete: 64
+  complete: 66
   partial: 8    # GitHub, Caching, --worktree, LSP, Plugin, Background Agents, Agent Teams, Error Recovery
-  missing: 11   # MCP OAuth, /loop, remote-control, auto-memory, /copy, HTTP hooks, /reload-plugins, /terminal-setup, /teleport, plan mode, managed settings
+  missing: 9    # MCP OAuth, remote-control, auto-memory, HTTP hooks, /reload-plugins, /terminal-setup, /teleport, plan mode, managed settings
   not_applicable: 6
   research_needed: 0
   upstream_version: "2.1.71"
   last_sync: "2026-03-08"
-  completion_percentage: 77%
+  completion_percentage: 80%
   effective_parity_v2_1_50: 96%
-  effective_parity_v2_1_71: 77%
+  effective_parity_v2_1_71: 80%
 
   major_achievements:
     - "All core tools implemented"
@@ -566,10 +566,8 @@ summary:
 
   missing_features:
     - "MCP OAuth"
-    - "/loop command (cron scheduling)"
     - "Remote Control subcommand"
     - "Auto-Memory system"
-    - "/copy command"
     - "HTTP hooks"
     - "/reload-plugins command"
     - "/terminal-setup command"

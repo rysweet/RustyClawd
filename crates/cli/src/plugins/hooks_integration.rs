@@ -81,12 +81,17 @@ impl PluginHooksIntegrator {
                 std::fs::read_to_string(&handler_path)
                     .map_err(|e| format!("Failed to read hook prompt: {}", e))?
             }
+            HookType::Http => {
+                // HTTP hooks are configured via settings JSON, not file-based
+                return Err("HTTP hooks cannot be loaded from handler files".to_string());
+            }
         };
 
         // Create hook configuration
         let hook = match hook_type {
             HookType::Command => Hook::command(command, Some(60000)), // 60s timeout
             HookType::Prompt => Hook::prompt(Some(command), Some(60000)),
+            HookType::Http => unreachable!("HTTP hooks handled above"),
         };
 
         // Parse matcher from hook definition
