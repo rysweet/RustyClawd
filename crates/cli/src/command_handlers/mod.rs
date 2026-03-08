@@ -394,6 +394,18 @@ fn handle_logout_command(tui: &mut TuiState) {
     tui.set_status("Logged out".to_string());
 }
 
+/// Sanitize a session name by stripping control characters, IPC markers, and
+/// other potentially dangerous input. Only allows alphanumeric characters, dashes,
+/// underscores, spaces, and dots. Limits length to 100 characters.
+fn sanitize_session_name(name: &str) -> String {
+    let sanitized: String = name
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_' || *c == ' ' || *c == '.')
+        .take(100)
+        .collect();
+    sanitized.trim().to_string()
+}
+
 /// Handle /rename command.
 ///
 /// Renames the current session. If a name is provided (e.g. `/rename my-session`),
@@ -440,8 +452,17 @@ fn handle_rename_command(
             None => "unnamed-session".to_string(),
         }
     } else {
-        new_name.to_string()
+        sanitize_session_name(new_name)
     };
+
+    if new_name.is_empty() {
+        tui.add_message(ChatMessage::system(
+            "Error: Session name contains only invalid characters. \
+             Use alphanumeric, dash, underscore, space, or dot."
+                .to_string(),
+        ));
+        return;
+    }
 
     if let Some(ref current_persistence) = persistence {
         // Save current state under the new session name by creating a new
@@ -544,4 +565,56 @@ fn handle_debug_command(
     );
 
     tui.add_message(ChatMessage::system(debug_info));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sanitize_session_name_normal() {
+        assert_eq!(sanitize_session_name("my-session"), "my-session");
+        assert_eq!(sanitize_session_name("hello_world"), "hello_world");
+        assert_eq!(sanitize_session_name("test 123"), "test 123");
+        assert_eq!(sanitize_session_name("v1.0"), "v1.0");
+    }
+
+    #[test]
+    fn test_sanitize_strips_ipc_markers() {
+        // The critical vulnerability: IPC marker injection
+        assert_eq!(
+            sanitize_session_name("[[RENAME_SESSION:evil]]"),
+            "RENAME_SESSIONevil"
+        );
+        assert_eq!(sanitize_session_name("foo]][[BAR:baz]]"), "fooBARbaz");
+        // Crucially, no [[ or ]] survive
+        let result = sanitize_session_name("[[INJECT]]");
+        assert!(!result.contains("[["));
+        assert!(!result.contains("]]"));
+    }
+
+    #[test]
+    fn test_sanitize_strips_control_chars() {
+        assert_eq!(
+            sanitize_session_name("bad\x00name\nnewline\ttab"),
+            "badnamenewlinetab"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_empty_after_strip() {
+        assert_eq!(sanitize_session_name("[[\n\x00]]"), "");
+    }
+
+    #[test]
+    fn test_sanitize_length_limit() {
+        let long = "a".repeat(200);
+        let result = sanitize_session_name(&long);
+        assert_eq!(result.len(), 100);
+    }
+
+    #[test]
+    fn test_sanitize_trims_whitespace() {
+        assert_eq!(sanitize_session_name("  hello  "), "hello");
+    }
 }
