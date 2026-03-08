@@ -141,7 +141,7 @@ impl crate::Tool for EditTool {
             };
 
             // Write atomically (temp + rename)
-            let temp_path = path.with_extension("edit_tmp");
+            let temp_path = path.with_extension(format!("edit_tmp_{}", std::process::id()));
 
             if let Err(e) = fs::write(&temp_path, &new_content).await {
                 yield ToolEvent::Error {
