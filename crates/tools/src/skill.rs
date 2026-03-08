@@ -104,52 +104,24 @@ impl crate::Tool for SkillTool {
                 percentage: Some(50.0),
             };
 
-            let mut found = false;
-            let mut prompt = String::new();
-            let mut found_path: Option<String> = None;
-            let mut metadata: Option<SkillMetadata> = None;
-
-            // Try each path
-            for path in &skill_paths {
-                if !path.exists() {
-                    continue;
-                }
-
-                match fs::read_to_string(&path).await {
-                    Ok(content) => {
-                        if debug {
-                            debug!(path = ?path, content_len = content.len(), "Found skill file");
-                        }
-
-                        // Parse the skill file
-                        let parsed = skill_discovery::parse_file(&content, path);
-
-                        if !parsed.prompt.is_empty() {
-                            found = true;
-                            prompt = parsed.prompt;
-                            found_path = Some(path.display().to_string());
-                            metadata = parsed.metadata.and_then(|v| serde_yaml::from_value(v).ok());
-
-                            if debug {
-                                debug!(
-                                    skill = %skill,
-                                    path = ?path,
-                                    prompt_len = prompt.len(),
-                                    has_metadata = metadata.is_some(),
-                                    "Skill loaded successfully"
-                                );
-                            }
-                            break;
-                        }
+            let (found, mut prompt, found_path, metadata) =
+                if let Some((content, path, raw_meta)) =
+                    skill_discovery::find_skill_content(&skill_paths).await
+                {
+                    if debug {
+                        debug!(
+                            skill = %skill,
+                            path = ?path,
+                            prompt_len = content.len(),
+                            "Skill loaded successfully"
+                        );
                     }
-                    Err(e) => {
-                        if debug {
-                            warn!(path = ?path, error = %e, "Failed to read skill file");
-                        }
-                        continue;
-                    }
-                }
-            }
+                    let meta: Option<SkillMetadata> =
+                        raw_meta.and_then(|v| serde_yaml::from_value(v).ok());
+                    (true, content, Some(path.display().to_string()), meta)
+                } else {
+                    (false, String::new(), None, None)
+                };
 
             yield ToolEvent::Progress {
                 step: if found { "Skill loaded successfully" } else { "Skill not found" }.to_string(),

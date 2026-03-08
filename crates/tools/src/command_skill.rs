@@ -229,37 +229,21 @@ impl crate::Tool for CommandSkillTool {
                     );
                 }
 
-                for path in &skill_paths {
-                    if !path.exists() {
-                        continue;
-                    }
+                if let Some((content, path, raw_meta)) =
+                    skill_discovery::find_skill_content(&skill_paths).await
+                {
+                    found = true;
+                    command_type = CommandType::Skill;
+                    prompt = content;
+                    found_path = Some(path.display().to_string());
+                    metadata = raw_meta.and_then(|v| serde_yaml::from_value(v).ok());
 
-                    match fs::read_to_string(&path).await {
-                        Ok(content) => {
-                            let parsed = skill_discovery::parse_file(&content, path);
-
-                            if !parsed.prompt.is_empty() {
-                                found = true;
-                                command_type = CommandType::Skill;
-                                prompt = parsed.prompt;
-                                found_path = Some(path.display().to_string());
-                                metadata = parsed.metadata.and_then(|v| serde_yaml::from_value(v).ok());
-
-                                if debug_mode {
-                                    debug!(
-                                        name = %name,
-                                        path = ?path,
-                                        "Skill loaded successfully"
-                                    );
-                                }
-                                break;
-                            }
-                        }
-                        Err(e) => {
-                            if debug_mode {
-                                warn!(path = ?path, error = %e, "Failed to read skill file");
-                            }
-                        }
+                    if debug_mode {
+                        debug!(
+                            name = %name,
+                            path = ?path,
+                            "Skill loaded successfully"
+                        );
                     }
                 }
             }

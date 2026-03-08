@@ -81,6 +81,40 @@ pub fn discover_skill_paths(skill_name: &str) -> Vec<PathBuf> {
     paths
 }
 
+/// Find and load a skill file by searching through candidate paths.
+///
+/// Iterates over `skill_paths`, reads the first file that exists and has
+/// a non-empty prompt, and returns the prompt, the path where it was found,
+/// and the raw YAML metadata (if any).
+///
+/// This is the shared implementation used by both `SkillTool` and
+/// `CommandSkillTool` to avoid duplicated file-loading loops.
+pub async fn find_skill_content(
+    skill_paths: &[PathBuf],
+) -> Option<(String, PathBuf, Option<serde_yaml::Value>)> {
+    for path in skill_paths {
+        if !path.exists() {
+            continue;
+        }
+
+        match tokio::fs::read_to_string(path).await {
+            Ok(content) => {
+                let parsed = parse_file(&content, path);
+
+                if !parsed.prompt.is_empty() {
+                    return Some((parsed.prompt, path.clone(), parsed.metadata));
+                }
+            }
+            Err(e) => {
+                tracing::warn!(path = ?path, error = %e, "Failed to read skill file");
+                continue;
+            }
+        }
+    }
+
+    None
+}
+
 /// Parse a file and extract prompt and metadata based on file extension.
 ///
 /// Dispatches to markdown or YAML parsing as appropriate.
