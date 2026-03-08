@@ -27,6 +27,7 @@ impl BuiltinCommands {
                 | "fast"
                 | "rename"
                 | "debug"
+                | "color"
         )
     }
 
@@ -45,6 +46,7 @@ impl BuiltinCommands {
             "logout" => Some(Self::logout_command()),
             "rename" => Some(Self::rename_command(&cmd.args_str)),
             "debug" => Some(Self::debug_command()),
+            "color" => Some(Self::color_command(&cmd.args_str)),
             _ => None,
         }
     }
@@ -79,6 +81,7 @@ impl BuiltinCommands {
                /bug                   - Report a bug via GitHub\n\
                /add-dir <path>        - Add working directory\n\
                /fast                  - Toggle fast mode\n\
+               /color <mode>          - Set color output mode (default, gray, reset, none)\n\
                /model                 - Show or switch model (handled in session layer)\n\
                /rename [name]         - Rename current session\n\
                /debug                 - Show debug information for troubleshooting\n\n\
@@ -221,6 +224,32 @@ impl BuiltinCommands {
                 }
             }
             None => "[[RENAME_SESSION_AUTO]]".to_string(),
+        }
+    }
+
+    /// /color <mode> - Set color output mode
+    ///
+    /// Accepted values: default, gray, reset, none
+    fn color_command(args: &Option<String>) -> String {
+        const VALID_MODES: &[&str] = &["default", "gray", "reset", "none"];
+
+        match args {
+            Some(mode) => {
+                let mode = mode.trim().to_lowercase();
+                if VALID_MODES.contains(&mode.as_str()) {
+                    format!("Color set to: {}", mode)
+                } else {
+                    format!(
+                        "Unknown color mode: '{}'\n\nValid modes: {}",
+                        mode,
+                        VALID_MODES.join(", ")
+                    )
+                }
+            }
+            None => format!(
+                "Usage: /color <mode>\n\nValid modes: {}",
+                VALID_MODES.join(", ")
+            ),
         }
     }
 
@@ -588,5 +617,77 @@ mod tests {
         assert!(result.is_some());
         let output = result.unwrap();
         assert!(output.contains("--resume"));
+    }
+
+    #[test]
+    fn test_is_builtin_color() {
+        assert!(BuiltinCommands::is_builtin("color"));
+    }
+
+    #[test]
+    fn test_execute_color_default() {
+        let cmd = Command::new("color".to_string(), Some("default".to_string()));
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "Color set to: default");
+    }
+
+    #[test]
+    fn test_execute_color_gray() {
+        let cmd = Command::new("color".to_string(), Some("gray".to_string()));
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "Color set to: gray");
+    }
+
+    #[test]
+    fn test_execute_color_none() {
+        let cmd = Command::new("color".to_string(), Some("none".to_string()));
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "Color set to: none");
+    }
+
+    #[test]
+    fn test_execute_color_reset() {
+        let cmd = Command::new("color".to_string(), Some("reset".to_string()));
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "Color set to: reset");
+    }
+
+    #[test]
+    fn test_execute_color_invalid() {
+        let cmd = Command::new("color".to_string(), Some("rainbow".to_string()));
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        let output = result.unwrap();
+        assert!(output.contains("Unknown color mode"));
+        assert!(output.contains("rainbow"));
+    }
+
+    #[test]
+    fn test_execute_color_no_args() {
+        let cmd = Command::new("color".to_string(), None);
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        let output = result.unwrap();
+        assert!(output.contains("Usage"));
+        assert!(output.contains("/color"));
+    }
+
+    #[test]
+    fn test_execute_color_case_insensitive() {
+        let cmd = Command::new("color".to_string(), Some("DEFAULT".to_string()));
+        let result = BuiltinCommands::execute(&cmd);
+
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "Color set to: default");
     }
 }
