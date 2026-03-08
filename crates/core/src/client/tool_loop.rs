@@ -319,10 +319,7 @@ mod tests {
             response: make_text_response("hi"),
             parent_tool_use_id: None,
         };
-        assert!(matches!(
-            assistant,
-            ToolLoopEvent::AssistantMessage { .. }
-        ));
+        assert!(matches!(assistant, ToolLoopEvent::AssistantMessage { .. }));
 
         let tool_use = ToolLoopEvent::ToolUse {
             id: "tu_1".to_string(),
