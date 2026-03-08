@@ -498,7 +498,7 @@ mod tests {
             "is_error": false, "stop_reason": "end_turn"
         });
 
-        let sequence = vec![&init, &assistant, &result];
+        let sequence = [&init, &assistant, &result];
         assert_eq!(sequence[0]["type"], "system");
         assert_eq!(sequence[1]["type"], "assistant");
         assert_eq!(sequence[2]["type"], "result");
