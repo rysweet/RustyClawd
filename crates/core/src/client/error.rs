@@ -78,10 +78,8 @@ pub enum ClientError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
-    // Legacy/Deprecated errors (kept for backward compatibility)
-    #[deprecated(note = "Use specific error types instead")]
-    #[error("API error: {0}")]
-    Api(String),
+    #[error("Tool execution error: {0}")]
+    ToolExecution(String),
 
     // Catch-all for unknown errors
     #[error("Unknown error: {0}")]

@@ -26,11 +26,8 @@ pub mod streaming;
 pub mod terminal_guard;
 pub mod tool_definitions;
 pub mod tool_orchestrator;
-// TODO: Migrate from ClientError::Api to specific error types (BadRequest, Unknown, etc.)
-#[allow(deprecated)]
 pub mod tool_executor;
 pub mod tool_formatter;
-#[allow(deprecated)]
 pub mod tool_schema_errors;
 pub mod tui;
 pub mod update;
