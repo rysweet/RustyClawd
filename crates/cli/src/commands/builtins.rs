@@ -5,6 +5,7 @@
 //! text have been removed. When real implementations are ready, add them back.
 
 use crate::commands::parser::Command;
+use crate::scheduled_tasks::parse_interval;
 
 /// Built-in command handler
 pub struct BuiltinCommands;
@@ -28,6 +29,8 @@ impl BuiltinCommands {
                 | "rename"
                 | "debug"
                 | "color"
+                | "loop"
+                | "copy"
         )
     }
 
@@ -47,6 +50,8 @@ impl BuiltinCommands {
             "rename" => Some(Self::rename_command(&cmd.args_str)),
             "debug" => Some(Self::debug_command()),
             "color" => Some(Self::color_command(&cmd.args_str)),
+            "loop" => Some(Self::loop_command(&cmd.args_str)),
+            "copy" => Some(Self::copy_command()),
             _ => None,
         }
     }
@@ -82,6 +87,8 @@ impl BuiltinCommands {
                /add-dir <path>        - Add working directory\n\
                /fast                  - Toggle fast mode\n\
                /color <mode>          - Set color output mode (default, gray, reset, none)\n\
+               /copy                  - Select and copy a code block to clipboard\n\
+               /loop <interval> <prompt> - Run a prompt on a recurring schedule\n\
                /model                 - Show or switch model (handled in session layer)\n\
                /rename [name]         - Rename current session\n\
                /debug                 - Show debug information for troubleshooting\n\n\
@@ -251,6 +258,65 @@ impl BuiltinCommands {
                 VALID_MODES.join(", ")
             ),
         }
+    }
+
+    /// /loop <interval> <prompt> - Schedule a recurring prompt
+    ///
+    /// Parses an interval (e.g. "5m", "1h", "30s") and a prompt string.
+    /// Returns an IPC marker for the session loop to wire up scheduling.
+    fn loop_command(args: &Option<String>) -> String {
+        let args_str = match args {
+            Some(a) if !a.trim().is_empty() => a.trim(),
+            _ => {
+                return "Usage: /loop <interval> <prompt>\n\n\
+                        Interval examples: 30s, 5m, 1h\n\n\
+                        Example:\n  /loop 5m check build status"
+                    .to_string();
+            }
+        };
+
+        // First whitespace-delimited token is the interval, rest is the prompt.
+        let (interval_str, prompt) = match args_str.split_once(char::is_whitespace) {
+            Some((i, p)) if !p.trim().is_empty() => (i, p.trim()),
+            _ => {
+                return "Usage: /loop <interval> <prompt>\n\n\
+                        Both an interval and a prompt are required.\n\n\
+                        Example:\n  /loop 5m check build status"
+                    .to_string();
+            }
+        };
+
+        match parse_interval(interval_str) {
+            Some(duration) => {
+                let secs = duration.as_secs();
+                let human = if secs >= 3600 && secs % 3600 == 0 {
+                    format!("{}h", secs / 3600)
+                } else if secs >= 60 && secs % 60 == 0 {
+                    format!("{}m", secs / 60)
+                } else {
+                    format!("{}s", secs)
+                };
+                format!(
+                    "[[SCHEDULE_LOOP:{}:{}]]\n\n\
+                     Scheduled: will run '{}' every {}",
+                    secs, prompt, prompt, human
+                )
+            }
+            None => {
+                format!(
+                    "Invalid interval: '{}'\n\n\
+                     Accepted formats: 30s, 5m, 1h (positive integer + s/m/h)",
+                    interval_str
+                )
+            }
+        }
+    }
+
+    /// /copy - Select and copy a code block from the conversation to clipboard.
+    ///
+    /// Returns an IPC marker for the TUI layer to present a code-block picker.
+    fn copy_command() -> String {
+        "[[COPY_CODE_BLOCK]]".to_string()
     }
 
     /// /debug - Show debug information for session troubleshooting (v2.1.31)
@@ -689,5 +755,76 @@ mod tests {
 
         assert!(result.is_some());
         assert_eq!(result.unwrap(), "Color set to: default");
+    }
+
+    // ── /loop tests ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_is_builtin_loop() {
+        assert!(BuiltinCommands::is_builtin("loop"));
+    }
+
+    #[test]
+    fn test_execute_loop_no_args() {
+        let cmd = Command::new("loop".to_string(), None);
+        let result = BuiltinCommands::execute(&cmd).unwrap();
+        assert!(result.contains("Usage"));
+        assert!(result.contains("/loop"));
+    }
+
+    #[test]
+    fn test_execute_loop_interval_only() {
+        let cmd = Command::new("loop".to_string(), Some("5m".to_string()));
+        let result = BuiltinCommands::execute(&cmd).unwrap();
+        assert!(result.contains("Usage"));
+    }
+
+    #[test]
+    fn test_execute_loop_valid() {
+        let cmd = Command::new(
+            "loop".to_string(),
+            Some("5m check build status".to_string()),
+        );
+        let result = BuiltinCommands::execute(&cmd).unwrap();
+        assert!(result.contains("[[SCHEDULE_LOOP:300:check build status]]"));
+        assert!(result.contains("every 5m"));
+    }
+
+    #[test]
+    fn test_execute_loop_seconds() {
+        let cmd = Command::new("loop".to_string(), Some("30s ping".to_string()));
+        let result = BuiltinCommands::execute(&cmd).unwrap();
+        assert!(result.contains("[[SCHEDULE_LOOP:30:ping]]"));
+        assert!(result.contains("every 30s"));
+    }
+
+    #[test]
+    fn test_execute_loop_hours() {
+        let cmd = Command::new("loop".to_string(), Some("1h run report".to_string()));
+        let result = BuiltinCommands::execute(&cmd).unwrap();
+        assert!(result.contains("[[SCHEDULE_LOOP:3600:run report]]"));
+        assert!(result.contains("every 1h"));
+    }
+
+    #[test]
+    fn test_execute_loop_invalid_interval() {
+        let cmd = Command::new("loop".to_string(), Some("abc do stuff".to_string()));
+        let result = BuiltinCommands::execute(&cmd).unwrap();
+        assert!(result.contains("Invalid interval"));
+        assert!(result.contains("abc"));
+    }
+
+    // ── /copy tests ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_is_builtin_copy() {
+        assert!(BuiltinCommands::is_builtin("copy"));
+    }
+
+    #[test]
+    fn test_execute_copy() {
+        let cmd = Command::new("copy".to_string(), None);
+        let result = BuiltinCommands::execute(&cmd).unwrap();
+        assert_eq!(result, "[[COPY_CODE_BLOCK]]");
     }
 }
