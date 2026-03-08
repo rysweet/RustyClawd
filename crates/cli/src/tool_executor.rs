@@ -197,7 +197,10 @@ pub async fn execute_tool_with_hooks(
         "TodoWrite" => execute_todowrite_tool(tool_input.clone(), &ctx).await,
         "WebFetch" => execute_web_fetch_tool(tool_input.clone(), &ctx).await,
         "WebSearch" => execute_web_search_tool(tool_input.clone(), &ctx).await,
-        _ => Err(ClientError::ToolExecution(format!("Unknown tool: {}", tool_name))),
+        _ => Err(ClientError::ToolExecution(format!(
+            "Unknown tool: {}",
+            tool_name
+        ))),
     };
 
     // Execute PostToolUse hook (NON-BLOCKING - for logging/monitoring)
