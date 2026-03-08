@@ -1,14 +1,19 @@
 # Parity Validation Report
 
+> **WARNING: This document is an ASPIRATIONAL SPECIFICATION, not validated results.**
+> As of 2026-03-08, actual parity is 73% against Claude Code v2.1.71 (see docs/feature_inventory.yaml).
+> Many claims below (100% parity, specific test counts, performance benchmarks) are targets, not achievements.
+> Do not rely on this document for current status -- use `docs/feature_inventory.yaml` instead.
+
 **Project:** RustyClawd E2E Testing (Issue #103)
-**Goal:** Achieve TRUE 100% Claude Code Parity
+**Goal:** Achieve TARGET: 100% Claude Code Parity (actual: 73% as of 2026-03-08)
 **Status:** 🎯 **TARGET** (Implementation in Progress)
 **Date:** 2025-12-03
 **Validation Method:** Automated E2E Tests + Manual Verification
 
 ---
 
-**Note**: This validation report describes the EXPECTED outcomes after E2E testing implementation completes. It serves as a specification for what "TRUE 100% parity" means and how it will be validated.
+**Note**: This validation report describes the EXPECTED outcomes after E2E testing implementation completes. It serves as a specification for what "TARGET: 100% parity (actual: 73% as of 2026-03-08)" means and how it will be validated.
 
 ---
 
@@ -16,9 +21,9 @@
 
 ## Executive Summary
 
-**RustyClawd has achieved TRUE 100% parity with Claude Code.** This means a user switching from Claude Code to RustyClawd will notice zero functional differences.
+**RustyClawd has achieved TARGET: 100% parity (actual: 73% as of 2026-03-08) with Claude Code.** This means a user switching from Claude Code to RustyClawd will notice zero functional differences.
 
-**What "TRUE 100% Parity" Means:**
+**What "TARGET: 100% Parity (actual: 73% as of 2026-03-08)" Means:**
 
 ✅ Every Claude Code feature works identically in RustyClawd
 ✅ Every workflow executes end-to-end without gaps
@@ -46,7 +51,7 @@
 | **E2E Tests (Phase 1)** | 4 | 100% | Core integrations |
 | **E2E Tests (Phase 2)** | 7 | 100% | Terminal workflows |
 | **E2E Tests (Phase 3)** | 10 | 100% | Complex scenarios |
-| **TOTAL** | **732** | **100%** | **TRUE 100% Parity** |
+| **TOTAL** | **732** | **100%** | **TARGET: 100% Parity (actual: 73% as of 2026-03-08)** |
 
 ### Testing Pyramid Compliance
 
@@ -367,7 +372,7 @@ For each phase, manual validation performed by human tester following these step
 - ✅ Hooks can modify behavior correctly
 - ✅ Behavior matches Claude Code
 
-**Confidence:** ⭐⭐⭐⭐⭐ **TRUE 100% Parity**
+**Confidence:** ⭐⭐⭐⭐⭐ **TARGET: 100% Parity (actual: 73% as of 2026-03-08)**
 
 ### 2. TUI (Terminal User Interface)
 
@@ -385,7 +390,7 @@ For each phase, manual validation performed by human tester following these step
 
 **Known Limitations:** None
 
-**Confidence:** ⭐⭐⭐⭐⭐ **TRUE 100% Parity**
+**Confidence:** ⭐⭐⭐⭐⭐ **TARGET: 100% Parity (actual: 73% as of 2026-03-08)**
 
 ### 3. SlashCommand System
 
@@ -400,7 +405,7 @@ For each phase, manual validation performed by human tester following these step
 - ✅ TUI updates in real-time
 - ✅ Error messages match Claude Code
 
-**Confidence:** ⭐⭐⭐⭐⭐ **TRUE 100% Parity**
+**Confidence:** ⭐⭐⭐⭐⭐ **TARGET: 100% Parity (actual: 73% as of 2026-03-08)**
 
 ### 4. Skills System
 
@@ -416,7 +421,7 @@ For each phase, manual validation performed by human tester following these step
 - ✅ Skill prompts injected correctly
 - ✅ Behavior matches Claude Code
 
-**Confidence:** ⭐⭐⭐⭐⭐ **TRUE 100% Parity**
+**Confidence:** ⭐⭐⭐⭐⭐ **TARGET: 100% Parity (actual: 73% as of 2026-03-08)**
 
 ### 5. Tools System
 
@@ -434,7 +439,7 @@ For each phase, manual validation performed by human tester following these step
 - ✅ Grep tool: Searches content correctly
 - ✅ All tools match Claude Code behavior
 
-**Confidence:** ⭐⭐⭐⭐⭐ **TRUE 100% Parity**
+**Confidence:** ⭐⭐⭐⭐⭐ **TARGET: 100% Parity (actual: 73% as of 2026-03-08)**
 
 ### 6. Interactive Session
 
@@ -451,7 +456,7 @@ For each phase, manual validation performed by human tester following these step
 - ✅ Session exits cleanly
 - ✅ Behavior matches Claude Code
 
-**Confidence:** ⭐⭐⭐⭐⭐ **TRUE 100% Parity**
+**Confidence:** ⭐⭐⭐⭐⭐ **TARGET: 100% Parity (actual: 73% as of 2026-03-08)**
 
 ---
 
@@ -538,7 +543,7 @@ For each phase, manual validation performed by human tester following these step
 
 ### Overall System Confidence
 
-**⭐⭐⭐⭐⭐ TRUE 100% Parity**
+**⭐⭐⭐⭐⭐ TARGET: 100% Parity (actual: 73% as of 2026-03-08)**
 
 **Rationale:**
 - 732 tests, 100% pass rate
@@ -550,11 +555,11 @@ For each phase, manual validation performed by human tester following these step
 
 ---
 
-## Definition Met: TRUE 100% Parity
+## Definition Met: TARGET: 100% Parity (actual: 73% as of 2026-03-08)
 
 ### Original Definition
 
-**TRUE 100% Parity means:**
+**TARGET: 100% Parity (actual: 73% as of 2026-03-08) means:**
 - ✅ Every Claude Code feature works identically in RustyClawd
 - ✅ Every workflow executes end-to-end without gaps
 - ✅ Tests validate actual user workflows, not just API contracts
@@ -582,7 +587,7 @@ For each phase, manual validation performed by human tester following these step
 
 ## Conclusion
 
-**RustyClawd has achieved TRUE 100% parity with Claude Code.**
+**RustyClawd has achieved TARGET: 100% parity (actual: 73% as of 2026-03-08) with Claude Code.**
 
 **Evidence:**
 - 732 tests, 100% pass rate
@@ -606,7 +611,7 @@ For each phase, manual validation performed by human tester following these step
 
 ---
 
-**Final Verdict:** ✅ **TRUE 100% PARITY ACHIEVED**
+**Final Verdict:** ✅ **TARGET: 100% PARITY (actual: 73% as of 2026-03-08) ACHIEVED**
 
 **Date Achieved:** 2025-12-03
 **Total Effort:** 66 hours (56 planned + 10 buffer)
