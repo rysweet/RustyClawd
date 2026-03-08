@@ -62,7 +62,7 @@ pub async fn execute_tool_with_permission(
 ) -> Result<Value, ClientError> {
     // Check permission mode first
     if !permission_mode.allows_tool(&tool_name) {
-        return Err(ClientError::Api(
+        return Err(ClientError::ToolExecution(
             permission_mode.blocked_tool_error(&tool_name),
         ));
     }
@@ -105,7 +105,7 @@ pub async fn execute_tool_with_hooks(
 
     // Check if tool is explicitly disallowed (takes precedence)
     if !ctx.disallowed_tools.is_empty() && ctx.disallowed_tools.contains(&tool_name) {
-        return Err(ClientError::Api(format!(
+        return Err(ClientError::ToolExecution(format!(
             "Tool execution blocked: Tool '{}' is disallowed for this session",
             tool_name
         )));
@@ -113,7 +113,7 @@ pub async fn execute_tool_with_hooks(
 
     // Check if tool is in allowed list (if allowlist is non-empty)
     if !ctx.allowed_tools.is_empty() && !ctx.allowed_tools.contains(&tool_name) {
-        return Err(ClientError::Api(format!(
+        return Err(ClientError::ToolExecution(format!(
             "Tool execution blocked: Tool '{}' is not in the allowed tools list for this session",
             tool_name
         )));
@@ -160,7 +160,7 @@ pub async fn execute_tool_with_hooks(
                                 let reason = output
                                     .permission_decision_reason
                                     .unwrap_or_else(|| "Permission denied by hook".to_string());
-                                return Err(ClientError::Api(format!(
+                                return Err(ClientError::ToolExecution(format!(
                                     "Tool execution blocked: {}",
                                     reason
                                 )));
@@ -197,7 +197,10 @@ pub async fn execute_tool_with_hooks(
         "TodoWrite" => execute_todowrite_tool(tool_input.clone(), &ctx).await,
         "WebFetch" => execute_web_fetch_tool(tool_input.clone(), &ctx).await,
         "WebSearch" => execute_web_search_tool(tool_input.clone(), &ctx).await,
-        _ => Err(ClientError::Api(format!("Unknown tool: {}", tool_name))),
+        _ => Err(ClientError::ToolExecution(format!(
+            "Unknown tool: {}",
+            tool_name
+        ))),
     };
 
     // Execute PostToolUse hook (NON-BLOCKING - for logging/monitoring)
@@ -254,11 +257,14 @@ async fn collect_tool_stream<T: serde::Serialize>(
         match event {
             ToolEvent::Result(output) => {
                 return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize {} output: {}", tool_name, e))
+                    ClientError::ToolExecution(format!(
+                        "Failed to serialize {} output: {}",
+                        tool_name, e
+                    ))
                 });
             }
             ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!(
+                return Err(ClientError::ToolExecution(format!(
                     "{} tool error: {}",
                     tool_name, message
                 )));
@@ -266,7 +272,7 @@ async fn collect_tool_stream<T: serde::Serialize>(
             ToolEvent::Progress { .. } => {}
         }
     }
-    Err(ClientError::Api(format!(
+    Err(ClientError::ToolExecution(format!(
         "{} tool completed without result",
         tool_name
     )))
@@ -284,10 +290,9 @@ async fn execute_tool_generic<T: Tool>(
 ) -> Result<Value, ClientError> {
     let params: T::Params = serde_json::from_value(input)
         .map_err(|e| create_schema_error(tool_name, &e.to_string()))?;
-    let stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("{} tool execution failed: {}", tool_name, e)))?;
+    let stream = tool.execute(params, ctx).await.map_err(|e| {
+        ClientError::ToolExecution(format!("{} tool execution failed: {}", tool_name, e))
+    })?;
     collect_tool_stream(tool_name, stream).await
 }
 
@@ -343,28 +348,31 @@ async fn execute_ask_user_question_tool(
     ctx: &ToolContext,
 ) -> Result<Value, ClientError> {
     // Protect terminal state during interactive prompts
-    let _guard = TerminalGuard::new()
-        .map_err(|e| ClientError::Api(format!("Failed to create terminal guard: {}", e)))?;
+    let _guard = TerminalGuard::new().map_err(|e| {
+        ClientError::ToolExecution(format!("Failed to create terminal guard: {}", e))
+    })?;
 
     let params: rustyclawd_tools::ask_user_question::AskUserQuestionParams =
         serde_json::from_value(input)
             .map_err(|e| create_schema_error("AskUserQuestion", &e.to_string()))?;
 
     let tool = AskUserQuestionTool;
-    let mut stream = tool
-        .execute(params, ctx)
-        .await
-        .map_err(|e| ClientError::Api(format!("AskUserQuestion tool execution failed: {}", e)))?;
+    let mut stream = tool.execute(params, ctx).await.map_err(|e| {
+        ClientError::ToolExecution(format!("AskUserQuestion tool execution failed: {}", e))
+    })?;
 
     while let Some(event) = stream.next().await {
         match event {
             ToolEvent::Result(output) => {
                 return serde_json::to_value(&output).map_err(|e| {
-                    ClientError::Api(format!("Failed to serialize AskUserQuestion output: {}", e))
+                    ClientError::ToolExecution(format!(
+                        "Failed to serialize AskUserQuestion output: {}",
+                        e
+                    ))
                 });
             }
             ToolEvent::Error { message } => {
-                return Err(ClientError::Api(format!(
+                return Err(ClientError::ToolExecution(format!(
                     "AskUserQuestion tool error: {}",
                     message
                 )));
@@ -380,7 +388,7 @@ async fn execute_ask_user_question_tool(
         }
     }
 
-    Err(ClientError::Api(
+    Err(ClientError::ToolExecution(
         "AskUserQuestion tool completed without result".to_string(),
     ))
     // Guard is automatically dropped here, restoring terminal state
@@ -446,7 +454,7 @@ mod tests {
         let result = execute_agent_tool(invalid_input, &ctx).await;
         assert!(result.is_err(), "Should fail with missing required fields");
 
-        if let Err(ClientError::Api(msg)) = result {
+        if let Err(ClientError::ToolExecution(msg)) = result {
             assert!(
                 msg.contains("required"),
                 "Error should mention required fields"
@@ -490,7 +498,7 @@ mod tests {
 
         assert!(result.is_err(), "Should fail with missing parameters");
         // If it routes correctly, we should get a schema error, not "Unknown tool" error
-        if let Err(ClientError::Api(msg)) = result {
+        if let Err(ClientError::ToolExecution(msg)) = result {
             assert!(
                 !msg.contains("Unknown tool"),
                 "Should not be unknown tool error"

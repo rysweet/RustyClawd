@@ -17,8 +17,6 @@ use rustyclawd::{
     session_index, settings, tool_definitions,
 };
 
-// Modules that need #[allow(deprecated)] forwarded
-#[allow(deprecated)]
 use rustyclawd::tool_executor;
 
 use anyhow::{Context as AnyhowContext, Result};
