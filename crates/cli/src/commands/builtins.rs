@@ -4,8 +4,20 @@
 //! commands that merely return "not yet implemented" or hardcoded static
 //! text have been removed. When real implementations are ready, add them back.
 
+use crate::auto_memory::{AutoMemory, MemoryScope};
 use crate::commands::parser::Command;
 use crate::scheduled_tasks::parse_interval;
+
+/// Recognized terminal emulators for /terminal-setup
+enum Terminal {
+    ITerm2,
+    WezTerm,
+    Warp,
+    Alacritty,
+    Kitty,
+    Zed,
+    Unknown,
+}
 
 /// Built-in command handler
 pub struct BuiltinCommands;
@@ -31,6 +43,8 @@ impl BuiltinCommands {
                 | "color"
                 | "loop"
                 | "copy"
+                | "memory"
+                | "terminal-setup"
         )
     }
 
@@ -52,6 +66,8 @@ impl BuiltinCommands {
             "color" => Some(Self::color_command(&cmd.args_str)),
             "loop" => Some(Self::loop_command(&cmd.args_str)),
             "copy" => Some(Self::copy_command()),
+            "memory" => Some(Self::memory_command(&cmd.args_str)),
+            "terminal-setup" => Some(Self::terminal_setup_command()),
             _ => None,
         }
     }
@@ -89,8 +105,10 @@ impl BuiltinCommands {
                /color <mode>          - Set color output mode (default, gray, reset, none)\n\
                /copy                  - Select and copy a code block to clipboard\n\
                /loop <interval> <prompt> - Run a prompt on a recurring schedule\n\
+               /memory [user|project] - Show saved auto-memory\n\
                /model                 - Show or switch model (handled in session layer)\n\
                /rename [name]         - Rename current session\n\
+               /terminal-setup        - Show terminal configuration tips\n\
                /debug                 - Show debug information for troubleshooting\n\n\
              Custom Commands:\n\
                /amplihack:*      - Amplihack custom commands\n\
@@ -319,6 +337,208 @@ impl BuiltinCommands {
         "[[COPY_CODE_BLOCK]]".to_string()
     }
 
+    /// /memory [user|project] - Show saved auto-memory
+    ///
+    /// With no args, shows both user and project memory.
+    /// With "user" or "project", shows only that scope.
+    fn memory_command(args: &Option<String>) -> String {
+        let scope_filter = args.as_deref().map(|s| s.trim().to_lowercase());
+
+        let show_user = match scope_filter.as_deref() {
+            Some("user") => true,
+            Some("project") => false,
+            _ => true,
+        };
+        let show_project = match scope_filter.as_deref() {
+            Some("user") => false,
+            Some("project") => true,
+            _ => true,
+        };
+
+        let mut output = String::new();
+        let mut found = false;
+
+        if show_user {
+            match AutoMemory::read_memory(&MemoryScope::User) {
+                Ok(Some(content)) => {
+                    output.push_str("=== User Memory (~/.claude/CLAUDE.md) ===\n\n");
+                    output.push_str(&content);
+                    output.push('\n');
+                    found = true;
+                }
+                Ok(None) => {
+                    if scope_filter.as_deref() == Some("user") {
+                        output.push_str("No user memory recorded yet.\n");
+                    }
+                }
+                Err(e) => {
+                    output.push_str(&format!("Error reading user memory: {}\n", e));
+                }
+            }
+        }
+
+        if show_project {
+            match AutoMemory::read_memory(&MemoryScope::Project) {
+                Ok(Some(content)) => {
+                    if !output.is_empty() {
+                        output.push('\n');
+                    }
+                    output.push_str("=== Project Memory (.claude/CLAUDE.md) ===\n\n");
+                    output.push_str(&content);
+                    output.push('\n');
+                    found = true;
+                }
+                Ok(None) => {
+                    if scope_filter.as_deref() == Some("project") {
+                        output.push_str("No project memory recorded yet.\n");
+                    }
+                }
+                Err(e) => {
+                    output.push_str(&format!("Error reading project memory: {}\n", e));
+                }
+            }
+        }
+
+        if !found && output.is_empty() {
+            return "No memory recorded yet.".to_string();
+        }
+
+        output.trim_end().to_string()
+    }
+
+    /// /terminal-setup - Show terminal configuration tips
+    ///
+    /// Detects the current terminal emulator from environment variables
+    /// and provides copy-pasteable configuration snippets.
+    fn terminal_setup_command() -> String {
+        let terminal = Self::detect_terminal();
+        let (name, config) = Self::terminal_config(&terminal);
+
+        format!(
+            "Terminal Setup: {}\n\n\
+             Detected terminal: {}\n\n\
+             Recommended configuration:\n\n\
+             {}",
+            name, name, config
+        )
+    }
+
+    /// Detect the current terminal from environment variables.
+    fn detect_terminal() -> Terminal {
+        if std::env::var("TERM_PROGRAM")
+            .map(|v| v.to_lowercase().contains("iterm"))
+            .unwrap_or(false)
+        {
+            return Terminal::ITerm2;
+        }
+        if std::env::var("TERM_PROGRAM")
+            .map(|v| v.to_lowercase().contains("wezterm"))
+            .unwrap_or(false)
+        {
+            return Terminal::WezTerm;
+        }
+        if std::env::var("TERM_PROGRAM")
+            .map(|v| v.to_lowercase().contains("warp"))
+            .unwrap_or(false)
+        {
+            return Terminal::Warp;
+        }
+        if std::env::var("ALACRITTY_LOG").is_ok() {
+            return Terminal::Alacritty;
+        }
+        if std::env::var("KITTY_WINDOW_ID").is_ok() {
+            return Terminal::Kitty;
+        }
+        if std::env::var("ZED_TERM").is_ok() {
+            return Terminal::Zed;
+        }
+        Terminal::Unknown
+    }
+
+    /// Return (name, config snippet) for a terminal.
+    fn terminal_config(terminal: &Terminal) -> (&'static str, &'static str) {
+        match terminal {
+            Terminal::ITerm2 => (
+                "iTerm2",
+                "# Preferences > Profiles > Terminal\n\
+                 # - Set scrollback lines to 10,000+\n\
+                 # - Enable \"Silence bell\"\n\
+                 #\n\
+                 # Preferences > Profiles > Text\n\
+                 # - Use a Nerd Font (e.g., JetBrainsMono Nerd Font) for icon support\n\
+                 # - Set font size to 13-14pt\n\
+                 #\n\
+                 # Preferences > Profiles > Keys > Key Mappings\n\
+                 # - Set Left Option key to Esc+ for proper keybindings",
+            ),
+            Terminal::WezTerm => (
+                "WezTerm",
+                "-- Add to ~/.wezterm.lua:\n\
+                 local config = wezterm.config_builder()\n\
+                 config.font = wezterm.font('JetBrainsMono Nerd Font')\n\
+                 config.font_size = 13.0\n\
+                 config.scrollback_lines = 10000\n\
+                 config.enable_scroll_bar = true\n\
+                 return config",
+            ),
+            Terminal::Warp => (
+                "Warp",
+                "# Warp works well out of the box with RustyClawd.\n\
+                 # Settings > Appearance\n\
+                 # - Use a Nerd Font for icon support\n\
+                 #\n\
+                 # Note: Warp's block-based input can sometimes conflict with\n\
+                 # interactive TUI apps. If you see rendering issues, try:\n\
+                 # Settings > Features > \"Enable legacy terminal mode\"",
+            ),
+            Terminal::Alacritty => (
+                "Alacritty",
+                "# Add to ~/.config/alacritty/alacritty.toml:\n\
+                 [font]\n\
+                 normal = { family = \"JetBrainsMono Nerd Font\", style = \"Regular\" }\n\
+                 size = 13.0\n\n\
+                 [scrolling]\n\
+                 history = 10000\n\n\
+                 [terminal]\n\
+                 osc52 = \"CopyPaste\"  # Enable clipboard support",
+            ),
+            Terminal::Kitty => (
+                "Kitty",
+                "# Add to ~/.config/kitty/kitty.conf:\n\
+                 font_family JetBrainsMono Nerd Font\n\
+                 font_size 13.0\n\
+                 scrollback_lines 10000\n\
+                 enable_audio_bell no\n\
+                 clipboard_control write-clipboard write-primary read-clipboard",
+            ),
+            Terminal::Zed => (
+                "Zed",
+                "// Zed terminal settings in settings.json:\n\
+                 {\n\
+                   \"terminal\": {\n\
+                     \"font_family\": \"JetBrainsMono Nerd Font\",\n\
+                     \"font_size\": 13,\n\
+                     \"line_height\": \"comfortable\",\n\
+                     \"max_scroll_history_lines\": 10000\n\
+                   }\n\
+                 }",
+            ),
+            Terminal::Unknown => (
+                "Unknown",
+                "# Could not detect your terminal emulator.\n\
+                 #\n\
+                 # General recommendations for any terminal:\n\
+                 # - Use a Nerd Font (e.g., JetBrainsMono Nerd Font) for icon support\n\
+                 # - Set font size to 13-14pt\n\
+                 # - Enable at least 10,000 lines of scrollback\n\
+                 # - Ensure UTF-8 encoding is enabled\n\
+                 # - Set TERM=xterm-256color for proper color support\n\
+                 #\n\
+                 # Supported terminals: iTerm2, WezTerm, Warp, Alacritty, Kitty, Zed",
+            ),
+        }
+    }
+
     /// /debug - Show debug information for session troubleshooting (v2.1.31)
     fn debug_command() -> String {
         let version = env!("CARGO_PKG_VERSION");
@@ -387,7 +607,6 @@ mod tests {
             "sandbox",
             "doctor",
             "export",
-            "memory",
             "mcp",
             "agents",
             "hooks",
@@ -408,7 +627,6 @@ mod tests {
             "output-style",
             "privacy-settings",
             "statusline",
-            "terminal-setup",
             "vim",
             "pr_comments",
         ];
@@ -826,5 +1044,72 @@ mod tests {
         let cmd = Command::new("copy".to_string(), None);
         let result = BuiltinCommands::execute(&cmd).unwrap();
         assert_eq!(result, "[[COPY_CODE_BLOCK]]");
+    }
+
+    // ── /memory tests ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_is_builtin_memory() {
+        assert!(BuiltinCommands::is_builtin("memory"));
+    }
+
+    #[test]
+    fn test_execute_memory_no_data() {
+        // With no memory files, should indicate nothing recorded
+        let cmd = Command::new("memory".to_string(), None);
+        let result = BuiltinCommands::execute(&cmd).unwrap();
+        // It will either say "No memory recorded" or show content
+        // depending on whether CLAUDE.md files exist in the environment
+        assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn test_execute_memory_user_scope() {
+        let cmd = Command::new("memory".to_string(), Some("user".to_string()));
+        let result = BuiltinCommands::execute(&cmd).unwrap();
+        assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn test_execute_memory_project_scope() {
+        let cmd = Command::new("memory".to_string(), Some("project".to_string()));
+        let result = BuiltinCommands::execute(&cmd).unwrap();
+        assert!(!result.is_empty());
+    }
+
+    // ── /terminal-setup tests ─────────────────────────────────────────────
+
+    #[test]
+    fn test_is_builtin_terminal_setup() {
+        assert!(BuiltinCommands::is_builtin("terminal-setup"));
+    }
+
+    #[test]
+    fn test_execute_terminal_setup() {
+        let cmd = Command::new("terminal-setup".to_string(), None);
+        let result = BuiltinCommands::execute(&cmd).unwrap();
+        assert!(result.contains("Terminal Setup"));
+        assert!(result.contains("Detected terminal"));
+        assert!(result.contains("Recommended configuration"));
+    }
+
+    #[test]
+    fn test_terminal_config_all_variants() {
+        // Verify all terminal variants produce valid config
+        let terminals = [
+            Terminal::ITerm2,
+            Terminal::WezTerm,
+            Terminal::Warp,
+            Terminal::Alacritty,
+            Terminal::Kitty,
+            Terminal::Zed,
+            Terminal::Unknown,
+        ];
+
+        for terminal in &terminals {
+            let (name, config) = BuiltinCommands::terminal_config(terminal);
+            assert!(!name.is_empty());
+            assert!(!config.is_empty());
+        }
     }
 }
