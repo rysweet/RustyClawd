@@ -224,6 +224,34 @@ impl AgentTool {
     }
 }
 
+/// Default max tokens for agent API requests.
+const DEFAULT_AGENT_MAX_TOKENS: u32 = 4096;
+
+/// Load API config and build an HTTP client for the Claude API.
+async fn build_api_client() -> Result<rustyclawd_core::client::Client, String> {
+    let config = rustyclawd_core::client::Config::from_default_location()
+        .await
+        .map_err(|e| format!("Failed to load API config: {}", e))?;
+    rustyclawd_core::client::Client::new(config)
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))
+}
+
+/// Construct a [`CreateMessageRequest`] with standard agent defaults.
+fn build_agent_request(
+    model_id: String,
+    prompt: String,
+    system_prompt: String,
+) -> rustyclawd_core::client::types::CreateMessageRequest {
+    let messages = vec![rustyclawd_core::client::types::Message::user(prompt)];
+    rustyclawd_core::client::types::CreateMessageRequest::new(
+        model_id,
+        messages,
+        DEFAULT_AGENT_MAX_TOKENS,
+    )
+    .with_system(system_prompt)
+    .with_temperature(0.7)
+}
+
 #[async_trait]
 impl crate::Tool for AgentTool {
     type Params = AgentParams;
@@ -396,35 +424,15 @@ impl crate::Tool for AgentTool {
                 tokio::spawn(async move {
                     let registry = global_agent_registry();
 
-                    // Load API config
-                    let config = match rustyclawd_core::client::Config::from_default_location().await {
-                        Ok(cfg) => cfg,
-                        Err(err) => {
-                            registry.mark_failed(&bg_agent_id, format!("Failed to load API config: {}", err)).await.ok();
-                            return;
-                        }
-                    };
-
-                    let client = match rustyclawd_core::client::Client::new(config) {
+                    let client = match build_api_client().await {
                         Ok(c) => c,
                         Err(err) => {
-                            registry.mark_failed(&bg_agent_id, format!("Failed to build HTTP client: {}", err)).await.ok();
+                            registry.mark_failed(&bg_agent_id, err).await.ok();
                             return;
                         }
                     };
 
-                    // Build the request
-                    let messages = vec![
-                        rustyclawd_core::client::types::Message::user(bg_prompt),
-                    ];
-
-                    let request = rustyclawd_core::client::types::CreateMessageRequest::new(
-                        bg_model_id,
-                        messages,
-                        4096, // max_tokens
-                    )
-                    .with_system(bg_system_prompt)
-                    .with_temperature(0.7);
+                    let request = build_agent_request(bg_model_id, bg_prompt, bg_system_prompt);
 
                     // Stream the response
                     let stream_result = client.create_message_stream(request).await;
@@ -518,23 +526,10 @@ impl crate::Tool for AgentTool {
                 percentage: Some(50.0),
             };
 
-            // Load API config
-            let config = match rustyclawd_core::client::Config::from_default_location().await {
-                Ok(cfg) => cfg,
-                Err(err) => {
-                    yield ToolEvent::Error {
-                        message: format!("Failed to load API config: {}", err),
-                    };
-                    return;
-                }
-            };
-
-            let client = match rustyclawd_core::client::Client::new(config) {
+            let client = match build_api_client().await {
                 Ok(c) => c,
                 Err(err) => {
-                    yield ToolEvent::Error {
-                        message: format!("Failed to build HTTP client: {}", err),
-                    };
+                    yield ToolEvent::Error { message: err };
                     return;
                 }
             };
@@ -554,18 +549,7 @@ impl crate::Tool for AgentTool {
                 agent_system_prompt
             };
 
-            // Build the request
-            let messages = vec![
-                rustyclawd_core::client::types::Message::user(prompt.clone()),
-            ];
-
-            let request = rustyclawd_core::client::types::CreateMessageRequest::new(
-                model_id.clone(),
-                messages,
-                4096, // max_tokens
-            )
-            .with_system(final_system_prompt)
-            .with_temperature(0.7);
+            let request = build_agent_request(model_id.clone(), prompt.clone(), final_system_prompt);
 
             if debug {
                 tracing::debug!("Sending request to Claude API");
