@@ -151,7 +151,10 @@ impl Client {
     }
 
     /// Build common headers for API requests, including conditional beta headers.
-    fn build_request_headers(&self, request: &CreateMessageRequest) -> reqwest::header::HeaderMap {
+    fn build_request_headers(
+        &self,
+        request: &CreateMessageRequest,
+    ) -> ClientResult<reqwest::header::HeaderMap> {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
             "x-api-key",
@@ -160,14 +163,16 @@ impl Client {
                 .expose_secret()
                 .expose()
                 .parse()
-                .expect("API key should be a valid header value"),
+                .map_err(|_: reqwest::header::InvalidHeaderValue| ClientError::InvalidApiKey)?,
         );
         headers.insert(
             "anthropic-version",
             self.config
                 .api_version
                 .parse()
-                .expect("API version should be a valid header value"),
+                .map_err(|e: reqwest::header::InvalidHeaderValue| {
+                    ClientError::Unknown(format!("Invalid API version header: {}", e))
+                })?,
         );
         headers.insert("content-type", "application/json".parse().unwrap());
 
@@ -176,7 +181,7 @@ impl Client {
             headers.insert("anthropic-beta", "fast-mode-2026-02-01".parse().unwrap());
         }
 
-        headers
+        Ok(headers)
     }
 
     /// Internal method to execute a single message request without retry
@@ -188,7 +193,7 @@ impl Client {
         request.validate().map_err(ClientError::Unknown)?;
 
         let url = format!("{}/v1/messages", self.config.api_url);
-        let headers = self.build_request_headers(request);
+        let headers = self.build_request_headers(request)?;
 
         let response = self
             .http_client
@@ -230,7 +235,7 @@ impl Client {
         request.validate().map_err(ClientError::Unknown)?;
 
         let url = format!("{}/v1/messages", self.config.api_url);
-        let mut headers = self.build_request_headers(request);
+        let mut headers = self.build_request_headers(request)?;
         headers.insert("accept", "text/event-stream".parse().unwrap());
 
         let response = self
@@ -354,7 +359,7 @@ mod tests {
             CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Test")], 1024)
                 .with_speed(true);
 
-        let headers = client.build_request_headers(&request);
+        let headers = client.build_request_headers(&request).unwrap();
 
         assert_eq!(
             headers.get("anthropic-beta").map(|v| v.to_str().unwrap()),
@@ -381,7 +386,7 @@ mod tests {
         let request =
             CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Test")], 1024);
 
-        let headers = client.build_request_headers(&request);
+        let headers = client.build_request_headers(&request).unwrap();
 
         assert!(
             headers.get("anthropic-beta").is_none(),
@@ -450,12 +455,36 @@ mod tests {
         let key = ApiKey::new("sk-ant-test123".to_string()).unwrap();
         let config = Config::new(key);
         let client = Client::new(config).unwrap();
-        let headers = client.build_request_headers(&request);
+        let headers = client.build_request_headers(&request).unwrap();
 
         assert_eq!(
             headers.get("anthropic-beta").map(|v| v.to_str().unwrap()),
             Some("fast-mode-2026-02-01"),
             "Headers must contain fast-mode beta header"
+        );
+    }
+
+    /// Test that a malformed API key (containing invalid header characters)
+    /// returns an error instead of panicking.
+    #[test]
+    fn test_build_request_headers_returns_error_on_malformed_api_key() {
+        // A key with a newline passes the sk-ant- prefix check but is invalid
+        // as an HTTP header value.
+        let key = ApiKey::new("sk-ant-bad\nkey".to_string()).unwrap();
+        let config = Config::new(key);
+        let client = Client::new(config).unwrap();
+
+        let request =
+            CreateMessageRequest::new("claude-opus-4-6", vec![Message::user("Test")], 1024);
+
+        let result = client.build_request_headers(&request);
+        assert!(
+            result.is_err(),
+            "build_request_headers must return Err for malformed API key, not panic"
+        );
+        assert!(
+            matches!(result.unwrap_err(), ClientError::InvalidApiKey),
+            "Error must be ClientError::InvalidApiKey"
         );
     }
 }
