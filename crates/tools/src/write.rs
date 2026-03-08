@@ -87,7 +87,7 @@ impl crate::Tool for WriteTool {
             }
 
             // Write file atomically (write to temp, then rename)
-            let temp_path = path.with_extension("tmp");
+            let temp_path = path.with_extension(format!("tmp_{}", std::process::id()));
 
             let mut file = match File::create(&temp_path).await {
                 Ok(f) => f,
