@@ -7,7 +7,6 @@ use rustyclawd_core::client::ClientError;
 use serde_json::json;
 
 /// Create an educational error message that teaches Claude the correct schema
-#[allow(deprecated)]
 pub(crate) fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientError {
     let (required_fields, optional_fields, example) = match tool_name {
         "Write" => (
@@ -195,7 +194,7 @@ pub(crate) fn create_schema_error(tool_name: &str, error_msg: &str) -> ClientErr
         )
     });
 
-    ClientError::Api(
+    ClientError::ToolExecution(
         serde_json::to_string_pretty(&error_response).unwrap_or_else(|_| error_msg.to_string()),
     )
 }
@@ -209,8 +208,8 @@ mod tests {
     fn test_create_schema_error_for_task_tool() {
         let error = create_schema_error("Task", "Missing required field");
         let error_msg = match error {
-            ClientError::Api(msg) => msg,
-            _ => panic!("Expected ClientError::Api"),
+            ClientError::ToolExecution(msg) => msg,
+            _ => panic!("Expected ClientError::ToolExecution"),
         };
 
         // Parse the error message as JSON
@@ -234,8 +233,8 @@ mod tests {
     fn test_task_schema_error_includes_optional_fields() {
         let error = create_schema_error("Task", "Test error");
         let error_msg = match error {
-            ClientError::Api(msg) => msg,
-            _ => panic!("Expected ClientError::Api"),
+            ClientError::ToolExecution(msg) => msg,
+            _ => panic!("Expected ClientError::ToolExecution"),
         };
 
         let error_json: serde_json::Value = serde_json::from_str(&error_msg).unwrap();
@@ -249,8 +248,8 @@ mod tests {
     fn test_task_schema_error_includes_example() {
         let error = create_schema_error("Task", "Test error");
         let error_msg = match error {
-            ClientError::Api(msg) => msg,
-            _ => panic!("Expected ClientError::Api"),
+            ClientError::ToolExecution(msg) => msg,
+            _ => panic!("Expected ClientError::ToolExecution"),
         };
 
         let error_json: serde_json::Value = serde_json::from_str(&error_msg).unwrap();
@@ -267,8 +266,8 @@ mod tests {
         // Verify that Task is handled in create_schema_error
         let error = create_schema_error("Task", "test");
         let error_msg = match error {
-            ClientError::Api(msg) => msg,
-            _ => panic!("Expected ClientError::Api"),
+            ClientError::ToolExecution(msg) => msg,
+            _ => panic!("Expected ClientError::ToolExecution"),
         };
 
         let error_json: serde_json::Value = serde_json::from_str(&error_msg).unwrap();
@@ -285,8 +284,8 @@ mod tests {
     fn test_task_schema_error_help_message() {
         let error = create_schema_error("Task", "test");
         let error_msg = match error {
-            ClientError::Api(msg) => msg,
-            _ => panic!("Expected ClientError::Api"),
+            ClientError::ToolExecution(msg) => msg,
+            _ => panic!("Expected ClientError::ToolExecution"),
         };
 
         let error_json: serde_json::Value = serde_json::from_str(&error_msg).unwrap();
