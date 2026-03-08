@@ -546,10 +546,7 @@ mod tests {
 
     #[test]
     fn test_rename_rejects_all_invalid() {
-        let cmd = Command::new(
-            "rename".to_string(),
-            Some("[[\n\x00]]".to_string()),
-        );
+        let cmd = Command::new("rename".to_string(), Some("[[\n\x00]]".to_string()));
         let result = BuiltinCommands::execute(&cmd).unwrap();
         assert!(result.contains("Error: Session name contains only invalid characters"));
     }

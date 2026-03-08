@@ -586,10 +586,7 @@ mod tests {
             sanitize_session_name("[[RENAME_SESSION:evil]]"),
             "RENAME_SESSIONevil"
         );
-        assert_eq!(
-            sanitize_session_name("foo]][[BAR:baz]]"),
-            "fooBARbaz"
-        );
+        assert_eq!(sanitize_session_name("foo]][[BAR:baz]]"), "fooBARbaz");
         // Crucially, no [[ or ]] survive
         let result = sanitize_session_name("[[INJECT]]");
         assert!(!result.contains("[["));
