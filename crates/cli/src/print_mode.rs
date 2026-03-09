@@ -106,15 +106,24 @@ fn build_control_response(session_id: &str) -> JsonValue {
 /// {"type":"user","content":[{"type":"text","text":"the prompt"}],...}
 /// ```
 fn extract_prompt_from_user_message(msg: &JsonValue) -> Option<String> {
-    let content = msg.get("content")?.as_array()?;
-    for block in content {
-        if block.get("type").and_then(|t| t.as_str()) == Some("text") {
-            if let Some(text) = block.get("text").and_then(|t| t.as_str()) {
-                return Some(text.to_string());
+    // SDK v0.1.48 sends: {"type":"user","message":{"role":"user","content":"prompt text"}}
+    if let Some(message) = msg.get("message") {
+        if let Some(content) = message.get("content").and_then(|c| c.as_str()) {
+            return Some(content.to_string());
+        }
+    }
+    // Also handle: {"type":"user","content":[{"type":"text","text":"prompt"}]}
+    if let Some(content) = msg.get("content").and_then(|c| c.as_array()) {
+        for block in content {
+            if block.get("type").and_then(|t| t.as_str()) == Some("text") {
+                if let Some(text) = block.get("text").and_then(|t| t.as_str()) {
+                    return Some(text.to_string());
+                }
             }
         }
     }
-    None
+    // Fallback: content as plain string
+    msg.get("content").and_then(|c| c.as_str()).map(|s| s.to_string())
 }
 
 /// Read lines from stdin, handle the SDK initialize/user_message protocol,
