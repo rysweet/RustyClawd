@@ -315,6 +315,12 @@ impl App {
 
     /// Determine which mode to run based on CLI arguments and stdin
     async fn determine_and_run_mode(&mut self) -> Result<()> {
+        // If --input-format stream-json, use the SDK bidirectional protocol
+        // instead of reading stdin as a raw prompt.
+        if self.cli.input_format == "stream-json" {
+            return self.run_print_mode_stream_input().await;
+        }
+
         // Check for piped stdin first
         let stdin_input = Self::read_stdin_if_piped()?;
 
