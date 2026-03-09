@@ -16,9 +16,12 @@ use super::{hooks, permission_mode, tool_definitions, tool_executor, App};
 // ---------------------------------------------------------------------------
 
 /// Emit a single newline-delimited JSON message to stdout.
+/// Flushes immediately to ensure the SDK reads it without delay.
 fn emit_sdk_message(msg: &serde_json::Value) {
     if let Ok(json) = serde_json::to_string(msg) {
         println!("{}", json);
+        use std::io::Write;
+        let _ = std::io::stdout().flush();
     }
 }
 
@@ -43,8 +46,10 @@ fn emit_assistant_message(
 ) {
     let mut msg = serde_json::json!({
         "type": "assistant",
-        "content": response.content,
-        "model": response.model,
+        "message": {
+            "content": response.content,
+            "model": response.model,
+        },
         "session_id": session_id,
     });
     if let Some(parent_id) = parent_tool_use_id {
@@ -71,8 +76,11 @@ fn emit_result_message(
         "result": result_text,
         "num_turns": num_turns,
         "duration_ms": duration_ms,
+        "duration_api_ms": duration_ms,  // same as duration_ms for now
         "is_error": is_error,
-        "stop_reason": if is_error { "error" } else { "end_turn" }
+        "stop_reason": if is_error { "error" } else { "end_turn" },
+        "total_cost_usd": null,
+        "usage": null
     });
     if let Some(parent_id) = parent_tool_use_id {
         msg["parent_tool_use_id"] = serde_json::json!(parent_id);
@@ -103,15 +111,24 @@ fn build_control_response(session_id: &str) -> JsonValue {
 /// {"type":"user","content":[{"type":"text","text":"the prompt"}],...}
 /// ```
 fn extract_prompt_from_user_message(msg: &JsonValue) -> Option<String> {
-    let content = msg.get("content")?.as_array()?;
-    for block in content {
-        if block.get("type").and_then(|t| t.as_str()) == Some("text") {
-            if let Some(text) = block.get("text").and_then(|t| t.as_str()) {
-                return Some(text.to_string());
+    // SDK v0.1.48 sends: {"type":"user","message":{"role":"user","content":"prompt text"}}
+    if let Some(message) = msg.get("message") {
+        if let Some(content) = message.get("content").and_then(|c| c.as_str()) {
+            return Some(content.to_string());
+        }
+    }
+    // Also handle: {"type":"user","content":[{"type":"text","text":"prompt"}]}
+    if let Some(content) = msg.get("content").and_then(|c| c.as_array()) {
+        for block in content {
+            if block.get("type").and_then(|t| t.as_str()) == Some("text") {
+                if let Some(text) = block.get("text").and_then(|t| t.as_str()) {
+                    return Some(text.to_string());
+                }
             }
         }
     }
-    None
+    // Fallback: content as plain string
+    msg.get("content").and_then(|c| c.as_str()).map(|s| s.to_string())
 }
 
 /// Read lines from stdin, handle the SDK initialize/user_message protocol,
@@ -136,15 +153,40 @@ fn read_stream_json_stdin(session_id: &str) -> Result<String> {
         let msg: JsonValue =
             serde_json::from_str(trimmed).context("Failed to parse stdin JSON line")?;
 
-        let subtype = msg.get("subtype").and_then(|s| s.as_str()).unwrap_or("");
         let msg_type = msg.get("type").and_then(|s| s.as_str()).unwrap_or("");
 
-        if subtype == "initialize" {
-            // Respond with control_response
-            let resp = build_control_response(session_id);
-            emit_sdk_message(&resp);
+        if msg_type == "control_request" {
+            // SDK wraps messages in {"type":"control_request","request_id":"...","request":{...}}
+            let request_id = msg.get("request_id").cloned();
+            let inner = msg.get("request").cloned().unwrap_or(serde_json::json!({}));
+            let subtype = inner
+                .get("subtype")
+                .and_then(|s| s.as_str())
+                .unwrap_or("");
+
+            if subtype == "initialize" {
+                // Respond with control_response. SDK reads request_id from
+                // inside the "response" object, not the top level.
+                let resp = serde_json::json!({
+                    "type": "control_response",
+                    "response": {
+                        "request_id": request_id,
+                        "session_id": session_id,
+                        "supported_commands": ["user_message"],
+                        "mcp_servers": {}
+                    }
+                });
+                emit_sdk_message(&resp);
+            }
         } else if msg_type == "user" {
             prompt = extract_prompt_from_user_message(&msg);
+        } else {
+            // Legacy format: bare initialize without control_request wrapper
+            let subtype = msg.get("subtype").and_then(|s| s.as_str()).unwrap_or("");
+            if subtype == "initialize" {
+                let resp = build_control_response(session_id);
+                emit_sdk_message(&resp);
+            }
         }
     }
 
