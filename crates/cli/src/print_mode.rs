@@ -270,21 +270,25 @@ impl App {
         // For stream-json, use the event-emitting variant so each turn is
         // streamed to stdout as it happens. Other formats use the simpler path.
         let (response, num_turns) = if output_format == "stream-json" {
-            let on_event = |event: ToolLoopEvent| async move {
-                match event {
-                    ToolLoopEvent::AssistantMessage {
-                        ref response,
-                        ref parent_tool_use_id,
-                    } => {
-                        emit_assistant_message(
-                            response,
-                            &session_id_for_tools,
-                            parent_tool_use_id.as_deref(),
-                        );
-                    }
-                    ToolLoopEvent::ToolUse { .. } | ToolLoopEvent::ToolResult { .. } => {
-                        // Tool lifecycle events are logged via tracing; the SDK
-                        // protocol only requires assistant messages per turn.
+            let session_id_for_events = session_id_for_tools.clone();
+            let on_event = move |event: ToolLoopEvent| {
+                let sid = session_id_for_events.clone();
+                async move {
+                    match event {
+                        ToolLoopEvent::AssistantMessage {
+                            ref response,
+                            ref parent_tool_use_id,
+                        } => {
+                            emit_assistant_message(
+                                response,
+                                &sid,
+                                parent_tool_use_id.as_deref(),
+                            );
+                        }
+                        ToolLoopEvent::ToolUse { .. } | ToolLoopEvent::ToolResult { .. } => {
+                            // Tool lifecycle events are logged via tracing; the SDK
+                            // protocol only requires assistant messages per turn.
+                        }
                     }
                 }
             };
