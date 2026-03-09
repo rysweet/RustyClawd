@@ -35,11 +35,16 @@ fn emit_init_message(session_id: &str) {
 ///
 /// When `parent_tool_use_id` is `Some`, the field is included so SDK consumers
 /// can correlate this message with a subagent tool invocation.
-fn emit_assistant_message(response: &MessageResponse, parent_tool_use_id: Option<&str>) {
+fn emit_assistant_message(
+    response: &MessageResponse,
+    session_id: &str,
+    parent_tool_use_id: Option<&str>,
+) {
     let mut msg = serde_json::json!({
         "type": "assistant",
         "content": response.content,
         "model": response.model,
+        "session_id": session_id,
     });
     if let Some(parent_id) = parent_tool_use_id {
         msg["parent_tool_use_id"] = serde_json::json!(parent_id);
@@ -168,10 +173,12 @@ impl App {
                 std::fs::read_to_string(file_path)
                     .with_context(|| format!("Failed to read system prompt file: {}", file_path))?,
             )
-        } else if let Some(ref _append) = self.cli.append_system_prompt {
-            // --append-system-prompt: append to default (would need default system prompt)
-            // For now, just use the append text
-            self.cli.append_system_prompt.clone()
+        } else if let Some(ref append) = self.cli.append_system_prompt {
+            // --append-system-prompt: append to the default system prompt
+            Some(format!(
+                "You are a helpful AI assistant.\n\n{}",
+                append
+            ))
         } else {
             None
         };
@@ -189,14 +196,12 @@ impl App {
         let tools = tool_definitions::get_all_tool_definitions();
         request = request.with_tools(tools);
 
-        // Parse model capabilities if provided (JSON format)
-        if let Some(ref capabilities_json) = self.cli.model_capabilities {
-            tracing::info!("Applying custom model capabilities");
-            // Parse and log capabilities (in real implementation would apply to request)
-            match serde_json::from_str::<serde_json::Value>(capabilities_json) {
-                Ok(caps) => tracing::debug!("Model capabilities: {:?}", caps),
-                Err(e) => tracing::warn!("Failed to parse model capabilities: {}", e),
-            }
+        // model_capabilities: parsed from --model-capabilities flag but not yet
+        // applied to requests. The flag is accepted for CLI compatibility but
+        // has no effect on behavior. When the API supports capability hints,
+        // this should be wired into CreateMessageRequest.
+        if self.cli.model_capabilities.is_some() {
+            tracing::debug!("--model-capabilities provided but not yet applied to requests");
         }
 
         // Use the tool execution loop (tools always enabled in official spec)
@@ -271,7 +276,11 @@ impl App {
                         ref response,
                         ref parent_tool_use_id,
                     } => {
-                        emit_assistant_message(response, parent_tool_use_id.as_deref());
+                        emit_assistant_message(
+                            response,
+                            &session_id_for_tools,
+                            parent_tool_use_id.as_deref(),
+                        );
                     }
                     ToolLoopEvent::ToolUse { .. } | ToolLoopEvent::ToolResult { .. } => {
                         // Tool lifecycle events are logged via tracing; the SDK

@@ -56,9 +56,10 @@ def run_cli_stream_json(binary_path: str, prompt: str, timeout: int = 60) -> tup
     """Run a binary with --print --output-format stream-json and capture messages."""
     start = time.monotonic()
     try:
-        # Clean env: remove nested session guards so claude can run from within claude
-        clean_env = {k: v for k, v in os.environ.items()
-                     if k not in ("CLAUDECODE", "CLAUDE_CODE_SESSION")}
+        # Clean env: remove ALL nested session guards so claude can run from within claude
+        guard_vars = ("CLAUDECODE", "CLAUDE_CODE_SESSION", "CLAUDE_CODE_ENTRYPOINT",
+                       "CLAUDE_PLUGIN_ROOT", "CLAUDE_CODE_SIMPLE")
+        clean_env = {k: v for k, v in os.environ.items() if k not in guard_vars}
         clean_env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = "1024"
 
         result = subprocess.run(
@@ -294,6 +295,8 @@ def main():
     # Check prerequisites
     if not os.environ.get("ANTHROPIC_API_KEY"):
         print("ERROR: ANTHROPIC_API_KEY not set")
+        print("Note: Claude Code uses OAuth auth, not API key.")
+        print("      Use --rusty-only if you only have an API key.")
         sys.exit(1)
 
     claude_path = "claude"
