@@ -125,6 +125,11 @@ pub(crate) struct Cli {
     #[arg(long)]
     pub(crate) model_capabilities: Option<String>,
 
+    /// Control which settings sources to load (comma-separated)
+    /// Used by the Claude Agent SDK. Empty string disables all settings.
+    #[arg(long)]
+    pub(crate) setting_sources: Option<String>,
+
     /// Skip safety checks and hooks (dangerous)
     #[arg(long)]
     pub(crate) dangerous_mode: bool,
