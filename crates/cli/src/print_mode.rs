@@ -16,9 +16,12 @@ use super::{hooks, permission_mode, tool_definitions, tool_executor, App};
 // ---------------------------------------------------------------------------
 
 /// Emit a single newline-delimited JSON message to stdout.
+/// Flushes immediately to ensure the SDK reads it without delay.
 fn emit_sdk_message(msg: &serde_json::Value) {
     if let Ok(json) = serde_json::to_string(msg) {
         println!("{}", json);
+        use std::io::Write;
+        let _ = std::io::stdout().flush();
     }
 }
 
