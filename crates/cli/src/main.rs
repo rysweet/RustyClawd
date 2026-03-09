@@ -104,12 +104,24 @@ impl App {
     /// Configure the tracing subscriber based on CLI verbosity.
     fn init_logging(cli: &Cli) {
         let log_level = if cli.verbose { "debug" } else { "info" };
-        tracing_subscriber::fmt()
-            .with_env_filter(log_level)
-            .with_target(false)
-            .with_thread_ids(false)
-            .compact()
-            .init();
+        // When output format is stream-json, logs MUST go to stderr so they don't
+        // pollute the JSON protocol on stdout (required for Claude Agent SDK compat)
+        if cli.output_format == "stream-json" {
+            tracing_subscriber::fmt()
+                .with_env_filter(log_level)
+                .with_target(false)
+                .with_thread_ids(false)
+                .with_writer(std::io::stderr)
+                .compact()
+                .init();
+        } else {
+            tracing_subscriber::fmt()
+                .with_env_filter(log_level)
+                .with_target(false)
+                .with_thread_ids(false)
+                .compact()
+                .init();
+        }
 
         tracing::info!("Initializing RustyClawd CLI...");
     }
