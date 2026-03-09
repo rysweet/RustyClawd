@@ -7,6 +7,7 @@
 use anyhow::{Context as AnyhowContext, Result};
 use rustyclawd_core::client::response::MessageResponse;
 use rustyclawd_core::client::ToolLoopEvent;
+use serde_json::Value as JsonValue;
 
 use super::{hooks, permission_mode, tool_definitions, tool_executor, App};
 
@@ -77,6 +78,89 @@ fn emit_result_message(
         msg["parent_tool_use_id"] = serde_json::json!(parent_id);
     }
     emit_sdk_message(&msg);
+}
+
+// ---------------------------------------------------------------------------
+// SDK bidirectional input protocol (--input-format stream-json)
+// ---------------------------------------------------------------------------
+
+/// Build the `control_response` reply to an `initialize` message.
+fn build_control_response(session_id: &str) -> JsonValue {
+    serde_json::json!({
+        "type": "control_response",
+        "subtype": "initialize",
+        "request_id": null,
+        "supported_commands": ["user_message"],
+        "session_id": session_id,
+        "mcp_servers": {}
+    })
+}
+
+/// Extract the text prompt from a `user` message.
+///
+/// Expected shape:
+/// ```json
+/// {"type":"user","content":[{"type":"text","text":"the prompt"}],...}
+/// ```
+fn extract_prompt_from_user_message(msg: &JsonValue) -> Option<String> {
+    let content = msg.get("content")?.as_array()?;
+    for block in content {
+        if block.get("type").and_then(|t| t.as_str()) == Some("text") {
+            if let Some(text) = block.get("text").and_then(|t| t.as_str()) {
+                return Some(text.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Read lines from stdin, handle the SDK initialize/user_message protocol,
+/// and return the extracted prompt text.
+///
+/// Uses synchronous std::io because the SDK writes all messages then closes
+/// stdin -- no async needed.
+fn read_stream_json_stdin(session_id: &str) -> Result<String> {
+    use std::io::BufRead;
+
+    let stdin = std::io::stdin();
+    let reader = stdin.lock();
+    let mut prompt: Option<String> = None;
+
+    for line in reader.lines() {
+        let line = line.context("Failed to read line from stdin")?;
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let msg: JsonValue =
+            serde_json::from_str(trimmed).context("Failed to parse stdin JSON line")?;
+
+        let subtype = msg.get("subtype").and_then(|s| s.as_str()).unwrap_or("");
+        let msg_type = msg.get("type").and_then(|s| s.as_str()).unwrap_or("");
+
+        if subtype == "initialize" {
+            // Respond with control_response
+            let resp = build_control_response(session_id);
+            emit_sdk_message(&resp);
+        } else if msg_type == "user" {
+            prompt = extract_prompt_from_user_message(&msg);
+        }
+    }
+
+    prompt.ok_or_else(|| anyhow::anyhow!("No user message received on stdin"))
+}
+
+impl App {
+    /// Run in print mode using the SDK bidirectional protocol.
+    ///
+    /// Reads JSON control messages from stdin (initialize + user_message),
+    /// then delegates to the normal `run_print_mode` for API execution.
+    pub(crate) async fn run_print_mode_stream_input(&mut self) -> Result<()> {
+        let session_id = self.session.id.clone();
+        let prompt = read_stream_json_stdin(&session_id)?;
+        self.run_print_mode(&prompt).await
+    }
 }
 
 impl App {
@@ -711,5 +795,89 @@ mod tests {
         assert_eq!(sequence[2]["type"], "assistant");
         assert_eq!(sequence[3]["type"], "result");
         assert_eq!(sequence[3]["num_turns"], 2);
+    }
+
+    // -----------------------------------------------------------------------
+    // Tests for SDK bidirectional input protocol (--input-format stream-json)
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_extract_prompt_from_user_message() {
+        let msg = serde_json::json!({
+            "type": "user",
+            "content": [{"type": "text", "text": "Hello from SDK"}],
+            "parent_tool_use_id": null
+        });
+        let prompt = super::extract_prompt_from_user_message(&msg);
+        assert_eq!(prompt.unwrap(), "Hello from SDK");
+    }
+
+    #[test]
+    fn test_extract_prompt_empty_content() {
+        let msg = serde_json::json!({
+            "type": "user",
+            "content": [],
+            "parent_tool_use_id": null
+        });
+        let prompt = super::extract_prompt_from_user_message(&msg);
+        assert!(prompt.is_none());
+    }
+
+    #[test]
+    fn test_extract_prompt_no_text_block() {
+        // Content with non-text blocks should return None
+        let msg = serde_json::json!({
+            "type": "user",
+            "content": [{"type": "image", "data": "base64..."}],
+        });
+        let prompt = super::extract_prompt_from_user_message(&msg);
+        assert!(prompt.is_none());
+    }
+
+    #[test]
+    fn test_extract_prompt_multiple_content_blocks() {
+        // Should extract text from the first text block
+        let msg = serde_json::json!({
+            "type": "user",
+            "content": [
+                {"type": "image", "data": "..."},
+                {"type": "text", "text": "describe this image"}
+            ],
+        });
+        let prompt = super::extract_prompt_from_user_message(&msg);
+        assert_eq!(prompt.unwrap(), "describe this image");
+    }
+
+    #[test]
+    fn test_build_control_response_structure() {
+        let resp = super::build_control_response("session-abc123");
+        assert_eq!(resp["type"], "control_response");
+        assert_eq!(resp["subtype"], "initialize");
+        assert!(resp["request_id"].is_null());
+        assert_eq!(resp["session_id"], "session-abc123");
+        assert!(resp["supported_commands"].is_array());
+        let cmds = resp["supported_commands"].as_array().unwrap();
+        assert!(cmds.contains(&serde_json::json!("user_message")));
+        assert!(resp["mcp_servers"].is_object());
+    }
+
+    #[test]
+    fn test_control_response_is_single_line_json() {
+        let resp = super::build_control_response("sess-42");
+        let serialized = serde_json::to_string(&resp).unwrap();
+        assert!(
+            !serialized.contains('\n'),
+            "control_response must be single-line JSON"
+        );
+        // Verify round-trip
+        let parsed: serde_json::Value = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(parsed["type"], "control_response");
+    }
+
+    #[test]
+    fn test_extract_prompt_missing_content_field() {
+        let msg = serde_json::json!({"type": "user"});
+        let prompt = super::extract_prompt_from_user_message(&msg);
+        assert!(prompt.is_none());
     }
 }
