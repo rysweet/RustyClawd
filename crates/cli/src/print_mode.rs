@@ -151,11 +151,12 @@ fn read_stream_json_stdin(session_id: &str) -> Result<String> {
                 .unwrap_or("");
 
             if subtype == "initialize" {
-                // Respond with control_response echoing the request_id
+                // Respond with control_response. SDK reads request_id from
+                // inside the "response" object, not the top level.
                 let resp = serde_json::json!({
                     "type": "control_response",
-                    "request_id": request_id,
                     "response": {
+                        "request_id": request_id,
                         "session_id": session_id,
                         "supported_commands": ["user_message"],
                         "mcp_servers": {}
