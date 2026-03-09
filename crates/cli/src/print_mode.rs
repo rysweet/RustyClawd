@@ -128,7 +128,9 @@ fn extract_prompt_from_user_message(msg: &JsonValue) -> Option<String> {
         }
     }
     // Fallback: content as plain string
-    msg.get("content").and_then(|c| c.as_str()).map(|s| s.to_string())
+    msg.get("content")
+        .and_then(|c| c.as_str())
+        .map(|s| s.to_string())
 }
 
 /// Read lines from stdin, handle the SDK initialize/user_message protocol,
@@ -159,10 +161,7 @@ fn read_stream_json_stdin(session_id: &str) -> Result<String> {
             // SDK wraps messages in {"type":"control_request","request_id":"...","request":{...}}
             let request_id = msg.get("request_id").cloned();
             let inner = msg.get("request").cloned().unwrap_or(serde_json::json!({}));
-            let subtype = inner
-                .get("subtype")
-                .and_then(|s| s.as_str())
-                .unwrap_or("");
+            let subtype = inner.get("subtype").and_then(|s| s.as_str()).unwrap_or("");
 
             if subtype == "initialize" {
                 // Respond with control_response. SDK reads request_id from
