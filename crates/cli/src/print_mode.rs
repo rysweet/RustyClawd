@@ -139,15 +139,39 @@ fn read_stream_json_stdin(session_id: &str) -> Result<String> {
         let msg: JsonValue =
             serde_json::from_str(trimmed).context("Failed to parse stdin JSON line")?;
 
-        let subtype = msg.get("subtype").and_then(|s| s.as_str()).unwrap_or("");
         let msg_type = msg.get("type").and_then(|s| s.as_str()).unwrap_or("");
 
-        if subtype == "initialize" {
-            // Respond with control_response
-            let resp = build_control_response(session_id);
-            emit_sdk_message(&resp);
+        if msg_type == "control_request" {
+            // SDK wraps messages in {"type":"control_request","request_id":"...","request":{...}}
+            let request_id = msg.get("request_id").cloned();
+            let inner = msg.get("request").cloned().unwrap_or(serde_json::json!({}));
+            let subtype = inner
+                .get("subtype")
+                .and_then(|s| s.as_str())
+                .unwrap_or("");
+
+            if subtype == "initialize" {
+                // Respond with control_response echoing the request_id
+                let resp = serde_json::json!({
+                    "type": "control_response",
+                    "request_id": request_id,
+                    "response": {
+                        "session_id": session_id,
+                        "supported_commands": ["user_message"],
+                        "mcp_servers": {}
+                    }
+                });
+                emit_sdk_message(&resp);
+            }
         } else if msg_type == "user" {
             prompt = extract_prompt_from_user_message(&msg);
+        } else {
+            // Legacy format: bare initialize without control_request wrapper
+            let subtype = msg.get("subtype").and_then(|s| s.as_str()).unwrap_or("");
+            if subtype == "initialize" {
+                let resp = build_control_response(session_id);
+                emit_sdk_message(&resp);
+            }
         }
     }
 
