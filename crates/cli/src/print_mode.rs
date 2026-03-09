@@ -46,8 +46,10 @@ fn emit_assistant_message(
 ) {
     let mut msg = serde_json::json!({
         "type": "assistant",
-        "content": response.content,
-        "model": response.model,
+        "message": {
+            "content": response.content,
+            "model": response.model,
+        },
         "session_id": session_id,
     });
     if let Some(parent_id) = parent_tool_use_id {
