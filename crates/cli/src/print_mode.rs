@@ -76,8 +76,11 @@ fn emit_result_message(
         "result": result_text,
         "num_turns": num_turns,
         "duration_ms": duration_ms,
+        "duration_api_ms": duration_ms,  // same as duration_ms for now
         "is_error": is_error,
-        "stop_reason": if is_error { "error" } else { "end_turn" }
+        "stop_reason": if is_error { "error" } else { "end_turn" },
+        "total_cost_usd": null,
+        "usage": null
     });
     if let Some(parent_id) = parent_tool_use_id {
         msg["parent_tool_use_id"] = serde_json::json!(parent_id);
