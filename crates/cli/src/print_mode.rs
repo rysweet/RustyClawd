@@ -270,28 +270,33 @@ impl App {
         // For stream-json, use the event-emitting variant so each turn is
         // streamed to stdout as it happens. Other formats use the simpler path.
         let (response, num_turns) = if output_format == "stream-json" {
-            let session_id_for_events = session_id_for_tools.clone();
-            let on_event = move |event: ToolLoopEvent| {
-                let sid = session_id_for_events.clone();
-                async move {
-                    match event {
-                        ToolLoopEvent::AssistantMessage {
-                            ref response,
-                            ref parent_tool_use_id,
-                        } => {
-                            emit_assistant_message(
-                                response,
-                                &sid,
-                                parent_tool_use_id.as_deref(),
-                            );
-                        }
-                        ToolLoopEvent::ToolUse { .. } | ToolLoopEvent::ToolResult { .. } => {
-                            // Tool lifecycle events are logged via tracing; the SDK
-                            // protocol only requires assistant messages per turn.
+            // Helper: create an on_event closure for SDK streaming.
+            // Defined as a macro because execute_with_tools_and_events takes
+            // on_event by value, and the fallback path needs a second instance.
+            macro_rules! make_on_event {
+                ($sid:expr) => {{
+                    let sid = $sid.clone();
+                    move |event: ToolLoopEvent| {
+                        let sid = sid.clone();
+                        async move {
+                            match event {
+                                ToolLoopEvent::AssistantMessage {
+                                    ref response,
+                                    ref parent_tool_use_id,
+                                } => {
+                                    emit_assistant_message(
+                                        response,
+                                        &sid,
+                                        parent_tool_use_id.as_deref(),
+                                    );
+                                }
+                                ToolLoopEvent::ToolUse { .. }
+                                | ToolLoopEvent::ToolResult { .. } => {}
+                            }
                         }
                     }
-                }
-            };
+                }};
+            }
 
             match client
                 .execute_with_tools_and_events(
@@ -302,7 +307,7 @@ impl App {
                         allowed_tools_for_executor,
                         disallowed_tools_for_executor
                     ),
-                    on_event,
+                    make_on_event!(session_id_for_tools),
                     None, // top-level session has no parent tool use
                 )
                 .await
@@ -331,7 +336,7 @@ impl App {
                                     allowed_tools_for_executor,
                                     disallowed_tools_for_executor
                                 ),
-                                on_event,
+                                make_on_event!(session_id_for_tools),
                                 None, // fallback also top-level
                             )
                             .await?
