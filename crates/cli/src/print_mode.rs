@@ -173,14 +173,12 @@ impl App {
                 std::fs::read_to_string(file_path)
                     .with_context(|| format!("Failed to read system prompt file: {}", file_path))?,
             )
-        } else if let Some(ref append) = self.cli.append_system_prompt {
-            // --append-system-prompt: append to the default system prompt
-            Some(format!(
-                "You are a helpful AI assistant.\n\n{}",
-                append
-            ))
         } else {
-            None
+            // --append-system-prompt: append to the default system prompt
+            self.cli
+                .append_system_prompt
+                .as_ref()
+                .map(|append| format!("You are a helpful AI assistant.\n\n{}", append))
         };
 
         // Create message request
