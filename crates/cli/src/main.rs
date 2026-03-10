@@ -51,6 +51,9 @@ struct App {
     /// Runtime agents defined via --agents flag (retained for agent dispatch)
     #[allow(dead_code)]
     pub(crate) runtime_agents: std::collections::HashMap<String, plugins::RuntimeAgentDefinition>,
+    /// SDK hook configuration received during stream-json initialize handshake.
+    /// Stored for future use when the full callback protocol is implemented.
+    pub(crate) sdk_hooks: Option<print_mode::SdkHookConfig>,
 }
 
 /// Result of plugin discovery and loading
@@ -98,6 +101,7 @@ impl App {
             session_saver,
             mcp_proxy: plugin_state.mcp_proxy,
             runtime_agents: plugin_state.runtime_agents,
+            sdk_hooks: None,
         })
     }
 
