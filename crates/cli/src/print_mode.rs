@@ -411,8 +411,10 @@ impl App {
 
         // Wrap SDK hook config and transport in Arc for sharing across tool calls.
         let sdk_transport_for_tools = self.sdk_transport.clone();
-        let sdk_hook_config_for_tools: Option<std::sync::Arc<SdkHookConfig>> =
-            self.sdk_hooks.as_ref().map(|c| std::sync::Arc::new(c.clone()));
+        let sdk_hook_config_for_tools: Option<std::sync::Arc<SdkHookConfig>> = self
+            .sdk_hooks
+            .as_ref()
+            .map(|c| std::sync::Arc::new(c.clone()));
 
         // Determine output format early so we can emit init messages before the API call
         let output_format = if self.cli.ide {
