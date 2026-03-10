@@ -62,8 +62,8 @@ for await (const message of query({
 | Per-turn streaming | Supported |
 | Session ID tracking | Supported |
 | parent_tool_use_id (subagent correlation) | Supported |
-| MCP servers | Partial (config-based, not SDK callbacks) |
-| Hooks via SDK callbacks | Not yet (hooks work via config files) |
+| MCP servers | Supported (via `--mcp-config` flag) |
+| Hooks via SDK callbacks | Partial (SDK hook configs accepted, callback protocol pending) |
 
 ## Performance
 
@@ -105,7 +105,8 @@ ANTHROPIC_API_KEY=sk-ant-... python3 tests/sdk_compatibility/test_sdk_real.py
 
 - RustyClawd uses API key auth (`ANTHROPIC_API_KEY`). Claude Code also supports OAuth.
 - RustyClawd binary is named `rusty`, not `claude`. Use `cli_path` to point the SDK at it.
-- Hook callbacks in SDK options are not supported. Use `.claude/hooks.json` config instead.
+- SDK hook configs are accepted during initialize but the bidirectional callback
+  protocol is not yet implemented. Hooks still work via `.claude/hooks.json` config.
 - Some newer Claude Code features (Plan mode, auto-memory UI) are not yet implemented.
 
 ## Troubleshooting
