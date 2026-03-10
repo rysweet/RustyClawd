@@ -5,7 +5,7 @@ RustyClawd supports two API backends: the **Anthropic Messages API** (default) a
 ## Prerequisites
 
 1. A GitHub account with [GitHub Copilot](https://github.com/features/copilot) access
-2. The GitHub CLI (`gh`) installed and authenticated:
+2. The [GitHub CLI](https://cli.github.com/) (`gh`) installed and authenticated with the `copilot` scope:
    ```bash
    gh auth login
    gh auth refresh --hostname github.com --scopes copilot
@@ -15,6 +15,8 @@ RustyClawd supports two API backends: the **Anthropic Messages API** (default) a
    gh auth status
    # Should show: Token scopes: '...copilot...'
    ```
+
+The `copilot` scope is required — `gh auth login` alone does not include it.
 
 ## Quick Start
 
@@ -49,58 +51,38 @@ The Copilot backend obtains a GitHub token through this priority chain:
 2. `gh auth token` CLI command
 3. `~/.config/github-copilot/hosts.json` config file
 
-The token is validated eagerly at startup. If authentication fails, you'll see an error immediately — not on the first API call.
+The token is validated eagerly at startup by hitting the models endpoint. If authentication fails, you'll see an error immediately — not on the first API call.
 
 ## Using with the Claude Agent SDK
 
-The Copilot backend works with the Claude Agent SDK's subprocess protocol. Point the SDK at the RustyClawd binary with the `--provider copilot` flag:
+The Copilot backend works with the Claude Agent SDK's subprocess protocol (`stream-json`). Create a wrapper script that passes `--provider copilot`:
 
-### Python (claude-code-sdk)
+```bash
+#!/bin/bash
+# Save as ~/bin/rusty-copilot and chmod +x
+exec /path/to/rusty --provider copilot "$@"
+```
+
+Then point the SDK at the wrapper:
 
 ```python
 import asyncio
 from claude_code_sdk import query, ClaudeCodeOptions
 
 async def main():
-    options = ClaudeCodeOptions(
-        # Point to your RustyClawd binary
-        cli_path="/path/to/rusty",
-        model="claude-sonnet-4.6",
-        # Pass provider via environment or CLI args
-    )
-
-    # The SDK communicates via stream-json protocol over stdin/stdout
     async for event in query(
         prompt="List the files in the current directory",
-        options=options,
+        options=ClaudeCodeOptions(
+            cli_path="~/bin/rusty-copilot",
+            model="claude-sonnet-4.6",
+        ),
     ):
         print(event)
 
 asyncio.run(main())
 ```
 
-To select the Copilot backend, set the provider in one of these ways:
-
-**Option A: Environment variable** (recommended for SDK use)
-
-```bash
-export RUSTYCLAWD_PROVIDER=copilot  # Not yet implemented; use Option B
-```
-
-**Option B: Wrapper script**
-
-```bash
-#!/bin/bash
-# save as ~/bin/rusty-copilot
-exec /path/to/rusty --provider copilot "$@"
-```
-
-Then configure the SDK to use the wrapper:
-```python
-options = ClaudeCodeOptions(cli_path="~/bin/rusty-copilot")
-```
-
-### Key SDK Integration Details
+### SDK Integration Details
 
 - **Protocol**: RustyClawd supports `--input-format stream-json` and `--output-format stream-json` for the SDK's bidirectional protocol
 - **Tool use**: The full tool execution loop works through Copilot — tools are called, results sent back, and the model continues the conversation
@@ -121,7 +103,7 @@ Run `--provider copilot --list-models` to see your available models. Common ones
 | `gpt-5.1` | OpenAI | Versatile |
 | `gemini-2.5-pro` | Google | Powerful |
 
-Model availability depends on your GitHub Copilot subscription and organization policies.
+Model availability depends on your GitHub Copilot subscription and organization policies. Some models may require explicit opt-in at [github.com/settings/copilot/features](https://github.com/settings/copilot/features).
 
 ## Architecture
 
@@ -148,24 +130,27 @@ The tool execution loop (`execute_with_tools`) is unchanged — it works identic
 
 | Feature | Anthropic | Copilot |
 |---------|-----------|---------|
-| Auth | `ANTHROPIC_API_KEY` | `gh auth` token |
+| Auth | `ANTHROPIC_API_KEY` | `gh auth` token (with `copilot` scope) |
 | API format | Anthropic Messages | OpenAI Chat Completions |
 | Fast mode (`--speed fast`) | Supported (Opus 4.6) | Not applicable |
 | Extended thinking | Supported | Not available via OpenAI format |
-| Model aliases (`sonnet`, `opus`) | Supported | Use full model IDs |
+| Model aliases (`sonnet`, `opus`) | Supported | Use full model IDs from `--list-models` |
 | Retry-After headers | Supported | Supported |
 
 ## Troubleshooting
 
 **"GitHub token not found"**
-- Run `gh auth login` and then `gh auth refresh --hostname github.com --scopes copilot`
+- Run `gh auth login` then `gh auth refresh --hostname github.com --scopes copilot`
 
 **"Copilot authentication failed (HTTP 401)"**
 - Your token may have expired. Run `gh auth refresh --hostname github.com --scopes copilot`
+
+**"Copilot authentication failed (HTTP 404)"**
+- Your token is missing the `copilot` scope. Run `gh auth refresh --hostname github.com --scopes copilot`
 
 **"The requested model is not supported"**
 - Check available models with `--provider copilot --list-models`
 - Use the exact model ID from the list
 
 **"Access to this endpoint is forbidden"**
-- The model may not be enabled for your account. Check your [Copilot settings](https://github.com/settings/copilot/features) to enable specific models.
+- The model may not be enabled for your account. Check your [Copilot model settings](https://github.com/settings/copilot/features) to enable specific models.
