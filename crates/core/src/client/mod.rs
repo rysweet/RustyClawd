@@ -57,7 +57,7 @@ use std::future::Future;
 use std::time::Duration;
 
 pub use config::{ApiKey, Backend, Config};
-pub use copilot::{CopilotAuth, CopilotModel};
+pub use copilot::{CopilotAuth, CopilotEndpoint, CopilotModel};
 pub use error::{ClientError, ClientResult};
 pub use request::{CreateMessageRequest, Metadata, Speed, ThinkingConfig};
 pub use response::{
