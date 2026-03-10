@@ -212,6 +212,8 @@ async fn test_allowed_tools_permits_tool_execution() {
             tool_use_id: None,
             allowed_tools: vec!["Read".to_string(), "Grep".to_string(), "Glob".to_string()],
             disallowed_tools: vec![],
+            sdk_transport: None,
+            sdk_hook_config: None,
         },
     )
     .await;
@@ -249,6 +251,8 @@ async fn test_allowed_tools_blocks_non_allowed_tool() {
             tool_use_id: None,
             allowed_tools: vec!["Read".to_string(), "Grep".to_string(), "Glob".to_string()], // Bash not in list
             disallowed_tools: vec![],
+            sdk_transport: None,
+            sdk_hook_config: None,
         },
     )
     .await;
@@ -280,6 +284,8 @@ async fn test_empty_allowed_tools_permits_all() {
             tool_use_id: None,
             allowed_tools: vec![], // Empty allowed list
             disallowed_tools: vec![],
+            sdk_transport: None,
+            sdk_hook_config: None,
         },
     )
     .await;
@@ -316,6 +322,8 @@ async fn test_disallowed_tools_blocks_execution() {
             tool_use_id: None,
             allowed_tools: vec![],
             disallowed_tools: vec!["Bash".to_string(), "Write".to_string()], // Bash disallowed
+            sdk_transport: None,
+            sdk_hook_config: None,
         },
     )
     .await;
@@ -348,6 +356,8 @@ async fn test_disallowed_takes_precedence_over_allowed() {
             tool_use_id: None,
             allowed_tools: vec!["Bash".to_string(), "Read".to_string()], // Bash is allowed
             disallowed_tools: vec!["Bash".to_string()], // But also disallowed - this wins
+            sdk_transport: None,
+            sdk_hook_config: None,
         },
     )
     .await;

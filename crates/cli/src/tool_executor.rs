@@ -36,6 +36,8 @@ pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value,
             tool_use_id: None,
             allowed_tools: vec![],
             disallowed_tools: vec![],
+            sdk_transport: None,
+            sdk_hook_config: None,
         },
     )
     .await
@@ -49,6 +51,10 @@ pub struct ToolExecutionParams<'a> {
     pub tool_use_id: Option<String>,
     pub allowed_tools: Vec<String>,
     pub disallowed_tools: Vec<String>,
+    /// SDK bidirectional transport for hook callbacks.
+    pub sdk_transport: Option<Arc<crate::sdk_transport::SdkTransport>>,
+    /// SDK hook configuration (event matchers and callback IDs).
+    pub sdk_hook_config: Option<Arc<crate::sdk_transport::SdkHookConfig>>,
 }
 
 /// Execute a tool with permission mode checking
@@ -87,6 +93,8 @@ pub async fn execute_tool_with_hooks(
     let tool_use_id = params.tool_use_id;
     let allowed_tools = params.allowed_tools;
     let disallowed_tools = params.disallowed_tools;
+    let sdk_transport = params.sdk_transport;
+    let sdk_hook_config = params.sdk_hook_config;
     // Create tool context with execution context from global state
     use crate::terminal_guard::{get_execution_context, ExecutionContext as GuardContext};
 
@@ -179,6 +187,36 @@ pub async fn execute_tool_with_hooks(
         }
     }
 
+    // SDK hook callbacks (PreToolUse) -- bidirectional protocol via stdin/stdout.
+    if let (Some(ref transport), Some(ref config)) = (&sdk_transport, &sdk_hook_config) {
+        for (callback_id, _pattern) in config.get_matching_callbacks("PreToolUse", &tool_name) {
+            let input = json!({
+                "tool_name": tool_name,
+                "tool_input": tool_input,
+            });
+            match transport.send_hook_callback(&callback_id, "PreToolUse", &input) {
+                Ok(output) => {
+                    if let Some(decision) = output.get("decision").and_then(|d| d.as_str()) {
+                        if decision == "deny" {
+                            let reason = output
+                                .get("reason")
+                                .and_then(|r| r.as_str())
+                                .unwrap_or("Denied by SDK hook");
+                            return Err(ClientError::ToolExecution(format!(
+                                "SDK hook denied: {}",
+                                reason
+                            )));
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("SDK hook callback failed for {}: {}", callback_id, e);
+                    // Non-blocking -- continue with execution even if callback fails.
+                }
+            }
+        }
+    }
+
     // Execute the tool
     let result = match tool_name.as_str() {
         "Bash" => execute_bash_tool(tool_input.clone(), &ctx).await,
@@ -237,6 +275,24 @@ pub async fn execute_tool_with_hooks(
             Err(e) => {
                 tracing::warn!("Failed to execute PostToolUse hooks: {}", e);
                 // Non-blocking - don't affect tool execution result
+            }
+        }
+    }
+
+    // SDK hook callbacks (PostToolUse) -- non-blocking, for logging/monitoring.
+    if let (Some(ref transport), Some(ref config)) = (&sdk_transport, &sdk_hook_config) {
+        let result_value = match &result {
+            Ok(val) => val.clone(),
+            Err(e) => json!({"error": e.to_string()}),
+        };
+        for (callback_id, _pattern) in config.get_matching_callbacks("PostToolUse", &tool_name) {
+            let input = json!({
+                "tool_name": tool_name,
+                "tool_input": tool_input,
+                "tool_result": result_value,
+            });
+            if let Err(e) = transport.send_hook_callback(&callback_id, "PostToolUse", &input) {
+                tracing::warn!("SDK PostToolUse hook callback failed for {}: {}", callback_id, e);
             }
         }
     }

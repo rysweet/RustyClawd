@@ -4,103 +4,15 @@
 //! execution against the Anthropic API with tool use, fallback models,
 //! system prompt overrides, and hook integration.
 
-use std::collections::HashMap;
-
 use anyhow::{Context as AnyhowContext, Result};
 use rustyclawd_core::client::response::MessageResponse;
 use rustyclawd_core::client::ToolLoopEvent;
 use serde_json::Value as JsonValue;
 
-use super::{hooks, permission_mode, tool_definitions, tool_executor, App};
+use super::{hooks, permission_mode, sdk_transport, tool_definitions, tool_executor, App};
 
-// ---------------------------------------------------------------------------
-// SDK hook callback configuration
-// ---------------------------------------------------------------------------
-
-/// Hook configuration received from the SDK during the initialize handshake.
-///
-/// The SDK sends hook matchers and callback IDs so the CLI can call back when
-/// hook events fire. For now we parse and store the config; the full
-/// bidirectional callback protocol (sending `hook_callback` requests back to
-/// the SDK via stdout while reading stdin) requires async stdin and is not yet
-/// implemented.
-#[derive(Debug, Clone, Default)]
-pub(crate) struct SdkHookConfig {
-    /// Map of event name (e.g. "PreToolUse") to a list of (matcher_pattern, callback_ids).
-    pub events: HashMap<String, Vec<(String, Vec<String>)>>,
-}
-
-impl SdkHookConfig {
-    /// Parse the `hooks` object from the SDK initialize request.
-    ///
-    /// Expected shape:
-    /// ```json
-    /// {
-    ///   "PreToolUse": [{"matcher": "Bash", "hookCallbackIds": ["hook_0"]}],
-    ///   "PostToolUse": [{"matcher": "*", "hookCallbackIds": ["hook_1"]}]
-    /// }
-    /// ```
-    fn from_json(hooks_value: &JsonValue) -> Self {
-        let mut events: HashMap<String, Vec<(String, Vec<String>)>> = HashMap::new();
-
-        if let Some(obj) = hooks_value.as_object() {
-            for (event_name, entries) in obj {
-                let mut matchers = Vec::new();
-                if let Some(arr) = entries.as_array() {
-                    for entry in arr {
-                        let matcher = entry
-                            .get("matcher")
-                            .and_then(|m| m.as_str())
-                            .unwrap_or("*")
-                            .to_string();
-                        let callback_ids: Vec<String> = entry
-                            .get("hookCallbackIds")
-                            .and_then(|ids| ids.as_array())
-                            .map(|arr| {
-                                arr.iter()
-                                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                                    .collect()
-                            })
-                            .unwrap_or_default();
-                        if !callback_ids.is_empty() {
-                            matchers.push((matcher, callback_ids));
-                        }
-                    }
-                }
-                if !matchers.is_empty() {
-                    events.insert(event_name.clone(), matchers);
-                }
-            }
-        }
-
-        Self { events }
-    }
-
-    /// Check if any hooks were configured.
-    pub fn is_empty(&self) -> bool {
-        self.events.is_empty()
-    }
-
-    /// Log which callback IDs would fire for a given event and tool name.
-    /// Used when the full callback protocol is implemented.
-    #[allow(dead_code)]
-    pub fn log_matching_hooks(&self, event: &str, tool_name: &str) {
-        if let Some(matchers) = self.events.get(event) {
-            for (pattern, callback_ids) in matchers {
-                if pattern == "*" || pattern == tool_name {
-                    for cb_id in callback_ids {
-                        tracing::info!(
-                            "SDK hook callback would fire: event={}, tool={}, callback_id={}",
-                            event,
-                            tool_name,
-                            cb_id
-                        );
-                    }
-                }
-            }
-        }
-    }
-}
+// Re-export SdkHookConfig so existing references like `print_mode::SdkHookConfig` keep working.
+pub(crate) use sdk_transport::SdkHookConfig;
 
 // ---------------------------------------------------------------------------
 // SDK-compatible stream-json helpers
@@ -227,18 +139,26 @@ fn extract_prompt_from_user_message(msg: &JsonValue) -> Option<String> {
 /// Read lines from stdin, handle the SDK initialize/user_message protocol,
 /// and return the extracted prompt text along with any SDK hook configuration.
 ///
-/// Uses synchronous std::io because the SDK writes all messages then closes
-/// stdin -- no async needed.
+/// Uses `read_line()` in a loop rather than the `lines()` iterator so we stop
+/// reading as soon as the user message arrives. This leaves stdin open for the
+/// [`super::sdk_transport::SdkTransport`] to read hook callback responses.
 fn read_stream_json_stdin(session_id: &str) -> Result<(String, Option<SdkHookConfig>)> {
     use std::io::BufRead;
 
     let stdin = std::io::stdin();
-    let reader = stdin.lock();
+    let mut reader = stdin.lock();
     let mut prompt: Option<String> = None;
     let mut sdk_hooks: Option<SdkHookConfig> = None;
 
-    for line in reader.lines() {
-        let line = line.context("Failed to read line from stdin")?;
+    loop {
+        let mut line = String::new();
+        let bytes = reader
+            .read_line(&mut line)
+            .context("Failed to read line from stdin")?;
+        if bytes == 0 {
+            break; // EOF
+        }
+
         let trimmed = line.trim();
         if trimmed.is_empty() {
             continue;
@@ -301,7 +221,16 @@ fn read_stream_json_stdin(session_id: &str) -> Result<(String, Option<SdkHookCon
                 emit_sdk_message(&resp);
             }
         }
+
+        // Once we have the user prompt, stop reading so stdin remains open
+        // for the SdkTransport to read hook callback responses.
+        if prompt.is_some() {
+            break;
+        }
     }
+
+    // Drop reader lock -- stdin is still open for SdkTransport.
+    drop(reader);
 
     let prompt_text = prompt.ok_or_else(|| anyhow::anyhow!("No user message received on stdin"))?;
     Ok((prompt_text, sdk_hooks))
@@ -311,20 +240,25 @@ impl App {
     /// Run in print mode using the SDK bidirectional protocol.
     ///
     /// Reads JSON control messages from stdin (initialize + user_message),
-    /// then delegates to the normal `run_print_mode` for API execution.
+    /// creates an [`SdkTransport`](super::sdk_transport::SdkTransport) if hooks
+    /// were configured, then delegates to the normal `run_print_mode` for API
+    /// execution.
     pub(crate) async fn run_print_mode_stream_input(&mut self) -> Result<()> {
         let session_id = self.session.id.clone();
         let (prompt, sdk_hooks) = read_stream_json_stdin(&session_id)?;
 
+        // If the SDK configured hooks, create a transport for bidirectional
+        // hook callbacks over stdin/stdout.
         if let Some(ref hooks) = sdk_hooks {
             tracing::info!(
-                "SDK hooks configured ({} event types) - callback protocol pending",
+                "SDK hooks configured ({} event types) - callback transport active",
                 hooks.events.len()
             );
+            self.sdk_transport = Some(std::sync::Arc::new(
+                super::sdk_transport::SdkTransport::from_stdio(),
+            ));
         }
 
-        // Store SDK hooks config for future use when callback protocol is implemented.
-        // For now, hooks are only logged when they would fire.
         self.sdk_hooks = sdk_hooks;
 
         self.run_print_mode(&prompt).await
@@ -475,6 +409,11 @@ impl App {
         let allowed_tools_for_executor = self.cli.allowed_tools.clone();
         let disallowed_tools_for_executor = self.cli.disallowed_tools.clone();
 
+        // Wrap SDK hook config and transport in Arc for sharing across tool calls.
+        let sdk_transport_for_tools = self.sdk_transport.clone();
+        let sdk_hook_config_for_tools: Option<std::sync::Arc<SdkHookConfig>> =
+            self.sdk_hooks.as_ref().map(|c| std::sync::Arc::new(c.clone()));
+
         // Determine output format early so we can emit init messages before the API call
         let output_format = if self.cli.ide {
             "json"
@@ -497,6 +436,8 @@ impl App {
                     let session_id = $session_id.clone();
                     let allowed_tools = $allowed.clone();
                     let disallowed_tools = $disallowed.clone();
+                    let sdk_transport = sdk_transport_for_tools.clone();
+                    let sdk_hook_config = sdk_hook_config_for_tools.clone();
                     async move {
                         tool_executor::execute_tool_with_permission(
                             tool_name,
@@ -509,6 +450,8 @@ impl App {
                                 tool_use_id: None,
                                 allowed_tools,
                                 disallowed_tools,
+                                sdk_transport,
+                                sdk_hook_config,
                             },
                         )
                         .await
@@ -1138,5 +1081,98 @@ mod tests {
         let config = super::SdkHookConfig::default();
         assert!(config.is_empty());
         assert!(config.events.is_empty());
+    }
+
+    // -----------------------------------------------------------------------
+    // Tests for SdkHookConfig::get_matching_callbacks
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_get_matching_callbacks_exact_match() {
+        let hooks_json = serde_json::json!({
+            "PreToolUse": [
+                {"matcher": "Bash", "hookCallbackIds": ["hook_0"]},
+                {"matcher": "Write", "hookCallbackIds": ["hook_1"]}
+            ]
+        });
+        let config = super::SdkHookConfig::from_json(&hooks_json);
+
+        let matches = config.get_matching_callbacks("PreToolUse", "Bash");
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0].0, "hook_0");
+        assert_eq!(matches[0].1, "Bash");
+    }
+
+    #[test]
+    fn test_get_matching_callbacks_wildcard() {
+        let hooks_json = serde_json::json!({
+            "PostToolUse": [
+                {"matcher": "*", "hookCallbackIds": ["hook_all"]}
+            ]
+        });
+        let config = super::SdkHookConfig::from_json(&hooks_json);
+
+        let matches = config.get_matching_callbacks("PostToolUse", "AnyTool");
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0].0, "hook_all");
+        assert_eq!(matches[0].1, "*");
+    }
+
+    #[test]
+    fn test_get_matching_callbacks_no_match() {
+        let hooks_json = serde_json::json!({
+            "PreToolUse": [
+                {"matcher": "Bash", "hookCallbackIds": ["hook_0"]}
+            ]
+        });
+        let config = super::SdkHookConfig::from_json(&hooks_json);
+
+        let matches = config.get_matching_callbacks("PreToolUse", "Read");
+        assert!(matches.is_empty());
+    }
+
+    #[test]
+    fn test_get_matching_callbacks_wrong_event() {
+        let hooks_json = serde_json::json!({
+            "PreToolUse": [
+                {"matcher": "Bash", "hookCallbackIds": ["hook_0"]}
+            ]
+        });
+        let config = super::SdkHookConfig::from_json(&hooks_json);
+
+        let matches = config.get_matching_callbacks("PostToolUse", "Bash");
+        assert!(matches.is_empty());
+    }
+
+    #[test]
+    fn test_get_matching_callbacks_multiple_ids() {
+        let hooks_json = serde_json::json!({
+            "PreToolUse": [
+                {"matcher": "Bash", "hookCallbackIds": ["hook_a", "hook_b"]}
+            ]
+        });
+        let config = super::SdkHookConfig::from_json(&hooks_json);
+
+        let matches = config.get_matching_callbacks("PreToolUse", "Bash");
+        assert_eq!(matches.len(), 2);
+        assert_eq!(matches[0].0, "hook_a");
+        assert_eq!(matches[1].0, "hook_b");
+    }
+
+    #[test]
+    fn test_get_matching_callbacks_wildcard_and_exact() {
+        let hooks_json = serde_json::json!({
+            "PreToolUse": [
+                {"matcher": "*", "hookCallbackIds": ["hook_all"]},
+                {"matcher": "Bash", "hookCallbackIds": ["hook_bash"]}
+            ]
+        });
+        let config = super::SdkHookConfig::from_json(&hooks_json);
+
+        let matches = config.get_matching_callbacks("PreToolUse", "Bash");
+        assert_eq!(matches.len(), 2);
+        // Wildcard match first, then exact
+        assert_eq!(matches[0].0, "hook_all");
+        assert_eq!(matches[1].0, "hook_bash");
     }
 }

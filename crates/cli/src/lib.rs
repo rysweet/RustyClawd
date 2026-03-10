@@ -17,6 +17,7 @@ pub mod notification;
 pub mod permission_mode;
 pub mod plugins;
 pub mod scheduled_tasks;
+pub mod sdk_transport;
 pub mod schema_validator;
 pub mod session;
 pub mod session_graph;

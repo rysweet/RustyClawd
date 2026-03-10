@@ -17,6 +17,7 @@ use rustyclawd::{
     session_index, settings, tool_definitions,
 };
 
+use rustyclawd::sdk_transport;
 use rustyclawd::tool_executor;
 
 use anyhow::{Context as AnyhowContext, Result};
@@ -52,8 +53,10 @@ struct App {
     #[allow(dead_code)]
     pub(crate) runtime_agents: std::collections::HashMap<String, plugins::RuntimeAgentDefinition>,
     /// SDK hook configuration received during stream-json initialize handshake.
-    /// Stored for future use when the full callback protocol is implemented.
     pub(crate) sdk_hooks: Option<print_mode::SdkHookConfig>,
+    /// SDK bidirectional transport for hook callbacks (stdin/stdout).
+    /// Created only when SDK hooks are configured during stream-json handshake.
+    pub(crate) sdk_transport: Option<std::sync::Arc<rustyclawd::sdk_transport::SdkTransport>>,
 }
 
 /// Result of plugin discovery and loading
@@ -102,6 +105,7 @@ impl App {
             mcp_proxy: plugin_state.mcp_proxy,
             runtime_agents: plugin_state.runtime_agents,
             sdk_hooks: None,
+            sdk_transport: None,
         })
     }
 
