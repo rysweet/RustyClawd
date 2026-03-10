@@ -10,7 +10,7 @@ use crate::update::installer::{BinaryInstaller, InstallerConfig};
 use crate::update::scheduler::UpdateScheduler;
 use crate::update::version::Version;
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::{error, info};
 
 /// Overall result of an update operation
@@ -138,12 +138,22 @@ pub async fn handle_install_update() -> Result<UpdateOperationResult, UpdateErro
 
     info!("Current binary: {:?}", binary_path);
 
-    // Download the new binary
+    // Download the release archive
     info!("Downloading update...");
     let downloader = BinaryDownloader::new()?;
-    let download_path = downloader.download_to_temp(&download_url, None).await?;
+    let archive_path = downloader.download_to_temp(&download_url, None).await?;
 
-    info!("Downloaded to: {:?}", download_path);
+    info!("Downloaded to: {:?}", archive_path);
+
+    // Extract binary from tar.gz archive (if applicable)
+    let download_path = if download_url.ends_with(".tar.gz") {
+        info!("Extracting binary from archive...");
+        extract_binary_from_archive(&archive_path)?
+    } else {
+        archive_path
+    };
+
+    info!("Binary ready at: {:?}", download_path);
 
     // Get backup directory
     let backup_dir = if let Some(home) = dirs::home_dir() {
@@ -238,6 +248,56 @@ pub async fn handle_rollback() -> Result<UpdateOperationResult, UpdateError> {
             Err(e)
         }
     }
+}
+
+/// Extract the rusty binary from a downloaded .tar.gz archive.
+fn extract_binary_from_archive(archive_path: &Path) -> Result<PathBuf, UpdateError> {
+    let extract_dir = archive_path.with_extension("extracted");
+    std::fs::create_dir_all(&extract_dir)
+        .map_err(|e| UpdateError::IoError(format!("Failed to create extract directory: {}", e)))?;
+
+    // Use tar to extract
+    let status = std::process::Command::new("tar")
+        .args([
+            "xzf",
+            archive_path.to_str().unwrap_or(""),
+            "-C",
+            extract_dir.to_str().unwrap_or(""),
+        ])
+        .status()
+        .map_err(|e| UpdateError::IoError(format!("Failed to run tar: {}", e)))?;
+
+    if !status.success() {
+        return Err(UpdateError::IoError("tar extraction failed".to_string()));
+    }
+
+    // Find the rusty binary in the extracted directory
+    fn find_binary(dir: &std::path::Path, depth: u32) -> Option<PathBuf> {
+        if depth > 3 {
+            return None;
+        }
+        let entries = std::fs::read_dir(dir).ok()?;
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            if path.is_file()
+                && (name == "rusty" || name.starts_with("rusty-"))
+                && !name.ends_with(".tar.gz")
+            {
+                return Some(path);
+            }
+            if path.is_dir() {
+                if let Some(found) = find_binary(&path, depth + 1) {
+                    return Some(found);
+                }
+            }
+        }
+        None
+    }
+
+    find_binary(&extract_dir, 0).ok_or_else(|| {
+        UpdateError::IoError("Binary 'rusty' not found in downloaded archive".to_string())
+    })
 }
 
 /// Display update information in user-friendly format
