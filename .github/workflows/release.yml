@@ -2,75 +2,29 @@ name: Release
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'crates/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.github/workflows/release.yml'
+    tags:
+      - 'v*'
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Stage 1: Bump patch version and commit
-  version-bump:
+  # Extract version from tag
+  prepare:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
-    permissions:
-      contents: write
     outputs:
-      version: ${{ steps.bump.outputs.version }}
-      sha: ${{ steps.bump.outputs.sha }}
+      version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-          persist-credentials: true
-
-      - name: Bump patch version
-        id: bump
+      - name: Extract version from tag
+        id: version
         run: |
-          CURRENT=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
-          echo "Current version: $CURRENT"
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Building release for version: ${VERSION}"
 
-          # Parse semver
-          MAJOR=$(echo "$CURRENT" | cut -d. -f1)
-          MINOR=$(echo "$CURRENT" | cut -d. -f2)
-          PATCH=$(echo "$CURRENT" | cut -d. -f3)
-
-          # Query latest release to find actual latest patch
-          LATEST_TAG=$(gh release list --limit 20 --json tagName -q '.[].tagName' 2>/dev/null | grep "^v${MAJOR}\.${MINOR}\." | sort -V | tail -1 || echo "")
-          if [ -n "$LATEST_TAG" ]; then
-            LATEST_PATCH=$(echo "$LATEST_TAG" | sed "s/v${MAJOR}\.${MINOR}\.\([0-9]*\).*/\1/")
-            NEW_PATCH=$((LATEST_PATCH + 1))
-          else
-            NEW_PATCH=$((PATCH + 1))
-          fi
-
-          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
-          echo "New version: $NEW_VERSION"
-
-          # Update Cargo.toml workspace version
-          sed -i "s/^version = \"${CURRENT}\"/version = \"${NEW_VERSION}\"/" Cargo.toml
-
-          # Commit and push
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Cargo.toml
-          git commit -m "chore: bump version ${CURRENT} → ${NEW_VERSION} [skip ci]"
-          git push
-
-          SHA=$(git rev-parse --short HEAD)
-          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # Stage 2: Build multi-platform binaries
+  # Build multi-platform binaries
   build:
-    needs: version-bump
+    needs: prepare
     strategy:
       matrix:
         include:
@@ -92,8 +46,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.version-bump.outputs.sha }}
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -148,9 +100,9 @@ jobs:
           name: binaries-${{ matrix.target }}
           path: dist/rusty-${{ matrix.target }}.tar.gz
 
-  # Stage 3: Create GitHub Release with all artifacts
+  # Create GitHub Release with all artifacts
   release:
-    needs: [version-bump, build]
+    needs: [prepare, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -164,35 +116,31 @@ jobs:
 
       - name: Create GitHub Release
         run: |
-          VERSION="${{ needs.version-bump.outputs.version }}"
-          SHA="${{ needs.version-bump.outputs.sha }}"
+          VERSION="${{ needs.prepare.outputs.version }}"
           TAG="v${VERSION}"
 
-          # Collect all artifacts
           ls -la release/
 
           gh release create "${TAG}" \
             --title "RustyClawd v${VERSION}" \
-            --notes "$(cat <<'NOTES'
-          ## RustyClawd v${VERSION}
+            --generate-notes \
+            --notes-start-tag "$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo '')" \
+            release/rusty-*.tar.gz || \
+          gh release create "${TAG}" \
+            --title "RustyClawd v${VERSION}" \
+            --notes "## RustyClawd v${VERSION}
 
           Pre-built binaries for all platforms.
 
-          ### Install via cargo (always latest)
-          ```bash
+          ### Install via cargo
+          \`\`\`bash
           cargo install --git https://github.com/rysweet/RustyClawd.git --bin rusty rustyclawd-cli
-          # Re-run with --force to update
-          ```
+          \`\`\`
 
-          ### Self-update (if already installed)
-          ```bash
+          ### Self-update
+          \`\`\`bash
           rusty update
-          ```
-
-          ### Download binary directly
-          Download the archive for your platform, extract, and add to PATH.
-          NOTES
-          )" \
+          \`\`\`" \
             release/rusty-*.tar.gz
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
