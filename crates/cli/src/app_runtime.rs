@@ -510,6 +510,7 @@ impl App {
             allowed_tools,
             disallowed_tools,
             backend,
+            self.cli.model.clone(),
         )
         .await
     }

@@ -7,17 +7,8 @@ use crate::tui::TuiState;
 use anyhow::Result;
 use futures::StreamExt;
 use rustyclawd_core::client::{
-    types::ContentBlock, CreateMessageRequest, EventStream, MessageResponse, StreamEvent, Usage,
+    types::ContentBlock, Client, CreateMessageRequest, MessageResponse, StreamEvent, Usage,
 };
-use secrecy::ExposeSecret;
-
-/// Connection details needed to make streaming HTTP requests to the API.
-struct ApiConnection {
-    http_client: reqwest::Client,
-    api_url: String,
-    api_key: String,
-    api_version: String,
-}
 
 /// Events sent from background streaming task to main event loop
 #[derive(Debug, Clone)]
@@ -147,18 +138,15 @@ pub(crate) fn spawn_streaming_task(
     .with_temperature(1.0)
     .with_stream(true);
 
-    // Clone client data needed for background task
-    let conn = ApiConnection {
-        http_client: client.http_client().clone(),
-        api_url: client.api_url().to_string(),
-        api_key: client.config().api_key.expose_secret().expose().to_string(),
-        api_version: client.api_version().to_string(),
-    };
     let model_owned = model.to_string();
+
+    // Clone the client for the background task — this carries the backend
+    // config and Copilot auth so streaming dispatches correctly.
+    let client_clone = client.clone();
 
     // Spawn background task for streaming
     tokio::spawn(async move {
-        run_streaming_loop(event_tx, response_tx, conn, model_owned, request).await;
+        run_streaming_loop(event_tx, response_tx, client_clone, model_owned, request).await;
     });
 
     tui.push_debug("[STREAM] Background task spawned, setting up TUI".to_string());
@@ -179,48 +167,21 @@ pub(crate) fn spawn_streaming_task(
 async fn run_streaming_loop(
     event_tx: tokio::sync::mpsc::UnboundedSender<StreamingChannelEvent>,
     response_tx: tokio::sync::oneshot::Sender<MessageResponse>,
-    conn: ApiConnection,
+    client: Client,
     model: String,
     request: CreateMessageRequest,
 ) {
-    // Make HTTP request
-    let url = format!("{}/v1/messages", conn.api_url);
-    let http_response = match conn
-        .http_client
-        .post(&url)
-        .header("x-api-key", conn.api_key)
-        .header("anthropic-version", conn.api_version)
-        .header("content-type", "application/json")
-        .header("accept", "text/event-stream")
-        .json(&request)
-        .send()
-        .await
-    {
-        Ok(resp) => resp,
+    // Use the Client's create_message_stream which dispatches to the correct
+    // backend (Anthropic SSE or Copilot OpenAI SSE).
+    let mut stream = match client.create_message_stream(request).await {
+        Ok(s) => s,
         Err(e) => {
             let _ = event_tx.send(StreamingChannelEvent::Error {
-                message: format!("HTTP request failed: {}", e),
+                message: format!("Streaming request failed: {}", e),
             });
             return;
         }
     };
-
-    // Check for HTTP errors
-    if !http_response.status().is_success() {
-        let status = http_response.status();
-        let error_text = http_response
-            .text()
-            .await
-            .unwrap_or_else(|_| "Unknown error".to_string());
-        let _ = event_tx.send(StreamingChannelEvent::Error {
-            message: format!("HTTP {}: {}", status, error_text),
-        });
-        return;
-    }
-
-    // Convert response body into event stream
-    let byte_stream = http_response.bytes_stream();
-    let mut stream = EventStream::new(byte_stream);
 
     // Track response data
     let mut message_id = String::new();

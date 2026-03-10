@@ -71,6 +71,7 @@ pub use types::{
 };
 
 /// API client supporting Anthropic and GitHub Copilot backends.
+#[derive(Clone)]
 pub struct Client {
     config: Config,
     http_client: HttpClient,
