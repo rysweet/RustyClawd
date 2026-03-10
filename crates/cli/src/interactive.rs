@@ -94,17 +94,36 @@ impl InteractiveSession {
         // Set execution context to TUI mode for process isolation
         terminal_guard::set_execution_context(terminal_guard::ExecutionContext::Tui);
 
-        // Load API configuration based on backend
-        let client = match backend {
-            Backend::Copilot => Arc::new(
-                Client::new_copilot()
-                    .await
-                    .map_err(|e| anyhow::anyhow!("Failed to initialize Copilot backend: {}", e))?,
-            ),
-            Backend::Anthropic => {
-                let config = Config::from_default_location().await?;
-                Arc::new(Client::new(config)?)
+        // Load API configuration based on backend.
+        // When no --provider was specified, fall back to Copilot if no Anthropic key.
+        let (client, backend) = match backend {
+            Backend::Copilot => {
+                (
+                    Arc::new(Client::new_copilot().await.map_err(|e| {
+                        anyhow::anyhow!("Failed to initialize Copilot backend: {}", e)
+                    })?),
+                    Backend::Copilot,
+                )
             }
+            Backend::Anthropic => match Config::from_default_location().await {
+                Ok(config) => (Arc::new(Client::new(config)?), Backend::Anthropic),
+                Err(rustyclawd_core::client::ClientError::ApiKeyNotFound) => {
+                    // No Anthropic key: try Copilot as fallback
+                    match Client::new_copilot().await {
+                        Ok(c) => {
+                            eprintln!(
+                                "No Anthropic API key found. \
+                                 Using GitHub Copilot backend (detected via gh auth)."
+                            );
+                            (Arc::new(c), Backend::Copilot)
+                        }
+                        Err(_) => {
+                            return Err(rustyclawd_core::client::ClientError::ApiKeyNotFound.into());
+                        }
+                    }
+                }
+                Err(e) => return Err(e.into()),
+            },
         };
 
         // Initialize TUI

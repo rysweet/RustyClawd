@@ -5,11 +5,10 @@
 
 use clap::{Parser, Subcommand};
 
-/// Claude - AI assistant with tool use capabilities
+/// RustyClawd - AI assistant with tool use capabilities
 #[derive(Parser)]
-#[command(name = "claude")]
-#[command(author = "Anthropic")]
-#[command(version = "0.1.0")]
+#[command(name = "rusty")]
+#[command(version)]
 #[command(about = "RustyClawd - AI assistant command-line interface", long_about = None)]
 #[command(disable_help_subcommand = true)]
 pub(crate) struct Cli {

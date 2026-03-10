@@ -334,14 +334,42 @@ impl App {
             return self.handle_list_models(backend).await;
         }
 
-        // Create client for the selected backend
-        let client = match backend {
-            Backend::Copilot => Client::new_copilot()
-                .await
-                .context("Failed to initialize Copilot backend")?,
+        // Create client for the selected backend.
+        // When no --provider is specified (backend == Anthropic by default),
+        // fall back to Copilot if no Anthropic API key is found.
+        let (client, _backend) = match backend {
+            Backend::Copilot => (
+                Client::new_copilot()
+                    .await
+                    .context("Failed to initialize Copilot backend")?,
+                Backend::Copilot,
+            ),
             Backend::Anthropic => {
-                let config = Config::from_default_location().await?;
-                Client::new(config)?
+                match Config::from_default_location().await {
+                    Ok(config) => (Client::new(config)?, Backend::Anthropic),
+                    Err(rustyclawd_core::client::ClientError::ApiKeyNotFound)
+                        if self.cli.provider.is_none() =>
+                    {
+                        // No Anthropic key and no explicit --provider: try Copilot
+                        match Client::new_copilot().await {
+                            Ok(c) => {
+                                eprintln!(
+                                    "No Anthropic API key found. \
+                                     Using GitHub Copilot backend (detected via gh auth)."
+                                );
+                                (c, Backend::Copilot)
+                            }
+                            Err(_) => {
+                                // Neither backend works — show the Anthropic error
+                                // (which now mentions Copilot as an alternative)
+                                return Err(
+                                    rustyclawd_core::client::ClientError::ApiKeyNotFound.into()
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => return Err(e.into()),
+                }
             }
         };
 

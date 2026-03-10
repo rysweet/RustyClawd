@@ -63,7 +63,7 @@ pub enum ClientError {
     #[error("Invalid API key format")]
     InvalidApiKey,
 
-    #[error("API key not found. Please set via one of:\n  1. Environment: export ANTHROPIC_API_KEY='sk-ant-...'\n  2. .env file: echo 'ANTHROPIC_API_KEY=\"sk-ant-...\"' > .env\n  3. Legacy file: echo 'sk-ant-...' > ~/.claude-msec-k && chmod 600 ~/.claude-msec-k\n\nGet your API key: https://console.anthropic.com/settings/keys")]
+    #[error("API key not found. Please set via one of:\n  1. Environment: export ANTHROPIC_API_KEY='sk-ant-...'\n  2. .env file: echo 'ANTHROPIC_API_KEY=\"sk-ant-...\"' > .env\n  3. Legacy file: echo 'sk-ant-...' > ~/.claude-msec-k && chmod 600 ~/.claude-msec-k\n\nGet your API key: https://console.anthropic.com/settings/keys\n\nOr use GitHub Copilot instead: rusty --provider copilot")]
     ApiKeyNotFound,
 
     #[error("Failed to parse JSON: {0}")]
