@@ -241,6 +241,11 @@ pub(crate) fn spawn_tools(
                     tool_use_id: Some(id.clone()),
                     allowed_tools: allowed_tools_clone,
                     disallowed_tools: disallowed_tools_clone,
+                    // SDK hook callbacks are not supported in the orchestrator path.
+                    // The orchestrator runs tools in parallel with different lifecycle
+                    // management. SDK hooks fire in the main tool_executor path only.
+                    sdk_transport: None,
+                    sdk_hook_config: None,
                 },
             )
             .await;

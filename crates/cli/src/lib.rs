@@ -18,6 +18,7 @@ pub mod permission_mode;
 pub mod plugins;
 pub mod scheduled_tasks;
 pub mod schema_validator;
+pub mod sdk_transport;
 pub mod session;
 pub mod session_graph;
 pub mod session_graph_storage;
