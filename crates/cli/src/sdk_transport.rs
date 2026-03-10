@@ -341,8 +341,7 @@ mod tests {
 
     #[test]
     fn test_send_hook_callback_invalid_json_errors() {
-        let reader: Box<dyn BufRead + Send> =
-            Box::new(Cursor::new(b"not valid json\n".to_vec()));
+        let reader: Box<dyn BufRead + Send> = Box::new(Cursor::new(b"not valid json\n".to_vec()));
         let writer: Box<dyn Write + Send> = Box::new(Cursor::new(Vec::new()));
 
         let transport = SdkTransport::from_rw(reader, writer);

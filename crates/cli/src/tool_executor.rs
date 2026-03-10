@@ -292,7 +292,11 @@ pub async fn execute_tool_with_hooks(
                 "tool_result": result_value,
             });
             if let Err(e) = transport.send_hook_callback(&callback_id, "PostToolUse", &input) {
-                tracing::warn!("SDK PostToolUse hook callback failed for {}: {}", callback_id, e);
+                tracing::warn!(
+                    "SDK PostToolUse hook callback failed for {}: {}",
+                    callback_id,
+                    e
+                );
             }
         }
     }
