@@ -37,6 +37,7 @@
 //! ```
 
 pub mod config;
+pub mod copilot;
 pub mod error;
 pub mod request;
 pub mod response;
@@ -47,13 +48,16 @@ pub mod types;
 
 pub use tool_loop::ToolLoopEvent;
 
+use futures::stream::BoxStream;
 use futures::Stream;
+use futures::StreamExt;
 use reqwest::Client as HttpClient;
 use secrecy::ExposeSecret;
 use std::future::Future;
 use std::time::Duration;
 
-pub use config::{ApiKey, Config};
+pub use config::{ApiKey, Backend, Config};
+pub use copilot::{CopilotAuth, CopilotModel};
 pub use error::{ClientError, ClientResult};
 pub use request::{CreateMessageRequest, Metadata, Speed, ThinkingConfig};
 pub use response::{
@@ -66,11 +70,13 @@ pub use types::{
     ContentBlock, ExtraToolSchema, Message, MessageContent, Role, ToolChoice, ToolDefinition,
 };
 
-/// Anthropic API client
+/// API client supporting Anthropic and GitHub Copilot backends.
 pub struct Client {
     config: Config,
     http_client: HttpClient,
     retry_config: RetryConfig,
+    /// Copilot authentication state (only present when backend is Copilot)
+    copilot_auth: Option<CopilotAuth>,
 }
 
 impl Client {
@@ -84,6 +90,7 @@ impl Client {
             .map_err(|e| ClientError::Unknown(format!("Failed to build HTTP client: {}", e)))?;
 
         Ok(Self {
+            copilot_auth: None,
             config,
             http_client,
             retry_config: RetryConfig::default(),
@@ -100,10 +107,48 @@ impl Client {
             .map_err(|e| ClientError::Unknown(format!("Failed to build HTTP client: {}", e)))?;
 
         Ok(Self {
+            copilot_auth: None,
             config,
             http_client,
             retry_config,
         })
+    }
+
+    /// Create a client configured for the GitHub Copilot backend.
+    pub async fn new_copilot() -> ClientResult<Self> {
+        let github_token = copilot::get_github_token().await?;
+        let config = Config::new_copilot();
+        let timeout = Duration::from_secs(config.timeout_secs);
+
+        let http_client = HttpClient::builder()
+            .timeout(timeout)
+            .build()
+            .map_err(|e| ClientError::Unknown(format!("Failed to build HTTP client: {}", e)))?;
+
+        let auth = CopilotAuth::connect(github_token, http_client.clone()).await?;
+
+        Ok(Self {
+            copilot_auth: Some(auth),
+            config,
+            http_client,
+            retry_config: RetryConfig::default(),
+        })
+    }
+
+    /// Attach Copilot authentication to an existing client.
+    pub fn with_copilot_auth(mut self, auth: CopilotAuth) -> Self {
+        self.copilot_auth = Some(auth);
+        self
+    }
+
+    /// Get a reference to the Copilot auth, if configured.
+    pub fn copilot_auth(&self) -> Option<&CopilotAuth> {
+        self.copilot_auth.as_ref()
+    }
+
+    /// Get the active backend.
+    pub fn backend(&self) -> config::Backend {
+        self.config.backend
     }
 
     /// Generic retry helper with exponential backoff
@@ -143,13 +188,31 @@ impl Client {
         }
     }
 
-    /// Create a message (non-streaming) with automatic retry logic
+    /// Create a message (non-streaming) with automatic retry logic.
+    ///
+    /// Dispatches to the appropriate backend (Anthropic or Copilot).
     pub async fn create_message(
         &self,
         request: CreateMessageRequest,
     ) -> ClientResult<MessageResponse> {
-        self.with_retry("request", || self.create_message_internal(&request))
-            .await
+        match self.config.backend {
+            config::Backend::Copilot => {
+                let auth = self.copilot_auth.as_ref().ok_or_else(|| {
+                    ClientError::Unknown(
+                        "Copilot backend requires authentication. Use Client::new_copilot()."
+                            .to_string(),
+                    )
+                })?;
+                self.with_retry("copilot request", || {
+                    copilot::create_message(&self.http_client, auth, &request)
+                })
+                .await
+            }
+            config::Backend::Anthropic => {
+                self.with_retry("request", || self.create_message_internal(&request))
+                    .await
+            }
+        }
     }
 
     /// Build common headers for API requests, including conditional beta headers.
@@ -214,18 +277,38 @@ impl Client {
         Ok(message_response)
     }
 
-    /// Create a message with streaming and automatic retry logic
+    /// Create a message with streaming and automatic retry logic.
+    ///
+    /// Dispatches to the appropriate backend (Anthropic or Copilot).
+    /// Returns a boxed stream to unify the different backend stream types.
     pub async fn create_message_stream(
         &self,
         mut request: CreateMessageRequest,
-    ) -> ClientResult<impl Stream<Item = ClientResult<StreamEvent>>> {
+    ) -> ClientResult<BoxStream<'static, ClientResult<StreamEvent>>> {
         // Ensure streaming is enabled
         request.stream = true;
 
-        self.with_retry("streaming request", || {
-            self.create_message_stream_internal(&request)
-        })
-        .await
+        match self.config.backend {
+            config::Backend::Copilot => {
+                let auth = self.copilot_auth.as_ref().ok_or_else(|| {
+                    ClientError::Unknown(
+                        "Copilot backend requires authentication. Use Client::new_copilot()."
+                            .to_string(),
+                    )
+                })?;
+                let stream =
+                    copilot::create_message_stream(&self.http_client, auth, &request).await?;
+                Ok(stream.boxed())
+            }
+            config::Backend::Anthropic => {
+                let stream = self
+                    .with_retry("streaming request", || {
+                        self.create_message_stream_internal(&request)
+                    })
+                    .await?;
+                Ok(stream.boxed())
+            }
+        }
     }
 
     /// Internal method to create a streaming message request without retry

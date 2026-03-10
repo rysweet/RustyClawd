@@ -237,6 +237,50 @@ fn read_stream_json_stdin(session_id: &str) -> Result<(String, Option<SdkHookCon
 }
 
 impl App {
+    /// Handle `--list-models` for the given backend.
+    async fn handle_list_models(&self, backend: rustyclawd_core::client::Backend) -> Result<()> {
+        use rustyclawd_core::client::Backend;
+
+        match backend {
+            Backend::Anthropic => {
+                println!("Available Anthropic models:");
+                println!("  sonnet  -> claude-sonnet-4-6 (default)");
+                println!("  opus    -> claude-opus-4-6");
+                println!("  haiku   -> claude-haiku-4-5-20251001");
+                println!();
+                println!("Use --model <name> to select. Any valid model ID is also accepted.");
+            }
+            Backend::Copilot => {
+                use rustyclawd_core::client::Client;
+
+                let client = Client::new_copilot()
+                    .await
+                    .context("Failed to initialize Copilot backend")?;
+
+                let auth = client
+                    .copilot_auth()
+                    .ok_or_else(|| anyhow::anyhow!("Copilot auth not initialized"))?;
+
+                let models = rustyclawd_core::client::copilot::list_models(auth)
+                    .await
+                    .context("Failed to list Copilot models")?;
+
+                if models.is_empty() {
+                    println!("No models available from GitHub Copilot.");
+                    println!("Ensure your GitHub account has Copilot access.");
+                } else {
+                    println!("Available GitHub Copilot models:");
+                    for model in &models {
+                        println!("  {}", model);
+                    }
+                    println!();
+                    println!("Use --provider copilot --model <id> to select a model.");
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Run in print mode using the SDK bidirectional protocol.
     ///
     /// Reads JSON control messages from stdin (initialize + user_message),
@@ -269,12 +313,37 @@ impl App {
     /// Run in print mode (one-shot execution) - matches Claude Code's behavior
     pub(crate) async fn run_print_mode(&mut self, prompt: &str) -> Result<()> {
         use rustyclawd_core::client::{
-            Client, Config, CreateMessageRequest, Message as ApiMessage,
+            Backend, Client, Config, CreateMessageRequest, Message as ApiMessage,
         };
 
-        // Load API configuration
-        let config = Config::from_default_location().await?;
-        let client = Client::new(config)?;
+        // Determine the API backend
+        let backend = self
+            .cli
+            .provider
+            .as_deref()
+            .map(|p| {
+                Backend::from_str_loose(p).ok_or_else(|| {
+                    anyhow::anyhow!("Unknown provider '{}'. Use 'anthropic' or 'copilot'.", p)
+                })
+            })
+            .transpose()?
+            .unwrap_or(Backend::Anthropic);
+
+        // Handle --list-models (early exit)
+        if self.cli.list_models {
+            return self.handle_list_models(backend).await;
+        }
+
+        // Create client for the selected backend
+        let client = match backend {
+            Backend::Copilot => Client::new_copilot()
+                .await
+                .context("Failed to initialize Copilot backend")?,
+            Backend::Anthropic => {
+                let config = Config::from_default_location().await?;
+                Client::new(config)?
+            }
+        };
 
         // Execute UserPromptSubmit hook BEFORE processing prompt
         let context = hooks::HookContext::for_user_prompt(

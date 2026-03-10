@@ -20,7 +20,7 @@ use crate::terminal_guard;
 use crate::tool_orchestrator;
 use crate::tui::{ChatMessage, TuiState};
 use anyhow::Result;
-use rustyclawd_core::client::{Client, Config, MessageResponse};
+use rustyclawd_core::client::{Backend, Client, Config, MessageResponse};
 use rustyclawd_core::{Context, MessageRole};
 use std::io::{self, Write};
 use std::sync::Arc;
@@ -79,12 +79,29 @@ impl InteractiveSession {
 
     /// Create a new interactive session with optional hooks system
     pub async fn with_hooks(hooks: Option<Arc<hooks::HooksSystem>>) -> Result<Self> {
+        Self::with_hooks_and_backend(hooks, Backend::Anthropic).await
+    }
+
+    /// Create a new interactive session with optional hooks system and backend.
+    pub async fn with_hooks_and_backend(
+        hooks: Option<Arc<hooks::HooksSystem>>,
+        backend: Backend,
+    ) -> Result<Self> {
         // Set execution context to TUI mode for process isolation
         terminal_guard::set_execution_context(terminal_guard::ExecutionContext::Tui);
 
-        // Load API configuration from default location
-        let config = Config::from_default_location().await?;
-        let client = Arc::new(Client::new(config)?);
+        // Load API configuration based on backend
+        let client = match backend {
+            Backend::Copilot => Arc::new(
+                Client::new_copilot()
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Failed to initialize Copilot backend: {}", e))?,
+            ),
+            Backend::Anthropic => {
+                let config = Config::from_default_location().await?;
+                Arc::new(Client::new(config)?)
+            }
+        };
 
         // Initialize TUI
         let mut tui = TuiState::new()?;
@@ -639,7 +656,7 @@ pub async fn run_interactive() -> Result<()> {
 
 /// Entry point for interactive mode with optional hooks system
 pub async fn run_interactive_with_hooks(hooks: Option<Arc<hooks::HooksSystem>>) -> Result<()> {
-    run_interactive_with_config(hooks, vec![], vec![]).await
+    run_interactive_with_config(hooks, vec![], vec![], Backend::Anthropic).await
 }
 
 /// Entry point for interactive mode with full configuration
@@ -647,8 +664,9 @@ pub async fn run_interactive_with_config(
     hooks: Option<Arc<hooks::HooksSystem>>,
     allowed_tools: Vec<String>,
     disallowed_tools: Vec<String>,
+    backend: Backend,
 ) -> Result<()> {
-    let mut session = InteractiveSession::with_hooks(hooks).await?;
+    let mut session = InteractiveSession::with_hooks_and_backend(hooks, backend).await?;
     session.allowed_tools = allowed_tools;
     session.disallowed_tools = disallowed_tools;
     session.run().await
