@@ -303,8 +303,7 @@ fn read_stream_json_stdin(session_id: &str) -> Result<(String, Option<SdkHookCon
         }
     }
 
-    let prompt_text =
-        prompt.ok_or_else(|| anyhow::anyhow!("No user message received on stdin"))?;
+    let prompt_text = prompt.ok_or_else(|| anyhow::anyhow!("No user message received on stdin"))?;
     Ok((prompt_text, sdk_hooks))
 }
 
