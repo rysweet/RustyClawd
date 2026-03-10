@@ -337,7 +337,7 @@ impl App {
         // Create client for the selected backend.
         // When no --provider is specified (backend == Anthropic by default),
         // fall back to Copilot if no Anthropic API key is found.
-        let (client, _backend) = match backend {
+        let (client, backend) = match backend {
             Backend::Copilot => (
                 Client::new_copilot()
                     .await
@@ -412,32 +412,46 @@ impl App {
             }
         }
 
-        // Model configuration - use CLI override or default
+        // Model configuration - resolve aliases and defaults based on backend
+        let is_copilot = backend == Backend::Copilot;
+
+        fn resolve_model(alias: &str, copilot: bool) -> String {
+            if copilot {
+                match alias {
+                    "sonnet" => "claude-sonnet-4.6".to_string(),
+                    "opus" => "claude-opus-4.6".to_string(),
+                    "haiku" => "claude-haiku-4.5".to_string(),
+                    custom => custom.to_string(),
+                }
+            } else {
+                match alias {
+                    "sonnet" => "claude-sonnet-4-6".to_string(),
+                    "opus" => "claude-opus-4-6".to_string(),
+                    "haiku" => "claude-haiku-4-5-20251001".to_string(),
+                    custom => custom.to_string(),
+                }
+            }
+        }
+
         let model = self
             .cli
             .model
-            .as_ref()
-            .map(|m| match m.as_str() {
-                "sonnet" => "claude-sonnet-4-6",
-                "opus" => "claude-opus-4-6",
-                "haiku" => "claude-haiku-4-5-20251001",
-                custom => custom,
-            })
-            .unwrap_or("claude-sonnet-4-6")
-            .to_string();
+            .as_deref()
+            .map(|m| resolve_model(m, is_copilot))
+            .unwrap_or_else(|| {
+                if is_copilot {
+                    "claude-sonnet-4.6".to_string()
+                } else {
+                    "claude-sonnet-4-6".to_string()
+                }
+            });
 
         // Fallback model configuration (if specified)
         let fallback_model = self
             .cli
             .fallback_model
-            .as_ref()
-            .map(|m| match m.as_str() {
-                "sonnet" => "claude-sonnet-4-6",
-                "opus" => "claude-opus-4-6",
-                "haiku" => "claude-haiku-4-5-20251001",
-                custom => custom,
-            })
-            .map(|s| s.to_string());
+            .as_deref()
+            .map(|m| resolve_model(m, is_copilot));
 
         let max_tokens = 4096u32; // Default max tokens (not configurable in official spec)
 
