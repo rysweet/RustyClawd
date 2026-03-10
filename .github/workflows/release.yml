@@ -1,0 +1,195 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/release.yml'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Stage 1: Bump patch version and commit
+  version-bump:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      sha: ${{ steps.bump.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bump patch version
+        id: bump
+        run: |
+          CURRENT=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          echo "Current version: $CURRENT"
+
+          # Parse semver
+          MAJOR=$(echo "$CURRENT" | cut -d. -f1)
+          MINOR=$(echo "$CURRENT" | cut -d. -f2)
+          PATCH=$(echo "$CURRENT" | cut -d. -f3)
+
+          # Query latest release to find actual latest patch
+          LATEST_TAG=$(gh release list --limit 20 --json tagName -q '.[].tagName' 2>/dev/null | grep "^v${MAJOR}\.${MINOR}\." | sort -V | tail -1 || echo "")
+          if [ -n "$LATEST_TAG" ]; then
+            LATEST_PATCH=$(echo "$LATEST_TAG" | sed "s/v${MAJOR}\.${MINOR}\.\([0-9]*\).*/\1/")
+            NEW_PATCH=$((LATEST_PATCH + 1))
+          else
+            NEW_PATCH=$((PATCH + 1))
+          fi
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+          echo "New version: $NEW_VERSION"
+
+          # Update Cargo.toml workspace version
+          sed -i "s/^version = \"${CURRENT}\"/version = \"${NEW_VERSION}\"/" Cargo.toml
+
+          # Commit and push
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml
+          git commit -m "chore: bump version ${CURRENT} → ${NEW_VERSION} [skip ci]"
+          git push
+
+          SHA=$(git rev-parse --short HEAD)
+          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Stage 2: Build multi-platform binaries
+  build:
+    needs: version-bump
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            cross: false
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            cross: true
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            cross: false
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            cross: false
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            cross: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version-bump.outputs.sha }}
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools (aarch64 Linux)
+        if: matrix.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+
+      - name: Install OpenSSL (Linux)
+        if: runner.os == 'Linux' && !matrix.cross
+        run: sudo apt-get install -y pkg-config libssl-dev
+
+      - name: Install OpenSSL (cross aarch64)
+        if: matrix.cross
+        run: |
+          sudo dpkg --add-architecture arm64
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev:arm64
+          echo "PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu" >> "$GITHUB_ENV"
+          echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> "$GITHUB_ENV"
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }} --bin rusty
+
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/rusty dist/rusty-${{ matrix.target }}
+          cd dist
+          tar czf rusty-${{ matrix.target }}.tar.gz rusty-${{ matrix.target }}
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/rusty.exe dist/rusty-${{ matrix.target }}.exe
+          cd dist
+          tar czf rusty-${{ matrix.target }}.tar.gz rusty-${{ matrix.target }}.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.target }}
+          path: dist/rusty-${{ matrix.target }}.tar.gz
+
+  # Stage 3: Create GitHub Release with all artifacts
+  release:
+    needs: [version-bump, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        run: |
+          VERSION="${{ needs.version-bump.outputs.version }}"
+          SHA="${{ needs.version-bump.outputs.sha }}"
+          TAG="v${VERSION}"
+
+          # Collect all artifacts
+          ls -la release/
+
+          gh release create "${TAG}" \
+            --title "RustyClawd v${VERSION}" \
+            --notes "$(cat <<'NOTES'
+          ## RustyClawd v${VERSION}
+
+          Pre-built binaries for all platforms.
+
+          ### Install via cargo (always latest)
+          ```bash
+          cargo install --git https://github.com/rysweet/RustyClawd.git --bin rusty rustyclawd-cli
+          # Re-run with --force to update
+          ```
+
+          ### Self-update (if already installed)
+          ```bash
+          rusty update
+          ```
+
+          ### Download binary directly
+          Download the archive for your platform, extract, and add to PATH.
+          NOTES
+          )" \
+            release/rusty-*.tar.gz
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

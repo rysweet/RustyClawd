@@ -315,6 +315,11 @@ impl App {
 
     /// Determine which mode to run based on CLI arguments and stdin
     async fn determine_and_run_mode(&mut self) -> Result<()> {
+        // Handle --list-models early (before any mode selection)
+        if self.cli.list_models {
+            return self.run_print_mode("").await;
+        }
+
         // If --input-format stream-json, use the SDK bidirectional protocol
         // instead of reading stdin as a raw prompt.
         if self.cli.input_format == "stream-json" {
@@ -481,11 +486,33 @@ impl App {
 
     /// Run interactive mode
     async fn run_interactive(&mut self) -> Result<()> {
+        use rustyclawd_core::client::Backend;
+
         // Pass hooks and tool restrictions to interactive session
         let hooks = std::sync::Arc::new(self.hooks.clone());
         let allowed_tools = self.cli.allowed_tools.clone();
         let disallowed_tools = self.cli.disallowed_tools.clone();
-        interactive::run_interactive_with_config(Some(hooks), allowed_tools, disallowed_tools).await
+
+        let backend = self
+            .cli
+            .provider
+            .as_deref()
+            .map(|p| {
+                Backend::from_str_loose(p).ok_or_else(|| {
+                    anyhow::anyhow!("Unknown provider '{}'. Use 'anthropic' or 'copilot'.", p)
+                })
+            })
+            .transpose()?
+            .unwrap_or(Backend::Anthropic);
+
+        interactive::run_interactive_with_config(
+            Some(hooks),
+            allowed_tools,
+            disallowed_tools,
+            backend,
+            self.cli.model.clone(),
+        )
+        .await
     }
 
     /// Save session to disk

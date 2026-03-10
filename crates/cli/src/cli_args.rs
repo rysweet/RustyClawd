@@ -5,11 +5,10 @@
 
 use clap::{Parser, Subcommand};
 
-/// Claude - AI assistant with tool use capabilities
+/// RustyClawd - AI assistant with tool use capabilities
 #[derive(Parser)]
-#[command(name = "claude")]
-#[command(author = "Anthropic")]
-#[command(version = "0.1.0")]
+#[command(name = "rusty")]
+#[command(version)]
 #[command(about = "RustyClawd - AI assistant command-line interface", long_about = None)]
 #[command(disable_help_subcommand = true)]
 pub(crate) struct Cli {
@@ -33,9 +32,17 @@ pub(crate) struct Cli {
     #[arg(long = "from-pr")]
     pub(crate) from_pr: Option<u64>,
 
-    /// Model to use (e.g., "claude-sonnet-4-5-20250929")
+    /// Model to use (e.g., "claude-sonnet-4-5-20250929", "gpt-4o")
     #[arg(long)]
     pub(crate) model: Option<String>,
+
+    /// API provider: "anthropic" (default) or "copilot" (GitHub Copilot)
+    #[arg(long, value_name = "PROVIDER")]
+    pub(crate) provider: Option<String>,
+
+    /// List available models for the selected provider and exit
+    #[arg(long)]
+    pub(crate) list_models: bool,
 
     /// Replace entire system prompt with custom text
     #[arg(long)]

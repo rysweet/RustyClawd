@@ -14,6 +14,36 @@ use zeroize::Zeroize;
 
 use super::error::{ClientError, ClientResult};
 
+/// API backend provider.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Backend {
+    /// Anthropic Messages API (default)
+    #[default]
+    Anthropic,
+    /// GitHub Copilot API (OpenAI-compatible)
+    Copilot,
+}
+
+impl Backend {
+    /// Parse from a string (case-insensitive).
+    pub fn from_str_loose(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "anthropic" | "claude" => Some(Self::Anthropic),
+            "copilot" | "github" | "gh" => Some(Self::Copilot),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for Backend {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Backend::Anthropic => write!(f, "anthropic"),
+            Backend::Copilot => write!(f, "copilot"),
+        }
+    }
+}
+
 /// API key with automatic zeroization on drop
 #[derive(Clone, Zeroize)]
 #[zeroize(drop)]
@@ -29,6 +59,14 @@ impl ApiKey {
             return Err(ClientError::InvalidApiKey);
         }
         Ok(Self(key))
+    }
+
+    /// Create an API key without format validation.
+    ///
+    /// Used internally for non-Anthropic backends where the key
+    /// is a placeholder (actual auth is handled separately).
+    pub(crate) fn new_unchecked(key: String) -> Self {
+        Self(key)
     }
 
     /// Get the raw key value (use sparingly!)
@@ -202,6 +240,8 @@ pub struct Config {
     /// Account info loaded from env vars (SDK callers).
     /// Contains CLAUDE_CODE_ACCOUNT_UUID, CLAUDE_CODE_USER_EMAIL, CLAUDE_CODE_ORGANIZATION_UUID.
     pub account_info: crate::env_config::account_info::AccountInfo,
+    /// API backend provider (Anthropic or Copilot)
+    pub backend: Backend,
 }
 
 impl Config {
@@ -212,7 +252,7 @@ impl Config {
     /// Default timeout (2 minutes)
     pub const DEFAULT_TIMEOUT_SECS: u64 = 120;
 
-    /// Create a new configuration with the given API key.
+    /// Create a new configuration with the given API key (Anthropic backend).
     ///
     /// Automatically loads account info from environment variables
     /// (CLAUDE_CODE_ACCOUNT_UUID, CLAUDE_CODE_USER_EMAIL, CLAUDE_CODE_ORGANIZATION_UUID).
@@ -223,6 +263,24 @@ impl Config {
             api_version: Self::DEFAULT_API_VERSION.to_string(),
             timeout_secs: Self::DEFAULT_TIMEOUT_SECS,
             account_info: crate::env_config::account_info::AccountInfo::from_env(),
+            backend: Backend::Anthropic,
+        }
+    }
+
+    /// Create a Copilot backend configuration.
+    ///
+    /// Uses a placeholder API key since Copilot uses its own token auth.
+    pub fn new_copilot() -> Self {
+        // Copilot uses its own token auth, so we use a sentinel key that
+        // passes the sk-ant- prefix check but is never actually sent.
+        let placeholder = ApiKey::new_unchecked("copilot-backend".to_string());
+        Self {
+            api_key: SecretBox::new(Box::new(placeholder)),
+            api_url: "https://api.githubcopilot.com".to_string(),
+            api_version: Self::DEFAULT_API_VERSION.to_string(),
+            timeout_secs: Self::DEFAULT_TIMEOUT_SECS,
+            account_info: crate::env_config::account_info::AccountInfo::from_env(),
+            backend: Backend::Copilot,
         }
     }
 
@@ -256,6 +314,13 @@ impl Config {
     #[must_use]
     pub fn with_timeout_secs(mut self, timeout: u64) -> Self {
         self.timeout_secs = timeout;
+        self
+    }
+
+    /// Builder: Set API backend
+    #[must_use]
+    pub fn with_backend(mut self, backend: Backend) -> Self {
+        self.backend = backend;
         self
     }
 }

@@ -20,14 +20,17 @@ use crate::terminal_guard;
 use crate::tool_orchestrator;
 use crate::tui::{ChatMessage, TuiState};
 use anyhow::Result;
-use rustyclawd_core::client::{Client, Config, MessageResponse};
+use rustyclawd_core::client::{Backend, Client, Config, MessageResponse};
 use rustyclawd_core::{Context, MessageRole};
 use std::io::{self, Write};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-/// Default model for interactive sessions
+/// Default model for interactive sessions (Anthropic backend)
 pub(crate) const DEFAULT_MODEL: &str = "claude-opus-4-6";
+
+/// Default model for Copilot backend sessions
+pub(crate) const DEFAULT_COPILOT_MODEL: &str = "claude-sonnet-4.6";
 
 /// Maximum tokens for responses
 pub(crate) const MAX_TOKENS: u32 = 4096;
@@ -79,12 +82,49 @@ impl InteractiveSession {
 
     /// Create a new interactive session with optional hooks system
     pub async fn with_hooks(hooks: Option<Arc<hooks::HooksSystem>>) -> Result<Self> {
+        Self::with_hooks_and_backend(hooks, Backend::Anthropic, None).await
+    }
+
+    /// Create a new interactive session with optional hooks system, backend, and model.
+    pub async fn with_hooks_and_backend(
+        hooks: Option<Arc<hooks::HooksSystem>>,
+        backend: Backend,
+        model_override: Option<String>,
+    ) -> Result<Self> {
         // Set execution context to TUI mode for process isolation
         terminal_guard::set_execution_context(terminal_guard::ExecutionContext::Tui);
 
-        // Load API configuration from default location
-        let config = Config::from_default_location().await?;
-        let client = Arc::new(Client::new(config)?);
+        // Load API configuration based on backend.
+        // When no --provider was specified, fall back to Copilot if no Anthropic key.
+        let (client, backend) = match backend {
+            Backend::Copilot => {
+                (
+                    Arc::new(Client::new_copilot().await.map_err(|e| {
+                        anyhow::anyhow!("Failed to initialize Copilot backend: {}", e)
+                    })?),
+                    Backend::Copilot,
+                )
+            }
+            Backend::Anthropic => match Config::from_default_location().await {
+                Ok(config) => (Arc::new(Client::new(config)?), Backend::Anthropic),
+                Err(rustyclawd_core::client::ClientError::ApiKeyNotFound) => {
+                    // No Anthropic key: try Copilot as fallback
+                    match Client::new_copilot().await {
+                        Ok(c) => {
+                            eprintln!(
+                                "No Anthropic API key found. \
+                                 Using GitHub Copilot backend (detected via gh auth)."
+                            );
+                            (Arc::new(c), Backend::Copilot)
+                        }
+                        Err(_) => {
+                            return Err(rustyclawd_core::client::ClientError::ApiKeyNotFound.into());
+                        }
+                    }
+                }
+                Err(e) => return Err(e.into()),
+            },
+        };
 
         // Initialize TUI
         let mut tui = TuiState::new()?;
@@ -121,15 +161,21 @@ impl InteractiveSession {
                 .await;
         }
 
+        // Pick model: CLI override > backend default
+        let model = model_override.unwrap_or_else(|| match backend {
+            Backend::Copilot => DEFAULT_COPILOT_MODEL.to_string(),
+            Backend::Anthropic => DEFAULT_MODEL.to_string(),
+        });
+
         Ok(Self {
             client,
             context: Context::new(),
             tui,
-            model: DEFAULT_MODEL.to_string(),
+            stats: SessionStats::new(&model),
+            model,
             slash_commands,
             persistence,
             mcp_proxy,
-            stats: SessionStats::new(DEFAULT_MODEL),
             hooks,
             session_id,
             notification_manager,
@@ -639,7 +685,7 @@ pub async fn run_interactive() -> Result<()> {
 
 /// Entry point for interactive mode with optional hooks system
 pub async fn run_interactive_with_hooks(hooks: Option<Arc<hooks::HooksSystem>>) -> Result<()> {
-    run_interactive_with_config(hooks, vec![], vec![]).await
+    run_interactive_with_config(hooks, vec![], vec![], Backend::Anthropic, None).await
 }
 
 /// Entry point for interactive mode with full configuration
@@ -647,8 +693,11 @@ pub async fn run_interactive_with_config(
     hooks: Option<Arc<hooks::HooksSystem>>,
     allowed_tools: Vec<String>,
     disallowed_tools: Vec<String>,
+    backend: Backend,
+    model_override: Option<String>,
 ) -> Result<()> {
-    let mut session = InteractiveSession::with_hooks(hooks).await?;
+    let mut session =
+        InteractiveSession::with_hooks_and_backend(hooks, backend, model_override).await?;
     session.allowed_tools = allowed_tools;
     session.disallowed_tools = disallowed_tools;
     session.run().await

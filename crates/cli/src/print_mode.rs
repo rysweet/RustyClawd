@@ -237,6 +237,50 @@ fn read_stream_json_stdin(session_id: &str) -> Result<(String, Option<SdkHookCon
 }
 
 impl App {
+    /// Handle `--list-models` for the given backend.
+    async fn handle_list_models(&self, backend: rustyclawd_core::client::Backend) -> Result<()> {
+        use rustyclawd_core::client::Backend;
+
+        match backend {
+            Backend::Anthropic => {
+                println!("Available Anthropic models:");
+                println!("  sonnet  -> claude-sonnet-4-6 (default)");
+                println!("  opus    -> claude-opus-4-6");
+                println!("  haiku   -> claude-haiku-4-5-20251001");
+                println!();
+                println!("Use --model <name> to select. Any valid model ID is also accepted.");
+            }
+            Backend::Copilot => {
+                use rustyclawd_core::client::Client;
+
+                let client = Client::new_copilot()
+                    .await
+                    .context("Failed to initialize Copilot backend")?;
+
+                let auth = client
+                    .copilot_auth()
+                    .ok_or_else(|| anyhow::anyhow!("Copilot auth not initialized"))?;
+
+                let models = rustyclawd_core::client::copilot::list_models(auth)
+                    .await
+                    .context("Failed to list Copilot models")?;
+
+                if models.is_empty() {
+                    println!("No models available from GitHub Copilot.");
+                    println!("Ensure your GitHub account has Copilot access.");
+                } else {
+                    println!("Available GitHub Copilot models:");
+                    for model in &models {
+                        println!("  {}", model);
+                    }
+                    println!();
+                    println!("Use --provider copilot --model <id> to select a model.");
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Run in print mode using the SDK bidirectional protocol.
     ///
     /// Reads JSON control messages from stdin (initialize + user_message),
@@ -269,12 +313,65 @@ impl App {
     /// Run in print mode (one-shot execution) - matches Claude Code's behavior
     pub(crate) async fn run_print_mode(&mut self, prompt: &str) -> Result<()> {
         use rustyclawd_core::client::{
-            Client, Config, CreateMessageRequest, Message as ApiMessage,
+            Backend, Client, Config, CreateMessageRequest, Message as ApiMessage,
         };
 
-        // Load API configuration
-        let config = Config::from_default_location().await?;
-        let client = Client::new(config)?;
+        // Determine the API backend
+        let backend = self
+            .cli
+            .provider
+            .as_deref()
+            .map(|p| {
+                Backend::from_str_loose(p).ok_or_else(|| {
+                    anyhow::anyhow!("Unknown provider '{}'. Use 'anthropic' or 'copilot'.", p)
+                })
+            })
+            .transpose()?
+            .unwrap_or(Backend::Anthropic);
+
+        // Handle --list-models (early exit)
+        if self.cli.list_models {
+            return self.handle_list_models(backend).await;
+        }
+
+        // Create client for the selected backend.
+        // When no --provider is specified (backend == Anthropic by default),
+        // fall back to Copilot if no Anthropic API key is found.
+        let (client, backend) = match backend {
+            Backend::Copilot => (
+                Client::new_copilot()
+                    .await
+                    .context("Failed to initialize Copilot backend")?,
+                Backend::Copilot,
+            ),
+            Backend::Anthropic => {
+                match Config::from_default_location().await {
+                    Ok(config) => (Client::new(config)?, Backend::Anthropic),
+                    Err(rustyclawd_core::client::ClientError::ApiKeyNotFound)
+                        if self.cli.provider.is_none() =>
+                    {
+                        // No Anthropic key and no explicit --provider: try Copilot
+                        match Client::new_copilot().await {
+                            Ok(c) => {
+                                eprintln!(
+                                    "No Anthropic API key found. \
+                                     Using GitHub Copilot backend (detected via gh auth)."
+                                );
+                                (c, Backend::Copilot)
+                            }
+                            Err(_) => {
+                                // Neither backend works — show the Anthropic error
+                                // (which now mentions Copilot as an alternative)
+                                return Err(
+                                    rustyclawd_core::client::ClientError::ApiKeyNotFound.into()
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => return Err(e.into()),
+                }
+            }
+        };
 
         // Execute UserPromptSubmit hook BEFORE processing prompt
         let context = hooks::HookContext::for_user_prompt(
@@ -315,32 +412,46 @@ impl App {
             }
         }
 
-        // Model configuration - use CLI override or default
+        // Model configuration - resolve aliases and defaults based on backend
+        let is_copilot = backend == Backend::Copilot;
+
+        fn resolve_model(alias: &str, copilot: bool) -> String {
+            if copilot {
+                match alias {
+                    "sonnet" => "claude-sonnet-4.6".to_string(),
+                    "opus" => "claude-opus-4.6".to_string(),
+                    "haiku" => "claude-haiku-4.5".to_string(),
+                    custom => custom.to_string(),
+                }
+            } else {
+                match alias {
+                    "sonnet" => "claude-sonnet-4-6".to_string(),
+                    "opus" => "claude-opus-4-6".to_string(),
+                    "haiku" => "claude-haiku-4-5-20251001".to_string(),
+                    custom => custom.to_string(),
+                }
+            }
+        }
+
         let model = self
             .cli
             .model
-            .as_ref()
-            .map(|m| match m.as_str() {
-                "sonnet" => "claude-sonnet-4-6",
-                "opus" => "claude-opus-4-6",
-                "haiku" => "claude-haiku-4-5-20251001",
-                custom => custom,
-            })
-            .unwrap_or("claude-sonnet-4-6")
-            .to_string();
+            .as_deref()
+            .map(|m| resolve_model(m, is_copilot))
+            .unwrap_or_else(|| {
+                if is_copilot {
+                    "claude-sonnet-4.6".to_string()
+                } else {
+                    "claude-sonnet-4-6".to_string()
+                }
+            });
 
         // Fallback model configuration (if specified)
         let fallback_model = self
             .cli
             .fallback_model
-            .as_ref()
-            .map(|m| match m.as_str() {
-                "sonnet" => "claude-sonnet-4-6",
-                "opus" => "claude-opus-4-6",
-                "haiku" => "claude-haiku-4-5-20251001",
-                custom => custom,
-            })
-            .map(|s| s.to_string());
+            .as_deref()
+            .map(|m| resolve_model(m, is_copilot));
 
         let max_tokens = 4096u32; // Default max tokens (not configurable in official spec)
 
