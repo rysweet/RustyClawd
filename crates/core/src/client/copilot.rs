@@ -210,9 +210,7 @@ impl CopilotAuth {
             let _ = response.bytes().await;
             tracing::info!("Copilot credentials validated successfully");
             return Ok(Self {
-                github_token: Arc::new(secrecy::SecretBox::new(Box::new(GhToken(
-                    github_token,
-                )))),
+                github_token: Arc::new(secrecy::SecretBox::new(Box::new(GhToken(github_token)))),
                 http_client,
                 endpoint: CopilotEndpoint::Copilot,
             });
@@ -249,9 +247,7 @@ impl CopilotAuth {
                 "GitHub Models API credentials validated — using models.github.ai as backend"
             );
             return Ok(Self {
-                github_token: Arc::new(secrecy::SecretBox::new(Box::new(GhToken(
-                    github_token,
-                )))),
+                github_token: Arc::new(secrecy::SecretBox::new(Box::new(GhToken(github_token)))),
                 http_client,
                 endpoint: CopilotEndpoint::GitHubModels,
             });
