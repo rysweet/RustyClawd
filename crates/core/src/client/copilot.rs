@@ -1,4 +1,4 @@
-//! GitHub Copilot API backend (with GitHub Models API fallback)
+//! GitHub Copilot API backend.
 //!
 //! Implements authentication via GitHub token and provides request/response
 //! translation between our internal Anthropic-native types and the
@@ -6,12 +6,8 @@
 //!
 //! Auth flow:
 //! 1. Get GitHub token from `gh auth token`, GITHUB_TOKEN env, or config files
-//! 2. Try the Copilot API at `api.githubcopilot.com` with the raw token
-//! 3. If that fails, fall back to GitHub Models API at `models.github.ai`
-//!    which accepts the same token (no exchange needed)
-//!
-//! The GitHub Models fallback is useful when a GitHub token has Models API
-//! access but not Copilot-specific access.
+//! 2. Validate direct Copilot access against `api.githubcopilot.com`
+//! 3. Fail explicitly if validation fails
 //!
 //! Reference: <https://docs.rs/copilot-client/latest/copilot_client/>
 
@@ -39,12 +35,7 @@ const COPILOT_USER_AGENT: &str = concat!(
     env!("CARGO_PKG_VERSION"),
     " (GitHub Copilot Integration)"
 );
-
-// GitHub Models API fallback endpoints
-const GITHUB_MODELS_CHAT_URL: &str = "https://models.github.ai/inference/chat/completions";
-const GITHUB_MODELS_LIST_URL: &str = "https://models.github.ai/inference/models";
-/// Model name prefix required by the GitHub Models API (e.g., "openai/gpt-4o").
-const GITHUB_MODELS_PREFIX: &str = "openai/";
+const COPILOT_AUTH_HINT: &str = "This backend only uses api.githubcopilot.com. Refresh GitHub Copilot auth with: gh auth refresh --hostname github.com --scopes copilot";
 
 // ---------------------------------------------------------------------------
 // GitHub token acquisition
@@ -149,15 +140,6 @@ fn dirs_config_path() -> Option<PathBuf> {
 // Copilot token exchange
 // ---------------------------------------------------------------------------
 
-/// Which API endpoint is being used for chat completions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CopilotEndpoint {
-    /// Standard Copilot API at api.githubcopilot.com
-    Copilot,
-    /// GitHub Models API at models.github.ai (fallback)
-    GitHubModels,
-}
-
 /// Manages GitHub Copilot API authentication.
 ///
 /// The GitHub token is wrapped for zeroization on drop, consistent
@@ -166,8 +148,6 @@ pub enum CopilotEndpoint {
 pub struct CopilotAuth {
     github_token: Arc<secrecy::SecretBox<GhToken>>,
     http_client: HttpClient,
-    /// Which endpoint was successfully validated during connect.
-    endpoint: CopilotEndpoint,
 }
 
 /// GitHub token with automatic zeroization on drop.
@@ -184,25 +164,31 @@ impl GhToken {
 }
 
 impl CopilotAuth {
-    /// Create a CopilotAuth and eagerly validate credentials by hitting the
-    /// models endpoint. Surfaces auth errors at startup rather than deferring
-    /// them to the first API call.
-    ///
-    /// Tries the standard Copilot API first. If that returns 404 (some GitHub
-    /// token types lack Copilot access), falls back to the GitHub Models API
-    /// at models.github.ai which accepts the same raw GitHub token.
+    /// Create a CopilotAuth and eagerly validate direct Copilot credentials by
+    /// hitting the Copilot models endpoint. Surfaces auth errors at startup
+    /// rather than deferring them to the first API call.
     pub async fn connect(github_token: String, http_client: HttpClient) -> ClientResult<Self> {
-        // Try 1: Standard Copilot API
+        Self::connect_with_validation_url(github_token, http_client, COPILOT_MODELS_URL).await
+    }
+
+    async fn connect_with_validation_url(
+        github_token: String,
+        http_client: HttpClient,
+        validation_url: &str,
+    ) -> ClientResult<Self> {
         tracing::debug!("Validating Copilot credentials against models endpoint");
         let response = http_client
-            .get(COPILOT_MODELS_URL)
+            .get(validation_url)
             .header("Authorization", format!("Bearer {}", github_token))
             .header("Accept", "application/json")
             .header("User-Agent", COPILOT_USER_AGENT)
             .send()
             .await
             .map_err(|e| {
-                ClientError::NetworkError(format!("Failed to validate Copilot credentials: {}", e))
+                ClientError::NetworkError(format!(
+                    "Failed to validate Copilot credentials against {}: {}",
+                    validation_url, e
+                ))
             })?;
 
         if response.status().is_success() {
@@ -212,56 +198,10 @@ impl CopilotAuth {
             return Ok(Self {
                 github_token: Arc::new(secrecy::SecretBox::new(Box::new(GhToken(github_token)))),
                 http_client,
-                endpoint: CopilotEndpoint::Copilot,
             });
         }
 
-        let copilot_status = response.status();
-        let copilot_body = response
-            .text()
-            .await
-            .unwrap_or_else(|_| "unknown".to_string());
-        tracing::warn!(
-            "Copilot models endpoint returned HTTP {} — trying GitHub Models API fallback",
-            copilot_status
-        );
-
-        // Try 2: GitHub Models API fallback
-        let fallback_response = http_client
-            .get(GITHUB_MODELS_LIST_URL)
-            .header("Authorization", format!("Bearer {}", github_token))
-            .header("Accept", "application/json")
-            .header("User-Agent", COPILOT_USER_AGENT)
-            .send()
-            .await
-            .map_err(|e| {
-                ClientError::NetworkError(format!(
-                    "Failed to validate GitHub Models credentials: {}",
-                    e
-                ))
-            })?;
-
-        if fallback_response.status().is_success() {
-            let _ = fallback_response.bytes().await;
-            tracing::info!(
-                "GitHub Models API credentials validated — using models.github.ai as backend"
-            );
-            return Ok(Self {
-                github_token: Arc::new(secrecy::SecretBox::new(Box::new(GhToken(github_token)))),
-                http_client,
-                endpoint: CopilotEndpoint::GitHubModels,
-            });
-        }
-
-        // Both failed — report the original Copilot error
-        let sanitized = super::error::sanitize_error(&copilot_body);
-        Err(ClientError::Unauthorized(format!(
-            "Copilot authentication failed (HTTP {}): {}. \
-             GitHub Models fallback also failed. \
-             Ensure you have GitHub Copilot or Models API access and run: \
-             gh auth refresh --hostname github.com --scopes copilot",
-            copilot_status, sanitized
-        )))
+        Err(copilot_validation_error(response).await)
     }
 
     /// Get the Bearer token for API requests.
@@ -270,44 +210,24 @@ impl CopilotAuth {
         self.github_token.expose_secret().expose()
     }
 
-    /// Which endpoint this auth instance is using.
-    pub fn endpoint(&self) -> CopilotEndpoint {
-        self.endpoint
-    }
-
-    /// Get the chat completions URL for the active endpoint.
-    pub fn chat_url(&self) -> &str {
-        match self.endpoint {
-            CopilotEndpoint::Copilot => COPILOT_CHAT_URL,
-            CopilotEndpoint::GitHubModels => GITHUB_MODELS_CHAT_URL,
-        }
-    }
-
-    /// Get the models list URL for the active endpoint.
-    pub fn models_url(&self) -> &str {
-        match self.endpoint {
-            CopilotEndpoint::Copilot => COPILOT_MODELS_URL,
-            CopilotEndpoint::GitHubModels => GITHUB_MODELS_LIST_URL,
-        }
-    }
-
-    /// Ensure the model name has the correct prefix for the active endpoint.
-    ///
-    /// The GitHub Models API requires an `openai/` prefix on model names
-    /// (e.g., `openai/gpt-4o`). This method adds the prefix if needed when
-    /// using the GitHub Models backend, and leaves names unchanged for Copilot.
+    /// Copilot expects the configured model name exactly as provided.
     pub fn qualify_model(&self, model: &str) -> String {
-        match self.endpoint {
-            CopilotEndpoint::Copilot => model.to_string(),
-            CopilotEndpoint::GitHubModels => {
-                if model.contains('/') {
-                    model.to_string()
-                } else {
-                    format!("{}{}", GITHUB_MODELS_PREFIX, model)
-                }
-            }
-        }
+        model.to_string()
     }
+}
+
+async fn copilot_validation_error(response: reqwest::Response) -> ClientError {
+    let status = response.status();
+    let body = response
+        .text()
+        .await
+        .unwrap_or_else(|_| "unknown".to_string());
+    let sanitized = super::error::sanitize_error(&body);
+
+    ClientError::Unknown(format!(
+        "Copilot credential validation failed (HTTP {}): {}. GitHub Models is not used as a fallback. {}",
+        status, sanitized, COPILOT_AUTH_HINT
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -349,14 +269,13 @@ enum ModelsResponse {
     Object { data: Vec<CopilotModel> },
 }
 
-/// Fetch available models from the active API endpoint.
+/// Fetch available models from the Copilot API.
 pub async fn list_models(auth: &CopilotAuth) -> ClientResult<Vec<CopilotModel>> {
     let token = auth.get_token();
-    let models_url = auth.models_url();
 
     let response = auth
         .http_client
-        .get(models_url)
+        .get(COPILOT_MODELS_URL)
         .header("Authorization", format!("Bearer {}", token))
         .header("Accept", "application/json")
         .header("User-Agent", COPILOT_USER_AGENT)
@@ -806,32 +725,27 @@ pub fn from_oai_stream_chunk(chunk: &OaiStreamChunk, block_index: &mut u32) -> V
 // Copilot API call execution
 // ---------------------------------------------------------------------------
 
-/// Execute a non-streaming chat completion against the active API endpoint.
+/// Execute a non-streaming chat completion against the Copilot API.
 pub async fn create_message(
     http_client: &HttpClient,
     auth: &CopilotAuth,
     request: &CreateMessageRequest,
 ) -> ClientResult<MessageResponse> {
     let token = auth.get_token();
-    let chat_url = auth.chat_url();
     let mut oai_request = to_oai_request(request);
     oai_request.model = auth.qualify_model(&oai_request.model);
 
-    let mut req_builder = http_client
-        .post(chat_url)
+    let response = http_client
+        .post(COPILOT_CHAT_URL)
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
-        .header("User-Agent", COPILOT_USER_AGENT);
-
-    // Copilot-specific headers are only meaningful for the Copilot endpoint
-    if auth.endpoint() == CopilotEndpoint::Copilot {
-        req_builder = req_builder
-            .header("Copilot-Integration-Id", "rustyclawd")
-            .header("Editor-Version", "RustyClawd/0.1.0");
-    }
-
-    let response = req_builder.json(&oai_request).send().await?;
+        .header("User-Agent", COPILOT_USER_AGENT)
+        .header("Copilot-Integration-Id", "rustyclawd")
+        .header("Editor-Version", "RustyClawd/0.1.0")
+        .json(&oai_request)
+        .send()
+        .await?;
 
     if !response.status().is_success() {
         return Err(ClientError::from_response(response).await);
@@ -841,7 +755,7 @@ pub async fn create_message(
     Ok(from_oai_response(oai_response))
 }
 
-/// Execute a streaming chat completion against the active API endpoint.
+/// Execute a streaming chat completion against the Copilot API.
 ///
 /// Returns a stream of our internal StreamEvent types.
 pub async fn create_message_stream(
@@ -850,25 +764,21 @@ pub async fn create_message_stream(
     request: &CreateMessageRequest,
 ) -> ClientResult<impl futures::Stream<Item = ClientResult<StreamEvent>>> {
     let token = auth.get_token();
-    let chat_url = auth.chat_url();
     let mut oai_request = to_oai_request(request);
     oai_request.model = auth.qualify_model(&oai_request.model);
     oai_request.stream = true;
 
-    let mut req_builder = http_client
-        .post(chat_url)
+    let response = http_client
+        .post(COPILOT_CHAT_URL)
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .header("Accept", "text/event-stream")
-        .header("User-Agent", COPILOT_USER_AGENT);
-
-    if auth.endpoint() == CopilotEndpoint::Copilot {
-        req_builder = req_builder
-            .header("Copilot-Integration-Id", "rustyclawd")
-            .header("Editor-Version", "RustyClawd/0.1.0");
-    }
-
-    let response = req_builder.json(&oai_request).send().await?;
+        .header("User-Agent", COPILOT_USER_AGENT)
+        .header("Copilot-Integration-Id", "rustyclawd")
+        .header("Editor-Version", "RustyClawd/0.1.0")
+        .json(&oai_request)
+        .send()
+        .await?;
 
     if !response.status().is_success() {
         return Err(ClientError::from_response(response).await);
@@ -959,6 +869,8 @@ fn parse_oai_sse_stream(
 mod tests {
     use super::*;
     use crate::client::types::{Message, ToolDefinition};
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[test]
     fn test_to_oai_request_simple() {
@@ -1076,6 +988,70 @@ mod tests {
         let display = format!("{}", model);
         assert!(display.contains("gpt-4o"), "Should show model ID");
         assert!(display.contains("GPT-4o"), "Should show friendly name");
+    }
+
+    #[test]
+    fn test_qualify_model_keeps_copilot_model_name_unchanged() {
+        let auth = CopilotAuth {
+            github_token: Arc::new(secrecy::SecretBox::new(Box::new(GhToken(
+                "ghu_test".to_string(),
+            )))),
+            http_client: HttpClient::new(),
+        };
+
+        assert_eq!(auth.qualify_model("gpt-4o"), "gpt-4o");
+        assert_eq!(auth.qualify_model("openai/gpt-4o"), "openai/gpt-4o");
+    }
+
+    #[tokio::test]
+    async fn test_connect_validates_only_copilot_endpoint() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/models"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("[]"))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let auth = CopilotAuth::connect_with_validation_url(
+            "ghu_test".to_string(),
+            HttpClient::new(),
+            &format!("{}/models", mock_server.uri()),
+        )
+        .await
+        .expect("Copilot validation should succeed");
+
+        assert_eq!(auth.get_token(), "ghu_test");
+    }
+
+    #[tokio::test]
+    async fn test_connect_fails_loudly_without_hidden_fallback() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/models"))
+            .respond_with(ResponseTemplate::new(403).set_body_string("copilot access denied"))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let result = CopilotAuth::connect_with_validation_url(
+            "ghu_test".to_string(),
+            HttpClient::new(),
+            &format!("{}/models", mock_server.uri()),
+        )
+        .await;
+
+        match result {
+            Err(ClientError::Unknown(message)) => {
+                assert!(message.contains("Copilot credential validation failed (HTTP 403"));
+                assert!(message.contains("GitHub Models is not used as a fallback"));
+                assert!(message.contains("gh auth refresh --hostname github.com --scopes copilot"));
+            }
+            Err(other) => panic!("expected explicit Copilot validation error, got {other:?}"),
+            Ok(_) => panic!("Copilot validation should fail without fallback"),
+        }
     }
 
     #[test]

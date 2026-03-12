@@ -51,7 +51,7 @@ The Copilot backend obtains a GitHub token through this priority chain:
 2. `gh auth token` CLI command
 3. `~/.config/github-copilot/hosts.json` config file
 
-The token is validated eagerly at startup by hitting the models endpoint. If authentication fails, you'll see an error immediately — not on the first API call.
+The token is validated eagerly at startup by hitting the Copilot models endpoint. If validation fails, RustyClawd errors immediately — it does not fall back to GitHub Models or any other hidden backend.
 
 ## Using with the Claude Agent SDK
 
@@ -142,10 +142,10 @@ The tool execution loop (`execute_with_tools`) is unchanged — it works identic
 **"GitHub token not found"**
 - Run `gh auth login` then `gh auth refresh --hostname github.com --scopes copilot`
 
-**"Copilot authentication failed (HTTP 401)"**
+**"Copilot credential validation failed (HTTP 401)"**
 - Your token may have expired. Run `gh auth refresh --hostname github.com --scopes copilot`
 
-**"Copilot authentication failed (HTTP 404)"**
+**"Copilot credential validation failed (HTTP 404)"**
 - Your token is missing the `copilot` scope. Run `gh auth refresh --hostname github.com --scopes copilot`
 
 **"The requested model is not supported"**
