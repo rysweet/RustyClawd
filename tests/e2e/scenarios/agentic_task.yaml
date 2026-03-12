@@ -92,13 +92,29 @@ scenario:
       submit: true
 
   assertions:
-    - type: text_present
-      value: "CONTEXT_OK"
-      description: "Complex workflow preserved context through read, write, and verify steps"
-
     - type: file_exists
       path: "/tmp/agentic_summary.md"
       description: "Workflow created the summary file"
+
+    - type: file_contains
+      path: "/tmp/agentic_summary.md"
+      contains: "# Components"
+      description: "Complex workflow created the expected heading"
+
+    - type: file_contains
+      path: "/tmp/agentic_summary.md"
+      contains: "parser"
+      description: "Complex workflow preserved parser in the summary"
+
+    - type: file_contains
+      path: "/tmp/agentic_summary.md"
+      contains: "runner"
+      description: "Complex workflow preserved runner in the summary"
+
+    - type: file_contains
+      path: "/tmp/agentic_summary.md"
+      contains: "reporter"
+      description: "Complex workflow preserved reporter in the summary"
 
     - type: exit_clean
       description: "Complex workflow completes successfully"

@@ -239,7 +239,7 @@ class ScenarioRunner:
             capture_cmd = f"""
                 {self._source_framework()}
                 SESSION="{self.session_name}"
-                capture_output "$SESSION" | sed 's/\x1b\[[0-9;]*m//g'
+                capture_output "$SESSION" | sed 's/\x1b\\[[0-9;]*m//g'
             """
             _, actual, _ = self._run_bash_cmd(capture_cmd)
             mode = "case-insensitive" if case_insensitive else "case-sensitive"
@@ -526,6 +526,29 @@ class ScenarioRunner:
                 filepath = Path(filepath_str)
                 if not filepath.exists():
                     errors.append(f"FAIL: {description} - file not found: {filepath_str}")
+                elif self.verbose:
+                    print(f"  ✓ {description}")
+
+            elif assertion_type == "file_contains":
+                filepath_str = assertion.get("path")
+                needle = assertion.get("contains") or value
+                if not filepath_str:
+                    errors.append(f"FAIL: {description} - no path specified")
+                    continue
+                if not needle:
+                    errors.append(f"FAIL: {description} - no contains or value specified")
+                    continue
+
+                filepath = Path(filepath_str)
+                if not filepath.exists():
+                    errors.append(f"FAIL: {description} - file not found: {filepath_str}")
+                    continue
+
+                content = filepath.read_text()
+                if needle not in content:
+                    errors.append(
+                        f"FAIL: {description} - '{needle}' not found in file: {filepath_str}"
+                    )
                 elif self.verbose:
                     print(f"  ✓ {description}")
 
