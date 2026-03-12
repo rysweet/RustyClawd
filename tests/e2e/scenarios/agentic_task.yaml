@@ -1,24 +1,34 @@
 # YAML Scenario: Complex Agentic Task Workflow
 #
-# **Status:** Pending - Waiting for scenario runner implementation
-#
-# This scenario validates complex multi-agent workflows with tool use,
-# context preservation, and multi-step reasoning.
+# This scenario validates multi-step tool use with context preservation
+# using a controlled fixture instead of a long repo-wide analysis prompt.
 
 scenario:
   name: "Complex Agentic Task Workflow"
   description: "Validate multi-step agentic workflow with context and tools"
   type: tui
   tags: [agentic, multi-step, complex, tools]
-  status: "pending_implementation"
+  status: "ready"
 
   environment:
     terminal_size:
       width: 120
       height: 40
-    timeout: 90s
+    timeout: 75s
 
   steps:
+    - action: remove_file
+      description: "Remove stale summary file from prior runs"
+      path: "/tmp/agentic_summary.md"
+
+    - action: ensure_file
+      description: "Create controlled source content"
+      path: "/tmp/agentic_components.txt"
+      content: |
+        parser: parses commands
+        runner: executes workflows
+        reporter: summarizes results
+
     # Startup
     - action: launch
       description: "Start RustyClawd"
@@ -32,63 +42,43 @@ scenario:
 
     # Step 1: Initial analysis request
     - action: send_input
-      description: "Request codebase analysis"
-      text: "Analyze the crates/cli/src directory and summarize the architecture"
+      description: "Request analysis of controlled source file"
+      text: "Read /tmp/agentic_components.txt and reply with the three component names only, comma-separated, in the same order they appear."
       submit: true
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 120
+      duration: 25
 
     - action: wait_for_text
-      description: "Wait for Read tool execution (multiple files)"
-      contains: "RustyClawd"
-      timeout: 120s
+      description: "Wait for first answer to include parser"
+      contains: "parser"
+      timeout: 20s
 
     # Step 2: Follow-up based on analysis
     - action: send_input
-      description: "Ask follow-up based on analysis"
-      text: "Based on that analysis, what are the main components?"
+      description: "Create summary file using prior context"
+      text: "Using the exact same three names from your previous answer, create /tmp/agentic_summary.md with the heading '# Components' and one markdown bullet per component."
       submit: true
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 150
-
-    - action: wait_for_text
-      description: "Wait for summary using prior context"
-      contains: "RustyClawd"
-      timeout: 90s
+      duration: 35
 
     # Step 3: Action based on understanding
     - action: send_input
-      description: "Request document creation based on understanding"
-      text: "Create a tests/SUMMARY.md file documenting those components"
+      description: "Verify created file using exact success token"
+      text: "Read /tmp/agentic_summary.md. If it contains the heading '# Components' and bullets for parser, runner, and reporter, reply with exactly CONTEXT_OK."
       submit: true
 
     - action: sleep
       description: "Wait for AI response to complete"
-      duration: 120
+      duration: 25
 
     - action: wait_for_text
-      description: "Wait for Write tool execution"
-      contains: "RustyClawd"
-      timeout: 90s
-
-    # Step 4: Verification
-    - action: send_input
-      description: "Verify the created file"
-      text: "Read tests/SUMMARY.md to confirm it was created correctly"
-      submit: true
-
-    - action: sleep
-      description: "Wait for AI response to complete"
-      duration: 120
-
-    - action: wait_for_text
-      description: "Wait for Read tool to show file contents"
-      contains: "RustyClawd"
-      timeout: 60s
+      description: "Wait for exact verification response"
+      contains: "CONTEXT_OK"
+      timeout: 30s
 
     # Capture final state
     - action: capture_screenshot
@@ -102,23 +92,23 @@ scenario:
       submit: true
 
   assertions:
+    - type: text_present
+      value: "CONTEXT_OK"
+      description: "Complex workflow preserved context through read, write, and verify steps"
+
+    - type: file_exists
+      path: "/tmp/agentic_summary.md"
+      description: "Workflow created the summary file"
+
     - type: exit_clean
       description: "Complex workflow completes successfully"
 
   notes: |
-    This scenario will FAIL until the scenario runner is implemented.
+    This scenario uses a deterministic fixture so it can still validate:
+    1. Read tool execution against a real file
+    2. Multi-turn context preservation across turns
+    3. Write tool execution based on prior model output
+    4. Final verification via an exact success token
 
-    Expected behavior:
-    1. User requests analysis → Multiple Read tools
-    2. User asks follow-up → LLM uses analysis context
-    3. User requests document → Write tool with context
-    4. User verifies → Read tool confirms creation
-    5. All context flows correctly through multi-step workflow
-
-    This tests TRUE agentic behavior:
-    - Multi-step reasoning
-    - Tool use at each step
-    - Context preservation throughout
-    - Task decomposition and execution
-
-    See: docs/architecture/e2e_testing_architecture.md
+    The goal is to exercise agentic flow without depending on a long,
+    timing-sensitive repo analysis prompt.
