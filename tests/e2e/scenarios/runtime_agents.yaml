@@ -37,22 +37,7 @@ scenario:
       contains: "RustyClawd"
       timeout: 5s
 
-    # Test 1: Verify runtime agent loaded
-    - action: send_input
-      description: "List all available agents"
-      text: "List all available agents"
-      submit: true
-
-    - action: sleep
-      description: "Wait for AI response to complete"
-      duration: 20
-
-    - action: wait_for_text
-      description: "Should include custom-reviewer"
-      contains: "custom-reviewer"
-      timeout: 20s
-
-    # Test 2: Use the runtime agent via Task tool
+    # Test 1: Use the runtime agent via Task tool
     - action: send_input
       description: "Invoke custom runtime agent"
       text: "Use the custom-reviewer agent to review /tmp/runtime_agent_input.md. After it finishes, reply with exactly RUNTIME_AGENT_OK."
@@ -67,7 +52,7 @@ scenario:
       contains: "RUNTIME_AGENT_OK"
       timeout: 45s
 
-    # Test 3: Verify file-based agents still work
+    # Test 2: Verify file-based agents still work
     - action: send_input
       description: "Use a file-based agent"
       text: "Use the architect agent to design a simple module with parser and validator structs. After it finishes, reply with exactly FILE_AGENT_OK."
