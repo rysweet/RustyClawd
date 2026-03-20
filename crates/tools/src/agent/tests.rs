@@ -63,7 +63,7 @@ async fn test_load_agent_prompt_success() {
     let temp_dir = TempDir::new().unwrap();
     let cwd = setup_test_agent(&temp_dir).await;
 
-    let prompt = AgentTool::load_agent_prompt("test_agent", &cwd)
+    let prompt = AgentTool::load_agent_prompt("test_agent", &cwd, &ToolContext::default())
         .await
         .unwrap();
 
@@ -76,7 +76,7 @@ async fn test_load_agent_prompt_not_found() {
     let temp_dir = TempDir::new().unwrap();
     let cwd = temp_dir.path().to_path_buf();
 
-    let result = AgentTool::load_agent_prompt("nonexistent", &cwd).await;
+    let result = AgentTool::load_agent_prompt("nonexistent", &cwd, &ToolContext::default()).await;
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("not found"));
 }
@@ -102,6 +102,7 @@ async fn test_agent_tool_missing_prompt() {
         execution_context: ExecutionContext::default(),
         allowed_tools: vec![],
         disallowed_tools: vec![],
+        runtime_agents: std::collections::HashMap::new(),
     };
 
     let stream = tool.execute(params, &ctx).await.unwrap();
@@ -144,6 +145,7 @@ async fn test_agent_tool_real_execution() {
         execution_context: ExecutionContext::default(),
         allowed_tools: vec![],
         disallowed_tools: vec![],
+        runtime_agents: std::collections::HashMap::new(),
     };
 
     let mut stream = tool.execute(params, &ctx).await.unwrap();
@@ -335,7 +337,7 @@ async fn test_agent_with_frontmatter_background() {
         .unwrap();
 
     // Load and parse
-    let raw = AgentTool::load_agent_prompt("bg_agent", temp_dir.path())
+    let raw = AgentTool::load_agent_prompt("bg_agent", temp_dir.path(), &ToolContext::default())
         .await
         .unwrap();
     let (fm, prompt) = AgentFrontmatter::parse(&raw);

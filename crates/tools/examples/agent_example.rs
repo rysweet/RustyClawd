@@ -57,6 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         execution_context: rustyclawd_tools::ExecutionContext::default(),
         allowed_tools: vec![],
         disallowed_tools: vec![],
+        runtime_agents: std::collections::HashMap::new(),
     };
 
     println!("Invoking 'example' agent with haiku model...\n");

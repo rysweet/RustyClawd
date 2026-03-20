@@ -541,6 +541,17 @@ impl App {
 
         let start_time = std::time::Instant::now();
 
+        // Convert App runtime agents to tool-layer RuntimeAgentInfo
+        let runtime_agents_for_tools: std::collections::HashMap<String, rustyclawd_tools::RuntimeAgentInfo> =
+            self.runtime_agents.iter().map(|(name, def)| {
+                (name.clone(), rustyclawd_tools::RuntimeAgentInfo {
+                    prompt: def.prompt.clone(),
+                    model: def.model.clone(),
+                    allowed_tools: def.allowed_tools.clone(),
+                    disallowed_tools: def.disallowed_tools.clone(),
+                })
+            }).collect();
+
         // Build the tool executor closure factory (shared by primary and fallback)
         macro_rules! make_tool_executor {
             ($hooks:expr, $session_id:expr, $allowed:expr, $disallowed:expr) => {
@@ -551,6 +562,7 @@ impl App {
                     let disallowed_tools = $disallowed.clone();
                     let sdk_transport = sdk_transport_for_tools.clone();
                     let sdk_hook_config = sdk_hook_config_for_tools.clone();
+                    let runtime_agents = runtime_agents_for_tools.clone();
                     async move {
                         tool_executor::execute_tool_with_permission(
                             tool_name,
@@ -565,6 +577,7 @@ impl App {
                                 disallowed_tools,
                                 sdk_transport,
                                 sdk_hook_config,
+                                runtime_agents,
                             },
                         )
                         .await

@@ -203,6 +203,15 @@ impl App {
             .with_context(|| format!("Failed to read prompt file: {}", prompt_file))?;
 
         // Create tool context
+        let runtime_agents_info: std::collections::HashMap<String, rustyclawd_tools::RuntimeAgentInfo> =
+            self.runtime_agents.iter().map(|(name, def)| {
+                (name.clone(), rustyclawd_tools::RuntimeAgentInfo {
+                    prompt: def.prompt.clone(),
+                    model: def.model.clone(),
+                    allowed_tools: def.allowed_tools.clone(),
+                    disallowed_tools: def.disallowed_tools.clone(),
+                })
+            }).collect();
         let ctx = ToolContext {
             cwd: std::env::current_dir().unwrap_or_default(),
             debug: self.cli.verbose,
@@ -210,6 +219,7 @@ impl App {
             execution_context: rustyclawd_tools::ExecutionContext::NonInteractive,
             allowed_tools: self.cli.allowed_tools.clone(),
             disallowed_tools: self.cli.disallowed_tools.clone(),
+            runtime_agents: runtime_agents_info,
         };
 
         // Create agent parameters

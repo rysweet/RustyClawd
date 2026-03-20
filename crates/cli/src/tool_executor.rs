@@ -38,6 +38,7 @@ pub async fn execute_tool(tool_name: String, tool_input: Value) -> Result<Value,
             disallowed_tools: vec![],
             sdk_transport: None,
             sdk_hook_config: None,
+            runtime_agents: std::collections::HashMap::new(),
         },
     )
     .await
@@ -55,6 +56,8 @@ pub struct ToolExecutionParams<'a> {
     pub sdk_transport: Option<Arc<crate::sdk_transport::SdkTransport>>,
     /// SDK hook configuration (event matchers and callback IDs).
     pub sdk_hook_config: Option<Arc<crate::sdk_transport::SdkHookConfig>>,
+    /// Runtime agents registered via --agents CLI flag.
+    pub runtime_agents: std::collections::HashMap<String, rustyclawd_tools::RuntimeAgentInfo>,
 }
 
 /// Execute a tool with permission mode checking
@@ -95,6 +98,7 @@ pub async fn execute_tool_with_hooks(
     let disallowed_tools = params.disallowed_tools;
     let sdk_transport = params.sdk_transport;
     let sdk_hook_config = params.sdk_hook_config;
+    let runtime_agents = params.runtime_agents;
     // Create tool context with execution context from global state
     use crate::terminal_guard::{get_execution_context, ExecutionContext as GuardContext};
 
@@ -109,6 +113,7 @@ pub async fn execute_tool_with_hooks(
         },
         allowed_tools: allowed_tools.clone(),
         disallowed_tools: disallowed_tools.clone(),
+        runtime_agents,
     };
 
     // Check if tool is explicitly disallowed (takes precedence)
