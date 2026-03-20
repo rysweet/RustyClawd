@@ -606,18 +606,26 @@ pub(crate) fn to_oai_request(request: &CreateMessageRequest) -> OaiChatRequest {
 
 /// Convert an OpenAI chat response back to our internal MessageResponse.
 pub fn from_oai_response(oai: OaiChatResponse) -> MessageResponse {
-    let choice = oai.choices.into_iter().next();
-
     let mut content = Vec::new();
     let mut stop_reason = None;
 
-    if let Some(choice) = choice {
-        stop_reason = choice.finish_reason.map(|r| match r.as_str() {
-            "stop" => "end_turn".to_string(),
-            "tool_calls" => "tool_use".to_string(),
-            "length" => "max_tokens".to_string(),
-            other => other.to_string(),
-        });
+    // Merge ALL choices — the Copilot API may return tool calls as separate
+    // choices rather than as tool_calls within a single message.
+    // choice[0] typically has text content, choice[1..] have tool_calls.
+    for choice in oai.choices {
+        // Use the most specific stop_reason (prefer tool_use over end_turn)
+        if let Some(ref reason) = choice.finish_reason {
+            let mapped = match reason.as_str() {
+                "stop" => "end_turn".to_string(),
+                "tool_calls" => "tool_use".to_string(),
+                "length" => "max_tokens".to_string(),
+                other => other.to_string(),
+            };
+            // tool_use takes priority over end_turn
+            if stop_reason.is_none() || mapped == "tool_use" {
+                stop_reason = Some(mapped);
+            }
+        }
 
         // Add text content if present
         if let Some(text) = choice.message.content {
