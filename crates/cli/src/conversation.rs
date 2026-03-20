@@ -294,6 +294,7 @@ pub(crate) async fn execute_shell_command(
         execution_context: ExecutionContext::Tui,
         allowed_tools: allowed_tools.to_vec(),
         disallowed_tools: disallowed_tools.to_vec(),
+        runtime_agents: std::collections::HashMap::new(),
     };
 
     let params = BashParams {

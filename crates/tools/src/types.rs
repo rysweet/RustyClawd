@@ -64,6 +64,23 @@ pub struct ToolContext {
     /// List of tools that are explicitly disallowed
     /// Takes precedence over allowed_tools
     pub disallowed_tools: Vec<String>,
+
+    /// Runtime agents registered via --agents CLI flag.
+    /// Maps agent name to (system_prompt, model).
+    pub runtime_agents: std::collections::HashMap<String, RuntimeAgentInfo>,
+}
+
+/// Minimal runtime agent info passed through ToolContext.
+#[derive(Debug, Clone, Default)]
+pub struct RuntimeAgentInfo {
+    /// System prompt for the agent
+    pub prompt: String,
+    /// Optional model override
+    pub model: Option<String>,
+    /// Allowed tools for this agent
+    pub allowed_tools: Vec<String>,
+    /// Disallowed tools for this agent
+    pub disallowed_tools: Vec<String>,
 }
 
 impl Default for ToolContext {
@@ -75,6 +92,7 @@ impl Default for ToolContext {
             execution_context: ExecutionContext::default(),
             allowed_tools: vec![],
             disallowed_tools: vec![],
+            runtime_agents: std::collections::HashMap::new(),
         }
     }
 }

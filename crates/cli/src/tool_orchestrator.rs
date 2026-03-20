@@ -246,6 +246,7 @@ pub(crate) fn spawn_tools(
                     // management. SDK hooks fire in the main tool_executor path only.
                     sdk_transport: None,
                     sdk_hook_config: None,
+                    runtime_agents: std::collections::HashMap::new(),
                 },
             )
             .await;

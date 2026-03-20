@@ -17,28 +17,43 @@ use tokio::fs;
 pub struct AgentTool;
 
 impl AgentTool {
-    /// Load agent system prompt from .claude/agents/{agent_type}.md
-    pub(crate) async fn load_agent_prompt(agent_type: &str, cwd: &Path) -> Result<String, String> {
+    /// Load agent system prompt from .claude/agents/{agent_type}.md,
+    /// falling back to runtime agents registered via --agents flag.
+    pub(crate) async fn load_agent_prompt(
+        agent_type: &str,
+        cwd: &Path,
+        ctx: &ToolContext,
+    ) -> Result<String, String> {
+        // Try file-based agent first
         let agent_path = cwd
             .join(".claude")
             .join("agents")
             .join(format!("{}.md", agent_type));
 
-        if !agent_path.exists() {
-            return Err(format!(
-                "Agent prompt not found: {}. Expected at: {}",
-                agent_type,
-                agent_path.display()
-            ));
+        if agent_path.exists() {
+            return fs::read_to_string(&agent_path).await.map_err(|e| {
+                format!(
+                    "Failed to read agent prompt {}: {}",
+                    agent_path.display(),
+                    e
+                )
+            });
         }
 
-        fs::read_to_string(&agent_path).await.map_err(|e| {
-            format!(
-                "Failed to read agent prompt {}: {}",
-                agent_path.display(),
-                e
-            )
-        })
+        // Fall back to runtime agents from --agents flag
+        if let Some(runtime_agent) = ctx.runtime_agents.get(agent_type) {
+            tracing::info!(
+                agent_type = %agent_type,
+                "Using runtime agent definition from --agents flag"
+            );
+            return Ok(runtime_agent.prompt.clone());
+        }
+
+        Err(format!(
+            "Agent prompt not found: {}. Expected at: {} (also not found in --agents runtime agents)",
+            agent_type,
+            agent_path.display()
+        ))
     }
 
     /// Convert model name to API model ID
@@ -120,6 +135,7 @@ impl crate::Tool for AgentTool {
         let mut run_in_background =
             params.run_in_background && !rustyclawd_core::is_background_tasks_disabled();
         let param_memory_scope = params.memory_scope.clone();
+        let runtime_agents = ctx.runtime_agents.clone();
 
         Ok(Box::pin(stream! {
             let start_time = Instant::now();
@@ -140,7 +156,13 @@ impl crate::Tool for AgentTool {
             }
 
             // Load agent definition (may contain frontmatter + system prompt)
-            let raw_content = match Self::load_agent_prompt(&agent_type, &cwd).await {
+            // Build a minimal context to pass runtime agents to the loader
+            let load_ctx = ToolContext {
+                cwd: cwd.clone(),
+                runtime_agents: runtime_agents.clone(),
+                ..ToolContext::default()
+            };
+            let raw_content = match Self::load_agent_prompt(&agent_type, &cwd, &load_ctx).await {
                 Ok(content) => content,
                 Err(err) => {
                     yield ToolEvent::Error {
