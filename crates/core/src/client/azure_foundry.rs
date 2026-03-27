@@ -41,39 +41,55 @@ struct CachedToken {
 /// Supports two auth modes:
 /// - **API key**: Set via `AZURE_OPENAI_API_KEY` env var or passed directly
 /// - **Bearer token**: Acquired via `az account get-access-token` (DefaultAzureCredential equivalent)
+///
+/// Supports multiple deployments for load balancing: pass comma-separated
+/// deployment names and requests will round-robin across them.
 #[derive(Clone)]
 pub struct AzureAuth {
     endpoint: String,
-    deployment: String,
+    deployments: Vec<String>,
     api_version: String,
     api_key: Option<String>,
     cached_token: Arc<RwLock<Option<CachedToken>>>,
+    counter: Arc<std::sync::atomic::AtomicUsize>,
 }
 
 impl AzureAuth {
-    /// Create a new Azure auth handle using bearer token auth.
+    /// Create a new Azure auth handle.
     ///
-    /// Does NOT acquire a token yet — that happens lazily on first request.
+    /// `deployment` may be comma-separated for round-robin load balancing
+    /// (e.g. "gpt-54-skwaq,gpt-54-skwaq-2,gpt-54-skwaq-3").
     pub fn new(endpoint: &str, deployment: &str, api_version: &str) -> Self {
-        // Check for API key in environment first
         let api_key = std::env::var("AZURE_OPENAI_API_KEY").ok();
+        let deployments: Vec<String> = deployment
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
         Self {
             endpoint: endpoint.trim_end_matches('/').to_string(),
-            deployment: deployment.to_string(),
+            deployments,
             api_version: api_version.to_string(),
             api_key,
             cached_token: Arc::new(RwLock::new(None)),
+            counter: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
         }
     }
 
     /// Create with an explicit API key (skips bearer token auth entirely).
     pub fn with_api_key(endpoint: &str, deployment: &str, api_version: &str, key: &str) -> Self {
+        let deployments: Vec<String> = deployment
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
         Self {
             endpoint: endpoint.trim_end_matches('/').to_string(),
-            deployment: deployment.to_string(),
+            deployments,
             api_version: api_version.to_string(),
             api_key: Some(key.to_string()),
             cached_token: Arc::new(RwLock::new(None)),
+            counter: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
         }
     }
 
@@ -110,17 +126,32 @@ impl AzureAuth {
         Ok(token)
     }
 
-    /// Build the chat completions URL for this deployment.
-    pub fn chat_url(&self) -> String {
-        format!(
+    /// Pick the next deployment in round-robin order, returning (url, deployment_name).
+    pub fn next_request_target(&self) -> (String, String) {
+        let idx = self
+            .counter
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let deployment = &self.deployments[idx % self.deployments.len()];
+        let url = format!(
             "{}/openai/deployments/{}/chat/completions?api-version={}",
-            self.endpoint, self.deployment, self.api_version
-        )
+            self.endpoint, deployment, self.api_version
+        );
+        (url, deployment.clone())
     }
 
-    /// Get the deployment name (used as model name in requests).
+    /// Build the chat completions URL (uses round-robin).
+    pub fn chat_url(&self) -> String {
+        self.next_request_target().0
+    }
+
+    /// Get the first deployment name (for display/logging).
     pub fn deployment(&self) -> &str {
-        &self.deployment
+        &self.deployments[0]
+    }
+
+    /// Number of deployments configured.
+    pub fn deployment_count(&self) -> usize {
+        self.deployments.len()
     }
 }
 
@@ -181,13 +212,13 @@ pub async fn create_message(
     auth: &AzureAuth,
     request: &CreateMessageRequest,
 ) -> ClientResult<MessageResponse> {
+    let (url, deployment) = auth.next_request_target();
     let mut oai_request = to_oai_request(request);
-    oai_request.model = auth.deployment().to_string();
-    // GPT-5.x requires max_completion_tokens instead of max_tokens
+    oai_request.model = deployment;
     oai_request.max_completion_tokens = oai_request.max_tokens.take();
 
     let mut req_builder = http_client
-        .post(auth.chat_url())
+        .post(&url)
         .header("Content-Type", "application/json")
         .header("Accept", "application/json");
 
@@ -221,13 +252,14 @@ pub async fn create_message_stream(
     auth: &AzureAuth,
     request: &CreateMessageRequest,
 ) -> ClientResult<impl futures::Stream<Item = ClientResult<StreamEvent>>> {
+    let (url, deployment) = auth.next_request_target();
     let mut oai_request = to_oai_request(request);
-    oai_request.model = auth.deployment().to_string();
+    oai_request.model = deployment;
     oai_request.max_completion_tokens = oai_request.max_tokens.take();
     oai_request.stream = true;
 
     let mut req_builder = http_client
-        .post(auth.chat_url())
+        .post(&url)
         .header("Content-Type", "application/json")
         .header("Accept", "text/event-stream");
 
@@ -326,5 +358,26 @@ mod tests {
     fn test_deployment_accessor() {
         let auth = AzureAuth::new("https://x.azure.com", "my-deploy", "2024-10-21");
         assert_eq!(auth.deployment(), "my-deploy");
+    }
+
+    #[test]
+    fn test_multi_deployment_round_robin() {
+        let auth = AzureAuth::new(
+            "https://x.azure.com",
+            "d1,d2,d3",
+            "2024-10-21",
+        );
+        assert_eq!(auth.deployment_count(), 3);
+        let (url1, dep1) = auth.next_request_target();
+        let (url2, dep2) = auth.next_request_target();
+        let (url3, dep3) = auth.next_request_target();
+        let (url4, dep4) = auth.next_request_target();
+        assert_eq!(dep1, "d1");
+        assert_eq!(dep2, "d2");
+        assert_eq!(dep3, "d3");
+        assert_eq!(dep4, "d1"); // wraps around
+        assert!(url1.contains("/d1/"));
+        assert!(url2.contains("/d2/"));
+        assert!(url3.contains("/d3/"));
     }
 }
