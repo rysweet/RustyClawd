@@ -105,6 +105,12 @@ impl InteractiveSession {
                     Backend::Copilot,
                 )
             }
+            Backend::AzureFoundry => {
+                return Err(anyhow::anyhow!(
+                    "Azure AI Foundry backend is not yet supported in interactive mode. \
+                     Use it via the skwaq CLI with [llm] reasoning = \"azure\" in skwaq.toml."
+                ));
+            }
             Backend::Anthropic => match Config::from_default_location().await {
                 Ok(config) => (Arc::new(Client::new(config)?), Backend::Anthropic),
                 Err(rustyclawd_core::client::ClientError::ApiKeyNotFound) => {
@@ -164,6 +170,7 @@ impl InteractiveSession {
         // Pick model: CLI override > backend default
         let model = model_override.unwrap_or_else(|| match backend {
             Backend::Copilot => DEFAULT_COPILOT_MODEL.to_string(),
+            Backend::AzureFoundry => DEFAULT_COPILOT_MODEL.to_string(),
             Backend::Anthropic => DEFAULT_MODEL.to_string(),
         });
 

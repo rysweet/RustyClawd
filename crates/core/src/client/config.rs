@@ -22,6 +22,8 @@ pub enum Backend {
     Anthropic,
     /// GitHub Copilot API (OpenAI-compatible)
     Copilot,
+    /// Azure AI Foundry (OpenAI-compatible, supports GPT-5.x and third-party models)
+    AzureFoundry,
 }
 
 impl Backend {
@@ -30,6 +32,9 @@ impl Backend {
         match s.to_lowercase().as_str() {
             "anthropic" | "claude" => Some(Self::Anthropic),
             "copilot" | "github" | "gh" => Some(Self::Copilot),
+            "azure" | "azure_foundry" | "azure-foundry" | "azurefoundry" => {
+                Some(Self::AzureFoundry)
+            }
             _ => None,
         }
     }
@@ -40,6 +45,7 @@ impl fmt::Display for Backend {
         match self {
             Backend::Anthropic => write!(f, "anthropic"),
             Backend::Copilot => write!(f, "copilot"),
+            Backend::AzureFoundry => write!(f, "azure"),
         }
     }
 }
@@ -281,6 +287,23 @@ impl Config {
             timeout_secs: Self::DEFAULT_TIMEOUT_SECS,
             account_info: crate::env_config::account_info::AccountInfo::from_env(),
             backend: Backend::Copilot,
+        }
+    }
+
+    /// Create an Azure AI Foundry backend configuration.
+    ///
+    /// Uses a placeholder API key since Azure uses its own AD token auth.
+    /// The `api_url` field stores the Azure endpoint for reference but
+    /// actual URL construction is handled by `AzureAuth`.
+    pub fn new_azure_foundry(endpoint: &str) -> Self {
+        let placeholder = ApiKey::new_unchecked("azure-foundry-backend".to_string());
+        Self {
+            api_key: SecretBox::new(Box::new(placeholder)),
+            api_url: endpoint.trim_end_matches('/').to_string(),
+            api_version: Self::DEFAULT_API_VERSION.to_string(),
+            timeout_secs: 300, // Azure deployments can be slower to cold-start
+            account_info: crate::env_config::account_info::AccountInfo::from_env(),
+            backend: Backend::AzureFoundry,
         }
     }
 

@@ -361,7 +361,7 @@ struct OaiFunctionDef {
 /// OpenAI-compatible chat completion request.
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct OaiChatRequest {
-    model: String,
+    pub(crate) model: String,
     messages: Vec<OaiMessage>,
     #[serde(skip_serializing_if = "Option::is_none")]
     max_tokens: Option<u32>,
@@ -369,7 +369,7 @@ pub(crate) struct OaiChatRequest {
     temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     top_p: Option<f32>,
-    stream: bool,
+    pub(crate) stream: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     tools: Option<Vec<OaiToolDef>>,
     n: u32,
