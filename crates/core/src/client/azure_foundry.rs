@@ -59,6 +59,9 @@ impl AzureAuth {
     ///
     /// `deployment` may be comma-separated for round-robin load balancing
     /// (e.g. "gpt-54-skwaq,gpt-54-skwaq-2,gpt-54-skwaq-3").
+    ///
+    /// # Panics
+    /// Panics if `deployment` is empty or contains only whitespace/commas.
     pub fn new(endpoint: &str, deployment: &str, api_version: &str) -> Self {
         let api_key = std::env::var("AZURE_OPENAI_API_KEY").ok();
         let deployments: Vec<String> = deployment
@@ -66,6 +69,10 @@ impl AzureAuth {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
+        assert!(
+            !deployments.is_empty(),
+            "Azure deployment name(s) must not be empty"
+        );
         Self {
             endpoint: endpoint.trim_end_matches('/').to_string(),
             deployments,
@@ -77,12 +84,19 @@ impl AzureAuth {
     }
 
     /// Create with an explicit API key (skips bearer token auth entirely).
+    ///
+    /// # Panics
+    /// Panics if `deployment` is empty or contains only whitespace/commas.
     pub fn with_api_key(endpoint: &str, deployment: &str, api_version: &str, key: &str) -> Self {
         let deployments: Vec<String> = deployment
             .split(',')
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
+        assert!(
+            !deployments.is_empty(),
+            "Azure deployment name(s) must not be empty"
+        );
         Self {
             endpoint: endpoint.trim_end_matches('/').to_string(),
             deployments,
@@ -379,5 +393,17 @@ mod tests {
         assert!(url1.contains("/d1/"));
         assert!(url2.contains("/d2/"));
         assert!(url3.contains("/d3/"));
+    }
+
+    #[test]
+    #[should_panic(expected = "must not be empty")]
+    fn test_empty_deployment_panics() {
+        AzureAuth::new("https://x.azure.com", "", "2024-10-21");
+    }
+
+    #[test]
+    #[should_panic(expected = "must not be empty")]
+    fn test_whitespace_only_deployment_panics() {
+        AzureAuth::new("https://x.azure.com", " , , ", "2024-10-21");
     }
 }
