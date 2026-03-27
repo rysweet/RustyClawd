@@ -364,7 +364,9 @@ pub(crate) struct OaiChatRequest {
     pub(crate) model: String,
     messages: Vec<OaiMessage>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    max_tokens: Option<u32>,
+    pub(crate) max_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) max_completion_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -596,6 +598,7 @@ pub(crate) fn to_oai_request(request: &CreateMessageRequest) -> OaiChatRequest {
         model: request.model.clone(),
         messages,
         max_tokens: Some(request.max_tokens),
+        max_completion_tokens: None,
         temperature: request.temperature,
         top_p: request.top_p,
         stream: request.stream,

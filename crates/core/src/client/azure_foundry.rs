@@ -36,29 +36,50 @@ struct CachedToken {
     expires_at: std::time::Instant,
 }
 
-/// Azure AI Foundry authentication using DefaultAzureCredential.
+/// Azure AI Foundry authentication.
 ///
-/// Acquires tokens from the Azure identity chain (CLI, managed identity,
-/// environment variables, etc.) and caches them until near-expiry.
+/// Supports two auth modes:
+/// - **API key**: Set via `AZURE_OPENAI_API_KEY` env var or passed directly
+/// - **Bearer token**: Acquired via `az account get-access-token` (DefaultAzureCredential equivalent)
 #[derive(Clone)]
 pub struct AzureAuth {
     endpoint: String,
     deployment: String,
     api_version: String,
+    api_key: Option<String>,
     cached_token: Arc<RwLock<Option<CachedToken>>>,
 }
 
 impl AzureAuth {
-    /// Create a new Azure auth handle.
+    /// Create a new Azure auth handle using bearer token auth.
     ///
     /// Does NOT acquire a token yet — that happens lazily on first request.
     pub fn new(endpoint: &str, deployment: &str, api_version: &str) -> Self {
+        // Check for API key in environment first
+        let api_key = std::env::var("AZURE_OPENAI_API_KEY").ok();
         Self {
             endpoint: endpoint.trim_end_matches('/').to_string(),
             deployment: deployment.to_string(),
             api_version: api_version.to_string(),
+            api_key,
             cached_token: Arc::new(RwLock::new(None)),
         }
+    }
+
+    /// Create with an explicit API key (skips bearer token auth entirely).
+    pub fn with_api_key(endpoint: &str, deployment: &str, api_version: &str, key: &str) -> Self {
+        Self {
+            endpoint: endpoint.trim_end_matches('/').to_string(),
+            deployment: deployment.to_string(),
+            api_version: api_version.to_string(),
+            api_key: Some(key.to_string()),
+            cached_token: Arc::new(RwLock::new(None)),
+        }
+    }
+
+    /// Whether this auth uses API key (vs bearer token).
+    pub fn uses_api_key(&self) -> bool {
+        self.api_key.is_some()
     }
 
     /// Get a valid bearer token, refreshing if expired or absent.
@@ -160,16 +181,24 @@ pub async fn create_message(
     auth: &AzureAuth,
     request: &CreateMessageRequest,
 ) -> ClientResult<MessageResponse> {
-    let token = auth.get_token().await?;
     let mut oai_request = to_oai_request(request);
-    // Use the deployment name as the model
     oai_request.model = auth.deployment().to_string();
+    // GPT-5.x requires max_completion_tokens instead of max_tokens
+    oai_request.max_completion_tokens = oai_request.max_tokens.take();
 
-    let response = http_client
+    let mut req_builder = http_client
         .post(auth.chat_url())
-        .header("Authorization", format!("Bearer {token}"))
         .header("Content-Type", "application/json")
-        .header("Accept", "application/json")
+        .header("Accept", "application/json");
+
+    if let Some(ref key) = auth.api_key {
+        req_builder = req_builder.header("api-key", key.as_str());
+    } else {
+        let token = auth.get_token().await?;
+        req_builder = req_builder.header("Authorization", format!("Bearer {token}"));
+    }
+
+    let response = req_builder
         .json(&oai_request)
         .send()
         .await?;
@@ -192,16 +221,24 @@ pub async fn create_message_stream(
     auth: &AzureAuth,
     request: &CreateMessageRequest,
 ) -> ClientResult<impl futures::Stream<Item = ClientResult<StreamEvent>>> {
-    let token = auth.get_token().await?;
     let mut oai_request = to_oai_request(request);
     oai_request.model = auth.deployment().to_string();
+    oai_request.max_completion_tokens = oai_request.max_tokens.take();
     oai_request.stream = true;
 
-    let response = http_client
+    let mut req_builder = http_client
         .post(auth.chat_url())
-        .header("Authorization", format!("Bearer {token}"))
         .header("Content-Type", "application/json")
-        .header("Accept", "text/event-stream")
+        .header("Accept", "text/event-stream");
+
+    if let Some(ref key) = auth.api_key {
+        req_builder = req_builder.header("api-key", key.as_str());
+    } else {
+        let token = auth.get_token().await?;
+        req_builder = req_builder.header("Authorization", format!("Bearer {token}"));
+    }
+
+    let response = req_builder
         .json(&oai_request)
         .send()
         .await?;
