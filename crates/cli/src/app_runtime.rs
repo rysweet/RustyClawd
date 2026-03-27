@@ -509,7 +509,7 @@ impl App {
             .as_deref()
             .map(|p| {
                 Backend::from_str_loose(p).ok_or_else(|| {
-                    anyhow::anyhow!("Unknown provider '{}'. Use 'anthropic' or 'copilot'.", p)
+                    anyhow::anyhow!("Unknown provider '{}'. Use 'anthropic', 'copilot', or 'azure'.", p)
                 })
             })
             .transpose()?

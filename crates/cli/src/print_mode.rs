@@ -277,6 +277,12 @@ impl App {
                     println!("Use --provider copilot --model <id> to select a model.");
                 }
             }
+            Backend::AzureFoundry => {
+                println!("Azure AI Foundry models are configured via deployment name.");
+                println!("Set deployment in your config: [llm.azure] deployment = \"gpt-51\"");
+                println!();
+                println!("Common deployments: gpt-5.1, gpt-5.4, claude-opus-4-6");
+            }
         }
         Ok(())
     }
@@ -323,7 +329,7 @@ impl App {
             .as_deref()
             .map(|p| {
                 Backend::from_str_loose(p).ok_or_else(|| {
-                    anyhow::anyhow!("Unknown provider '{}'. Use 'anthropic' or 'copilot'.", p)
+                    anyhow::anyhow!("Unknown provider '{}'. Use 'anthropic', 'copilot', or 'azure'.", p)
                 })
             })
             .transpose()?
@@ -370,6 +376,12 @@ impl App {
                     }
                     Err(e) => return Err(e.into()),
                 }
+            }
+            Backend::AzureFoundry => {
+                return Err(anyhow::anyhow!(
+                    "Azure AI Foundry backend is not yet supported in RustyClawd CLI print mode. \
+                     Use it via the skwaq CLI."
+                ));
             }
         };
 

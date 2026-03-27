@@ -38,6 +38,7 @@
 
 pub mod config;
 pub mod copilot;
+pub mod azure_foundry;
 pub mod error;
 pub mod request;
 pub mod response;
@@ -58,6 +59,7 @@ use std::time::Duration;
 
 pub use config::{ApiKey, Backend, Config};
 pub use copilot::{CopilotAuth, CopilotModel};
+pub use azure_foundry::AzureAuth;
 pub use error::{ClientError, ClientResult};
 pub use request::{CreateMessageRequest, Metadata, Speed, ThinkingConfig};
 pub use response::{
@@ -70,7 +72,7 @@ pub use types::{
     ContentBlock, ExtraToolSchema, Message, MessageContent, Role, ToolChoice, ToolDefinition,
 };
 
-/// API client supporting Anthropic and GitHub Copilot backends.
+/// API client supporting Anthropic, GitHub Copilot, and Azure AI Foundry backends.
 #[derive(Clone)]
 pub struct Client {
     config: Config,
@@ -78,6 +80,8 @@ pub struct Client {
     retry_config: RetryConfig,
     /// Copilot authentication state (only present when backend is Copilot)
     copilot_auth: Option<CopilotAuth>,
+    /// Azure AI Foundry authentication state (only present when backend is AzureFoundry)
+    azure_auth: Option<AzureAuth>,
 }
 
 impl Client {
@@ -92,6 +96,7 @@ impl Client {
 
         Ok(Self {
             copilot_auth: None,
+            azure_auth: None,
             config,
             http_client,
             retry_config: RetryConfig::default(),
@@ -109,6 +114,7 @@ impl Client {
 
         Ok(Self {
             copilot_auth: None,
+            azure_auth: None,
             config,
             http_client,
             retry_config,
@@ -130,6 +136,34 @@ impl Client {
 
         Ok(Self {
             copilot_auth: Some(auth),
+            azure_auth: None,
+            config,
+            http_client,
+            retry_config: RetryConfig::default(),
+        })
+    }
+
+    /// Create a client configured for Azure AI Foundry.
+    ///
+    /// Token acquisition is lazy — the first request triggers `az account get-access-token`.
+    pub fn new_azure_foundry(
+        endpoint: &str,
+        deployment: &str,
+        api_version: &str,
+    ) -> ClientResult<Self> {
+        let config = Config::new_azure_foundry(endpoint);
+        let timeout = Duration::from_secs(config.timeout_secs);
+
+        let http_client = HttpClient::builder()
+            .timeout(timeout)
+            .build()
+            .map_err(|e| ClientError::Unknown(format!("Failed to build HTTP client: {}", e)))?;
+
+        let auth = AzureAuth::new(endpoint, deployment, api_version);
+
+        Ok(Self {
+            copilot_auth: None,
+            azure_auth: Some(auth),
             config,
             http_client,
             retry_config: RetryConfig::default(),
@@ -191,7 +225,7 @@ impl Client {
 
     /// Create a message (non-streaming) with automatic retry logic.
     ///
-    /// Dispatches to the appropriate backend (Anthropic or Copilot).
+    /// Dispatches to the appropriate backend (Anthropic, Copilot, or Azure).
     pub async fn create_message(
         &self,
         request: CreateMessageRequest,
@@ -206,6 +240,18 @@ impl Client {
                 })?;
                 self.with_retry("copilot request", || {
                     copilot::create_message(&self.http_client, auth, &request)
+                })
+                .await
+            }
+            config::Backend::AzureFoundry => {
+                let auth = self.azure_auth.as_ref().ok_or_else(|| {
+                    ClientError::Unknown(
+                        "Azure backend requires authentication. Use Client::new_azure_foundry()."
+                            .to_string(),
+                    )
+                })?;
+                self.with_retry("azure request", || {
+                    azure_foundry::create_message(&self.http_client, auth, &request)
                 })
                 .await
             }
@@ -280,7 +326,7 @@ impl Client {
 
     /// Create a message with streaming and automatic retry logic.
     ///
-    /// Dispatches to the appropriate backend (Anthropic or Copilot).
+    /// Dispatches to the appropriate backend (Anthropic, Copilot, or Azure).
     /// Returns a boxed stream to unify the different backend stream types.
     pub async fn create_message_stream(
         &self,
@@ -299,6 +345,17 @@ impl Client {
                 })?;
                 let stream =
                     copilot::create_message_stream(&self.http_client, auth, &request).await?;
+                Ok(stream.boxed())
+            }
+            config::Backend::AzureFoundry => {
+                let auth = self.azure_auth.as_ref().ok_or_else(|| {
+                    ClientError::Unknown(
+                        "Azure backend requires authentication. Use Client::new_azure_foundry()."
+                            .to_string(),
+                    )
+                })?;
+                let stream =
+                    azure_foundry::create_message_stream(&self.http_client, auth, &request).await?;
                 Ok(stream.boxed())
             }
             config::Backend::Anthropic => {
