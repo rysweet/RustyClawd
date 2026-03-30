@@ -6,7 +6,7 @@
 //!
 //! Auth flow:
 //! 1. Get GitHub token from `gh auth token`, GITHUB_TOKEN env, or config files
-//! 2. Validate direct Copilot access against `api.githubcopilot.com`
+//! 2. Validate direct Copilot access against the Copilot API endpoint
 //! 3. Fail explicitly if validation fails
 //!
 //! Reference: <https://docs.rs/copilot-client/latest/copilot_client/>
@@ -28,14 +28,44 @@ use super::types::{ContentBlock, MessageContent, Role};
 // Copilot API endpoints
 // ---------------------------------------------------------------------------
 
-const COPILOT_CHAT_URL: &str = "https://api.githubcopilot.com/chat/completions";
-const COPILOT_MODELS_URL: &str = "https://api.githubcopilot.com/models";
+const DEFAULT_COPILOT_BASE: &str = "https://api.githubcopilot.com";
+const DEFAULT_INTEGRATION_ID: &str = "rustyclawd";
 const COPILOT_USER_AGENT: &str = concat!(
     "RustyClawd/",
     env!("CARGO_PKG_VERSION"),
     " (GitHub Copilot Integration)"
 );
-const COPILOT_AUTH_HINT: &str = "This backend only uses api.githubcopilot.com. Refresh GitHub Copilot auth with: gh auth refresh --hostname github.com --scopes copilot";
+const COPILOT_AUTH_HINT: &str = "This backend only uses the GitHub Copilot API. Refresh GitHub Copilot auth with: gh auth refresh --hostname github.com --scopes copilot";
+
+/// Return the Copilot API base URL.
+///
+/// Checks `GITHUB_COPILOT_ENDPOINT` env var first, then falls back to
+/// `https://api.githubcopilot.com`. Enterprise users should set this to
+/// `https://api.enterprise.githubcopilot.com`.
+fn copilot_base_url() -> String {
+    std::env::var("GITHUB_COPILOT_ENDPOINT")
+        .unwrap_or_else(|_| DEFAULT_COPILOT_BASE.to_string())
+        .trim_end_matches('/')
+        .to_string()
+}
+
+fn copilot_chat_url() -> String {
+    format!("{}/chat/completions", copilot_base_url())
+}
+
+fn copilot_models_url() -> String {
+    format!("{}/models", copilot_base_url())
+}
+
+/// Return the Copilot-Integration-Id header value.
+///
+/// Checks `GITHUB_COPILOT_INTEGRATION_ID` env var first, then falls back
+/// to `rustyclawd`. Using `copilot-developer-cli` shares the Copilot CLI's
+/// rate limit bucket on enterprise plans.
+fn copilot_integration_id() -> String {
+    std::env::var("GITHUB_COPILOT_INTEGRATION_ID")
+        .unwrap_or_else(|_| DEFAULT_INTEGRATION_ID.to_string())
+}
 
 // ---------------------------------------------------------------------------
 // GitHub token acquisition
@@ -168,7 +198,10 @@ impl CopilotAuth {
     /// hitting the Copilot models endpoint. Surfaces auth errors at startup
     /// rather than deferring them to the first API call.
     pub async fn connect(github_token: String, http_client: HttpClient) -> ClientResult<Self> {
-        Self::connect_with_validation_url(github_token, http_client, COPILOT_MODELS_URL).await
+        let base = copilot_base_url();
+        tracing::info!("Using Copilot API at {}", base);
+        let models_url = copilot_models_url();
+        Self::connect_with_validation_url(github_token, http_client, &models_url).await
     }
 
     async fn connect_with_validation_url(
@@ -275,7 +308,7 @@ pub async fn list_models(auth: &CopilotAuth) -> ClientResult<Vec<CopilotModel>> 
 
     let response = auth
         .http_client
-        .get(COPILOT_MODELS_URL)
+        .get(&copilot_models_url())
         .header("Authorization", format!("Bearer {}", token))
         .header("Accept", "application/json")
         .header("User-Agent", COPILOT_USER_AGENT)
@@ -747,13 +780,13 @@ pub async fn create_message(
     oai_request.model = auth.qualify_model(&oai_request.model);
 
     let response = http_client
-        .post(COPILOT_CHAT_URL)
+        .post(&copilot_chat_url())
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
         .header("User-Agent", COPILOT_USER_AGENT)
-        .header("Copilot-Integration-Id", "rustyclawd")
-        .header("Editor-Version", "RustyClawd/0.1.0")
+        .header("Copilot-Integration-Id", &copilot_integration_id())
+        .header("Editor-Version", &copilot_integration_id())
         .json(&oai_request)
         .send()
         .await?;
@@ -780,13 +813,13 @@ pub async fn create_message_stream(
     oai_request.stream = true;
 
     let response = http_client
-        .post(COPILOT_CHAT_URL)
+        .post(&copilot_chat_url())
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .header("Accept", "text/event-stream")
         .header("User-Agent", COPILOT_USER_AGENT)
-        .header("Copilot-Integration-Id", "rustyclawd")
-        .header("Editor-Version", "RustyClawd/0.1.0")
+        .header("Copilot-Integration-Id", &copilot_integration_id())
+        .header("Editor-Version", &copilot_integration_id())
         .json(&oai_request)
         .send()
         .await?;
