@@ -63,6 +63,7 @@ impl AzureAuth {
     /// # Panics
     /// Panics if `deployment` is empty or contains only whitespace/commas.
     pub fn new(endpoint: &str, deployment: &str, api_version: &str) -> Self {
+        validate_azure_endpoint(endpoint);
         let api_key = std::env::var("AZURE_OPENAI_API_KEY").ok();
         let deployments: Vec<String> = deployment
             .split(',')
@@ -113,29 +114,29 @@ impl AzureAuth {
     }
 
     /// Get a valid bearer token, refreshing if expired or absent.
+    ///
+    /// Uses a write lock for the entire check-acquire cycle to prevent
+    /// concurrent requests from triggering redundant `az` CLI calls.
     pub async fn get_token(&self) -> ClientResult<String> {
-        // Check cache first
-        {
-            let cache = self.cached_token.read().await;
-            if let Some(ref tok) = *cache {
-                // Refresh 60s before expiry to avoid edge-case failures
-                if tok.expires_at > std::time::Instant::now() + std::time::Duration::from_secs(60) {
-                    return Ok(tok.value.clone());
-                }
+        let mut cache = self.cached_token.write().await;
+
+        // Return cached token if still valid (with 60s buffer)
+        if let Some(ref tok) = *cache {
+            if tok.expires_at > std::time::Instant::now() + std::time::Duration::from_secs(60) {
+                return Ok(tok.value.clone());
             }
         }
 
         // Acquire a new token via az CLI (DefaultAzureCredential equivalent)
         let token = acquire_azure_token().await?;
-        let expires_at = std::time::Instant::now() + std::time::Duration::from_secs(3000);
+        // Azure AD tokens typically expire in 3600s; we use a conservative 3540s
+        // (60s buffer) since we don't parse the actual exp claim from the JWT.
+        let expires_at = std::time::Instant::now() + std::time::Duration::from_secs(3540);
 
-        {
-            let mut cache = self.cached_token.write().await;
-            *cache = Some(CachedToken {
-                value: token.clone(),
-                expires_at,
-            });
-        }
+        *cache = Some(CachedToken {
+            value: token.clone(),
+            expires_at,
+        });
 
         Ok(token)
     }
@@ -169,6 +170,24 @@ impl AzureAuth {
     }
 }
 
+/// Validate that an Azure endpoint looks like a reasonable HTTPS URL.
+///
+/// # Panics
+/// Panics if the endpoint is empty, uses a non-HTTPS scheme, or has no host.
+fn validate_azure_endpoint(endpoint: &str) {
+    let trimmed = endpoint.trim().trim_end_matches('/');
+    assert!(!trimmed.is_empty(), "Azure endpoint must not be empty");
+    assert!(
+        trimmed.starts_with("https://"),
+        "Azure endpoint must use HTTPS (got: {trimmed})"
+    );
+    let host = trimmed.strip_prefix("https://").unwrap_or("");
+    assert!(
+        host.contains('.') && !host.starts_with('.'),
+        "Azure endpoint has an invalid hostname"
+    );
+}
+
 /// Acquire an Azure AD token using `az account get-access-token`.
 ///
 /// This is the CLI-based equivalent of `DefaultAzureCredential` — it works
@@ -200,10 +219,11 @@ async fn acquire_azure_token() -> ClientResult<String> {
         })?;
 
     if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(ClientError::Unknown(format!(
-            "Azure CLI token acquisition failed: {stderr}"
-        )));
+        return Err(ClientError::Unknown(
+            "Azure CLI token acquisition failed. Ensure Azure CLI is installed \
+             and you have run `az login`."
+                .to_string(),
+        ));
     }
 
     let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -396,5 +416,17 @@ mod tests {
     #[should_panic(expected = "must not be empty")]
     fn test_whitespace_only_deployment_panics() {
         AzureAuth::new("https://x.azure.com", " , , ", "2024-10-21");
+    }
+
+    #[test]
+    #[should_panic(expected = "must use HTTPS")]
+    fn test_http_endpoint_panics() {
+        AzureAuth::new("http://x.azure.com", "deploy", "2024-10-21");
+    }
+
+    #[test]
+    #[should_panic(expected = "must not be empty")]
+    fn test_empty_endpoint_panics() {
+        AzureAuth::new("", "deploy", "2024-10-21");
     }
 }

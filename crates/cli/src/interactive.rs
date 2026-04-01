@@ -34,6 +34,22 @@ pub struct AzureConfig {
     pub api_version: String,
 }
 
+impl AzureConfig {
+    /// Create a validated Azure config. Returns an error if any field is empty.
+    pub fn new(endpoint: String, deployment: String, api_version: String) -> Result<Self> {
+        if endpoint.trim().is_empty() {
+            return Err(anyhow::anyhow!("Azure endpoint cannot be empty"));
+        }
+        if deployment.trim().is_empty() {
+            return Err(anyhow::anyhow!("Azure deployment cannot be empty"));
+        }
+        if api_version.trim().is_empty() {
+            return Err(anyhow::anyhow!("Azure API version cannot be empty"));
+        }
+        Ok(Self { endpoint, deployment, api_version })
+    }
+}
+
 /// Default model for interactive sessions (Anthropic backend)
 pub(crate) const DEFAULT_MODEL: &str = "claude-opus-4-6";
 
