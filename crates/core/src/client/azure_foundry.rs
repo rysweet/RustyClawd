@@ -243,10 +243,7 @@ pub async fn create_message(
         req_builder = req_builder.header("Authorization", format!("Bearer {token}"));
     }
 
-    let response = req_builder
-        .json(&oai_request)
-        .send()
-        .await?;
+    let response = req_builder.json(&oai_request).send().await?;
 
     if !response.status().is_success() {
         return Err(ClientError::from_response(response).await);
@@ -284,10 +281,7 @@ pub async fn create_message_stream(
         req_builder = req_builder.header("Authorization", format!("Bearer {token}"));
     }
 
-    let response = req_builder
-        .json(&oai_request)
-        .send()
-        .await?;
+    let response = req_builder.json(&oai_request).send().await?;
 
     if !response.status().is_success() {
         return Err(ClientError::from_response(response).await);
@@ -376,11 +370,7 @@ mod tests {
 
     #[test]
     fn test_multi_deployment_round_robin() {
-        let auth = AzureAuth::new(
-            "https://x.azure.com",
-            "d1,d2,d3",
-            "2024-10-21",
-        );
+        let auth = AzureAuth::new("https://x.azure.com", "d1,d2,d3", "2024-10-21");
         assert_eq!(auth.deployment_count(), 3);
         let (url1, dep1) = auth.next_request_target();
         let (url2, dep2) = auth.next_request_target();
@@ -393,6 +383,7 @@ mod tests {
         assert!(url1.contains("/d1/"));
         assert!(url2.contains("/d2/"));
         assert!(url3.contains("/d3/"));
+        assert!(url4.contains("/d1/")); // wraps around
     }
 
     #[test]

@@ -508,6 +508,7 @@ mod tests {
             execution_context: rustyclawd_tools::ExecutionContext::NonInteractive,
             allowed_tools: vec![],
             disallowed_tools: vec![],
+            runtime_agents: std::collections::HashMap::new(),
         };
 
         // Missing required fields
@@ -536,6 +537,7 @@ mod tests {
             execution_context: rustyclawd_tools::ExecutionContext::NonInteractive,
             allowed_tools: vec![],
             disallowed_tools: vec![],
+            runtime_agents: std::collections::HashMap::new(),
         };
 
         // Wrong type for subagent_type (should be string)

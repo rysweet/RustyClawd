@@ -69,7 +69,9 @@ pub use task::{
     TaskUpdateOutput, TaskUpdateParams, TaskUpdateTool,
 };
 pub use todo_write::TodoWriteTool;
-pub use types::{ExecutionContext, RuntimeAgentInfo, ToolContext, ToolEvent, ToolMetadata, ToolStream};
+pub use types::{
+    ExecutionContext, RuntimeAgentInfo, ToolContext, ToolEvent, ToolMetadata, ToolStream,
+};
 pub use web_fetch::WebFetchTool;
 pub use web_search::WebSearchTool;
 pub use write::WriteTool;

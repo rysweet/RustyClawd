@@ -36,9 +36,9 @@
 //! }
 //! ```
 
+pub mod azure_foundry;
 pub mod config;
 pub mod copilot;
-pub mod azure_foundry;
 pub mod error;
 pub mod request;
 pub mod response;
@@ -57,9 +57,9 @@ use secrecy::ExposeSecret;
 use std::future::Future;
 use std::time::Duration;
 
+pub use azure_foundry::AzureAuth;
 pub use config::{ApiKey, Backend, Config};
 pub use copilot::{CopilotAuth, CopilotModel};
-pub use azure_foundry::AzureAuth;
 pub use error::{ClientError, ClientResult};
 pub use request::{CreateMessageRequest, Metadata, Speed, ThinkingConfig};
 pub use response::{
