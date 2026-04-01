@@ -203,15 +203,24 @@ impl App {
             .with_context(|| format!("Failed to read prompt file: {}", prompt_file))?;
 
         // Create tool context
-        let runtime_agents_info: std::collections::HashMap<String, rustyclawd_tools::RuntimeAgentInfo> =
-            self.runtime_agents.iter().map(|(name, def)| {
-                (name.clone(), rustyclawd_tools::RuntimeAgentInfo {
-                    prompt: def.prompt.clone(),
-                    model: def.model.clone(),
-                    allowed_tools: def.allowed_tools.clone(),
-                    disallowed_tools: def.disallowed_tools.clone(),
-                })
-            }).collect();
+        let runtime_agents_info: std::collections::HashMap<
+            String,
+            rustyclawd_tools::RuntimeAgentInfo,
+        > = self
+            .runtime_agents
+            .iter()
+            .map(|(name, def)| {
+                (
+                    name.clone(),
+                    rustyclawd_tools::RuntimeAgentInfo {
+                        prompt: def.prompt.clone(),
+                        model: def.model.clone(),
+                        allowed_tools: def.allowed_tools.clone(),
+                        disallowed_tools: def.disallowed_tools.clone(),
+                    },
+                )
+            })
+            .collect();
         let ctx = ToolContext {
             cwd: std::env::current_dir().unwrap_or_default(),
             debug: self.cli.verbose,
@@ -509,11 +518,40 @@ impl App {
             .as_deref()
             .map(|p| {
                 Backend::from_str_loose(p).ok_or_else(|| {
-                    anyhow::anyhow!("Unknown provider '{}'. Use 'anthropic', 'copilot', or 'azure'.", p)
+                    anyhow::anyhow!(
+                        "Unknown provider '{}'. Use 'anthropic', 'copilot', or 'azure'.",
+                        p
+                    )
                 })
             })
             .transpose()?
             .unwrap_or(Backend::Anthropic);
+
+        let azure_config = if backend == Backend::AzureFoundry {
+            Some(interactive::AzureConfig {
+                endpoint: self
+                    .cli
+                    .azure_endpoint
+                    .clone()
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "Azure AI Foundry requires --azure-endpoint (or AZURE_FOUNDRY_ENDPOINT env var)"
+                        )
+                    })?,
+                deployment: self
+                    .cli
+                    .azure_deployment
+                    .clone()
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "Azure AI Foundry requires --azure-deployment (or AZURE_OPENAI_DEPLOYMENT env var)"
+                        )
+                    })?,
+                api_version: self.cli.azure_api_version.clone(),
+            })
+        } else {
+            None
+        };
 
         interactive::run_interactive_with_config(
             Some(hooks),
@@ -521,6 +559,7 @@ impl App {
             disallowed_tools,
             backend,
             self.cli.model.clone(),
+            azure_config,
         )
         .await
     }

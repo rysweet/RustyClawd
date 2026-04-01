@@ -329,7 +329,10 @@ impl App {
             .as_deref()
             .map(|p| {
                 Backend::from_str_loose(p).ok_or_else(|| {
-                    anyhow::anyhow!("Unknown provider '{}'. Use 'anthropic', 'copilot', or 'azure'.", p)
+                    anyhow::anyhow!(
+                        "Unknown provider '{}'. Use 'anthropic', 'copilot', or 'azure'.",
+                        p
+                    )
                 })
             })
             .transpose()?
@@ -378,10 +381,29 @@ impl App {
                 }
             }
             Backend::AzureFoundry => {
-                return Err(anyhow::anyhow!(
-                    "Azure AI Foundry backend is not yet supported in RustyClawd CLI print mode. \
-                     Use it via the skwaq CLI."
-                ));
+                let endpoint = self
+                    .cli
+                    .azure_endpoint
+                    .as_deref()
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "Azure AI Foundry requires --azure-endpoint (or AZURE_FOUNDRY_ENDPOINT env var)"
+                        )
+                    })?;
+                let deployment = self
+                    .cli
+                    .azure_deployment
+                    .as_deref()
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "Azure AI Foundry requires --azure-deployment (or AZURE_OPENAI_DEPLOYMENT env var)"
+                        )
+                    })?;
+                let api_version = &self.cli.azure_api_version;
+                (
+                    Client::new_azure_foundry(endpoint, deployment, api_version)?,
+                    Backend::AzureFoundry,
+                )
             }
         };
 
@@ -554,15 +576,24 @@ impl App {
         let start_time = std::time::Instant::now();
 
         // Convert App runtime agents to tool-layer RuntimeAgentInfo
-        let runtime_agents_for_tools: std::collections::HashMap<String, rustyclawd_tools::RuntimeAgentInfo> =
-            self.runtime_agents.iter().map(|(name, def)| {
-                (name.clone(), rustyclawd_tools::RuntimeAgentInfo {
-                    prompt: def.prompt.clone(),
-                    model: def.model.clone(),
-                    allowed_tools: def.allowed_tools.clone(),
-                    disallowed_tools: def.disallowed_tools.clone(),
-                })
-            }).collect();
+        let runtime_agents_for_tools: std::collections::HashMap<
+            String,
+            rustyclawd_tools::RuntimeAgentInfo,
+        > = self
+            .runtime_agents
+            .iter()
+            .map(|(name, def)| {
+                (
+                    name.clone(),
+                    rustyclawd_tools::RuntimeAgentInfo {
+                        prompt: def.prompt.clone(),
+                        model: def.model.clone(),
+                        allowed_tools: def.allowed_tools.clone(),
+                        disallowed_tools: def.disallowed_tools.clone(),
+                    },
+                )
+            })
+            .collect();
 
         // Build the tool executor closure factory (shared by primary and fallback)
         macro_rules! make_tool_executor {

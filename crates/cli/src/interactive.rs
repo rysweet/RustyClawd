@@ -26,6 +26,14 @@ use std::io::{self, Write};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+/// Azure AI Foundry configuration for interactive/print modes.
+#[derive(Clone, Debug)]
+pub struct AzureConfig {
+    pub endpoint: String,
+    pub deployment: String,
+    pub api_version: String,
+}
+
 /// Default model for interactive sessions (Anthropic backend)
 pub(crate) const DEFAULT_MODEL: &str = "claude-opus-4-6";
 
@@ -82,7 +90,7 @@ impl InteractiveSession {
 
     /// Create a new interactive session with optional hooks system
     pub async fn with_hooks(hooks: Option<Arc<hooks::HooksSystem>>) -> Result<Self> {
-        Self::with_hooks_and_backend(hooks, Backend::Anthropic, None).await
+        Self::with_hooks_and_backend(hooks, Backend::Anthropic, None, None).await
     }
 
     /// Create a new interactive session with optional hooks system, backend, and model.
@@ -90,6 +98,7 @@ impl InteractiveSession {
         hooks: Option<Arc<hooks::HooksSystem>>,
         backend: Backend,
         model_override: Option<String>,
+        azure_config: Option<AzureConfig>,
     ) -> Result<Self> {
         // Set execution context to TUI mode for process isolation
         terminal_guard::set_execution_context(terminal_guard::ExecutionContext::Tui);
@@ -106,10 +115,19 @@ impl InteractiveSession {
                 )
             }
             Backend::AzureFoundry => {
-                return Err(anyhow::anyhow!(
-                    "Azure AI Foundry backend is not yet supported in interactive mode. \
-                     Use it via the skwaq CLI with [llm] reasoning = \"azure\" in skwaq.toml."
-                ));
+                let cfg = azure_config.ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "Azure AI Foundry requires --azure-endpoint and --azure-deployment"
+                    )
+                })?;
+                (
+                    Arc::new(Client::new_azure_foundry(
+                        &cfg.endpoint,
+                        &cfg.deployment,
+                        &cfg.api_version,
+                    )?),
+                    Backend::AzureFoundry,
+                )
             }
             Backend::Anthropic => match Config::from_default_location().await {
                 Ok(config) => (Arc::new(Client::new(config)?), Backend::Anthropic),
@@ -692,7 +710,7 @@ pub async fn run_interactive() -> Result<()> {
 
 /// Entry point for interactive mode with optional hooks system
 pub async fn run_interactive_with_hooks(hooks: Option<Arc<hooks::HooksSystem>>) -> Result<()> {
-    run_interactive_with_config(hooks, vec![], vec![], Backend::Anthropic, None).await
+    run_interactive_with_config(hooks, vec![], vec![], Backend::Anthropic, None, None).await
 }
 
 /// Entry point for interactive mode with full configuration
@@ -702,9 +720,11 @@ pub async fn run_interactive_with_config(
     disallowed_tools: Vec<String>,
     backend: Backend,
     model_override: Option<String>,
+    azure_config: Option<AzureConfig>,
 ) -> Result<()> {
     let mut session =
-        InteractiveSession::with_hooks_and_backend(hooks, backend, model_override).await?;
+        InteractiveSession::with_hooks_and_backend(hooks, backend, model_override, azure_config)
+            .await?;
     session.allowed_tools = allowed_tools;
     session.disallowed_tools = disallowed_tools;
     session.run().await

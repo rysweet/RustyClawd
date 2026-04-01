@@ -36,13 +36,25 @@ pub(crate) struct Cli {
     #[arg(long)]
     pub(crate) model: Option<String>,
 
-    /// API provider: "anthropic" (default) or "copilot" (GitHub Copilot)
+    /// API provider: "anthropic" (default), "copilot" (GitHub Copilot), or "azure" (Azure AI Foundry)
     #[arg(long, value_name = "PROVIDER")]
     pub(crate) provider: Option<String>,
 
     /// List available models for the selected provider and exit
     #[arg(long)]
     pub(crate) list_models: bool,
+
+    /// Azure AI Foundry endpoint URL (e.g., "https://myresource.openai.azure.com")
+    #[arg(long, value_name = "URL", env = "AZURE_FOUNDRY_ENDPOINT")]
+    pub(crate) azure_endpoint: Option<String>,
+
+    /// Azure AI Foundry deployment name(s), comma-separated for round-robin
+    #[arg(long, value_name = "NAME", env = "AZURE_OPENAI_DEPLOYMENT")]
+    pub(crate) azure_deployment: Option<String>,
+
+    /// Azure OpenAI API version (default: "2024-10-21")
+    #[arg(long, value_name = "VERSION", default_value = "2024-10-21")]
+    pub(crate) azure_api_version: String,
 
     /// Replace entire system prompt with custom text
     #[arg(long)]
