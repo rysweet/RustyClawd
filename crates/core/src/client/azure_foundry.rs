@@ -195,28 +195,39 @@ fn validate_azure_endpoint(endpoint: &str) {
 /// scenarios, the AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_CLIENT_SECRET
 /// environment variables can be used with the azure_identity crate (future).
 async fn acquire_azure_token() -> ClientResult<String> {
-    // Try az CLI first (most common for dev scenarios)
-    let output = tokio::process::Command::new("az")
-        .args([
-            "account",
-            "get-access-token",
-            "--resource",
-            AZURE_COGNITIVE_SCOPE
-                .strip_suffix("/.default")
-                .unwrap_or(AZURE_COGNITIVE_SCOPE),
-            "--query",
-            "accessToken",
-            "--output",
-            "tsv",
-        ])
-        .output()
-        .await
-        .map_err(|e| {
-            ClientError::Unknown(format!(
-                "Failed to run `az account get-access-token`: {e}. \
-                 Ensure Azure CLI is installed and you have run `az login`."
-            ))
-        })?;
+    // Try az CLI first (most common for dev scenarios).
+    // 30s timeout prevents indefinite hangs if Azure identity servers are unreachable.
+    let output = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        tokio::process::Command::new("az")
+            .args([
+                "account",
+                "get-access-token",
+                "--resource",
+                AZURE_COGNITIVE_SCOPE
+                    .strip_suffix("/.default")
+                    .unwrap_or(AZURE_COGNITIVE_SCOPE),
+                "--query",
+                "accessToken",
+                "--output",
+                "tsv",
+            ])
+            .output(),
+    )
+    .await
+    .map_err(|_| {
+        ClientError::Unknown(
+            "Azure CLI token acquisition timed out after 30s. \
+             Check network connectivity to Microsoft identity servers."
+                .to_string(),
+        )
+    })?
+    .map_err(|e| {
+        ClientError::Unknown(format!(
+            "Failed to run `az account get-access-token`: {e}. \
+             Ensure Azure CLI is installed and you have run `az login`."
+        ))
+    })?;
 
     if !output.status.success() {
         return Err(ClientError::Unknown(
@@ -270,6 +281,11 @@ pub async fn create_message(
     }
 
     let oai_response: OaiChatResponse = response.json().await?;
+    if oai_response.choices.is_empty() {
+        return Err(ClientError::Unknown(
+            "Azure API returned a response with no choices".to_string(),
+        ));
+    }
     Ok(from_oai_response(oai_response))
 }
 
@@ -312,11 +328,18 @@ pub async fn create_message_stream(
 
     let byte_stream = response.bytes_stream();
     let block_index: u32 = 0;
+    let pending_events: Vec<StreamEvent> = Vec::new();
 
     Ok(futures::stream::unfold(
-        (byte_stream, String::new(), block_index),
-        move |(mut stream, mut buffer, mut bi)| async move {
+        (byte_stream, String::new(), block_index, pending_events),
+        move |(mut stream, mut buffer, mut bi, mut pending)| async move {
             use futures::TryStreamExt;
+
+            // Yield any buffered events from a previous chunk first
+            if let Some(event) = pending.pop() {
+                return Some((Ok(event), (stream, buffer, bi, pending)));
+            }
+
             loop {
                 // Try to parse any complete SSE events from the buffer
                 while let Some(line_end) = buffer.find('\n') {
@@ -327,10 +350,21 @@ pub async fn create_message_stream(
                         if data == "[DONE]" {
                             return None;
                         }
-                        if let Ok(chunk) = serde_json::from_str::<OaiStreamChunk>(data) {
-                            let events = from_oai_stream_chunk(&chunk, &mut bi);
-                            if let Some(event) = events.into_iter().next() {
-                                return Some((Ok(event), (stream, buffer, bi)));
+                        match serde_json::from_str::<OaiStreamChunk>(data) {
+                            Ok(chunk) => {
+                                let mut events = from_oai_stream_chunk(&chunk, &mut bi);
+                                if let Some(first) = events.first().cloned() {
+                                    // Buffer remaining events for subsequent yields
+                                    if events.len() > 1 {
+                                        events.remove(0);
+                                        events.reverse();
+                                        pending = events;
+                                    }
+                                    return Some((Ok(first), (stream, buffer, bi, pending)));
+                                }
+                            }
+                            Err(e) => {
+                                tracing::debug!("Failed to parse Azure SSE chunk: {e}");
                             }
                         }
                     }
@@ -345,7 +379,7 @@ pub async fn create_message_stream(
                     Err(e) => {
                         return Some((
                             Err(ClientError::Unknown(format!("Stream error: {e}"))),
-                            (stream, buffer, bi),
+                            (stream, buffer, bi, pending),
                         ))
                     }
                 }
