@@ -528,9 +528,8 @@ impl App {
             .unwrap_or(Backend::Anthropic);
 
         let azure_config = if backend == Backend::AzureFoundry {
-            Some(interactive::AzureConfig {
-                endpoint: self
-                    .cli
+            Some(interactive::AzureConfig::new(
+                self.cli
                     .azure_endpoint
                     .clone()
                     .ok_or_else(|| {
@@ -538,8 +537,7 @@ impl App {
                             "Azure AI Foundry requires --azure-endpoint (or AZURE_FOUNDRY_ENDPOINT env var)"
                         )
                     })?,
-                deployment: self
-                    .cli
+                self.cli
                     .azure_deployment
                     .clone()
                     .ok_or_else(|| {
@@ -547,8 +545,8 @@ impl App {
                             "Azure AI Foundry requires --azure-deployment (or AZURE_OPENAI_DEPLOYMENT env var)"
                         )
                     })?,
-                api_version: self.cli.azure_api_version.clone(),
-            })
+                self.cli.azure_api_version.clone(),
+            )?)
         } else {
             None
         };
