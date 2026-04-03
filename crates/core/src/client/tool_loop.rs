@@ -8,7 +8,7 @@
 
 use super::error::{ClientError, ClientResult};
 use super::types::{ContentBlock, Message, Role};
-use super::{request::CreateMessageRequest, response::MessageResponse, Client};
+use super::{request::CreateMessageRequest, response::MessageResponse, Client, RetryStats};
 
 /// Events emitted during tool execution loop.
 ///
@@ -60,7 +60,7 @@ impl Client {
     ///         4096,
     ///     );
     ///
-    ///     let response = client.execute_with_tools(request, |tool_name, tool_input| async move {
+    ///     let (response, _stats) = client.execute_with_tools(request, |tool_name, tool_input| async move {
     ///         // Execute tool and return result as JSON
     ///         Ok(serde_json::json!({"output": "file1.txt\nfile2.txt"}))
     ///     }).await?;
@@ -72,7 +72,7 @@ impl Client {
         &self,
         mut request: CreateMessageRequest,
         tool_executor: F,
-    ) -> ClientResult<MessageResponse>
+    ) -> ClientResult<(MessageResponse, RetryStats)>
     where
         F: Fn(String, serde_json::Value) -> Fut,
         Fut: std::future::Future<Output = ClientResult<serde_json::Value>>,
@@ -80,6 +80,7 @@ impl Client {
         // High limit for complex agentic workflows
         const MAX_ITERATIONS: usize = 10_000;
         let mut iteration = 0;
+        let mut cumulative_stats = RetryStats::default();
 
         loop {
             iteration += 1;
@@ -90,7 +91,12 @@ impl Client {
             }
 
             // Execute the request
-            let response = self.create_message(request.clone()).await?;
+            let (response, request_stats) = self.create_message(request.clone()).await?;
+            cumulative_stats.retries += request_stats.retries;
+            cumulative_stats.total_wait_ms += request_stats.total_wait_ms;
+            if request_stats.last_retry_reason.is_some() {
+                cumulative_stats.last_retry_reason = request_stats.last_retry_reason;
+            }
 
             // Check if response contains tool use
             let mut has_tool_use = false;
@@ -140,7 +146,7 @@ impl Client {
 
             // If no tool use, we're done
             if !has_tool_use {
-                return Ok(response);
+                return Ok((response, cumulative_stats));
             }
 
             // Build the next request with tool results
@@ -190,7 +196,7 @@ impl Client {
                 ));
             }
 
-            let response = self.create_message(request.clone()).await?;
+            let (response, _request_stats) = self.create_message(request.clone()).await?;
             num_turns += 1;
 
             // Check if response contains tool use

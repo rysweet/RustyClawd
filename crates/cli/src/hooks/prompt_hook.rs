@@ -38,7 +38,7 @@ pub(crate) async fn execute_prompt_hook(hook: &Hook, context: &HookContext) -> R
     let timeout_duration = Duration::from_millis(hook.effective_timeout() as u64);
 
     match timeout(timeout_duration, client.create_message(request)).await {
-        Ok(Ok(response)) => {
+        Ok(Ok((response, _stats))) => {
             // Extract text from response
             let text = response
                 .content

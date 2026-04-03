@@ -29,7 +29,7 @@
 //!     );
 //!
 //!     // Non-streaming request
-//!     let response = client.create_message(request).await?;
+//!     let (response, _stats) = client.create_message(request).await?;
 //!     println!("{:?}", response);
 //!
 //!     Ok(())
@@ -71,6 +71,44 @@ pub use stream::{EventStream, SseEvent, SseStream};
 pub use types::{
     ContentBlock, ExtraToolSchema, Message, MessageContent, Role, ToolChoice, ToolDefinition,
 };
+
+/// Statistics from retry attempts during an API request.
+#[derive(Debug, Clone, Default)]
+pub struct RetryStats {
+    /// Number of retry attempts (0 = succeeded on first try).
+    pub retries: u32,
+    /// Total time spent waiting between retries (milliseconds).
+    pub total_wait_ms: u64,
+    /// Reason for the last retry, if any.
+    pub last_retry_reason: Option<RetryReason>,
+}
+
+/// Reason a retry was triggered.
+#[derive(Debug, Clone)]
+pub enum RetryReason {
+    RateLimited,
+    Unauthorized,
+    ServerError,
+    ServiceUnavailable,
+    Timeout,
+    Network,
+}
+
+impl RetryReason {
+    fn from_error(e: &ClientError) -> Self {
+        match e {
+            ClientError::RateLimited { .. } => RetryReason::RateLimited,
+            ClientError::Unauthorized(_) => RetryReason::Unauthorized,
+            ClientError::ServerError(_, _) => RetryReason::ServerError,
+            ClientError::ServiceUnavailable { .. } => RetryReason::ServiceUnavailable,
+            ClientError::Timeout(_) => RetryReason::Timeout,
+            ClientError::NetworkError(_)
+            | ClientError::DnsError(_)
+            | ClientError::ConnectionError(_) => RetryReason::Network,
+            _ => RetryReason::Network,
+        }
+    }
+}
 
 /// API client supporting Anthropic, GitHub Copilot, and Azure AI Foundry backends.
 #[derive(Clone)]
@@ -194,17 +232,24 @@ impl Client {
     ///
     /// On authentication errors (401), invalidates the cached Azure bearer
     /// token before retrying so the next attempt acquires a fresh token.
-    async fn with_retry<T, F, Fut>(&self, label: &str, operation: F) -> ClientResult<T>
+    ///
+    /// Returns `(T, RetryStats)` so callers can observe retry count, total
+    /// wait time, and the reason for the last retry.
+    async fn with_retry<T, F, Fut>(
+        &self,
+        label: &str,
+        operation: F,
+    ) -> ClientResult<(T, RetryStats)>
     where
         F: Fn() -> Fut,
         Fut: Future<Output = ClientResult<T>>,
     {
-        let mut retries = 0;
+        let mut stats = RetryStats::default();
 
         loop {
             match operation().await {
-                Ok(value) => return Ok(value),
-                Err(e) if e.is_retryable() && retries < self.retry_config.max_retries => {
+                Ok(value) => return Ok((value, stats)),
+                Err(e) if e.is_retryable() && stats.retries < self.retry_config.max_retries => {
                     // On auth errors, invalidate cached Azure token so the
                     // next attempt acquires a fresh one. Use a short fixed
                     // delay since we just need a fresh token, not backoff.
@@ -223,21 +268,24 @@ impl Client {
                     let calculated_delay = if is_auth {
                         Duration::from_millis(100)
                     } else {
-                        self.retry_config.calculate_delay(retries)
+                        self.retry_config.calculate_delay(stats.retries)
                     };
 
                     // Use Retry-After if provided, otherwise use calculated delay
                     let actual_delay = e.retry_after().unwrap_or(calculated_delay);
 
+                    stats.last_retry_reason = Some(RetryReason::from_error(&e));
+
                     tracing::warn!(
                         delay_secs = actual_delay.as_secs_f64(),
-                        attempt = retries + 1,
+                        attempt = stats.retries + 1,
                         max_retries = self.retry_config.max_retries,
                         "Retrying {label}"
                     );
 
                     tokio::time::sleep(actual_delay).await;
-                    retries += 1;
+                    stats.retries += 1;
+                    stats.total_wait_ms += actual_delay.as_millis() as u64;
                 }
                 Err(e) => return Err(e),
             }
@@ -247,10 +295,12 @@ impl Client {
     /// Create a message (non-streaming) with automatic retry logic.
     ///
     /// Dispatches to the appropriate backend (Anthropic, Copilot, or Azure).
+    /// Returns `(MessageResponse, RetryStats)` so callers can observe retry
+    /// behaviour.
     pub async fn create_message(
         &self,
         request: CreateMessageRequest,
-    ) -> ClientResult<MessageResponse> {
+    ) -> ClientResult<(MessageResponse, RetryStats)> {
         match self.config.backend {
             config::Backend::Copilot => {
                 let auth = self.copilot_auth.as_ref().ok_or_else(|| {
@@ -380,7 +430,7 @@ impl Client {
                 Ok(stream.boxed())
             }
             config::Backend::Anthropic => {
-                let stream = self
+                let (stream, _stats) = self
                     .with_retry("streaming request", || {
                         self.create_message_stream_internal(&request)
                     })

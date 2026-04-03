@@ -51,7 +51,7 @@ async fn test_non_streaming(client: &Client) -> Result<(), Box<dyn std::error::E
     );
 
     println!("Sending request...");
-    let response = client.create_message(request).await?;
+    let (response, _stats) = client.create_message(request).await?;
 
     println!("Response received!");
     println!("  Message ID: {}", response.id);

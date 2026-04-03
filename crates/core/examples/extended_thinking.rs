@@ -47,7 +47,7 @@ async fn example_non_streaming(client: &Client) -> Result<(), Box<dyn std::error
     .with_thinking(4000); // Enable Extended Thinking with 4000 token budget
 
     println!("Sending request with Extended Thinking enabled (budget: 4000 tokens)...\n");
-    let response = client.create_message(request).await?;
+    let (response, _stats) = client.create_message(request).await?;
 
     println!("Response received!\n");
     println!("Message ID: {}", response.id);
