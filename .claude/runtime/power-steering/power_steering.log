@@ -202,3 +202,54 @@
 [2026-04-03T05:23:55.283972] INFO: No power-steering checks applicable for session type - approving immediately
 [2026-04-03T05:23:58.388376] INFO: Loaded 22 considerations from YAML
 [2026-04-03T05:23:58.401643] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:25:09.824374] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:25:09.839192] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:25:09.839923] DEBUG: Path validated: within user home directory
+[2026-04-03T05:25:09.841777] DEBUG: Simple task keyword 'sync' found in user message
+[2026-04-03T05:25:09.841847] INFO: Session classified as SIMPLE via keyword detection
+[2026-04-03T05:25:09.841924] INFO: Session classified as: SIMPLE
+[2026-04-03T05:25:09.841997] INFO: SIMPLE session - skipping all considerations
+[2026-04-03T05:25:09.842596] INFO: Parallel analysis completed: 0 checks in 0.0s
+[2026-04-03T05:25:09.842734] INFO: No power-steering checks applicable for session type - approving immediately
+[2026-04-03T05:25:13.066354] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:25:13.079692] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:26:09.806897] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:26:09.821537] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:26:09.822294] DEBUG: Path validated: within user home directory
+[2026-04-03T05:26:09.823246] DEBUG: Simple task keyword 'sync' found in user message
+[2026-04-03T05:26:09.823321] INFO: Session classified as SIMPLE via keyword detection
+[2026-04-03T05:26:09.823381] INFO: Session classified as: SIMPLE
+[2026-04-03T05:26:09.823452] INFO: SIMPLE session - skipping all considerations
+[2026-04-03T05:26:09.824019] INFO: Parallel analysis completed: 0 checks in 0.0s
+[2026-04-03T05:26:09.824137] INFO: No power-steering checks applicable for session type - approving immediately
+[2026-04-03T05:26:13.007844] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:26:13.022511] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:27:02.675381] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:27:02.688463] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:27:02.689123] DEBUG: Path validated: within user home directory
+[2026-04-03T05:27:02.689997] DEBUG: Investigation keyword 'analyze' found in user message
+[2026-04-03T05:27:02.690064] INFO: Session classified as INVESTIGATION via keyword detection
+[2026-04-03T05:27:02.690115] INFO: Session classified as: INVESTIGATION
+[2026-04-03T05:27:06.468530] INFO: Parallel analysis completed: 6 checks in 3.8s
+[2026-04-03T05:27:06.469078] DEBUG: Message branch: CHECKS_FAILED (passed=4, failed=2, skipped=16)
+[2026-04-03T05:27:06.469371] INFO: Saved redirect #1 for session 20260403_052702
+[2026-04-03T05:27:46.029161] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:27:46.042536] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:27:46.043361] DEBUG: Path validated: within user home directory
+[2026-04-03T05:27:46.044507] DEBUG: Investigation keyword 'analyze' found in user message
+[2026-04-03T05:27:46.044575] INFO: Session classified as INVESTIGATION via keyword detection
+[2026-04-03T05:27:46.044627] INFO: Session classified as: INVESTIGATION
+[2026-04-03T05:27:58.887323] INFO: Parallel analysis completed: 6 checks in 12.8s
+[2026-04-03T05:27:58.887726] DEBUG: Message branch: CHECKS_FAILED (passed=2, failed=4, skipped=16)
+[2026-04-03T05:27:58.888044] INFO: Saved redirect #1 for session 20260403_052746
+[2026-04-03T05:28:17.325687] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:28:55.041800] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:29:18.677115] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:30:01.078729] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:30:41.870417] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:30:45.025330] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:31:31.167162] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:31:34.398193] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:32:29.359281] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:33:15.432585] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:34:01.855629] INFO: Loaded 22 considerations from YAML
