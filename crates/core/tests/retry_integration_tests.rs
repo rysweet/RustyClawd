@@ -183,13 +183,15 @@ async fn test_no_retry_on_400_bad_request() {
 }
 
 #[tokio::test]
-async fn test_no_retry_on_401_unauthorized() {
+async fn test_retry_on_401_unauthorized() {
+    // 401 is retryable because Azure AD tokens expire hourly.
+    // The retry loop invalidates the cached token before each retry.
     let mock_server = MockServer::start().await;
 
     Mock::given(method("POST"))
         .and(path("/v1/messages"))
         .respond_with(ResponseTemplate::new(401).set_body_string("Unauthorized"))
-        .expect(1)
+        .expect(4) // 1 initial + 3 retries
         .mount(&mock_server)
         .await;
 
@@ -204,7 +206,7 @@ async fn test_no_retry_on_401_unauthorized() {
     let request = create_test_request();
 
     let result = client.create_message(request).await;
-    assert!(result.is_err());
+    assert!(result.is_err()); // Still fails after exhausting retries
 }
 
 #[tokio::test]

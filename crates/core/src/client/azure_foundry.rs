@@ -115,12 +115,25 @@ impl AzureAuth {
 
     /// Get a valid bearer token, refreshing if expired or absent.
     ///
-    /// Uses a write lock for the entire check-acquire cycle to prevent
-    /// concurrent requests from triggering redundant `az` CLI calls.
+    /// Uses a read lock for the fast path (cached token still valid) and
+    /// upgrades to a write lock only when a refresh is needed. This avoids
+    /// serializing concurrent requests on the common case.
     pub async fn get_token(&self) -> ClientResult<String> {
+        // Fast path: read lock to check cache
+        {
+            let cache = self.cached_token.read().await;
+            if let Some(ref tok) = *cache {
+                if tok.expires_at > std::time::Instant::now() + std::time::Duration::from_secs(60)
+                {
+                    return Ok(tok.value.clone());
+                }
+            }
+        }
+
+        // Slow path: write lock to refresh
         let mut cache = self.cached_token.write().await;
 
-        // Return cached token if still valid (with 60s buffer)
+        // Double-check after acquiring write lock (another task may have refreshed)
         if let Some(ref tok) = *cache {
             if tok.expires_at > std::time::Instant::now() + std::time::Duration::from_secs(60) {
                 return Ok(tok.value.clone());

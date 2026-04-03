@@ -206,16 +206,23 @@ impl Client {
                 Ok(value) => return Ok(value),
                 Err(e) if e.is_retryable() && retries < self.retry_config.max_retries => {
                     // On auth errors, invalidate cached Azure token so the
-                    // next attempt acquires a fresh one.
-                    if e.is_auth_error() {
+                    // next attempt acquires a fresh one. Use a short fixed
+                    // delay since we just need a fresh token, not backoff.
+                    let is_auth = e.is_auth_error();
+                    if is_auth {
                         if let Some(ref auth) = self.azure_auth {
                             tracing::info!("Auth error on {label} — invalidating cached Azure token");
                             auth.invalidate_cached_token().await;
                         }
                     }
 
-                    // Calculate delay with exponential backoff and jitter
-                    let calculated_delay = self.retry_config.calculate_delay(retries);
+                    // Auth errors retry quickly (100ms) since the fix is just
+                    // a fresh token. Other errors use exponential backoff.
+                    let calculated_delay = if is_auth {
+                        Duration::from_millis(100)
+                    } else {
+                        self.retry_config.calculate_delay(retries)
+                    };
 
                     // Use Retry-After if provided, otherwise use calculated delay
                     let actual_delay = e.retry_after().unwrap_or(calculated_delay);

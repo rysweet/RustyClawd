@@ -80,11 +80,25 @@ if e.is_auth_error() {
 | Separate `is_auth_error()` helper | Callers need to distinguish "invalidate credentials then retry" from "just retry". Keeps `is_retryable()` as a simple boolean. | Embedding invalidation logic inside `is_retryable()` -- rejected because error classification should be side-effect-free. |
 | `invalidate_cached_token()` clears to `None` | Simple and correct. `get_token()` already handles the `None` case by acquiring a new token. | Setting `expires_at` to past -- rejected as unnecessarily indirect. |
 
+## Performance Optimizations
+
+### Double-checked locking in `get_token()`
+
+`get_token()` now uses a read lock for the fast path (token still valid) and
+only upgrades to a write lock when refresh is needed. This prevents concurrent
+Azure requests from serializing on the token cache during normal operation.
+
+### Minimal retry delay for auth errors
+
+Auth errors (401) use a 100ms fixed delay instead of exponential backoff
+(1s, 2s, 4s...). The fix is just a fresh token — no need to wait.
+
 ## Testing
 
 - `test_is_retryable`: Verifies `Unauthorized` is retryable
 - `test_is_auth_error`: Verifies only `Unauthorized` returns true
 - `test_invalidate_cached_token`: Injects a cached token, invalidates, confirms `None`
+- `test_retry_on_401_unauthorized`: Integration test verifying 401 triggers retries (4 total attempts)
 
 ## Files Changed
 
