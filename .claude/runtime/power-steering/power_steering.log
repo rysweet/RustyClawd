@@ -147,3 +147,58 @@
 [2026-03-08T05:59:04.858974] INFO: Loaded 22 considerations from YAML
 [2026-03-10T00:14:44.725760] INFO: Loaded 22 considerations from YAML
 [2026-03-10T00:14:44.829109] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:18:25.476840] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:18:25.491470] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:18:25.492120] DEBUG: Path validated: within user home directory
+[2026-04-03T05:18:25.493292] DEBUG: Simple task keyword 'sync' found in user message
+[2026-04-03T05:18:25.493358] INFO: Session classified as SIMPLE via keyword detection
+[2026-04-03T05:18:25.493408] INFO: Session classified as: SIMPLE
+[2026-04-03T05:18:25.493468] INFO: SIMPLE session - skipping all considerations
+[2026-04-03T05:18:25.493932] INFO: Parallel analysis completed: 0 checks in 0.0s
+[2026-04-03T05:18:25.494030] INFO: No power-steering checks applicable for session type - approving immediately
+[2026-04-03T05:18:28.838292] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:18:28.851469] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:19:13.065089] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:19:13.079934] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:19:13.080614] DEBUG: Path validated: within user home directory
+[2026-04-03T05:19:13.082000] DEBUG: Simple task keyword 'sync' found in user message
+[2026-04-03T05:19:13.082085] INFO: Session classified as SIMPLE via keyword detection
+[2026-04-03T05:19:13.082142] INFO: Session classified as: SIMPLE
+[2026-04-03T05:19:13.082204] INFO: SIMPLE session - skipping all considerations
+[2026-04-03T05:19:13.082696] INFO: Parallel analysis completed: 0 checks in 0.0s
+[2026-04-03T05:19:13.082811] INFO: No power-steering checks applicable for session type - approving immediately
+[2026-04-03T05:19:17.263742] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:19:17.277618] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:21:35.046899] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:21:35.059989] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:21:35.060663] DEBUG: Path validated: within user home directory
+[2026-04-03T05:21:35.062709] DEBUG: Simple task keyword 'sync' found in user message
+[2026-04-03T05:21:35.062778] INFO: Session classified as SIMPLE via keyword detection
+[2026-04-03T05:21:35.062831] INFO: Session classified as: SIMPLE
+[2026-04-03T05:21:35.062928] INFO: SIMPLE session - skipping all considerations
+[2026-04-03T05:21:35.063427] INFO: Parallel analysis completed: 0 checks in 0.0s
+[2026-04-03T05:21:35.063529] INFO: No power-steering checks applicable for session type - approving immediately
+[2026-04-03T05:21:38.186085] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:21:38.199294] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:22:31.929200] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:22:31.943685] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:22:31.944366] DEBUG: Path validated: within user home directory
+[2026-04-03T05:22:31.945858] DEBUG: Simple task keyword 'sync' found in user message
+[2026-04-03T05:22:31.945945] INFO: Session classified as SIMPLE via keyword detection
+[2026-04-03T05:22:31.945997] INFO: Session classified as: SIMPLE
+[2026-04-03T05:22:31.946058] INFO: SIMPLE session - skipping all considerations
+[2026-04-03T05:22:31.946524] INFO: Parallel analysis completed: 0 checks in 0.0s
+[2026-04-03T05:22:31.946623] INFO: No power-steering checks applicable for session type - approving immediately
+[2026-04-03T05:22:35.092517] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:22:35.105709] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:23:55.267150] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:23:55.280688] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:23:55.281520] DEBUG: Path validated: within user home directory
+[2026-04-03T05:23:55.283180] DEBUG: Simple task keyword 'sync' found in user message
+[2026-04-03T05:23:55.283248] INFO: Session classified as SIMPLE via keyword detection
+[2026-04-03T05:23:55.283306] INFO: Session classified as: SIMPLE
+[2026-04-03T05:23:55.283371] INFO: SIMPLE session - skipping all considerations
+[2026-04-03T05:23:55.283847] INFO: Parallel analysis completed: 0 checks in 0.0s
+[2026-04-03T05:23:55.283972] INFO: No power-steering checks applicable for session type - approving immediately
+[2026-04-03T05:23:58.388376] INFO: Loaded 22 considerations from YAML
+[2026-04-03T05:23:58.401643] INFO: Loaded 22 considerations from YAML

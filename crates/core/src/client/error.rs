@@ -146,7 +146,10 @@ impl ClientError {
         }
     }
 
-    /// Check if this error is retryable (rate limit or service unavailable)
+    /// Check if this error is retryable (rate limit, service unavailable, or auth errors).
+    ///
+    /// Auth errors (401 Unauthorized) are retryable because Azure AD tokens
+    /// expire hourly — a retry with a fresh token often succeeds.
     pub fn is_retryable(&self) -> bool {
         matches!(
             self,
@@ -157,7 +160,15 @@ impl ClientError {
                 | ClientError::NetworkError(_)
                 | ClientError::DnsError(_)
                 | ClientError::ConnectionError(_)
+                | ClientError::Unauthorized(_)
         )
+    }
+
+    /// Check if this error is an authentication error (401 Unauthorized).
+    ///
+    /// Callers can use this to invalidate cached credentials before retrying.
+    pub fn is_auth_error(&self) -> bool {
+        matches!(self, ClientError::Unauthorized(_))
     }
 
     /// Get the retry delay if this error has one
@@ -339,11 +350,21 @@ mod tests {
         assert!(ClientError::DnsError("DNS lookup failed".to_string()).is_retryable());
         assert!(ClientError::ConnectionError("Connection refused".to_string()).is_retryable());
 
+        // Auth errors are retryable (expired Azure tokens)
+        assert!(ClientError::Unauthorized("Token expired".to_string()).is_retryable());
+
         // Non-retryable errors
         assert!(!ClientError::BadRequest("Invalid request".to_string()).is_retryable());
-        assert!(!ClientError::Unauthorized("No auth".to_string()).is_retryable());
         assert!(!ClientError::Forbidden("Access denied".to_string()).is_retryable());
         assert!(!ClientError::NotFound("Not found".to_string()).is_retryable());
+    }
+
+    #[test]
+    fn test_is_auth_error() {
+        assert!(ClientError::Unauthorized("Token expired".to_string()).is_auth_error());
+        assert!(!ClientError::Forbidden("Access denied".to_string()).is_auth_error());
+        assert!(!ClientError::BadRequest("Bad request".to_string()).is_auth_error());
+        assert!(!ClientError::Timeout("Timeout".to_string()).is_auth_error());
     }
 
     #[test]

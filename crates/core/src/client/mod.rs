@@ -191,6 +191,9 @@ impl Client {
     /// Executes the given operation, retrying on retryable errors up to
     /// `max_retries` times. Respects `Retry-After` headers when present,
     /// otherwise uses exponential backoff with jitter.
+    ///
+    /// On authentication errors (401), invalidates the cached Azure bearer
+    /// token before retrying so the next attempt acquires a fresh token.
     async fn with_retry<T, F, Fut>(&self, label: &str, operation: F) -> ClientResult<T>
     where
         F: Fn() -> Fut,
@@ -202,6 +205,15 @@ impl Client {
             match operation().await {
                 Ok(value) => return Ok(value),
                 Err(e) if e.is_retryable() && retries < self.retry_config.max_retries => {
+                    // On auth errors, invalidate cached Azure token so the
+                    // next attempt acquires a fresh one.
+                    if e.is_auth_error() {
+                        if let Some(ref auth) = self.azure_auth {
+                            tracing::info!("Auth error on {label} — invalidating cached Azure token");
+                            auth.invalidate_cached_token().await;
+                        }
+                    }
+
                     // Calculate delay with exponential backoff and jitter
                     let calculated_delay = self.retry_config.calculate_delay(retries);
 

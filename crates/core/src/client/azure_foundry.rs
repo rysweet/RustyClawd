@@ -168,6 +168,16 @@ impl AzureAuth {
     pub fn deployment_count(&self) -> usize {
         self.deployments.len()
     }
+
+    /// Invalidate the cached bearer token so the next `get_token()` call
+    /// acquires a fresh one.
+    ///
+    /// This should be called when a request receives a 401 Unauthorized
+    /// response, indicating the cached token has expired or been revoked.
+    pub async fn invalidate_cached_token(&self) {
+        let mut cache = self.cached_token.write().await;
+        *cache = None;
+    }
 }
 
 /// Validate that an Azure endpoint looks like a reasonable HTTPS URL.
@@ -450,6 +460,25 @@ mod tests {
     #[should_panic(expected = "must not be empty")]
     fn test_whitespace_only_deployment_panics() {
         AzureAuth::new("https://x.azure.com", " , , ", "2024-10-21");
+    }
+
+    #[tokio::test]
+    async fn test_invalidate_cached_token() {
+        let auth = AzureAuth::new("https://x.azure.com", "deploy", "2024-10-21");
+        // Manually inject a cached token
+        {
+            let mut cache = auth.cached_token.write().await;
+            *cache = Some(CachedToken {
+                value: "old-token".to_string(),
+                expires_at: std::time::Instant::now() + std::time::Duration::from_secs(3600),
+            });
+        }
+        // Verify token is cached
+        assert!(auth.cached_token.read().await.is_some());
+
+        // Invalidate and verify it's cleared
+        auth.invalidate_cached_token().await;
+        assert!(auth.cached_token.read().await.is_none());
     }
 
     #[test]
