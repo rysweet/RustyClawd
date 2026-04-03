@@ -46,7 +46,11 @@ impl AzureConfig {
         if api_version.trim().is_empty() {
             return Err(anyhow::anyhow!("Azure API version cannot be empty"));
         }
-        Ok(Self { endpoint, deployment, api_version })
+        Ok(Self {
+            endpoint,
+            deployment,
+            api_version,
+        })
     }
 }
 

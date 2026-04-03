@@ -214,6 +214,7 @@ async fn test_allowed_tools_permits_tool_execution() {
             disallowed_tools: vec![],
             sdk_transport: None,
             sdk_hook_config: None,
+            runtime_agents: std::collections::HashMap::new(),
         },
     )
     .await;
@@ -253,6 +254,7 @@ async fn test_allowed_tools_blocks_non_allowed_tool() {
             disallowed_tools: vec![],
             sdk_transport: None,
             sdk_hook_config: None,
+            runtime_agents: std::collections::HashMap::new(),
         },
     )
     .await;
@@ -286,6 +288,7 @@ async fn test_empty_allowed_tools_permits_all() {
             disallowed_tools: vec![],
             sdk_transport: None,
             sdk_hook_config: None,
+            runtime_agents: std::collections::HashMap::new(),
         },
     )
     .await;
@@ -324,6 +327,7 @@ async fn test_disallowed_tools_blocks_execution() {
             disallowed_tools: vec!["Bash".to_string(), "Write".to_string()], // Bash disallowed
             sdk_transport: None,
             sdk_hook_config: None,
+            runtime_agents: std::collections::HashMap::new(),
         },
     )
     .await;
@@ -358,6 +362,7 @@ async fn test_disallowed_takes_precedence_over_allowed() {
             disallowed_tools: vec!["Bash".to_string()], // But also disallowed - this wins
             sdk_transport: None,
             sdk_hook_config: None,
+            runtime_agents: std::collections::HashMap::new(),
         },
     )
     .await;

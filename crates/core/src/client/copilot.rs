@@ -308,7 +308,7 @@ pub async fn list_models(auth: &CopilotAuth) -> ClientResult<Vec<CopilotModel>> 
 
     let response = auth
         .http_client
-        .get(&copilot_models_url())
+        .get(copilot_models_url())
         .header("Authorization", format!("Bearer {}", token))
         .header("Accept", "application/json")
         .header("User-Agent", COPILOT_USER_AGENT)
@@ -780,7 +780,7 @@ pub async fn create_message(
     oai_request.model = auth.qualify_model(&oai_request.model);
 
     let response = http_client
-        .post(&copilot_chat_url())
+        .post(copilot_chat_url())
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
@@ -813,7 +813,7 @@ pub async fn create_message_stream(
     oai_request.stream = true;
 
     let response = http_client
-        .post(&copilot_chat_url())
+        .post(copilot_chat_url())
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .header("Accept", "text/event-stream")
