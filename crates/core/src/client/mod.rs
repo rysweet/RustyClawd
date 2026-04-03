@@ -211,7 +211,9 @@ impl Client {
                     let is_auth = e.is_auth_error();
                     if is_auth {
                         if let Some(ref auth) = self.azure_auth {
-                            tracing::info!("Auth error on {label} — invalidating cached Azure token");
+                            tracing::info!(
+                                "Auth error on {label} — invalidating cached Azure token"
+                            );
                             auth.invalidate_cached_token().await;
                         }
                     }

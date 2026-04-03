@@ -313,9 +313,11 @@ fn test_network_error_is_retryable() {
 }
 
 #[test]
-fn test_unauthorized_is_not_retryable() {
-    let error = ClientError::Unauthorized("Invalid key".to_string());
-    assert!(!error.is_retryable(), "Auth errors should not be retryable");
+fn test_unauthorized_is_retryable() {
+    // 401 is retryable because Azure AD tokens expire hourly.
+    // Retrying with a fresh token often succeeds.
+    let error = ClientError::Unauthorized("Token expired".to_string());
+    assert!(error.is_retryable(), "Auth errors should be retryable (Azure token expiry)");
 }
 
 #[test]

@@ -123,8 +123,7 @@ impl AzureAuth {
         {
             let cache = self.cached_token.read().await;
             if let Some(ref tok) = *cache {
-                if tok.expires_at > std::time::Instant::now() + std::time::Duration::from_secs(60)
-                {
+                if tok.expires_at > std::time::Instant::now() + std::time::Duration::from_secs(60) {
                     return Ok(tok.value.clone());
                 }
             }
