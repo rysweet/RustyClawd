@@ -89,25 +89,23 @@ impl SettingsLoader {
                         settings = settings.with_cleanup_period(days);
                     }
                 }
-                "disable_bypass_permissions" | "disable_bypass" => {
-                    if value.to_lowercase() == "true" || value == "1" {
-                        settings = settings.disable_bypass();
-                    }
+                "disable_bypass_permissions" | "disable_bypass"
+                    if value.to_lowercase() == "true" || value == "1" =>
+                {
+                    settings = settings.disable_bypass();
                 }
                 "enable_tool_search" | "tool_search" => {
                     if let Ok(config) = ToolSearchConfig::parse(value) {
                         settings = settings.with_tool_search(config);
                     }
                 }
-                "reduced_motion" => {
-                    if value.to_lowercase() == "true" || value == "1" {
-                        settings = settings.with_reduced_motion(true);
-                    }
+                "reduced_motion" if value.to_lowercase() == "true" || value == "1" => {
+                    settings = settings.with_reduced_motion(true);
                 }
-                "include_git_instructions" | "includegitinstructions" => {
-                    if value.to_lowercase() == "false" || value == "0" {
-                        settings = settings.with_include_git_instructions(false);
-                    }
+                "include_git_instructions" | "includegitinstructions"
+                    if value.to_lowercase() == "false" || value == "0" =>
+                {
+                    settings = settings.with_include_git_instructions(false);
                 }
                 _ if !key.starts_with("_") => {
                     settings = settings.with_env_var(key.clone(), value.clone());

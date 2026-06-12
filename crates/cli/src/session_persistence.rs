@@ -286,7 +286,7 @@ impl SessionPersistence {
         }
 
         // Sort by most recent first
-        sessions.sort_by(|a, b| b.last_checkpoint_time.cmp(&a.last_checkpoint_time));
+        sessions.sort_by_key(|s| std::cmp::Reverse(s.last_checkpoint_time));
 
         Ok(sessions)
     }
