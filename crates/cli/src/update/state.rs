@@ -225,7 +225,7 @@ impl UpdateStateManager {
         let mut records: Vec<_> = state.into_values().collect();
 
         // Sort by created_at descending (newest first)
-        records.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        records.sort_by_key(|r| std::cmp::Reverse(r.created_at));
 
         Ok(records)
     }
@@ -278,7 +278,7 @@ impl UpdateStateManager {
         // Keep only the most recent N per status
         state.clear();
         for (_, mut records) in records_by_status {
-            records.sort_by(|a, b| b.1.created_at.cmp(&a.1.created_at));
+            records.sort_by_key(|r| std::cmp::Reverse(r.1.created_at));
             for (version, record) in records.into_iter().take(keep_per_status) {
                 state.insert(version, record);
             }
