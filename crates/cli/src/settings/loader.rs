@@ -107,6 +107,14 @@ impl SettingsLoader {
                 {
                     settings = settings.with_include_git_instructions(false);
                 }
+                // Recognized boolean setting keys whose value did not match the
+                // expected form in the guards above are intentionally ignored.
+                // They must NOT fall through to the generic env_vars passthrough.
+                "disable_bypass_permissions"
+                | "disable_bypass"
+                | "reduced_motion"
+                | "include_git_instructions"
+                | "includegitinstructions" => {}
                 _ if !key.starts_with("_") => {
                     settings = settings.with_env_var(key.clone(), value.clone());
                 }
@@ -285,5 +293,44 @@ mod tests {
 
         let settings = SettingsLoader::parse_env_overrides(&overrides);
         assert!(settings.tool_search.is_disabled());
+    }
+
+    #[test]
+    fn test_parse_env_overrides_recognized_keys_do_not_leak_to_env_vars() {
+        // Recognized setting keys whose value does not match the expected
+        // true/false form must be ignored, NOT forwarded into the generic
+        // env_vars passthrough map. Regression guard for the match-guard
+        // fall-through behavior change.
+        let mut overrides = HashMap::new();
+        overrides.insert(
+            "disable_bypass_permissions".to_string(),
+            "false".to_string(),
+        );
+        overrides.insert("reduced_motion".to_string(), "no".to_string());
+        overrides.insert("include_git_instructions".to_string(), "yes".to_string());
+
+        let settings = SettingsLoader::parse_env_overrides(&overrides);
+
+        assert!(
+            !settings.env_vars.contains_key("disable_bypass_permissions"),
+            "disable_bypass_permissions should not leak into env_vars"
+        );
+        assert!(
+            !settings.env_vars.contains_key("reduced_motion"),
+            "reduced_motion should not leak into env_vars"
+        );
+        assert!(
+            !settings.env_vars.contains_key("include_git_instructions"),
+            "include_git_instructions should not leak into env_vars"
+        );
+
+        // The recognized keys also must not toggle their settings for
+        // non-matching values.
+        assert!(!settings.disable_bypass_permissions);
+        assert!(!settings.reduced_motion);
+        assert!(
+            settings.include_git_instructions,
+            "default (true) should be preserved for a non-'false' value"
+        );
     }
 }
