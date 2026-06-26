@@ -37,7 +37,7 @@ chrono = { version = "0.4", features = ["serde"] }
 octocrab = "0.49"
 
 # PDF text extraction
-pdf-extract = "0.10"
+pdf-extract = "0.12"
 
 # Git operations (native, no CLI dependency)
 git2 = "0.20"
