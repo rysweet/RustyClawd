@@ -1,0 +1,104 @@
+# cargo-deny configuration — supply-chain audit gate for RustyClawd.
+#
+# Enforced in CI by the `cargo-deny` job in .github/workflows/ci.yml. The gate
+# checks four areas:
+#   * advisories — RustSec vulnerability / unsound / unmaintained advisories
+#   * bans       — banned crates and dependency-graph hygiene
+#   * licenses   — only permissively-licensed dependencies are allowed
+#   * sources    — crates may only come from crates.io or explicitly-pinned git
+#
+# Schema: cargo-deny v2 (https://embarkstudios.github.io/cargo-deny/).
+
+# ---------------------------------------------------------------------------
+# Advisories
+# ---------------------------------------------------------------------------
+[advisories]
+version = 2
+# Flag unmaintained advisories only for first-party (workspace) crates. The
+# transitive unmaintained crates in the tree (fxhash, proc-macro-error2,
+# ttf-parser) are pulled in by upstream dependencies and cannot be removed here.
+unmaintained = "workspace"
+# Warn (not fail) on yanked crates. The only yanked crates in the tree
+# (js-sys, wasm-bindgen) are wasm-target-only transitive deps that are never
+# compiled for the CLI binary; bumping the lockstep wasm-bindgen stack is out
+# of scope for this infra-only change.
+yanked = "warn"
+# Pre-existing advisories in the dependency tree at the time this gate was
+# introduced. They are deep transitive dependencies (rustls/aws-lc/octocrab,
+# pdf-extract, git2, …) with no drop-in fix available without major upstream
+# bumps, so they are tracked here rather than silently dropped. New advisories
+# NOT on this list will fail CI — that is the point of the gate. Remediating
+# this backlog (bumping the vulnerable transitive deps) is tracked as separate
+# follow-up work and is intentionally out of scope for this infra-only change.
+ignore = [
+    "RUSTSEC-2023-0071", # rsa 0.9.10 — Marvin timing sidechannel; no fixed release upstream
+    "RUSTSEC-2026-0007", # bytes 1.10.1 — integer overflow in BytesMut::reserve
+    "RUSTSEC-2026-0009", # time 0.3.45 — DoS via stack exhaustion
+    "RUSTSEC-2026-0044", # aws-lc-sys 0.37.1 — X.509 name-constraints bypass
+    "RUSTSEC-2026-0045", # aws-lc-sys 0.37.1 — AES-CCM tag verification timing sidechannel
+    "RUSTSEC-2026-0046", # aws-lc-sys 0.37.1 — PKCS7_verify cert chain bypass
+    "RUSTSEC-2026-0047", # aws-lc-sys 0.37.1 — PKCS7_verify signature bypass
+    "RUSTSEC-2026-0048", # aws-lc-sys 0.37.1 — CRL distribution-point scope logic error
+    "RUSTSEC-2026-0049", # rustls-webpki 0.103.8 — CRL distribution-point matching logic error
+    "RUSTSEC-2026-0097", # rand 0.9.2 — unsound with custom logger using rand::rng()
+    "RUSTSEC-2026-0098", # rustls-webpki 0.103.8 — URI name-constraints incorrectly accepted
+    "RUSTSEC-2026-0099", # rustls-webpki 0.103.8 — wildcard name-constraints incorrectly accepted
+    "RUSTSEC-2026-0104", # rustls-webpki 0.103.8 — reachable panic parsing CRLs
+    "RUSTSEC-2026-0183", # git2 0.20.4 — potential UB in Remote::list()
+    "RUSTSEC-2026-0184", # git2 0.20.4 — potential UB with Signature from buffer-created BlameHunk
+    "RUSTSEC-2026-0190", # anyhow 1.0.100 — unsoundness in Error::downcast_mut()
+]
+
+# ---------------------------------------------------------------------------
+# Licenses
+# ---------------------------------------------------------------------------
+[licenses]
+version = 2
+# Confidence required when inferring a license from a LICENSE file.
+confidence-threshold = 0.8
+# Permissive licenses present in the dependency tree. RustyClawd itself ships
+# under "MIT OR Apache-2.0"; everything here is OSI-approved and permissive.
+allow = [
+    "MIT",
+    "MIT-0",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "0BSD",
+    "BSD-1-Clause",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "OpenSSL",
+    "Zlib",
+    "BSL-1.0",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "CC0-1.0",
+    "CDLA-Permissive-2.0",
+]
+
+# Per-crate license exceptions. html2md is GPL-3.0-or-later (copyleft); it is a
+# pre-existing transitive dependency. Scoping the allowance to this one crate
+# keeps the policy honest — GPL is NOT globally allowed for the project.
+[[licenses.exceptions]]
+name = "html2md"
+allow = ["GPL-3.0-or-later"]
+
+# ---------------------------------------------------------------------------
+# Bans
+# ---------------------------------------------------------------------------
+[bans]
+multiple-versions = "warn"
+wildcards = "warn"
+
+# ---------------------------------------------------------------------------
+# Sources
+# ---------------------------------------------------------------------------
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+# Only the official crates.io registry is permitted.
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# The single git dependency in the tree is a rev-pinned tui-textarea fork.
+allow-git = ["https://github.com/0xferrous/tui-textarea"]
