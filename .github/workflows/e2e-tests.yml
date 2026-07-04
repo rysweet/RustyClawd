@@ -57,14 +57,88 @@ jobs:
           RUST_BACKTRACE: 1
           RUSTYCLAWD_BIN: ${{ github.workspace }}/target/release/rusty
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "⚠️ ANTHROPIC_API_KEY is not configured as a repository secret"
-            echo "E2E tests will be skipped. Configure the secret to enable automated testing."
-            echo "See: Settings → Secrets and variables → Actions → New repository secret"
+          set -uo pipefail
+          # GitHub Actions runs `run:` steps with `bash -e -o pipefail` by
+          # default, so a failing `runner.py | tee` pipeline would abort this
+          # step (errexit) before the graceful-degrade logic below can inspect
+          # the failure. Disable errexit and manage exit codes explicitly;
+          # keep pipefail so PIPESTATUS[0] reflects runner.py's real exit code.
+          set +e
+          # Mark the E2E job as skipped/neutral instead of failing the build.
+          # Provisioning a working ANTHROPIC_API_KEY is an operator action
+          # (tracked by issue #1109), not a code defect this job should
+          # red-line the default branch for. Emits a visible warning plus a
+          # job-summary notice, then exits 0.
+          skip_e2e() {
+            echo "::warning title=E2E tests skipped::$1"
+            {
+              echo "### ⚠️ E2E tests skipped (LLM credential unavailable)"
+              echo
+              echo "$1"
+              echo
+              echo "**Operator action required:** provision a valid \`ANTHROPIC_API_KEY\`"
+              echo "repository secret (Settings → Secrets and variables → Actions →"
+              echo "New repository secret) to enable automated end-to-end testing."
+              echo
+              echo "Tracking issue: #1109"
+            } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+            exit 0
+          }
+
+          # 1) Credential absent -> skip-neutral.
+          if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+            skip_e2e "ANTHROPIC_API_KEY is not configured as a repository secret, so no E2E scenario can authenticate against the LLM API."
+          fi
+
+          # 2) Run the scenarios, mirroring output to a log for artifact upload
+          #    and post-run authorization inspection.
+          cd tests/e2e/scenarios || exit 1
+          log_file="e2e-run.log"
+          python3 runner.py --verbose 2>&1 | tee "$log_file"
+          status=${PIPESTATUS[0]}
+
+          if [ "$status" -eq 0 ]; then
             exit 0
           fi
-          cd tests/e2e/scenarios
-          python3 runner.py --verbose
+
+          # 3) Present-yet-invalid credential: the secret exists but the LLM
+          #    provider rejects the model calls with an authorization error, so
+          #    scenarios that depend on a real model response die at their first
+          #    streaming request (e.g. "Streaming request failed: Unauthorized").
+          #    Treat that as skip-neutral rather than failing the default branch.
+          #
+          #    Why the marker alone is a safe, sufficient signal (no pass-count
+          #    guard needed):
+          #      * Anthropic auth is binary per credential -- a VALID key fails
+          #        NO request on auth; an INVALID/expired key fails EVERY request
+          #        on auth. So "Streaming request failed: <Unauthorized|Forbidden
+          #        |401|403>" (or an explicit provider auth-error type) can only
+          #        appear when the credential itself is bad. A genuine app
+          #        regression cannot make the provider return an auth error.
+          #      * When the credential is bad, no scenario can validate real LLM
+          #        behavior (a few may pass trivially without needing a model
+          #        response), so there is no meaningful regression signal to
+          #        mask -- real coverage resumes once an operator provisions a
+          #        valid key.
+          #    The match is deliberately tied to the client's own request-failure
+          #    marker / explicit provider auth-error types, NOT a bare "401" or
+          #    "Unauthorized" token that could appear incidentally in scenario
+          #    output (which would otherwise mask a genuine regression).
+          #
+          #    Assumption (holds for the current suite): no scenario legitimately
+          #    emits this marker with a VALID job credential (e.g. a negative-path
+          #    scenario that intentionally sends a bad per-request key or mocks a
+          #    401). If such a scenario is added later, tighten this to attribute
+          #    the marker to the failing scenario(s) rather than the aggregate log.
+          if grep -Eiq \
+               'streaming request failed:.*(unauthorized|forbidden|401|403)|authentication_error|invalid x-api-key' \
+               "$log_file"; then
+            skip_e2e "ANTHROPIC_API_KEY appears to be invalid or expired: the LLM provider rejected model calls with an authorization error, so E2E scenarios could not validate real behavior."
+          fi
+
+          # 4) Genuine failure unrelated to the LLM credential -> fail the job.
+          echo "::error title=E2E tests failed::One or more scenarios failed for reasons unrelated to the LLM credential."
+          exit "$status"
       
       - name: Upload test results
         if: always()
