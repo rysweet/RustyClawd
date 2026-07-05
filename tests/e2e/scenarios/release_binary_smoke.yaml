@@ -21,50 +21,50 @@ scenario:
       type: cli
       config: {}
 
-  # Runner contract (@gadugi/agentic-test scenarioAdapter + CLIAgent): each
-  # command step uses `action: execute_command` with `params.command` and
-  # `params.args`; the adapter joins them into the spawned command (no shell),
-  # and the step passes only when the process exits 0. `target/release/rusty`
-  # is the conventional release path (CI builds it with `cargo build
-  # --release`); run this scenario from the repo root.
-  environment:
-    timeout: 15000
-
+  # This scenario is loaded by TWO runners, so each step carries both schemas:
+  #   * repo E2E harness (tests/e2e/scenarios/runner.py): reads top-level
+  #     `command:` and runs it via /bin/bash from cwd `<repo>/tests`.
+  #     RUSTYCLAWD_BIN is set to an absolute path in CI (e2e-tests.yml); the
+  #     `../target/release/rusty` fallback resolves from that cwd for local runs.
+  #   * @gadugi/agentic-test: reads `params.command` + `params.args` and spawns
+  #     the process without a shell from the repo root.
+  # A step passes only when the process exits 0. `target/release/rusty` is the
+  # conventional release path (CI builds it with `cargo build --release`).
   steps:
     - action: execute_command
       description: "Binary reports its version"
+      command: "${RUSTYCLAWD_BIN:-../target/release/rusty} --version"
       params:
         command: "target/release/rusty"
         args: ["--version"]
-      timeout: 5000
 
     - action: execute_command
       description: "Binary prints top-level help"
+      command: "${RUSTYCLAWD_BIN:-../target/release/rusty} --help"
       params:
         command: "target/release/rusty"
         args: ["--help"]
-      timeout: 5000
 
     - action: execute_command
       description: "agents subcommand (no API key) — exercises rustyclawd-tools, the git2-owning crate"
+      command: "${RUSTYCLAWD_BIN:-../target/release/rusty} agents"
       params:
         command: "target/release/rusty"
         args: ["agents"]
-      timeout: 5000
 
     - action: execute_command
       description: "update subcommand help (self-update path fed by Release artifacts)"
+      command: "${RUSTYCLAWD_BIN:-../target/release/rusty} update --help"
       params:
         command: "target/release/rusty"
         args: ["update", "--help"]
-      timeout: 5000
 
     - action: execute_command
       description: "mcp subcommand help"
+      command: "${RUSTYCLAWD_BIN:-../target/release/rusty} mcp --help"
       params:
         command: "target/release/rusty"
         args: ["mcp", "--help"]
-      timeout: 5000
 
   notes: |
     This scenario is the CLI-level guard for the Release workflow fix.
