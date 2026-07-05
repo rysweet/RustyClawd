@@ -1,0 +1,73 @@
+# Test Scenario: Release Binary Smoke Test
+#
+# Guards the Release workflow fix (#1112 / PR #1113): the release build matrix
+# now succeeds for all four targets after dropping git2's default features
+# (which pulled in openssl-sys and could not cross-compile for
+# x86_64-apple-darwin). This scenario verifies that the release-profile `rusty`
+# binary produced by that dependency set is still fully functional, including
+# the no-API subcommands whose crate (rustyclawd-tools) owns the git2 usage.
+#
+# API-key-free: only exercises version/help/local subcommands.
+
+scenario:
+  name: "Release Binary Smoke"
+  description: "Verify the release-profile rusty binary works after dropping git2 openssl/ssh backends"
+  type: cli
+  tags: [smoke, release, non-interactive, ci]
+  status: "ready"
+
+  agents:
+    - name: cli-agent
+      type: cli
+      config: {}
+
+  # Runner contract (@gadugi/agentic-test scenarioAdapter + CLIAgent): each
+  # command step uses `action: execute_command` with `params.command` and
+  # `params.args`; the adapter joins them into the spawned command (no shell),
+  # and the step passes only when the process exits 0. `target/release/rusty`
+  # is the conventional release path (CI builds it with `cargo build
+  # --release`); run this scenario from the repo root.
+  environment:
+    timeout: 15000
+
+  steps:
+    - action: execute_command
+      description: "Binary reports its version"
+      params:
+        command: "target/release/rusty"
+        args: ["--version"]
+      timeout: 5000
+
+    - action: execute_command
+      description: "Binary prints top-level help"
+      params:
+        command: "target/release/rusty"
+        args: ["--help"]
+      timeout: 5000
+
+    - action: execute_command
+      description: "agents subcommand (no API key) — exercises rustyclawd-tools, the git2-owning crate"
+      params:
+        command: "target/release/rusty"
+        args: ["agents"]
+      timeout: 5000
+
+    - action: execute_command
+      description: "update subcommand help (self-update path fed by Release artifacts)"
+      params:
+        command: "target/release/rusty"
+        args: ["update", "--help"]
+      timeout: 5000
+
+    - action: execute_command
+      description: "mcp subcommand help"
+      params:
+        command: "target/release/rusty"
+        args: ["mcp", "--help"]
+      timeout: 5000
+
+  notes: |
+    This scenario is the CLI-level guard for the Release workflow fix.
+    The deeper git2 functional coverage (git_tool, worktree_isolation) lives in
+    the Rust unit/integration tests exercised by the CI "Test" job, which pass
+    with git2 built without its default (https/ssh/openssl) backends.
