@@ -40,7 +40,13 @@ octocrab = "0.49"
 pdf-extract = "0.12"
 
 # Git operations (native, no CLI dependency)
-git2 = "0.20"
+# git2 is used only for LOCAL repository operations (status, diff, branch
+# listing, signatures) — never for network transport. Disabling default
+# features drops the `https`/`ssh` backends, which pulled in `openssl-sys`
+# (and `libssh2-sys`). Those C deps could not cross-compile for
+# x86_64-apple-darwin on the arm64 macOS release runner, which is why the
+# Release workflow's macOS build had never succeeded.
+git2 = { version = "0.20", default-features = false }
 
 # Process isolation (Unix-specific)
 [target.'cfg(unix)'.dependencies]
