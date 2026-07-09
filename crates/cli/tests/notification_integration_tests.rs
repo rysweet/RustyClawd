@@ -85,10 +85,7 @@ fn create_test_context(event: HookEvent) -> HookContext {
     HookContext::for_session(
         "test-session-123".to_string(),
         "/tmp/test-transcript.log".to_string(),
-        std::env::current_dir()
-            .unwrap()
-            .to_string_lossy()
-            .to_string(),
+        env!("CARGO_MANIFEST_DIR").to_string(),
         "auto".to_string(),
         event,
     )
@@ -99,10 +96,7 @@ fn create_notification_context(notification_type: NotificationType) -> HookConte
     HookContext::for_notification(
         "test-session-123".to_string(),
         "/tmp/test-transcript.log".to_string(),
-        std::env::current_dir()
-            .unwrap()
-            .to_string_lossy()
-            .to_string(),
+        env!("CARGO_MANIFEST_DIR").to_string(),
         "ask".to_string(),
         notification_type,
     )
