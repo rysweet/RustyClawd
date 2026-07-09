@@ -32,6 +32,8 @@
 //! persistence.auto_save()?;
 //! ```
 
+#[cfg(test)]
+use crate::checkpoint::storage::CheckpointStorage;
 use crate::checkpoint::{
     loader::SessionLoader,
     saver::SessionSaver,
@@ -91,11 +93,26 @@ impl SessionPersistence {
         let session_id = session_id.into();
         let session = Session::new(session_id, MAX_CHECKPOINTS);
 
+        #[cfg(not(test))]
         let saver = SessionSaver::with_default_storage()
             .context("Failed to initialize checkpoint storage")?;
 
+        #[cfg(not(test))]
         let loader = SessionLoader::with_default_storage()
             .context("Failed to initialize checkpoint loader")?;
+
+        #[cfg(test)]
+        let (saver, loader) = {
+            let storage = CheckpointStorage::new(
+                std::env::temp_dir()
+                    .join("rustyclawd-session-persistence-tests")
+                    .join(std::process::id().to_string()),
+            );
+            (
+                SessionSaver::new(storage.clone()),
+                SessionLoader::new(storage),
+            )
+        };
 
         Ok(Self {
             session,
@@ -386,14 +403,18 @@ impl SessionPersistence {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static SESSION_COUNTER: AtomicU64 = AtomicU64::new(0);
 
     fn temp_session_id() -> String {
         format!(
-            "test-session-{}",
+            "test-session-{}-{}",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+            SESSION_COUNTER.fetch_add(1, Ordering::Relaxed)
         )
     }
 
