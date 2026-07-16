@@ -184,16 +184,12 @@ impl SchemaValidator {
                     }
                     path_stack.pop();
                 }
-                "additionalProperties" => {
-                    if value.is_object() {
-                        path_stack.push("additionalProperties".to_string());
-                        if let Some(error) =
-                            self.detect_cycles(value, visited, path_stack, depth + 1)
-                        {
-                            return Some(error);
-                        }
-                        path_stack.pop();
+                "additionalProperties" if value.is_object() => {
+                    path_stack.push("additionalProperties".to_string());
+                    if let Some(error) = self.detect_cycles(value, visited, path_stack, depth + 1) {
+                        return Some(error);
                     }
+                    path_stack.pop();
                 }
                 "allOf" | "anyOf" | "oneOf" => {
                     if let Some(schemas) = value.as_array() {
@@ -208,16 +204,12 @@ impl SchemaValidator {
                         }
                     }
                 }
-                "not" | "if" | "then" | "else" => {
-                    if value.is_object() {
-                        path_stack.push(key.to_string());
-                        if let Some(error) =
-                            self.detect_cycles(value, visited, path_stack, depth + 1)
-                        {
-                            return Some(error);
-                        }
-                        path_stack.pop();
+                "not" | "if" | "then" | "else" if value.is_object() => {
+                    path_stack.push(key.to_string());
+                    if let Some(error) = self.detect_cycles(value, visited, path_stack, depth + 1) {
+                        return Some(error);
                     }
+                    path_stack.pop();
                 }
                 _ => {}
             }

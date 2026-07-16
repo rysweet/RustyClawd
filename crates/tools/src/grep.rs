@@ -458,4 +458,28 @@ mod tests {
             assert_eq!(result.count, 0);
         }
     }
+
+    #[test]
+    fn test_grep_metadata() {
+        let tool = GrepTool;
+        let meta = tool.metadata();
+        assert_eq!(meta.name, "Grep");
+        assert!(
+            meta.description.contains("ripgrep")
+                || meta.description.contains("pattern")
+                || meta.description.contains("Search"),
+            "Description should mention search functionality: {}",
+            meta.description
+        );
+    }
+
+    #[test]
+    fn test_grep_read_only_and_concurrent() {
+        let tool = GrepTool;
+        assert!(tool.is_read_only(), "Grep should be read-only");
+        assert!(
+            tool.is_concurrency_safe(),
+            "Grep should be concurrency-safe"
+        );
+    }
 }

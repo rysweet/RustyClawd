@@ -111,10 +111,50 @@ mod tests {
     use super::*;
     use crate::Tool;
     use futures::StreamExt;
+    use serial_test::serial;
+    use std::ffi::OsString;
     use std::process::Command;
     use tempfile::TempDir;
 
-    fn setup_git_repo() -> TempDir {
+    struct GitEnvGuard {
+        saved: Vec<(&'static str, Option<OsString>)>,
+    }
+
+    impl GitEnvGuard {
+        fn new() -> Self {
+            let vars = [
+                "GIT_DIR",
+                "GIT_WORK_TREE",
+                "GIT_INDEX_FILE",
+                "GIT_OBJECT_DIRECTORY",
+                "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+            ];
+            let saved = vars
+                .into_iter()
+                .map(|var| {
+                    let value = std::env::var_os(var);
+                    std::env::remove_var(var);
+                    (var, value)
+                })
+                .collect();
+            Self { saved }
+        }
+    }
+
+    impl Drop for GitEnvGuard {
+        fn drop(&mut self) {
+            for (var, value) in &self.saved {
+                if let Some(value) = value {
+                    std::env::set_var(var, value);
+                } else {
+                    std::env::remove_var(var);
+                }
+            }
+        }
+    }
+
+    fn setup_git_repo() -> (TempDir, GitEnvGuard) {
+        let git_env = GitEnvGuard::new();
         let temp_dir = TempDir::new().unwrap();
 
         // Initialize git repo
@@ -152,12 +192,13 @@ mod tests {
             .output()
             .expect("Failed to commit");
 
-        temp_dir
+        (temp_dir, git_env)
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_git_status_clean() {
-        let temp_dir = setup_git_repo();
+        let (temp_dir, _git_env) = setup_git_repo();
 
         let tool = GitTool;
         let params = GitParams {
@@ -186,8 +227,9 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_git_status_with_changes() {
-        let temp_dir = setup_git_repo();
+        let (temp_dir, _git_env) = setup_git_repo();
 
         // Add a new untracked file
         std::fs::write(temp_dir.path().join("new_file.txt"), "new content").unwrap();
@@ -230,8 +272,9 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_git_log() {
-        let temp_dir = setup_git_repo();
+        let (temp_dir, _git_env) = setup_git_repo();
 
         let tool = GitTool;
         let params = GitParams {
@@ -265,8 +308,9 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_git_branches() {
-        let temp_dir = setup_git_repo();
+        let (temp_dir, _git_env) = setup_git_repo();
 
         let tool = GitTool;
         let params = GitParams {
@@ -299,8 +343,9 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_git_current_branch() {
-        let temp_dir = setup_git_repo();
+        let (temp_dir, _git_env) = setup_git_repo();
 
         let tool = GitTool;
         let params = GitParams {
@@ -330,8 +375,9 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_git_commit_info() {
-        let temp_dir = setup_git_repo();
+        let (temp_dir, _git_env) = setup_git_repo();
 
         let tool = GitTool;
         let params = GitParams {
@@ -365,8 +411,9 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_git_diff() {
-        let temp_dir = setup_git_repo();
+        let (temp_dir, _git_env) = setup_git_repo();
 
         // Modify the existing file
         std::fs::write(temp_dir.path().join("README.md"), "# Modified\nNew line\n").unwrap();
@@ -410,7 +457,9 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_git_not_a_repo() {
+        let _git_env = GitEnvGuard::new();
         let temp_dir = TempDir::new().unwrap();
         // Don't initialize git repo
 

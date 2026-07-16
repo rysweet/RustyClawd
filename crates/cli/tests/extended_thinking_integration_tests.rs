@@ -54,14 +54,10 @@ fn simulate_stream_events(events: Vec<StreamEvent>) -> Result<Vec<TestStreamEven
                 }
                 _ => {}
             },
-            StreamEvent::ContentBlockStop { .. } => {
-                // NOTE: ContentBlockStop does not carry a block type.
-                // We rely on the API sending stops in the same order as starts.
-                if in_thinking_block {
-                    in_thinking_block = false;
-                    tx.send(TestStreamEvent::ExtendedThinkingStopped)
-                        .map_err(|e| format!("Channel send error: {}", e))?;
-                }
+            StreamEvent::ContentBlockStop { .. } if in_thinking_block => {
+                in_thinking_block = false;
+                tx.send(TestStreamEvent::ExtendedThinkingStopped)
+                    .map_err(|e| format!("Channel send error: {}", e))?;
             }
             _ => {}
         }

@@ -1,0 +1,26 @@
+id: rustsec-2026-0204-crossbeam-epoch
+name: RUSTSEC-2026-0204 crossbeam-epoch remediation
+description: Confirms the RustyClawd lockfile resolves crossbeam-epoch to the fixed advisory version.
+version: 1.0.0
+priority: HIGH
+interface: CLI
+prerequisites: []
+tags: [security, rustsec, dependencies]
+agents:
+  - name: dependency-agent
+    type: cli
+    config:
+      workingDirectory: ./
+steps:
+  - name: Inspect locked crossbeam-epoch version
+    agent: dependency-agent
+    action: execute
+    description: Inspect the locked reverse dependency tree for crossbeam-epoch.
+    params:
+      command: cargo tree -i crossbeam-epoch --locked
+    expect:
+      type: contains
+      patterns:
+        - crossbeam-epoch v0.9.20
+estimatedDuration: 30
+enabled: true

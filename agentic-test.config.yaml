@@ -1,0 +1,26 @@
+# Agentic test configuration for repository-local QA scenarios.
+execution:
+  maxParallel: 1
+  defaultTimeout: 30000
+  continueOnFailure: false
+  maxRetries: 0
+  retryDelay: 1000
+
+cli:
+  executablePath: cargo
+  workingDirectory: ./
+  defaultTimeout: 30000
+  environment: {}
+  captureOutput: true
+
+logging:
+  level: info
+  console: true
+  format: structured
+
+reporting:
+  outputDir: ./target/agentic-test-reports
+  formats:
+    - json
+  includeScreenshots: false
+  includeLogs: true

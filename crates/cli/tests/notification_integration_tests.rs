@@ -85,10 +85,7 @@ fn create_test_context(event: HookEvent) -> HookContext {
     HookContext::for_session(
         "test-session-123".to_string(),
         "/tmp/test-transcript.log".to_string(),
-        std::env::current_dir()
-            .unwrap()
-            .to_string_lossy()
-            .to_string(),
+        env!("CARGO_MANIFEST_DIR").to_string(),
         "auto".to_string(),
         event,
     )
@@ -99,10 +96,7 @@ fn create_notification_context(notification_type: NotificationType) -> HookConte
     HookContext::for_notification(
         "test-session-123".to_string(),
         "/tmp/test-transcript.log".to_string(),
-        std::env::current_dir()
-            .unwrap()
-            .to_string_lossy()
-            .to_string(),
+        env!("CARGO_MANIFEST_DIR").to_string(),
         "ask".to_string(),
         notification_type,
     )
@@ -128,6 +122,7 @@ fn create_test_skill_dir(
 // ============================================================================
 
 #[tokio::test]
+#[serial]
 async fn test_notification_permission_prompt() {
     // GIVEN: A hook configured for Notification event with PermissionPrompt type
     let temp_dir = setup_test_config_dir().unwrap();
@@ -163,6 +158,7 @@ async fn test_notification_permission_prompt() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_notification_idle_prompt() {
     // GIVEN: A hook for IdlePrompt notification
     let temp_dir = setup_test_config_dir().unwrap();
@@ -198,6 +194,7 @@ async fn test_notification_idle_prompt() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_notification_auth_success() {
     // GIVEN: A hook for AuthSuccess notification
     let temp_dir = setup_test_config_dir().unwrap();
@@ -229,6 +226,7 @@ async fn test_notification_auth_success() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_notification_elicitation_dialog() {
     // GIVEN: A hook for ElicitationDialog notification
     let temp_dir = setup_test_config_dir().unwrap();
@@ -260,6 +258,7 @@ async fn test_notification_elicitation_dialog() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_notification_manager_integration() {
     // GIVEN: NotificationManager with configured hooks
     let temp_dir = setup_test_config_dir().unwrap();
@@ -303,6 +302,7 @@ async fn test_notification_manager_integration() {
 // ============================================================================
 
 #[tokio::test]
+#[serial]
 async fn test_precompact_hook_fires_on_compact_command() {
     // GIVEN: A hook configured for PreCompact event
     let temp_dir = setup_test_config_dir().unwrap();
@@ -338,6 +338,7 @@ async fn test_precompact_hook_fires_on_compact_command() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_precompact_hook_can_block_compaction() {
     // GIVEN: A hook that returns blocking decision (exit code 2)
     let _temp_dir = setup_test_config_dir().unwrap();
@@ -381,6 +382,7 @@ async fn test_precompact_hook_can_block_compaction() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_precompact_hook_fail_open_on_error() {
     // GIVEN: A hook that fails with non-blocking error (exit code 1)
     let _temp_dir = setup_test_config_dir().unwrap();
@@ -680,6 +682,7 @@ async fn test_skill_tool_not_found() {
 // ============================================================================
 
 #[tokio::test]
+#[serial]
 async fn test_subagentstop_hook_fires_with_real_agent() {
     // GIVEN: A hook configured for SubagentStop event
     let temp_dir = setup_test_config_dir().unwrap();
@@ -737,6 +740,7 @@ async fn test_subagentstop_hook_fires_with_real_agent() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_subagentstop_hook_receives_agent_context() {
     // GIVEN: A hook that captures and verifies agent context
     let temp_dir = setup_test_config_dir().unwrap();
@@ -789,6 +793,7 @@ async fn test_subagentstop_hook_receives_agent_context() {
 // ============================================================================
 
 #[tokio::test]
+#[serial]
 async fn test_notification_with_pretooluse_interaction() {
     // GIVEN: Hooks for both Notification and PreToolUse events
     let temp_dir = setup_test_config_dir().unwrap();
@@ -859,6 +864,7 @@ async fn test_notification_with_pretooluse_interaction() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_precompact_with_subagentstop_workflow() {
     // GIVEN: Hooks for PreCompact and SubagentStop (simulating cleanup workflow)
     let temp_dir = setup_test_config_dir().unwrap();

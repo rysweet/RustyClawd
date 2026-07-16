@@ -11,7 +11,7 @@ jobs:
   tag:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
 
@@ -37,6 +37,8 @@ jobs:
       - name: Create tag
         if: steps.check.outputs.exists == 'false'
         run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           TAG="v${{ steps.version.outputs.version }}"
           git tag -a "$TAG" -m "Auto-release $TAG"
           git push origin "$TAG"
