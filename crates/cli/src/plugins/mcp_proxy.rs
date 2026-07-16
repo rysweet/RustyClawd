@@ -467,7 +467,7 @@ impl Default for McpProxy {
 impl Drop for McpProxy {
     fn drop(&mut self) {
         // Best effort cleanup - stop stdio servers
-        for (_, server) in self.servers.iter_mut() {
+        for server in self.servers.values_mut() {
             if let Some(McpConnection::Stdio {
                 process,
                 notification_task,
