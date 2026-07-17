@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Sending request to Claude 3 Haiku...");
     match client.create_message(request).await {
-        Ok(response) => {
+        Ok((response, _stats)) => {
             println!("SUCCESS!");
             println!("Model: {}", response.model);
             for block in response.content {

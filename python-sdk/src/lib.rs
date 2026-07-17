@@ -76,7 +76,7 @@ fn query(
             );
 
             // Send request and get response
-            let response = client.create_message(request)
+            let (response, _stats) = client.create_message(request)
                 .await
                 .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
                     format!("API call failed: {}", e)

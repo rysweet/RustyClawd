@@ -721,7 +721,7 @@ impl App {
                 )
                 .await
             {
-                Ok(resp) => resp,
+                Ok((resp, _stats)) => resp,
                 Err(e) => {
                     if let Some(fallback) = fallback_model {
                         tracing::warn!("Primary model failed, trying fallback: {}", fallback);
@@ -747,6 +747,7 @@ impl App {
                                 ),
                             )
                             .await?
+                            .0
                     } else {
                         return Err(e.into());
                     }

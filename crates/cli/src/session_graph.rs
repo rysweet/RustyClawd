@@ -233,10 +233,8 @@ impl SessionGraph {
             visited.insert(current.to_string());
             path.push(current.to_string());
 
-            match self.edges.get(current) {
-                Some(parent) => current = parent,
-                None => return None, // Reached a root, no cycle
-            }
+            let parent = self.edges.get(current)?; // Reached a root, no cycle
+            current = parent;
         }
     }
 
