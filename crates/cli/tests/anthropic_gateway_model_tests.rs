@@ -8,6 +8,7 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const AUTH_TOKEN: &str = "synthetic-cli-auth-token-1780";
+const COPILOT_TOKEN: &str = "synthetic-cli-copilot-token-1780";
 const ENV_MODEL: &str = "synthetic-anthropic-env-model-1780";
 const CLI_MODEL: &str = "synthetic-anthropic-cli-model-1780";
 const SETTINGS_MODEL: &str = "synthetic-anthropic-settings-model-1780";
@@ -63,6 +64,124 @@ async fn only_request_body(server: &MockServer) -> Value {
         .expect("wiremock request recording");
     assert_eq!(requests.len(), 1, "expected exactly one Anthropic request");
     serde_json::from_slice(&requests[0].body).expect("request body should be JSON")
+}
+
+#[tokio::test]
+async fn print_mode_implicitly_falls_back_to_copilot_without_provider() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/models"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("[]"))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "id": "chatcmpl-synthetic-fallback",
+            "model": "claude-sonnet-4.6",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "synthetic Copilot fallback response"
+                },
+                "finish_reason": "stop"
+            }],
+            "usage": {
+                "prompt_tokens": 1,
+                "completion_tokens": 1,
+                "total_tokens": 2
+            }
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let isolated_home = TempDir::new().expect("create isolated home");
+    let binary = assert_cmd::cargo::cargo_bin!("rusty");
+    let server_uri = server.uri();
+    let isolated_path = isolated_home.path().to_path_buf();
+    let output = tokio::task::spawn_blocking(move || {
+        std::process::Command::new(binary)
+            .args(["--print", "synthetic prompt"])
+            .current_dir(&isolated_path)
+            .env_clear()
+            .env("HOME", &isolated_path)
+            .env("XDG_CONFIG_HOME", &isolated_path)
+            .env("ANTHROPIC_MODEL", "synthetic-anthropic-only-model")
+            .env("GITHUB_TOKEN", COPILOT_TOKEN)
+            .env("GITHUB_COPILOT_ENDPOINT", server_uri)
+            .output()
+            .expect("run rusty with implicit Copilot fallback")
+    })
+    .await
+    .expect("join rusty process");
+
+    assert!(
+        output.status.success(),
+        "print mode failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("synthetic Copilot fallback response"));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("No Anthropic credential found"));
+    assert!(stderr.contains("Using GitHub Copilot backend"));
+
+    let requests = server
+        .received_requests()
+        .await
+        .expect("wiremock request recording");
+    let chat_request = requests
+        .iter()
+        .find(|request| request.url.path() == "/chat/completions")
+        .expect("Copilot chat request");
+    let body: Value =
+        serde_json::from_slice(&chat_request.body).expect("Copilot request body should be JSON");
+    assert_eq!(body["model"], "claude-sonnet-4.6");
+    assert_ne!(body["model"], "synthetic-anthropic-only-model");
+}
+
+#[tokio::test]
+async fn print_mode_fallback_failure_retains_context_and_redacts_token() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/models"))
+        .respond_with(
+            ResponseTemplate::new(403)
+                .set_body_string(format!("Copilot rejected credential {COPILOT_TOKEN}")),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let isolated_home = TempDir::new().expect("create isolated home");
+    let binary = assert_cmd::cargo::cargo_bin!("rusty");
+    let server_uri = server.uri();
+    let isolated_path = isolated_home.path().to_path_buf();
+    let output = tokio::task::spawn_blocking(move || {
+        std::process::Command::new(binary)
+            .args(["--print", "synthetic prompt"])
+            .current_dir(&isolated_path)
+            .env_clear()
+            .env("HOME", &isolated_path)
+            .env("XDG_CONFIG_HOME", &isolated_path)
+            .env("GITHUB_TOKEN", COPILOT_TOKEN)
+            .env("GITHUB_COPILOT_ENDPOINT", server_uri)
+            .output()
+            .expect("run rusty with failing Copilot fallback")
+    })
+    .await
+    .expect("join rusty process");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Anthropic API key not found"));
+    assert!(stderr.contains("Or use GitHub Copilot instead"));
+    assert!(stderr.contains("Copilot credential validation failed (HTTP 403"));
+    assert!(stderr.contains("Copilot rejected credential [REDACTED_API_KEY]"));
+    assert!(!stderr.contains(COPILOT_TOKEN));
+    server.verify().await;
 }
 
 #[tokio::test]

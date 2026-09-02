@@ -234,7 +234,7 @@ impl CopilotAuth {
             });
         }
 
-        Err(copilot_validation_error(response).await)
+        Err(copilot_validation_error(response, &github_token).await)
     }
 
     /// Get the Bearer token for API requests.
@@ -249,13 +249,13 @@ impl CopilotAuth {
     }
 }
 
-async fn copilot_validation_error(response: reqwest::Response) -> ClientError {
+async fn copilot_validation_error(response: reqwest::Response, credential: &str) -> ClientError {
     let status = response.status();
     let body = response
         .text()
         .await
         .unwrap_or_else(|_| "unknown".to_string());
-    let sanitized = super::error::sanitize_error(&body);
+    let sanitized = super::error::sanitize_error_with_credential(&body, Some(credential));
 
     ClientError::Unknown(format!(
         "Copilot credential validation failed (HTTP {}): {}. GitHub Models is not used as a fallback. {}",
@@ -1071,17 +1071,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_connect_fails_loudly_without_hidden_fallback() {
+        const SYNTHETIC_GITHUB_TOKEN: &str = "synthetic-copilot-validation-token";
         let mock_server = MockServer::start().await;
 
         Mock::given(method("GET"))
             .and(path("/models"))
-            .respond_with(ResponseTemplate::new(403).set_body_string("copilot access denied"))
+            .respond_with(
+                ResponseTemplate::new(403)
+                    .set_body_string(format!("copilot access denied: {SYNTHETIC_GITHUB_TOKEN}")),
+            )
             .expect(1)
             .mount(&mock_server)
             .await;
 
         let result = CopilotAuth::connect_with_validation_url(
-            "ghu_test".to_string(),
+            SYNTHETIC_GITHUB_TOKEN.to_string(),
             HttpClient::new(),
             &format!("{}/models", mock_server.uri()),
         )
@@ -1092,6 +1096,8 @@ mod tests {
                 assert!(message.contains("Copilot credential validation failed (HTTP 403"));
                 assert!(message.contains("GitHub Models is not used as a fallback"));
                 assert!(message.contains("gh auth refresh --hostname github.com --scopes copilot"));
+                assert!(!message.contains(SYNTHETIC_GITHUB_TOKEN));
+                assert!(message.contains("[REDACTED_API_KEY]"));
             }
             Err(other) => panic!("expected explicit Copilot validation error, got {other:?}"),
             Ok(_) => panic!("Copilot validation should fail without fallback"),
