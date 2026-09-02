@@ -20,7 +20,7 @@ use crate::streaming;
 use crate::terminal_guard;
 use crate::tool_orchestrator;
 use crate::tui::{ChatMessage, TuiState};
-use anyhow::Result;
+use anyhow::{Context as AnyhowContext, Result};
 use rustyclawd_core::client::{Backend, Client, MessageResponse};
 use rustyclawd_core::{Context, MessageRole};
 use std::io::{self, Write};
@@ -62,6 +62,83 @@ pub struct InteractiveRuntimeConfig {
     pub settings_model: Option<String>,
     pub settings_api_url: Option<String>,
     pub azure_config: Option<AzureConfig>,
+}
+
+async fn resolve_interactive_client(
+    runtime: &InteractiveRuntimeConfig,
+) -> Result<(Arc<Client>, Backend, String)> {
+    let requested_backend = runtime.provider.unwrap_or(Backend::Anthropic);
+    match requested_backend {
+        Backend::Copilot => Ok((
+            Arc::new(
+                Client::new_copilot()
+                    .await
+                    .context("Failed to initialize Copilot backend")?,
+            ),
+            Backend::Copilot,
+            model_resolution::resolve_model(
+                Backend::Copilot,
+                runtime.model_override.as_deref(),
+                runtime.settings_model.as_deref(),
+                model_resolution::RuntimeMode::Interactive,
+            ),
+        )),
+        Backend::AzureFoundry => {
+            let cfg = runtime.azure_config.as_ref().ok_or_else(|| {
+                anyhow::anyhow!("Azure AI Foundry requires --azure-endpoint and --azure-deployment")
+            })?;
+            Ok((
+                Arc::new(Client::new_azure_foundry(
+                    &cfg.endpoint,
+                    &cfg.deployment,
+                    &cfg.api_version,
+                )?),
+                Backend::AzureFoundry,
+                model_resolution::resolve_model(
+                    Backend::AzureFoundry,
+                    runtime.model_override.as_deref(),
+                    runtime.settings_model.as_deref(),
+                    model_resolution::RuntimeMode::Interactive,
+                ),
+            ))
+        }
+        Backend::Anthropic => match model_resolution::resolve_anthropic_config(
+            runtime.model_override.as_deref(),
+            runtime.settings_model.as_deref(),
+            runtime.settings_api_url.as_deref(),
+            model_resolution::RuntimeMode::Interactive,
+        )
+        .await
+        {
+            Ok(resolved) => {
+                let client = Arc::new(Client::new(resolved.config)?);
+                Ok((client, Backend::Anthropic, resolved.model))
+            }
+            Err(anthropic_error @ rustyclawd_core::client::ClientError::ApiKeyNotFound)
+                if model_resolution::copilot_fallback_eligible(runtime.provider) =>
+            {
+                match Client::new_copilot().await {
+                    Ok(client) => {
+                        eprintln!(
+                            "No Anthropic credential found. \
+                             Using GitHub Copilot backend (detected via gh auth)."
+                        );
+                        let model = model_resolution::resolve_model(
+                            Backend::Copilot,
+                            runtime.model_override.as_deref(),
+                            runtime.settings_model.as_deref(),
+                            model_resolution::RuntimeMode::Interactive,
+                        );
+                        Ok((Arc::new(client), Backend::Copilot, model))
+                    }
+                    Err(copilot_error) => {
+                        Err(anyhow::Error::new(copilot_error).context(anthropic_error))
+                    }
+                }
+            }
+            Err(error) => Err(error.into()),
+        },
+    }
 }
 
 /// Maximum tokens for responses
@@ -158,81 +235,7 @@ impl InteractiveSession {
 
         // Load API configuration based on backend.
         // When no --provider was specified, fall back to Copilot if no Anthropic key.
-        let requested_backend = runtime.provider.unwrap_or(Backend::Anthropic);
-        let (client, backend, model) = match requested_backend {
-            Backend::Copilot => {
-                (
-                    Arc::new(Client::new_copilot().await.map_err(|e| {
-                        anyhow::anyhow!("Failed to initialize Copilot backend: {}", e)
-                    })?),
-                    Backend::Copilot,
-                    model_resolution::resolve_model(
-                        Backend::Copilot,
-                        runtime.model_override.as_deref(),
-                        runtime.settings_model.as_deref(),
-                        model_resolution::RuntimeMode::Interactive,
-                    ),
-                )
-            }
-            Backend::AzureFoundry => {
-                let cfg = runtime.azure_config.ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "Azure AI Foundry requires --azure-endpoint and --azure-deployment"
-                    )
-                })?;
-                (
-                    Arc::new(Client::new_azure_foundry(
-                        &cfg.endpoint,
-                        &cfg.deployment,
-                        &cfg.api_version,
-                    )?),
-                    Backend::AzureFoundry,
-                    model_resolution::resolve_model(
-                        Backend::AzureFoundry,
-                        runtime.model_override.as_deref(),
-                        runtime.settings_model.as_deref(),
-                        model_resolution::RuntimeMode::Interactive,
-                    ),
-                )
-            }
-            Backend::Anthropic => match model_resolution::resolve_anthropic_config(
-                runtime.model_override.as_deref(),
-                runtime.settings_model.as_deref(),
-                runtime.settings_api_url.as_deref(),
-                model_resolution::RuntimeMode::Interactive,
-            )
-            .await
-            {
-                Ok(resolved) => {
-                    let client = Arc::new(Client::new(resolved.config)?);
-                    (client, Backend::Anthropic, resolved.model)
-                }
-                Err(rustyclawd_core::client::ClientError::ApiKeyNotFound)
-                    if model_resolution::copilot_fallback_eligible(runtime.provider) =>
-                {
-                    // No Anthropic key: try Copilot as fallback
-                    match Client::new_copilot().await {
-                        Ok(c) => {
-                            eprintln!(
-                                "No Anthropic credential found. \
-                                 Using GitHub Copilot backend (detected via gh auth)."
-                            );
-                            let model = model_resolution::resolve_model(
-                                Backend::Copilot,
-                                runtime.model_override.as_deref(),
-                                runtime.settings_model.as_deref(),
-                                model_resolution::RuntimeMode::Interactive,
-                            );
-                            (Arc::new(c), Backend::Copilot, model)
-                        }
-                        Err(_) => {
-                            return Err(rustyclawd_core::client::ClientError::ApiKeyNotFound.into());
-                        }
-                    }
-                }
-                Err(e) => return Err(e.into()),
-            },
-        };
+        let (client, backend, model) = resolve_interactive_client(&runtime).await?;
 
         // Initialize TUI
         let mut tui = TuiState::new()?;
@@ -820,4 +823,267 @@ pub async fn run_interactive_with_runtime_config(
     session.allowed_tools = allowed_tools;
     session.disallowed_tools = disallowed_tools;
     session.run().await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::{Command, Output};
+    use tempfile::TempDir;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    const CHILD_CASE_ENV: &str = "RUSTYCLAWD_INTERACTIVE_TEST_CASE";
+    const CHILD_TEST_NAME: &str = "interactive::tests::interactive_runtime_resolver_isolated_child";
+    const SYNTHETIC_GITHUB_TOKEN: &str = "synthetic-interactive-github-token";
+
+    fn implicit_runtime(
+        model_override: Option<&str>,
+        settings_model: Option<&str>,
+    ) -> InteractiveRuntimeConfig {
+        InteractiveRuntimeConfig {
+            provider: None,
+            model_override: model_override.map(str::to_string),
+            settings_model: settings_model.map(str::to_string),
+            settings_api_url: None,
+            azure_config: None,
+        }
+    }
+
+    async fn run_isolated_child(
+        case: &'static str,
+        environment: Vec<(&'static str, String)>,
+    ) -> Output {
+        let temp_dir = TempDir::new().expect("create isolated child environment");
+        let isolated_path = temp_dir.path().to_path_buf();
+        let executable = std::env::current_exe().expect("locate current test executable");
+
+        let output = tokio::task::spawn_blocking(move || {
+            let mut command = Command::new(executable);
+            command
+                .arg(CHILD_TEST_NAME)
+                .args(["--exact", "--ignored", "--nocapture", "--test-threads=1"])
+                .current_dir(&isolated_path)
+                .env_clear()
+                .env("HOME", &isolated_path)
+                .env("XDG_CONFIG_HOME", &isolated_path)
+                .env(CHILD_CASE_ENV, case);
+            for (name, value) in environment {
+                command.env(name, value);
+            }
+            command.output().expect("run isolated resolver child")
+        })
+        .await
+        .expect("join isolated resolver child");
+
+        assert!(
+            output.status.success(),
+            "isolated resolver child failed\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        output
+    }
+
+    #[tokio::test]
+    async fn interactive_runtime_wires_cli_settings_environment_model_precedence() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(ResponseTemplate::new(500))
+            .expect(0)
+            .mount(&server)
+            .await;
+
+        let output = run_isolated_child(
+            "model-precedence",
+            vec![
+                (
+                    "ANTHROPIC_AUTH_TOKEN",
+                    "synthetic-interactive-token".to_string(),
+                ),
+                ("ANTHROPIC_BASE_URL", server.uri()),
+                ("ANTHROPIC_MODEL", "synthetic-environment-model".to_string()),
+            ],
+        )
+        .await;
+
+        assert!(
+            String::from_utf8_lossy(&output.stdout).contains("model-precedence-ok"),
+            "isolated model-precedence child did not report success"
+        );
+        server.verify().await;
+    }
+
+    #[tokio::test]
+    async fn interactive_runtime_implicitly_falls_back_to_copilot() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/models"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("[]"))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let output = run_isolated_child(
+            "implicit-copilot-fallback",
+            vec![
+                (
+                    "ANTHROPIC_MODEL",
+                    "synthetic-anthropic-only-model".to_string(),
+                ),
+                ("GITHUB_TOKEN", SYNTHETIC_GITHUB_TOKEN.to_string()),
+                ("GITHUB_COPILOT_ENDPOINT", server.uri()),
+            ],
+        )
+        .await;
+
+        assert!(
+            String::from_utf8_lossy(&output.stdout).contains("implicit-copilot-fallback-ok"),
+            "isolated Copilot-fallback child did not report success"
+        );
+        server.verify().await;
+    }
+
+    #[tokio::test]
+    async fn interactive_runtime_does_not_fallback_for_explicit_anthropic() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/models"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("[]"))
+            .expect(0)
+            .mount(&server)
+            .await;
+
+        let output = run_isolated_child(
+            "explicit-anthropic",
+            vec![
+                ("GITHUB_TOKEN", SYNTHETIC_GITHUB_TOKEN.to_string()),
+                ("GITHUB_COPILOT_ENDPOINT", server.uri()),
+            ],
+        )
+        .await;
+
+        assert!(
+            String::from_utf8_lossy(&output.stdout).contains("explicit-anthropic-ok"),
+            "isolated explicit-Anthropic child did not report success"
+        );
+        server.verify().await;
+    }
+
+    #[tokio::test]
+    async fn interactive_runtime_fallback_failure_retains_cause_and_redacts_token() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/models"))
+            .respond_with(ResponseTemplate::new(403).set_body_string(format!(
+                "Copilot rejected credential {SYNTHETIC_GITHUB_TOKEN}"
+            )))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let output = run_isolated_child(
+            "copilot-fallback-failure",
+            vec![
+                ("GITHUB_TOKEN", SYNTHETIC_GITHUB_TOKEN.to_string()),
+                ("GITHUB_COPILOT_ENDPOINT", server.uri()),
+            ],
+        )
+        .await;
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("Anthropic API key not found"));
+        assert!(stderr.contains("Copilot credential validation failed (HTTP 403"));
+        assert!(stderr.contains("[REDACTED_API_KEY]"));
+        assert!(!stderr.contains(SYNTHETIC_GITHUB_TOKEN));
+        server.verify().await;
+    }
+
+    // This test is ignored because parent tests invoke it in a fully isolated child process.
+    #[tokio::test]
+    #[ignore = "invoked only by isolated parent-process tests"]
+    async fn interactive_runtime_resolver_isolated_child() {
+        let case = std::env::var(CHILD_CASE_ENV)
+            .expect("isolated resolver child requires an explicit test case");
+
+        match case.as_str() {
+            "model-precedence" => {
+                let cases = [
+                    (
+                        Some("synthetic-cli-model"),
+                        Some("synthetic-settings-model"),
+                        "synthetic-cli-model",
+                    ),
+                    (
+                        None,
+                        Some("synthetic-settings-model"),
+                        "synthetic-settings-model",
+                    ),
+                    (None, None, "synthetic-environment-model"),
+                ];
+
+                for (cli_model, settings_model, expected_model) in cases {
+                    let (client, backend, model) =
+                        resolve_interactive_client(&implicit_runtime(cli_model, settings_model))
+                            .await
+                            .expect("resolve interactive Anthropic client");
+
+                    assert_eq!(backend, Backend::Anthropic);
+                    assert_eq!(client.backend(), Backend::Anthropic);
+                    assert_eq!(model, expected_model);
+                }
+                println!("model-precedence-ok");
+            }
+            "implicit-copilot-fallback" => {
+                let (client, backend, model) =
+                    resolve_interactive_client(&implicit_runtime(None, None))
+                        .await
+                        .expect("resolve implicit Copilot fallback");
+
+                assert_eq!(backend, Backend::Copilot);
+                assert_eq!(client.backend(), Backend::Copilot);
+                assert_eq!(model, "claude-sonnet-4.6");
+                println!("implicit-copilot-fallback-ok");
+            }
+            "explicit-anthropic" => {
+                let runtime = InteractiveRuntimeConfig {
+                    provider: Some(Backend::Anthropic),
+                    model_override: None,
+                    settings_model: None,
+                    settings_api_url: None,
+                    azure_config: None,
+                };
+
+                let error = resolve_interactive_client(&runtime)
+                    .await
+                    .expect_err("explicit Anthropic must not fall back");
+
+                assert!(matches!(
+                    error.downcast_ref::<rustyclawd_core::client::ClientError>(),
+                    Some(rustyclawd_core::client::ClientError::ApiKeyNotFound)
+                ));
+                println!("explicit-anthropic-ok");
+            }
+            "copilot-fallback-failure" => {
+                let error = resolve_interactive_client(&implicit_runtime(None, None))
+                    .await
+                    .expect_err("Copilot fallback must surface validation failure");
+
+                assert!(matches!(
+                    error.downcast_ref::<rustyclawd_core::client::ClientError>(),
+                    Some(rustyclawd_core::client::ClientError::ApiKeyNotFound)
+                ));
+                assert!(error.chain().skip(1).any(|cause| {
+                    matches!(
+                        cause.downcast_ref::<rustyclawd_core::client::ClientError>(),
+                        Some(rustyclawd_core::client::ClientError::Unknown(message))
+                            if message.contains("Copilot credential validation failed (HTTP 403")
+                    )
+                }));
+                eprintln!("{error:#}");
+            }
+            other => panic!("unknown isolated resolver child case: {other}"),
+        }
+    }
 }

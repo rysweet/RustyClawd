@@ -373,7 +373,7 @@ impl App {
                         let client = Client::new(resolved.config)?;
                         (client, Backend::Anthropic, resolved.model)
                     }
-                    Err(rustyclawd_core::client::ClientError::ApiKeyNotFound)
+                    Err(anthropic_error @ rustyclawd_core::client::ClientError::ApiKeyNotFound)
                         if model_resolution::copilot_fallback_eligible(explicit_provider) =>
                     {
                         // No Anthropic key and no explicit --provider: try Copilot
@@ -391,11 +391,9 @@ impl App {
                                 );
                                 (c, Backend::Copilot, model)
                             }
-                            Err(_) => {
-                                // Neither backend works — show the Anthropic error
-                                // (which now mentions Copilot as an alternative)
+                            Err(copilot_error) => {
                                 return Err(
-                                    rustyclawd_core::client::ClientError::ApiKeyNotFound.into()
+                                    anyhow::Error::new(copilot_error).context(anthropic_error)
                                 );
                             }
                         }

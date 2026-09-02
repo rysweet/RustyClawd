@@ -5,6 +5,7 @@ use rustyclawd_core::client::{Backend, ClientResult, Config};
 const DEFAULT_PRINT_ANTHROPIC_MODEL: &str = "claude-sonnet-4-6";
 const DEFAULT_INTERACTIVE_ANTHROPIC_MODEL: &str = "claude-opus-4-6";
 const DEFAULT_COPILOT_MODEL: &str = "claude-sonnet-4.6";
+const DEFAULT_PRINT_AZURE_MODEL: &str = "claude-sonnet-4-6";
 
 /// Runtime mode whose established Anthropic default should be preserved.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -96,12 +97,12 @@ pub fn resolve_model_name(model: &str, backend: Backend) -> String {
 }
 
 fn default_model(backend: Backend, runtime_mode: RuntimeMode) -> &'static str {
-    match backend {
-        Backend::Anthropic => match runtime_mode {
-            RuntimeMode::Print => DEFAULT_PRINT_ANTHROPIC_MODEL,
-            RuntimeMode::Interactive => DEFAULT_INTERACTIVE_ANTHROPIC_MODEL,
-        },
-        Backend::Copilot | Backend::AzureFoundry => DEFAULT_COPILOT_MODEL,
+    match (backend, runtime_mode) {
+        (Backend::Anthropic, RuntimeMode::Print) => DEFAULT_PRINT_ANTHROPIC_MODEL,
+        (Backend::Anthropic, RuntimeMode::Interactive) => DEFAULT_INTERACTIVE_ANTHROPIC_MODEL,
+        (Backend::Copilot, _) => DEFAULT_COPILOT_MODEL,
+        (Backend::AzureFoundry, RuntimeMode::Print) => DEFAULT_PRINT_AZURE_MODEL,
+        (Backend::AzureFoundry, RuntimeMode::Interactive) => DEFAULT_COPILOT_MODEL,
     }
 }
 
@@ -207,6 +208,24 @@ mod tests {
                 RuntimeMode::Interactive,
             ),
             DEFAULT_INTERACTIVE_ANTHROPIC_MODEL
+        );
+    }
+
+    #[test]
+    fn azure_runtime_modes_preserve_their_historical_defaults() {
+        assert_eq!(
+            resolve_model_with_env(Backend::AzureFoundry, None, None, None, RuntimeMode::Print,),
+            "claude-sonnet-4-6"
+        );
+        assert_eq!(
+            resolve_model_with_env(
+                Backend::AzureFoundry,
+                None,
+                None,
+                None,
+                RuntimeMode::Interactive,
+            ),
+            "claude-sonnet-4.6"
         );
     }
 
