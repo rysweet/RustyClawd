@@ -35,6 +35,9 @@ This directory contains comprehensive documentation for the RustyClawd project -
   - [tmux Framework Spec](./specs/tmux_framework_spec.md)
 
 ### Integration
+- [Anthropic Backend Configuration](./reference/ANTHROPIC_CONFIGURATION.md) - Credential, endpoint, model, and provider precedence
+- [LiteLLM Gateway](./howto/LITELLM_GATEWAY.md) - Route Anthropic-compatible requests through LiteLLM
+- [GitHub Copilot Backend](./copilot-backend.md) - Use GitHub Copilot as the API backend
 - [Hook Lifecycle Integration](./HOOK_LIFECYCLE_INTEGRATION.md)
 - [HTTP MCP Transport](./HTTP_MCP_TRANSPORT.md)
 - [MCP Prompts](./MCP_PROMPTS.md)

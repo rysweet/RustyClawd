@@ -63,7 +63,7 @@ pub enum ClientError {
     #[error("Invalid API key format")]
     InvalidApiKey,
 
-    #[error("API key not found. Please set via one of:\n  1. Environment: export ANTHROPIC_API_KEY='sk-ant-...'\n  2. .env file: echo 'ANTHROPIC_API_KEY=\"sk-ant-...\"' > .env\n  3. Legacy file: echo 'sk-ant-...' > ~/.claude-msec-k && chmod 600 ~/.claude-msec-k\n\nGet your API key: https://console.anthropic.com/settings/keys\n\nOr use GitHub Copilot instead: rusty --provider copilot")]
+    #[error("Anthropic API key not found and ANTHROPIC_AUTH_TOKEN is unset. Configure one of:\n  1. Preferred token: export ANTHROPIC_AUTH_TOKEN='YOUR_SYNTHETIC_GATEWAY_TOKEN'\n  2. Compatible API key: export ANTHROPIC_API_KEY='YOUR_SYNTHETIC_ANTHROPIC_API_KEY'\n  3. .env file: set ANTHROPIC_API_KEY to a compatible API key\n  4. Legacy file: store a compatible API key in ~/.claude-msec-k with mode 600\n\nGet an Anthropic API key: https://console.anthropic.com/settings/keys\n\nOr use GitHub Copilot instead: rusty --provider copilot")]
     ApiKeyNotFound,
 
     #[error("Failed to parse JSON: {0}")]
@@ -101,6 +101,22 @@ pub fn sanitize_error(error: &str) -> String {
     pattern.replace_all(error, "[REDACTED_API_KEY]").to_string()
 }
 
+pub(crate) fn sanitize_error_with_credential(error: &str, credential: Option<&str>) -> String {
+    let Some(credential) = credential.filter(|value| !value.is_empty()) else {
+        return sanitize_error(error);
+    };
+
+    let json = serde_json::to_string(credential).expect("serializing a string cannot fail");
+    let json_escaped = json
+        .strip_prefix('"')
+        .and_then(|value| value.strip_suffix('"'))
+        .expect("a JSON string is enclosed in quotes");
+    let credential_redacted = error
+        .replace(json_escaped, "[REDACTED_API_KEY]")
+        .replace(credential, "[REDACTED_API_KEY]");
+    sanitize_error(&credential_redacted)
+}
+
 impl ClientError {
     /// Create a sanitized error message safe for logging
     pub fn sanitized_message(&self) -> String {
@@ -112,6 +128,17 @@ impl ClientError {
     /// This function extracts the status code, error message, and Retry-After header
     /// to create a structured error with all relevant context.
     pub async fn from_response(response: reqwest::Response) -> Self {
+        Self::from_response_with_credential(response, None).await
+    }
+
+    /// Create a response error after redacting the exact active credential.
+    ///
+    /// The caller supplies the request credential directly so sanitization never
+    /// depends on mutable process environment state.
+    pub async fn from_response_with_credential(
+        response: reqwest::Response,
+        credential: Option<&str>,
+    ) -> Self {
         let status = response.status();
         let retry_after = parse_retry_after(response.headers().get("retry-after"));
 
@@ -121,7 +148,7 @@ impl ClientError {
             .await
             .unwrap_or_else(|_| "Failed to read error response".to_string());
 
-        let sanitized_body = sanitize_error(&error_body);
+        let sanitized_body = sanitize_error_with_credential(&error_body, credential);
 
         match status.as_u16() {
             400 => ClientError::BadRequest(sanitized_body),
@@ -177,6 +204,28 @@ impl ClientError {
             ClientError::RateLimited { retry_after, .. } => *retry_after,
             ClientError::ServiceUnavailable { retry_after, .. } => *retry_after,
             _ => None,
+        }
+    }
+
+    /// Redact an active credential from errors produced while parsing an SSE stream.
+    pub(crate) fn sanitize_stream_parser_error(self, credential: &str) -> Self {
+        match self {
+            ClientError::Stream(message) => {
+                ClientError::Stream(sanitize_error_with_credential(&message, Some(credential)))
+            }
+            ClientError::InvalidSSE(message) => {
+                ClientError::InvalidSSE(sanitize_error_with_credential(&message, Some(credential)))
+            }
+            ClientError::JsonParse(error) => {
+                let message = error.to_string();
+                let sanitized = sanitize_error_with_credential(&message, Some(credential));
+                if sanitized == message {
+                    ClientError::JsonParse(error)
+                } else {
+                    ClientError::InvalidSSE(sanitized)
+                }
+            }
+            other => other,
         }
     }
 }
@@ -289,6 +338,74 @@ mod tests {
             sanitized,
             "Failed to authenticate with key [REDACTED_API_KEY]"
         );
+    }
+
+    #[test]
+    fn test_sanitize_exact_credential_and_json_escaped_representation() {
+        let credential = r#"synthetic-"quoted"\credential"#;
+        let json = serde_json::to_string(credential).unwrap();
+        let json_escaped = json
+            .strip_prefix('"')
+            .and_then(|value| value.strip_suffix('"'))
+            .unwrap();
+        let error = format!("literal={credential}; json={json_escaped}");
+
+        let sanitized = sanitize_error_with_credential(&error, Some(credential));
+
+        assert_eq!(
+            sanitized,
+            "literal=[REDACTED_API_KEY]; json=[REDACTED_API_KEY]"
+        );
+        assert!(!sanitized.contains(credential));
+        assert!(!sanitized.contains(json_escaped));
+    }
+
+    #[test]
+    fn test_empty_exact_credential_does_not_replace_every_boundary() {
+        let error = "gateway error";
+
+        assert_eq!(
+            sanitize_error_with_credential(error, Some("")),
+            "gateway error"
+        );
+    }
+
+    #[test]
+    fn test_stream_parser_error_preserves_unchanged_json_parse_variant() {
+        let parse_error = serde_json::from_str::<serde_json::Value>("{").unwrap_err();
+        let original_message = parse_error.to_string();
+
+        let sanitized =
+            ClientError::JsonParse(parse_error).sanitize_stream_parser_error("unrelated-token");
+
+        match sanitized {
+            ClientError::JsonParse(error) => assert_eq!(error.to_string(), original_message),
+            other => panic!("expected JsonParse, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_stream_parser_error_redacts_credential_exposed_by_json_parser() {
+        #[derive(Debug, serde::Deserialize)]
+        enum ExpectedValue {
+            Allowed,
+        }
+
+        let credential = "synthetic-gateway-secret";
+        let parse_error =
+            serde_json::from_str::<ExpectedValue>(&format!(r#""{credential}""#)).unwrap_err();
+        assert!(parse_error.to_string().contains(credential));
+
+        let sanitized =
+            ClientError::JsonParse(parse_error).sanitize_stream_parser_error(credential);
+
+        match sanitized {
+            ClientError::InvalidSSE(message) => {
+                assert!(message.contains("[REDACTED_API_KEY]"));
+                assert!(!message.contains(credential));
+            }
+            other => panic!("expected InvalidSSE, got {other:?}"),
+        }
     }
 
     #[test]

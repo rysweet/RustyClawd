@@ -11,6 +11,7 @@ use crate::commands::SlashCommands;
 use crate::conversation::{self, SessionServices, StreamingState, ToolLoopState};
 use crate::hooks;
 use crate::hooks::NotificationType;
+use crate::model_resolution;
 use crate::notification::NotificationManager;
 use crate::plugins::mcp_proxy::McpProxy;
 use crate::session::SessionStats;
@@ -20,7 +21,7 @@ use crate::terminal_guard;
 use crate::tool_orchestrator;
 use crate::tui::{ChatMessage, TuiState};
 use anyhow::Result;
-use rustyclawd_core::client::{Backend, Client, Config, MessageResponse};
+use rustyclawd_core::client::{Backend, Client, MessageResponse};
 use rustyclawd_core::{Context, MessageRole};
 use std::io::{self, Write};
 use std::sync::Arc;
@@ -54,11 +55,14 @@ impl AzureConfig {
     }
 }
 
-/// Default model for interactive sessions (Anthropic backend)
-pub(crate) const DEFAULT_MODEL: &str = "claude-opus-4-6";
-
-/// Default model for Copilot backend sessions
-pub(crate) const DEFAULT_COPILOT_MODEL: &str = "claude-sonnet-4.6";
+/// Provider and model inputs needed to initialize an interactive session.
+pub struct InteractiveRuntimeConfig {
+    pub provider: Option<Backend>,
+    pub model_override: Option<String>,
+    pub settings_model: Option<String>,
+    pub settings_api_url: Option<String>,
+    pub azure_config: Option<AzureConfig>,
+}
 
 /// Maximum tokens for responses
 pub(crate) const MAX_TOKENS: u32 = 4096;
@@ -76,6 +80,8 @@ pub struct InteractiveSession {
     tui: TuiState,
     /// Model to use
     model: String,
+    /// Effective backend, including any implicit Copilot fallback.
+    backend: Backend,
     /// Slash command system
     slash_commands: Arc<SlashCommands>,
     /// Session persistence manager
@@ -110,7 +116,17 @@ impl InteractiveSession {
 
     /// Create a new interactive session with optional hooks system
     pub async fn with_hooks(hooks: Option<Arc<hooks::HooksSystem>>) -> Result<Self> {
-        Self::with_hooks_and_backend(hooks, Backend::Anthropic, None, None).await
+        Self::with_runtime_config(
+            hooks,
+            InteractiveRuntimeConfig {
+                provider: None,
+                model_override: None,
+                settings_model: None,
+                settings_api_url: None,
+                azure_config: None,
+            },
+        )
+        .await
     }
 
     /// Create a new interactive session with optional hooks system, backend, and model.
@@ -120,22 +136,46 @@ impl InteractiveSession {
         model_override: Option<String>,
         azure_config: Option<AzureConfig>,
     ) -> Result<Self> {
+        Self::with_runtime_config(
+            hooks,
+            InteractiveRuntimeConfig {
+                provider: Some(backend),
+                model_override,
+                settings_model: None,
+                settings_api_url: None,
+                azure_config,
+            },
+        )
+        .await
+    }
+
+    async fn with_runtime_config(
+        hooks: Option<Arc<hooks::HooksSystem>>,
+        runtime: InteractiveRuntimeConfig,
+    ) -> Result<Self> {
         // Set execution context to TUI mode for process isolation
         terminal_guard::set_execution_context(terminal_guard::ExecutionContext::Tui);
 
         // Load API configuration based on backend.
         // When no --provider was specified, fall back to Copilot if no Anthropic key.
-        let (client, backend) = match backend {
+        let requested_backend = runtime.provider.unwrap_or(Backend::Anthropic);
+        let (client, backend, model) = match requested_backend {
             Backend::Copilot => {
                 (
                     Arc::new(Client::new_copilot().await.map_err(|e| {
                         anyhow::anyhow!("Failed to initialize Copilot backend: {}", e)
                     })?),
                     Backend::Copilot,
+                    model_resolution::resolve_model(
+                        Backend::Copilot,
+                        runtime.model_override.as_deref(),
+                        runtime.settings_model.as_deref(),
+                        model_resolution::RuntimeMode::Interactive,
+                    ),
                 )
             }
             Backend::AzureFoundry => {
-                let cfg = azure_config.ok_or_else(|| {
+                let cfg = runtime.azure_config.ok_or_else(|| {
                     anyhow::anyhow!(
                         "Azure AI Foundry requires --azure-endpoint and --azure-deployment"
                     )
@@ -147,19 +187,43 @@ impl InteractiveSession {
                         &cfg.api_version,
                     )?),
                     Backend::AzureFoundry,
+                    model_resolution::resolve_model(
+                        Backend::AzureFoundry,
+                        runtime.model_override.as_deref(),
+                        runtime.settings_model.as_deref(),
+                        model_resolution::RuntimeMode::Interactive,
+                    ),
                 )
             }
-            Backend::Anthropic => match Config::from_default_location().await {
-                Ok(config) => (Arc::new(Client::new(config)?), Backend::Anthropic),
-                Err(rustyclawd_core::client::ClientError::ApiKeyNotFound) => {
+            Backend::Anthropic => match model_resolution::resolve_anthropic_config(
+                runtime.model_override.as_deref(),
+                runtime.settings_model.as_deref(),
+                runtime.settings_api_url.as_deref(),
+                model_resolution::RuntimeMode::Interactive,
+            )
+            .await
+            {
+                Ok(resolved) => {
+                    let client = Arc::new(Client::new(resolved.config)?);
+                    (client, Backend::Anthropic, resolved.model)
+                }
+                Err(rustyclawd_core::client::ClientError::ApiKeyNotFound)
+                    if model_resolution::copilot_fallback_eligible(runtime.provider) =>
+                {
                     // No Anthropic key: try Copilot as fallback
                     match Client::new_copilot().await {
                         Ok(c) => {
                             eprintln!(
-                                "No Anthropic API key found. \
+                                "No Anthropic credential found. \
                                  Using GitHub Copilot backend (detected via gh auth)."
                             );
-                            (Arc::new(c), Backend::Copilot)
+                            let model = model_resolution::resolve_model(
+                                Backend::Copilot,
+                                runtime.model_override.as_deref(),
+                                runtime.settings_model.as_deref(),
+                                model_resolution::RuntimeMode::Interactive,
+                            );
+                            (Arc::new(c), Backend::Copilot, model)
                         }
                         Err(_) => {
                             return Err(rustyclawd_core::client::ClientError::ApiKeyNotFound.into());
@@ -205,19 +269,13 @@ impl InteractiveSession {
                 .await;
         }
 
-        // Pick model: CLI override > backend default
-        let model = model_override.unwrap_or_else(|| match backend {
-            Backend::Copilot => DEFAULT_COPILOT_MODEL.to_string(),
-            Backend::AzureFoundry => DEFAULT_COPILOT_MODEL.to_string(),
-            Backend::Anthropic => DEFAULT_MODEL.to_string(),
-        });
-
         Ok(Self {
             client,
             context: Context::new(),
             tui,
             stats: SessionStats::new(&model),
             model,
+            backend,
             slash_commands,
             persistence,
             mcp_proxy,
@@ -527,8 +585,7 @@ impl InteractiveSession {
                         )));
                     } else {
                         // Resolve alias and switch model
-                        let resolved = resolve_model_alias(args);
-                        self.model = resolved.to_string();
+                        self.model = model_resolution::resolve_model_name(args, self.backend);
                         self.stats.set_model(&self.model);
                         self.tui.add_message(ChatMessage::system(format!(
                             "Switched to model: {}",
@@ -642,23 +699,6 @@ impl InteractiveSession {
     }
 }
 
-/// Resolve a model alias or name to the canonical model ID.
-///
-/// Supports shorthand aliases:
-/// - `sonnet` → `claude-sonnet-4-6`
-/// - `opus`   → `claude-opus-4-6`
-/// - `haiku`  → `claude-haiku-4-5-20251001`
-///
-/// Any other value is returned as-is (treated as a literal model ID).
-fn resolve_model_alias(name: &str) -> &str {
-    match name {
-        "sonnet" => "claude-sonnet-4-6",
-        "opus" => "claude-opus-4-6",
-        "haiku" => "claude-haiku-4-5-20251001",
-        other => other,
-    }
-}
-
 /// Build the autocomplete callback for slash commands.
 fn build_completion_callback(commands: Arc<SlashCommands>) -> CompletionCallback {
     Box::new(move |prefix| {
@@ -730,7 +770,19 @@ pub async fn run_interactive() -> Result<()> {
 
 /// Entry point for interactive mode with optional hooks system
 pub async fn run_interactive_with_hooks(hooks: Option<Arc<hooks::HooksSystem>>) -> Result<()> {
-    run_interactive_with_config(hooks, vec![], vec![], Backend::Anthropic, None, None).await
+    run_interactive_with_runtime_config(
+        hooks,
+        vec![],
+        vec![],
+        InteractiveRuntimeConfig {
+            provider: None,
+            model_override: None,
+            settings_model: None,
+            settings_api_url: None,
+            azure_config: None,
+        },
+    )
+    .await
 }
 
 /// Entry point for interactive mode with full configuration
@@ -742,9 +794,29 @@ pub async fn run_interactive_with_config(
     model_override: Option<String>,
     azure_config: Option<AzureConfig>,
 ) -> Result<()> {
-    let mut session =
-        InteractiveSession::with_hooks_and_backend(hooks, backend, model_override, azure_config)
-            .await?;
+    run_interactive_with_runtime_config(
+        hooks,
+        allowed_tools,
+        disallowed_tools,
+        InteractiveRuntimeConfig {
+            provider: Some(backend),
+            model_override,
+            settings_model: None,
+            settings_api_url: None,
+            azure_config,
+        },
+    )
+    .await
+}
+
+/// Entry point used by the CLI after settings and provider precedence are known.
+pub async fn run_interactive_with_runtime_config(
+    hooks: Option<Arc<hooks::HooksSystem>>,
+    allowed_tools: Vec<String>,
+    disallowed_tools: Vec<String>,
+    runtime: InteractiveRuntimeConfig,
+) -> Result<()> {
+    let mut session = InteractiveSession::with_runtime_config(hooks, runtime).await?;
     session.allowed_tools = allowed_tools;
     session.disallowed_tools = disallowed_tools;
     session.run().await

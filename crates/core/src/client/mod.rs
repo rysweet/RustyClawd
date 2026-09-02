@@ -58,8 +58,9 @@ use std::future::Future;
 use std::time::Duration;
 
 pub use azure_foundry::AzureAuth;
-pub use config::{ApiKey, Backend, Config};
+pub use config::{has_anthropic_env_credential, ApiKey, Backend, Config};
 pub use copilot::{CopilotAuth, CopilotModel};
+use error::sanitize_error_with_credential;
 pub use error::{ClientError, ClientResult};
 pub use request::{CreateMessageRequest, Metadata, Speed, ThinkingConfig};
 pub use response::{
@@ -388,7 +389,10 @@ impl Client {
 
         // Check for HTTP errors and create structured error
         if !response.status().is_success() {
-            return Err(ClientError::from_response(response).await);
+            let credential = self.config.api_key.expose_secret().expose();
+            return Err(
+                ClientError::from_response_with_credential(response, Some(credential)).await,
+            );
         }
 
         let message_response: MessageResponse = response.json().await?;
@@ -462,7 +466,10 @@ impl Client {
 
         // Check for HTTP errors and create structured error
         if !response.status().is_success() {
-            return Err(ClientError::from_response(response).await);
+            let credential = self.config.api_key.expose_secret().expose();
+            return Err(
+                ClientError::from_response_with_credential(response, Some(credential)).await,
+            );
         }
 
         // Convert response body into a byte stream
@@ -470,8 +477,22 @@ impl Client {
 
         // Wrap in our SSE parser
         let event_stream = EventStream::new(byte_stream);
+        let credential = self.config.api_key.clone();
 
-        Ok(event_stream)
+        Ok(event_stream.map(move |result| {
+            let active_credential = credential.expose_secret().expose();
+            match result {
+                Ok(StreamEvent::Error { mut error }) => {
+                    error.type_field =
+                        sanitize_error_with_credential(&error.type_field, Some(active_credential));
+                    error.message =
+                        sanitize_error_with_credential(&error.message, Some(active_credential));
+                    Ok(StreamEvent::Error { error })
+                }
+                Err(error) => Err(error.sanitize_stream_parser_error(active_credential)),
+                event => event,
+            }
+        }))
     }
 
     /// Helper to extract just the text from a streaming response
