@@ -58,7 +58,7 @@ use std::future::Future;
 use std::time::Duration;
 
 pub use azure_foundry::AzureAuth;
-pub use config::{ApiKey, Backend, Config};
+pub use config::{has_anthropic_env_credential, ApiKey, Backend, Config};
 pub use copilot::{CopilotAuth, CopilotModel};
 pub use error::{ClientError, ClientResult};
 pub use request::{CreateMessageRequest, Metadata, Speed, ThinkingConfig};
@@ -388,7 +388,10 @@ impl Client {
 
         // Check for HTTP errors and create structured error
         if !response.status().is_success() {
-            return Err(ClientError::from_response(response).await);
+            let credential = self.config.api_key.expose_secret().expose();
+            return Err(
+                ClientError::from_response_with_credential(response, Some(credential)).await,
+            );
         }
 
         let message_response: MessageResponse = response.json().await?;
@@ -462,7 +465,10 @@ impl Client {
 
         // Check for HTTP errors and create structured error
         if !response.status().is_success() {
-            return Err(ClientError::from_response(response).await);
+            let credential = self.config.api_key.expose_secret().expose();
+            return Err(
+                ClientError::from_response_with_credential(response, Some(credential)).await,
+            );
         }
 
         // Convert response body into a byte stream

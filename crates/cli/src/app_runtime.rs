@@ -512,7 +512,7 @@ impl App {
         let allowed_tools = self.cli.allowed_tools.clone();
         let disallowed_tools = self.cli.disallowed_tools.clone();
 
-        let backend = self
+        let explicit_provider = self
             .cli
             .provider
             .as_deref()
@@ -524,8 +524,8 @@ impl App {
                     )
                 })
             })
-            .transpose()?
-            .unwrap_or(Backend::Anthropic);
+            .transpose()?;
+        let backend = explicit_provider.unwrap_or(Backend::Anthropic);
 
         let azure_config = if backend == Backend::AzureFoundry {
             Some(interactive::AzureConfig::new(
@@ -551,13 +551,17 @@ impl App {
             None
         };
 
-        interactive::run_interactive_with_config(
+        interactive::run_interactive_with_runtime_config(
             Some(hooks),
             allowed_tools,
             disallowed_tools,
-            backend,
-            self.cli.model.clone(),
-            azure_config,
+            interactive::InteractiveRuntimeConfig {
+                provider: explicit_provider,
+                model_override: self.cli.model.clone(),
+                settings_model: self.settings.model.clone(),
+                settings_api_url: self.settings.api_url.clone(),
+                azure_config,
+            },
         )
         .await
     }

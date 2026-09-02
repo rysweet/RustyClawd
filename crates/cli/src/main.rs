@@ -22,6 +22,7 @@ use rustyclawd::tool_executor;
 
 use anyhow::{Context as AnyhowContext, Result};
 use clap::Parser;
+use rustyclawd_core::client::has_anthropic_env_credential;
 
 use cli_args::Cli;
 
@@ -457,28 +458,32 @@ fn handle_auth_command(args: &[String]) -> Result<()> {
     let subcommand = args.first().map(|s| s.as_str()).unwrap_or("status");
     match subcommand {
         "login" => {
-            let has_key = std::env::var("ANTHROPIC_API_KEY").is_ok();
-            if has_key {
-                println!("Already authenticated via ANTHROPIC_API_KEY environment variable.");
+            if has_anthropic_env_credential() {
+                println!("An Anthropic environment credential is already configured.");
             } else {
                 println!(
-                    "To authenticate, set your API key:\n  \
-                     export ANTHROPIC_API_KEY=your-key-here\n\n\
-                     You can find your API key at: https://console.anthropic.com"
+                    "To authenticate, set the preferred token:\n  \
+                     export ANTHROPIC_AUTH_TOKEN=YOUR_SYNTHETIC_GATEWAY_TOKEN\n\n\
+                     Or set a compatible Anthropic API key:\n  \
+                     export ANTHROPIC_API_KEY=YOUR_SYNTHETIC_ANTHROPIC_API_KEY\n\n\
+                     You can create an API key at: https://console.anthropic.com"
                 );
             }
         }
         "status" => {
-            let has_key = std::env::var("ANTHROPIC_API_KEY").is_ok();
             println!(
-                "Authentication status: API key is {}set.",
-                if has_key { "" } else { "NOT " }
+                "Authentication status: Anthropic environment credential is {}configured.",
+                if has_anthropic_env_credential() {
+                    ""
+                } else {
+                    "NOT "
+                }
             );
         }
         "logout" => {
             println!(
-                "To log out, unset your API key:\n  \
-                 unset ANTHROPIC_API_KEY\n\n\
+                "To log out, unset Anthropic environment credentials:\n  \
+                 unset ANTHROPIC_AUTH_TOKEN ANTHROPIC_API_KEY\n\n\
                  Or remove it from your shell configuration (e.g., ~/.bashrc, ~/.zshrc)."
             );
         }

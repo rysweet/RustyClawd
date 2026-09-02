@@ -13,6 +13,7 @@ pub mod interactive;
 pub mod mcp_commands;
 pub mod mcp_dispatch;
 pub mod mcp_serve;
+pub mod model_resolution;
 pub mod notification;
 pub mod permission_mode;
 pub mod plugins;

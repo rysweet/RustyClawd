@@ -31,6 +31,7 @@ use crate::mcp_commands;
 use crate::session_persistence::SessionPersistence;
 use crate::tui::{ChatMessage, TuiState};
 use anyhow::Result;
+use rustyclawd_core::client::has_anthropic_env_credential;
 use rustyclawd_core::{Context, Message};
 use rustyclawd_tools::{list_available_skills, load_skill_content};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -520,7 +521,7 @@ fn handle_debug_command(
     let arch = std::env::consts::ARCH;
     let model = &services.model;
     let session_id = &services.session_id;
-    let api_key_status = if std::env::var("ANTHROPIC_API_KEY").is_ok() {
+    let api_key_status = if has_anthropic_env_credential() {
         "Set"
     } else {
         "Not set"

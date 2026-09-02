@@ -13,18 +13,23 @@ use std::path::PathBuf;
 /// Settings loader - loads configuration from multiple sources
 pub struct SettingsLoader {
     project_root: Option<PathBuf>,
+    custom_path: Option<PathBuf>,
 }
 
 impl SettingsLoader {
     /// Create a new settings loader
     pub fn new() -> Self {
-        Self { project_root: None }
+        Self {
+            project_root: None,
+            custom_path: None,
+        }
     }
 
     /// Create loader with specific project root
     pub fn with_project_root(project_root: PathBuf) -> Self {
         Self {
             project_root: Some(project_root),
+            custom_path: None,
         }
     }
 
@@ -45,6 +50,7 @@ impl SettingsLoader {
 
         Ok(Self {
             project_root: Some(project_root),
+            custom_path: Some(path),
         })
     }
 
@@ -146,6 +152,11 @@ impl SettingsLoader {
             if let Ok(local) = discovery::load_project_local_settings(project_root) {
                 hierarchy.add_layer(SettingsLayer::ProjectLocal, local);
             }
+        }
+
+        if let Some(ref custom_path) = self.custom_path {
+            let custom = crate::settings::parser::parse_settings_from_file(custom_path)?;
+            hierarchy.add_layer(SettingsLayer::ProjectLocal, custom);
         }
 
         // Load environment variable overrides

@@ -63,7 +63,7 @@ pub enum ClientError {
     #[error("Invalid API key format")]
     InvalidApiKey,
 
-    #[error("API key not found. Please set via one of:\n  1. Environment: export ANTHROPIC_API_KEY='sk-ant-...'\n  2. .env file: echo 'ANTHROPIC_API_KEY=\"sk-ant-...\"' > .env\n  3. Legacy file: echo 'sk-ant-...' > ~/.claude-msec-k && chmod 600 ~/.claude-msec-k\n\nGet your API key: https://console.anthropic.com/settings/keys\n\nOr use GitHub Copilot instead: rusty --provider copilot")]
+    #[error("Anthropic API key not found and ANTHROPIC_AUTH_TOKEN is unset. Configure one of:\n  1. Preferred token: export ANTHROPIC_AUTH_TOKEN='YOUR_SYNTHETIC_GATEWAY_TOKEN'\n  2. Compatible API key: export ANTHROPIC_API_KEY='YOUR_SYNTHETIC_ANTHROPIC_API_KEY'\n  3. .env file: set ANTHROPIC_API_KEY to a compatible API key\n  4. Legacy file: store a compatible API key in ~/.claude-msec-k with mode 600\n\nGet an Anthropic API key: https://console.anthropic.com/settings/keys\n\nOr use GitHub Copilot instead: rusty --provider copilot")]
     ApiKeyNotFound,
 
     #[error("Failed to parse JSON: {0}")]
@@ -101,6 +101,14 @@ pub fn sanitize_error(error: &str) -> String {
     pattern.replace_all(error, "[REDACTED_API_KEY]").to_string()
 }
 
+fn sanitize_error_with_credential(error: &str, credential: Option<&str>) -> String {
+    let credential_redacted = credential
+        .filter(|value| !value.is_empty())
+        .map(|value| error.replace(value, "[REDACTED_API_KEY]"))
+        .unwrap_or_else(|| error.to_string());
+    sanitize_error(&credential_redacted)
+}
+
 impl ClientError {
     /// Create a sanitized error message safe for logging
     pub fn sanitized_message(&self) -> String {
@@ -112,6 +120,17 @@ impl ClientError {
     /// This function extracts the status code, error message, and Retry-After header
     /// to create a structured error with all relevant context.
     pub async fn from_response(response: reqwest::Response) -> Self {
+        Self::from_response_with_credential(response, None).await
+    }
+
+    /// Create a response error after redacting the exact active credential.
+    ///
+    /// The caller supplies the request credential directly so sanitization never
+    /// depends on mutable process environment state.
+    pub async fn from_response_with_credential(
+        response: reqwest::Response,
+        credential: Option<&str>,
+    ) -> Self {
         let status = response.status();
         let retry_after = parse_retry_after(response.headers().get("retry-after"));
 
@@ -121,7 +140,7 @@ impl ClientError {
             .await
             .unwrap_or_else(|_| "Failed to read error response".to_string());
 
-        let sanitized_body = sanitize_error(&error_body);
+        let sanitized_body = sanitize_error_with_credential(&error_body, credential);
 
         match status.as_u16() {
             400 => ClientError::BadRequest(sanitized_body),

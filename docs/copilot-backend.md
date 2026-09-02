@@ -1,6 +1,9 @@
 # Using RustyClawd with GitHub Copilot LM API
 
-RustyClawd supports two API backends: the **Anthropic Messages API** (default) and the **GitHub Copilot LM API**. The Copilot backend lets you use any model available through your GitHub Copilot subscription — including Claude, GPT, and Gemini models — using your existing GitHub authentication.
+RustyClawd supports the **Anthropic Messages API** (default), **GitHub Copilot
+LM API**, and **Azure AI Foundry** backends. The Copilot backend lets you use
+any model available through your GitHub Copilot subscription — including
+Claude, GPT, and Gemini models — using your existing GitHub authentication.
 
 ## Prerequisites
 
@@ -35,13 +38,14 @@ rusty --provider copilot --model claude-sonnet-4.6
 
 | Flag | Description |
 |------|-------------|
-| `--provider <PROVIDER>` | API backend: `anthropic` (default) or `copilot` |
+| `--provider <PROVIDER>` | API backend: `anthropic` (default), `copilot`, or `azure` |
 | `--list-models` | List available models for the selected provider and exit |
 | `--model <MODEL_ID>` | Model to use (see `--list-models` for valid IDs) |
 
 The `--provider` flag accepts these aliases (case-insensitive):
 - Anthropic: `anthropic`, `claude`
 - Copilot: `copilot`, `github`, `gh`
+- Azure AI Foundry: `azure`, `azure_foundry`, `azure-foundry`, `azurefoundry`
 
 ## Authentication
 
@@ -130,12 +134,17 @@ The tool execution loop (`execute_with_tools`) is unchanged — it works identic
 
 | Feature | Anthropic | Copilot |
 |---------|-----------|---------|
-| Auth | `ANTHROPIC_API_KEY` | `gh auth` token (with `copilot` scope) |
+| Auth | `ANTHROPIC_AUTH_TOKEN` or compatible `ANTHROPIC_API_KEY` | `gh auth` token (with `copilot` scope) |
 | API format | Anthropic Messages | OpenAI Chat Completions |
 | Fast mode (`--speed fast`) | Supported (Opus 4.6) | Not applicable |
 | Extended thinking | Supported | Not available via OpenAI format |
 | Model aliases (`sonnet`, `opus`) | Supported | Use full model IDs from `--list-models` |
 | Retry-After headers | Supported | Supported |
+
+Anthropic environment variables configure only the Anthropic backend and do
+not override `--provider copilot`. See the
+[Anthropic backend configuration reference](reference/ANTHROPIC_CONFIGURATION.md)
+for credential, endpoint, and model precedence.
 
 ## Troubleshooting
 

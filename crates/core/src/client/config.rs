@@ -14,6 +14,22 @@ use zeroize::Zeroize;
 
 use super::error::{ClientError, ClientResult};
 
+/// Return whether a trimmed, non-empty Anthropic environment credential is configured.
+///
+/// This intentionally exposes only a boolean for user-facing diagnostics.
+pub fn has_anthropic_env_credential() -> bool {
+    ["ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY"]
+        .iter()
+        .any(|name| non_empty_env(name).is_some())
+}
+
+fn non_empty_env(name: &str) -> Option<String> {
+    std::env::var(name)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
 /// API backend provider.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Backend {
@@ -114,21 +130,22 @@ impl ApiKey {
     /// Load from default location with priority chain
     ///
     /// Priority:
-    /// 1. ANTHROPIC_API_KEY environment variable
-    /// 2. .env file in current working directory
-    /// 3. ~/.claude-msec-k (legacy, with deprecation warning)
+    /// 1. ANTHROPIC_AUTH_TOKEN environment variable
+    /// 2. ANTHROPIC_API_KEY environment variable
+    /// 3. .env file in current working directory
+    /// 4. ~/.claude-msec-k (legacy, with deprecation warning)
     pub async fn from_default_location() -> ClientResult<Self> {
-        // Try 1: Environment variable
+        // Try 1-2: Environment variables
         if let Some(key) = Self::try_from_env()? {
             return Ok(key);
         }
 
-        // Try 2: .env file in current directory
+        // Try 3: .env file in current directory
         if let Some(key) = Self::try_from_dotenv().await? {
             return Ok(key);
         }
 
-        // Try 3: Legacy file (with warning)
+        // Try 4: Legacy file (with warning)
         if let Some(key) = Self::try_from_legacy_file().await? {
             Self::warn_legacy_usage();
             return Ok(key);
@@ -138,12 +155,14 @@ impl ApiKey {
         Err(ClientError::ApiKeyNotFound)
     }
 
-    /// Try loading from ANTHROPIC_API_KEY environment variable
+    /// Try loading from Anthropic environment variables.
     fn try_from_env() -> ClientResult<Option<Self>> {
-        if let Ok(key) = std::env::var("ANTHROPIC_API_KEY") {
-            if !key.is_empty() {
-                return Ok(Some(Self::new(key)?));
-            }
+        if let Some(token) = non_empty_env("ANTHROPIC_AUTH_TOKEN") {
+            return Ok(Some(Self::new_unchecked(token)));
+        }
+
+        if let Some(key) = non_empty_env("ANTHROPIC_API_KEY") {
+            return Ok(Some(Self::new(key)?));
         }
         Ok(None)
     }
@@ -265,12 +284,20 @@ impl Config {
     pub fn new(api_key: ApiKey) -> Self {
         Self {
             api_key: SecretBox::new(Box::new(api_key)),
-            api_url: Self::DEFAULT_API_URL.to_string(),
+            api_url: Self::anthropic_api_url(),
             api_version: Self::DEFAULT_API_VERSION.to_string(),
             timeout_secs: Self::DEFAULT_TIMEOUT_SECS,
             account_info: crate::env_config::account_info::AccountInfo::from_env(),
             backend: Backend::Anthropic,
         }
+    }
+
+    fn anthropic_api_url() -> String {
+        std::env::var("ANTHROPIC_BASE_URL")
+            .ok()
+            .map(|url| url.trim().trim_end_matches('/').to_string())
+            .filter(|url| !url.is_empty())
+            .unwrap_or_else(|| Self::DEFAULT_API_URL.to_string())
     }
 
     /// Create a Copilot backend configuration.
@@ -322,7 +349,7 @@ impl Config {
     /// Builder: Set custom API URL
     #[must_use]
     pub fn with_api_url(mut self, url: String) -> Self {
-        self.api_url = url;
+        self.api_url = url.trim().trim_end_matches('/').to_string();
         self
     }
 
@@ -444,9 +471,10 @@ mod tests {
 
     #[test]
     fn test_api_key_not_found_error_message() {
-        // Verify helpful error message includes all 3 options
+        // Verify helpful error message includes all supported options.
         let error = ClientError::ApiKeyNotFound;
         let message = error.to_string();
+        assert!(message.contains("ANTHROPIC_AUTH_TOKEN"));
         assert!(message.contains("ANTHROPIC_API_KEY"));
         assert!(message.contains(".env"));
         assert!(message.contains("~/.claude-msec-k"));

@@ -30,6 +30,9 @@ Complete documentation for RustyClawd - Claude Code compatible CLI and SDK in Ru
 - **[Mock LLM Spec](specs/mock_llm_spec.md)** - Test mock specifications
 
 ### Integration Guides
+- **[Anthropic Backend Configuration](reference/ANTHROPIC_CONFIGURATION.md)** - Credential, endpoint, model, and provider precedence
+- **[LiteLLM Gateway](howto/LITELLM_GATEWAY.md)** - Route Anthropic-compatible requests through LiteLLM
+- **[GitHub Copilot Backend](copilot-backend.md)** - Use models from a GitHub Copilot subscription
 - **[MCP Prompts](MCP_PROMPTS.md)** - Model Context Protocol prompts
 - **[MCP Serve](MCP_SERVE.md)** - MCP server setup
 - **[HTTP MCP Transport](HTTP_MCP_TRANSPORT.md)** - HTTP transport for MCP
@@ -65,9 +68,11 @@ Complete documentation for RustyClawd - Claude Code compatible CLI and SDK in Ru
 ### I want to integrate RustyClawd
 
 1. Read main **[README.md](../README.md)** - Installation and usage
-2. Read **[MCP Integration](MCP_SERVE.md)** - MCP server setup
-3. Read **[HTTP Transport](HTTP_MCP_TRANSPORT.md)** - HTTP MCP transport
-4. Check **examples/** directory - Integration examples
+2. Read **[Anthropic Backend Configuration](reference/ANTHROPIC_CONFIGURATION.md)** - Configure Anthropic credentials, endpoints, and models
+3. Read **[LiteLLM Gateway](howto/LITELLM_GATEWAY.md)** - Configure a LiteLLM workflow
+4. Read **[MCP Integration](MCP_SERVE.md)** - MCP server setup
+5. Read **[HTTP Transport](HTTP_MCP_TRANSPORT.md)** - HTTP MCP transport
+6. Check **examples/** directory - Integration examples
 
 ### I want to contribute
 

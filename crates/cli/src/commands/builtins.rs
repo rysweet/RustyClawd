@@ -7,6 +7,7 @@
 use crate::auto_memory::{AutoMemory, MemoryScope};
 use crate::commands::parser::Command;
 use crate::scheduled_tasks::parse_interval;
+use rustyclawd_core::client::has_anthropic_env_credential;
 
 /// Recognized terminal emulators for /terminal-setup
 enum Terminal {
@@ -145,20 +146,20 @@ impl BuiltinCommands {
         "[[OPEN_PERMISSIONS_MODAL]]".to_string()
     }
 
-    /// /login - Check authentication status via ANTHROPIC_API_KEY env var
+    /// /login - Check Anthropic environment credential status.
     fn login_command() -> String {
-        let has_api_key = std::env::var("ANTHROPIC_API_KEY").is_ok();
-
-        if has_api_key {
-            "Authentication status: ANTHROPIC_API_KEY environment variable is set.\n\n\
+        if has_anthropic_env_credential() {
+            "Authentication status: An Anthropic environment credential is configured.\n\n\
              Full account login flow (OAuth browser authentication) is not yet implemented.\n\
-             Currently, authentication is handled via the ANTHROPIC_API_KEY environment variable."
+             ANTHROPIC_AUTH_TOKEN is preferred; compatible ANTHROPIC_API_KEY values remain supported."
                 .to_string()
         } else {
-            "Authentication status: ANTHROPIC_API_KEY environment variable is NOT set.\n\n\
-             To authenticate, set your API key:\n\
-             export ANTHROPIC_API_KEY=your-key-here\n\n\
-             You can find your API key at: https://console.anthropic.com\n\n\
+            "Authentication status: No Anthropic environment credential is configured.\n\n\
+             To authenticate, set the preferred token:\n\
+             export ANTHROPIC_AUTH_TOKEN=YOUR_SYNTHETIC_GATEWAY_TOKEN\n\n\
+             Or set a compatible Anthropic API key:\n\
+             export ANTHROPIC_API_KEY=YOUR_SYNTHETIC_ANTHROPIC_API_KEY\n\n\
+             You can create an API key at: https://console.anthropic.com\n\n\
              Full account login flow (OAuth browser authentication) is not yet implemented."
                 .to_string()
         }
@@ -217,8 +218,8 @@ impl BuiltinCommands {
     /// Returns IPC marker for TUI to handle logout safely
     fn logout_command() -> String {
         "[[LOGOUT]]\n\n\
-         To complete logout, unset ANTHROPIC_API_KEY in your shell:\n  \
-         unset ANTHROPIC_API_KEY\n\n\
+         To complete logout, unset Anthropic environment credentials in your shell:\n  \
+         unset ANTHROPIC_AUTH_TOKEN ANTHROPIC_API_KEY\n\n\
          Or remove it from your shell configuration (e.g., ~/.bashrc, ~/.zshrc)."
             .to_string()
     }
@@ -547,7 +548,7 @@ impl BuiltinCommands {
         let cwd = std::env::current_dir()
             .map(|p| p.display().to_string())
             .unwrap_or_else(|_| "unknown".to_string());
-        let has_api_key = std::env::var("ANTHROPIC_API_KEY").is_ok();
+        let has_api_key = has_anthropic_env_credential();
         let model = std::env::var("ANTHROPIC_MODEL").unwrap_or_else(|_| "default".to_string());
         let is_nested = std::env::var("CLAUDE_CODE_NESTED_GUARD").is_ok();
 

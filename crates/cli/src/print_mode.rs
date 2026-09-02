@@ -5,6 +5,7 @@
 //! system prompt overrides, and hook integration.
 
 use anyhow::{Context as AnyhowContext, Result};
+use rustyclawd::model_resolution;
 use rustyclawd_core::client::response::MessageResponse;
 use rustyclawd_core::client::ToolLoopEvent;
 use serde_json::Value as JsonValue;
@@ -319,11 +320,11 @@ impl App {
     /// Run in print mode (one-shot execution) - matches Claude Code's behavior
     pub(crate) async fn run_print_mode(&mut self, prompt: &str) -> Result<()> {
         use rustyclawd_core::client::{
-            Backend, Client, Config, CreateMessageRequest, Message as ApiMessage,
+            Backend, Client, CreateMessageRequest, Message as ApiMessage,
         };
 
         // Determine the API backend
-        let backend = self
+        let explicit_provider = self
             .cli
             .provider
             .as_deref()
@@ -335,8 +336,8 @@ impl App {
                     )
                 })
             })
-            .transpose()?
-            .unwrap_or(Backend::Anthropic);
+            .transpose()?;
+        let backend = explicit_provider.unwrap_or(Backend::Anthropic);
 
         // Handle --list-models (early exit)
         if self.cli.list_models {
@@ -346,27 +347,49 @@ impl App {
         // Create client for the selected backend.
         // When no --provider is specified (backend == Anthropic by default),
         // fall back to Copilot if no Anthropic API key is found.
-        let (client, backend) = match backend {
+        let (client, backend, model) = match backend {
             Backend::Copilot => (
                 Client::new_copilot()
                     .await
                     .context("Failed to initialize Copilot backend")?,
                 Backend::Copilot,
+                model_resolution::resolve_model(
+                    Backend::Copilot,
+                    self.cli.model.as_deref(),
+                    self.settings.model.as_deref(),
+                    model_resolution::RuntimeMode::Print,
+                ),
             ),
             Backend::Anthropic => {
-                match Config::from_default_location().await {
-                    Ok(config) => (Client::new(config)?, Backend::Anthropic),
+                match model_resolution::resolve_anthropic_config(
+                    self.cli.model.as_deref(),
+                    self.settings.model.as_deref(),
+                    self.settings.api_url.as_deref(),
+                    model_resolution::RuntimeMode::Print,
+                )
+                .await
+                {
+                    Ok(resolved) => {
+                        let client = Client::new(resolved.config)?;
+                        (client, Backend::Anthropic, resolved.model)
+                    }
                     Err(rustyclawd_core::client::ClientError::ApiKeyNotFound)
-                        if self.cli.provider.is_none() =>
+                        if model_resolution::copilot_fallback_eligible(explicit_provider) =>
                     {
                         // No Anthropic key and no explicit --provider: try Copilot
                         match Client::new_copilot().await {
                             Ok(c) => {
                                 eprintln!(
-                                    "No Anthropic API key found. \
+                                    "No Anthropic credential found. \
                                      Using GitHub Copilot backend (detected via gh auth)."
                                 );
-                                (c, Backend::Copilot)
+                                let model = model_resolution::resolve_model(
+                                    Backend::Copilot,
+                                    self.cli.model.as_deref(),
+                                    self.settings.model.as_deref(),
+                                    model_resolution::RuntimeMode::Print,
+                                );
+                                (c, Backend::Copilot, model)
                             }
                             Err(_) => {
                                 // Neither backend works — show the Anthropic error
@@ -403,6 +426,12 @@ impl App {
                 (
                     Client::new_azure_foundry(endpoint, deployment, api_version)?,
                     Backend::AzureFoundry,
+                    model_resolution::resolve_model(
+                        Backend::AzureFoundry,
+                        self.cli.model.as_deref(),
+                        self.settings.model.as_deref(),
+                        model_resolution::RuntimeMode::Print,
+                    ),
                 )
             }
         };
@@ -446,46 +475,12 @@ impl App {
             }
         }
 
-        // Model configuration - resolve aliases and defaults based on backend
-        let is_copilot = backend == Backend::Copilot;
-
-        fn resolve_model(alias: &str, copilot: bool) -> String {
-            if copilot {
-                match alias {
-                    "sonnet" => "claude-sonnet-4.6".to_string(),
-                    "opus" => "claude-opus-4.6".to_string(),
-                    "haiku" => "claude-haiku-4.5".to_string(),
-                    custom => custom.to_string(),
-                }
-            } else {
-                match alias {
-                    "sonnet" => "claude-sonnet-4-6".to_string(),
-                    "opus" => "claude-opus-4-6".to_string(),
-                    "haiku" => "claude-haiku-4-5-20251001".to_string(),
-                    custom => custom.to_string(),
-                }
-            }
-        }
-
-        let model = self
-            .cli
-            .model
-            .as_deref()
-            .map(|m| resolve_model(m, is_copilot))
-            .unwrap_or_else(|| {
-                if is_copilot {
-                    "claude-sonnet-4.6".to_string()
-                } else {
-                    "claude-sonnet-4-6".to_string()
-                }
-            });
-
         // Fallback model configuration (if specified)
         let fallback_model = self
             .cli
             .fallback_model
             .as_deref()
-            .map(|m| resolve_model(m, is_copilot));
+            .map(|model| model_resolution::resolve_model_name(model, backend));
 
         let max_tokens = 4096u32; // Default max tokens (not configurable in official spec)
 
