@@ -128,6 +128,7 @@ mod tests {
                 "GIT_INDEX_FILE",
                 "GIT_OBJECT_DIRECTORY",
                 "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+                "GIT_CONFIG_COUNT",
             ];
             let saved = vars
                 .into_iter()
@@ -189,6 +190,10 @@ mod tests {
         Command::new("git")
             .args(["commit", "-m", "Initial commit"])
             .current_dir(temp_dir.path())
+            .env("GIT_AUTHOR_NAME", "Test User")
+            .env("GIT_AUTHOR_EMAIL", "test@example.com")
+            .env("GIT_COMMITTER_NAME", "Test User")
+            .env("GIT_COMMITTER_EMAIL", "test@example.com")
             .output()
             .expect("Failed to commit");
 

@@ -1018,7 +1018,7 @@ mod tests {
                     (
                         None,
                         Some("synthetic-settings-model"),
-                        "synthetic-settings-model",
+                        "synthetic-environment-model",
                     ),
                     (None, None, "synthetic-environment-model"),
                 ];

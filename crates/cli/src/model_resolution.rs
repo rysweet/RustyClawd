@@ -27,15 +27,37 @@ pub async fn resolve_anthropic_config(
     settings_api_url: Option<&str>,
     runtime_mode: RuntimeMode,
 ) -> ClientResult<ResolvedAnthropicConfig> {
+    let gateway_route_is_explicit = explicit_gateway_route_from_env();
     let mut config = Config::from_default_location().await?;
-    if let Some(api_url) = settings_api_url.and_then(non_empty) {
-        config = config.with_api_url(api_url.to_string());
+    if !gateway_route_is_explicit {
+        if let Some(api_url) = settings_api_url.and_then(non_empty) {
+            config = config.with_api_url(api_url.to_string());
+        }
     }
 
     Ok(ResolvedAnthropicConfig {
         config,
-        model: resolve_model(Backend::Anthropic, cli_model, settings_model, runtime_mode),
+        model: resolve_model(
+            Backend::Anthropic,
+            cli_model,
+            (!gateway_route_is_explicit)
+                .then_some(settings_model)
+                .flatten(),
+            runtime_mode,
+        ),
     })
+}
+
+fn explicit_gateway_route_from_env() -> bool {
+    ["ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL"]
+        .iter()
+        .all(|name| {
+            std::env::var(name)
+                .ok()
+                .as_deref()
+                .and_then(non_empty)
+                .is_some()
+        })
 }
 
 /// Resolve the effective model using CLI, settings, environment, and backend defaults.
@@ -303,7 +325,7 @@ mod tests {
 
     #[tokio::test]
     #[serial]
-    async fn anthropic_resolver_applies_settings_endpoint_over_environment() {
+    async fn explicit_gateway_route_overrides_settings_endpoint_and_model() {
         let _env = SavedEnv::set(&[
             ("ANTHROPIC_AUTH_TOKEN", "synthetic-resolver-token"),
             (
@@ -324,9 +346,33 @@ mod tests {
 
         assert_eq!(
             resolved.config.api_url,
+            "https://environment.synthetic.invalid"
+        );
+        assert_eq!(resolved.model, "environment-model");
+        assert_eq!(resolved.config.backend, Backend::Anthropic);
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn settings_still_override_api_key_only_anthropic_configuration() {
+        let _env = SavedEnv::set(&[
+            ("ANTHROPIC_API_KEY", "sk-ant-synthetic-resolver-key"),
+            ("ANTHROPIC_MODEL", "environment-model"),
+        ]);
+
+        let resolved = resolve_anthropic_config(
+            None,
+            Some("settings-model"),
+            Some(" https://settings.synthetic.invalid/gateway/ "),
+            RuntimeMode::Print,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            resolved.config.api_url,
             "https://settings.synthetic.invalid/gateway"
         );
         assert_eq!(resolved.model, "settings-model");
-        assert_eq!(resolved.config.backend, Backend::Anthropic);
     }
 }

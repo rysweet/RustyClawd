@@ -217,7 +217,7 @@ async fn cli_model_takes_precedence_over_anthropic_model_in_print_mode() {
 }
 
 #[tokio::test]
-async fn settings_model_takes_precedence_over_anthropic_model_in_print_mode() {
+async fn explicit_gateway_model_takes_precedence_over_settings_in_print_mode() {
     let server = MockServer::start().await;
 
     let output = run_print(&server, &["--settings", SETTINGS_FIXTURE]).await;
@@ -227,11 +227,11 @@ async fn settings_model_takes_precedence_over_anthropic_model_in_print_mode() {
         "print mode failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert_eq!(only_request_body(&server).await["model"], SETTINGS_MODEL);
+    assert_eq!(only_request_body(&server).await["model"], ENV_MODEL);
 }
 
 #[tokio::test]
-async fn settings_api_url_wins_at_the_cli_http_boundary() {
+async fn explicit_gateway_route_wins_at_the_cli_http_boundary() {
     let environment_server = MockServer::start().await;
     let settings_server = MockServer::start().await;
     Mock::given(method("POST"))
@@ -246,7 +246,7 @@ async fn settings_api_url_wins_at_the_cli_http_boundary() {
             "usage": {"input_tokens": 1, "output_tokens": 1}
         })))
         .expect(1)
-        .mount(&settings_server)
+        .mount(&environment_server)
         .await;
 
     let temp_dir = TempDir::new().expect("create isolated settings directory");
@@ -262,6 +262,7 @@ async fn settings_api_url_wins_at_the_cli_http_boundary() {
     .expect("write settings fixture");
 
     let binary = assert_cmd::cargo::cargo_bin!("rusty");
+    let environment_api_url = environment_server.uri();
     let output = tokio::task::spawn_blocking(move || {
         std::process::Command::new(binary)
             .args(["--print", "--provider", "anthropic", "--settings"])
@@ -271,7 +272,7 @@ async fn settings_api_url_wins_at_the_cli_http_boundary() {
             .env_remove("CLAUDE_MODEL")
             .env_remove("CLAUDE_API_URL")
             .env("ANTHROPIC_AUTH_TOKEN", AUTH_TOKEN)
-            .env("ANTHROPIC_BASE_URL", environment_server.uri())
+            .env("ANTHROPIC_BASE_URL", environment_api_url)
             .env("ANTHROPIC_MODEL", ENV_MODEL)
             .output()
             .expect("run rusty with settings API URL")
@@ -285,13 +286,18 @@ async fn settings_api_url_wins_at_the_cli_http_boundary() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert_eq!(
-        settings_server
+        environment_server
             .received_requests()
             .await
-            .expect("settings request recording")
+            .expect("gateway request recording")
             .len(),
         1
     );
+    assert!(settings_server
+        .received_requests()
+        .await
+        .expect("settings request recording")
+        .is_empty());
 }
 
 #[test]
