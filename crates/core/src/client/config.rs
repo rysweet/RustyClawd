@@ -393,6 +393,36 @@ mod tests {
     use super::*;
     use serial_test::serial;
 
+    struct AnthropicEnvGuard {
+        auth_token: Option<std::ffi::OsString>,
+        api_key: Option<std::ffi::OsString>,
+    }
+
+    impl AnthropicEnvGuard {
+        fn new() -> Self {
+            let guard = Self {
+                auth_token: std::env::var_os("ANTHROPIC_AUTH_TOKEN"),
+                api_key: std::env::var_os("ANTHROPIC_API_KEY"),
+            };
+            std::env::remove_var("ANTHROPIC_AUTH_TOKEN");
+            std::env::remove_var("ANTHROPIC_API_KEY");
+            guard
+        }
+    }
+
+    impl Drop for AnthropicEnvGuard {
+        fn drop(&mut self) {
+            match &self.auth_token {
+                Some(value) => std::env::set_var("ANTHROPIC_AUTH_TOKEN", value),
+                None => std::env::remove_var("ANTHROPIC_AUTH_TOKEN"),
+            }
+            match &self.api_key {
+                Some(value) => std::env::set_var("ANTHROPIC_API_KEY", value),
+                None => std::env::remove_var("ANTHROPIC_API_KEY"),
+            }
+        }
+    }
+
     #[test]
     fn test_api_key_format_validation() {
         // Valid key
@@ -424,17 +454,13 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn test_api_key_from_env() {
-        // Clear any existing env var first to avoid test interference
-        std::env::remove_var("ANTHROPIC_API_KEY");
+        let _env = AnthropicEnvGuard::new();
 
         // Set env var and verify it's loaded
         let test_key = "sk-ant-test123456789";
         std::env::set_var("ANTHROPIC_API_KEY", test_key);
 
         let result = ApiKey::from_default_location().await;
-
-        // Clean up
-        std::env::remove_var("ANTHROPIC_API_KEY");
 
         assert!(result.is_ok(), "Expected Ok, got: {:?}", result);
         let key = result.unwrap();
@@ -444,13 +470,11 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn test_api_key_from_env_empty_string_ignored() {
-        // Clear any existing env var first
-        std::env::remove_var("ANTHROPIC_API_KEY");
+        let _env = AnthropicEnvGuard::new();
 
         // Empty env var should be ignored
         std::env::set_var("ANTHROPIC_API_KEY", "");
         let result = ApiKey::try_from_env();
-        std::env::remove_var("ANTHROPIC_API_KEY");
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
     }
@@ -458,13 +482,11 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn test_api_key_from_env_invalid_format() {
-        // Clear any existing env var first
-        std::env::remove_var("ANTHROPIC_API_KEY");
+        let _env = AnthropicEnvGuard::new();
 
         // Invalid format should return error
         std::env::set_var("ANTHROPIC_API_KEY", "invalid-key");
         let result = ApiKey::from_default_location().await;
-        std::env::remove_var("ANTHROPIC_API_KEY");
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), ClientError::InvalidApiKey));
     }
@@ -487,8 +509,9 @@ mod tests {
         use std::env;
         use std::fs;
 
+        let _env = AnthropicEnvGuard::new();
+
         // Clean up first
-        env::remove_var("ANTHROPIC_API_KEY");
         let _ = fs::remove_file(".env");
 
         // Create .env file
