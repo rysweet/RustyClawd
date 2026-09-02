@@ -41,4 +41,5 @@ rand = "0.9"
 tracing-subscriber = { workspace = true }
 tokio = { workspace = true }
 serial_test = "3.0"
+tempfile = "3.8"
 wiremock = "0.6"
